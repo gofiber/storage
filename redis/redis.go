@@ -6,7 +6,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-func NewRedisStore(dialFunc func() (redis.Conn, error), redisKey string) *RedisStore {
+func New(dialFunc func() (redis.Conn, error), redisKey string) *RedisStore {
 	return &RedisStore{
 		connPool: redis.NewPool(dialFunc, 3),
 		redisKey: redisKey,

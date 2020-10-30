@@ -22,7 +22,7 @@ var (
 func Test_Set(t *testing.T) {
 
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	val := []byte("This is a value")
@@ -49,7 +49,7 @@ func Test_Set(t *testing.T) {
 func Test_SetExpiry(t *testing.T) {
 
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	val := []byte("This is a value")
@@ -79,7 +79,7 @@ func Test_SetExpiry(t *testing.T) {
 func Test_Get(t *testing.T) {
 
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	val := []byte("This is a value")
@@ -100,7 +100,7 @@ func Test_Get(t *testing.T) {
 func Test_Delete(t *testing.T) {
 
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	formedKey := fmt.Sprintf("%s:%s", topLevelKey, key)
@@ -125,7 +125,7 @@ func Test_Delete(t *testing.T) {
 func Test_Clear(t *testing.T) {
 
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key1 := "aaaa"
 	key2 := "bbbb"
@@ -157,7 +157,7 @@ func Test_Clear(t *testing.T) {
 
 func Benchmark_Set(b *testing.B) {
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	val := []byte("This is a value")
@@ -174,7 +174,7 @@ func Benchmark_Set(b *testing.B) {
 
 func Benchmark_Get(b *testing.B) {
 	topLevelKey := "store"
-	store := NewRedisStore(getConn, topLevelKey)
+	store := New(getConn, topLevelKey)
 
 	key := "aaaa"
 	val := []byte("This is a value")
