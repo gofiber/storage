@@ -69,10 +69,14 @@ func Test_SetExpiry(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, true, exists)
 
-	ttl, err := redis.Int(redisConn.Do("TTL", key))
+	ttl, err := redis.Int64(redisConn.Do("TTL", key))
 	utils.AssertEqual(t, nil, err)
-	if !(float64(ttl) <= expiry.Seconds() && float64(ttl) > expiry.Seconds()-5) {
-		t.Fatalf("Test_SetExpiry: expiry out of bounds (is %d, must be %d<x<=%d)", ttl, int64(expiry.Seconds())-5, int64(expiry.Seconds()))
+
+	upperBound := int64(expiry.Seconds())
+	lowerBound := upperBound - 5
+
+	if !(ttl <= upperBound && ttl > lowerBound) {
+		t.Fatalf("Test_SetExpiry: expiry out of bounds (is %d, must be %d<x<=%d)", ttl, lowerBound, upperBound)
 	}
 }
 
