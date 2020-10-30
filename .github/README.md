@@ -4,6 +4,7 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 
 ## 📑 Contents
 
+* [In-memory](/memory)
 * [Memcached](/memcached)
 * [MongoDB](/mongodb)
 * [MySQL](/mysql)
