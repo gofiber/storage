@@ -6,15 +6,22 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+func NewRedisStore(dialFunc func() (redis.Conn, error), redisKey string) *RedisStore {
+	return &RedisStore{
+		connPool: redis.NewPool(dialFunc, 3),
+		redisKey: redisKey,
+	}
+}
+
 type RedisStore struct {
-	RedisKey string
-	ConnPool *redis.Pool
+	connPool *redis.Pool
+	redisKey string
 }
 
 func (rs RedisStore) Get(id string) ([]byte, error) {
-	redisConn := rs.ConnPool.Get()
+	redisConn := rs.connPool.Get()
 	defer redisConn.Close()
-	key := rs.RedisKey + ":" + id
+	key := rs.redisKey + ":" + id
 
 	exists, err := redis.Bool(redisConn.Do("EXISTS", key))
 
@@ -30,27 +37,29 @@ func (rs RedisStore) Get(id string) ([]byte, error) {
 }
 
 func (rs RedisStore) Set(id string, val []byte, expiration time.Duration) error {
-	redisConn := rs.ConnPool.Get()
+	redisConn := rs.connPool.Get()
 	defer redisConn.Close()
-	key := rs.RedisKey + ":" + id
-	_, err := redisConn.Do("SET", key, val)
-	if err != nil {
-		return err
+	key := rs.redisKey + ":" + id
+
+	var err error
+	if expiration != 0 {
+		_, err = redisConn.Do("SET", key, val, "EX", expiration.Seconds())
+	} else {
+		_, err = redisConn.Do("SET", key, val)
 	}
-	_, err = redisConn.Do("EXPIRE", key, expiration.Seconds())
 	return err
 }
 
 func (rs RedisStore) Clear() error {
 
-	redisConn := rs.ConnPool.Get()
+	redisConn := rs.connPool.Get()
 	defer redisConn.Close()
 
 	// The KEYS Redis command must NOT be used because of performance issues at high volumes.
 	// Instead, we use SCAN with a pattern and then delete each key individually using pipelining.
-	
+
 	// Get all keys to delete.
-	pattern := rs.RedisKey + ":*"
+	pattern := rs.redisKey + ":*"
 
 	rresp, err := redis.MultiBulk(redisConn.Do("SCAN", "0", "MATCH", pattern))
 	if err != nil {
@@ -66,7 +75,7 @@ func (rs RedisStore) Clear() error {
 	for i, key := range keysToRemove {
 
 		// Flush every 5000 commands
-		if i % 5000 == 0 {
+		if i%5000 == 0 {
 			err := redisConn.Flush()
 			if err != nil {
 				return err
@@ -81,9 +90,9 @@ func (rs RedisStore) Clear() error {
 }
 
 func (rs RedisStore) Delete(id string) error {
-	redisConn := rs.ConnPool.Get()
+	redisConn := rs.connPool.Get()
 	defer redisConn.Close()
-	key := rs.RedisKey + ":" + id
+	key := rs.redisKey + ":" + id
 	_, err := redisConn.Do("DEL", key)
 	return err
 }
