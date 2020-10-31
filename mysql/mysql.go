@@ -21,21 +21,21 @@ func New(config ...Config) Storage {
 }
 
 // Get value by key
-func (store Storage) Get(key string) ([]byte, error) {
+func (store *Storage) Get(key string) ([]byte, error) {
 	return []byte{}, nil
 }
 
 // Set key with value
-func (store Storage) Set(key string, val []byte, exp time.Duration) error {
+func (store *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return nil
 }
 
 // Delete key by key
-func (store Storage) Delete(key string) error {
+func (store *Storage) Delete(key string) error {
 	return nil
 }
 
 // Clear all keys
-func (store Storage) Clear() error {
+func (store *Storage) Clear() error {
 	return nil
 }

@@ -58,7 +58,7 @@ func New(config ...Config) Storage {
 }
 
 // Get value by key
-func (store Storage) Get(key string) ([]byte, error) {
+func (store *Storage) Get(key string) ([]byte, error) {
 	val, err := store.db.Get(context.Background(), key).Bytes()
 	if err != nil {
 		if err != redis.Nil {
@@ -70,16 +70,16 @@ func (store Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-func (store Storage) Set(key string, val []byte, exp time.Duration) error {
+func (store *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return store.db.Set(context.Background(), key, val, exp).Err()
 }
 
 // Delete key by key
-func (store Storage) Delete(key string) error {
+func (store *Storage) Delete(key string) error {
 	return store.db.Del(context.Background(), key).Err()
 }
 
 // Clear all keys
-func (store Storage) Clear() error {
+func (store *Storage) Clear() error {
 	return store.db.FlushDB(context.Background()).Err()
 }
