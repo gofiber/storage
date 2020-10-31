@@ -1,88 +1,103 @@
-package memoryStore
+package memory
 
 import (
 	"sync"
 	"time"
 )
 
-func New() *MemoryStore {
-	ms := &MemoryStore{
-		data:       make(map[string]dataPoint),
-		gcInterval: time.Second * 10,
-	}
-	go ms.gc()
-	return ms
-}
-
-type MemoryStore struct {
+// Storage interface that is implemented by storage providers
+type Storage struct {
 	mux        sync.RWMutex
-	data       map[string]dataPoint
+	db         map[string]entry
 	gcInterval time.Duration
 }
 
-type dataPoint struct {
+type entry struct {
 	data   []byte
 	expiry int64
 }
 
-func (ms *MemoryStore) Get(id string) ([]byte, error) {
-	ms.mux.RLock()
-	v, ok := ms.data[id]
-	ms.mux.RUnlock()
+// New creates a new memory storage
+func New(config ...Config) *Storage {
+	// Set default config
+	cfg := ConfigDefault
+
+	// Override config if provided
+	if len(config) > 0 {
+		cfg = configDefault(config[0])
+	}
+
+	// Create storage
+	store := &Storage{
+		db:         make(map[string]entry),
+		gcInterval: cfg.GCInterval,
+	}
+
+	// start garbage collector
+	go store.gc()
+
+	return store
+}
+
+// Get value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	s.mux.RLock()
+	v, ok := s.db[key]
+	s.mux.RUnlock()
 	if !ok {
-		return []byte{}, nil
+		return nil, nil
 	}
 
 	if v.expiry < time.Now().Unix() && v.expiry != 0 {
-		ms.Delete(id)
-		return []byte{}, nil
+		s.Delete(key)
+		return nil, nil
 	}
 
 	return v.data, nil
 }
 
-func (ms *MemoryStore) Set(id string, val []byte, expiration time.Duration) error {
-
-	var expirationTime int64
-	if expiration != 0 {
-		expirationTime = time.Now().Add(expiration).Unix()
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	var expire int64
+	if exp != 0 {
+		expire = time.Now().Add(exp).Unix()
 	}
 
-	ms.mux.Lock()
-	ms.data[id] = dataPoint{val, expirationTime}
-	ms.mux.Unlock()
+	s.mux.Lock()
+	s.db[key] = entry{val, expire}
+	s.mux.Unlock()
 	return nil
 }
 
-func (ms *MemoryStore) Delete(id string) error {
-	ms.mux.Lock()
-	delete(ms.data, id)
-	ms.mux.Unlock()
+// Delete key by key
+func (s *Storage) Delete(key string) error {
+	s.mux.Lock()
+	delete(s.db, key)
+	s.mux.Unlock()
 	return nil
 }
 
-func (ms *MemoryStore) Clear() error {
-	ms.mux.Lock()
-	ms.data = make(map[string]dataPoint)
-	ms.mux.Unlock()
+// Clear all keys
+func (s *Storage) Clear() error {
+	s.mux.Lock()
+	s.db = make(map[string]entry)
+	s.mux.Unlock()
 	return nil
 }
 
-func (ms *MemoryStore) gc() {
-	tick := time.NewTicker(ms.gcInterval)
+func (s *Storage) gc() {
+	tick := time.NewTicker(s.gcInterval)
 	for {
 		<-tick.C
 
-		ms.mux.Lock()
+		s.mux.Lock()
 
 		now := time.Now().Unix()
-		for id, v := range ms.data {
+		for id, v := range s.db {
 			if v.expiry < now && v.expiry != 0 {
-				delete(ms.data, id)
+				delete(s.db, id)
 			}
 		}
-
-		ms.mux.Unlock()
-
+		s.mux.Unlock()
 	}
 }

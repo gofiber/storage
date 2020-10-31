@@ -5,5 +5,5 @@ An in-memory storage driver.
 ### Creation
 
 ```go
-store := memoryStore.New()
+store := memory.New()
 ```

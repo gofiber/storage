@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/aws/aws-sdk-go v1.35.19 // indirect
 	github.com/go-redis/redis/v8 v8.3.3
+	github.com/gofiber/fiber/v2 v2.1.2
 	github.com/gofiber/utils v0.0.10
 	github.com/golang/snappy v0.0.2 // indirect
 	github.com/gomodule/redigo v1.8.2

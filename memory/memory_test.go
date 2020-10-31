@@ -1,10 +1,10 @@
-package memoryStore
+package memory
 
 import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/utils"
+	"github.com/gofiber/fiber/v2/utils"
 )
 
 func Test_Set(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_Set(t *testing.T) {
 
 	store.Set(id, value, 0)
 
-	utils.AssertEqual(t, dataPoint{value, 0}, store.data[id])
+	utils.AssertEqual(t, entry{value, 0}, store.db[id])
 
 }
 
@@ -31,7 +31,7 @@ func Test_SetExpiry(t *testing.T) {
 	store.Set(id, value, expiry)
 
 	now := time.Now().Unix()
-	fromStore, found := store.data[id]
+	fromStore, found := store.db[id]
 	utils.AssertEqual(t, true, found)
 
 	delta := fromStore.expiry - now
@@ -47,8 +47,8 @@ func Test_SetExpiry(t *testing.T) {
 func Test_GC(t *testing.T) {
 
 	// New() isn't being used here so the gcInterval can be set low
-	store := &MemoryStore{
-		data:       make(map[string]dataPoint),
+	store := &Storage{
+		db:         make(map[string]entry),
 		gcInterval: time.Second * 1,
 	}
 	go store.gc()
@@ -58,11 +58,11 @@ func Test_GC(t *testing.T) {
 
 	expireAt := time.Now().Add(time.Second * 2).Unix()
 
-	store.data[id] = dataPoint{value, expireAt}
+	store.db[id] = entry{value, expireAt}
 
 	time.Sleep(time.Second * 4) // The purpose of the long delay is to ensure the GC has time to run and delete the value
 
-	_, found := store.data[id]
+	_, found := store.db[id]
 	utils.AssertEqual(t, false, found)
 
 }
@@ -74,7 +74,7 @@ func Test_Get(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.data[id] = dataPoint{value, 0}
+	store.db[id] = entry{value, 0}
 
 	returnedValue, err := store.Get(id)
 	utils.AssertEqual(t, nil, err)
@@ -89,12 +89,12 @@ func Test_Delete(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.data[id] = dataPoint{value, 0}
+	store.db[id] = entry{value, 0}
 
 	err := store.Delete(id)
 	utils.AssertEqual(t, nil, err)
 
-	_, found := store.data[id]
+	_, found := store.db[id]
 	utils.AssertEqual(t, false, found)
 
 }
@@ -106,11 +106,11 @@ func Test_Clear(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.data[id] = dataPoint{value, 0}
+	store.db[id] = entry{value, 0}
 
 	err := store.Clear()
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, make(map[string]dataPoint), store.data)
+	utils.AssertEqual(t, make(map[string]entry), store.db)
 
 }
 
@@ -137,7 +137,7 @@ func Benchmark_Get(b *testing.B) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.data[id] = dataPoint{value, 0}
+	store.db[id] = entry{value, 0}
 
 	b.ResetTimer()
 
