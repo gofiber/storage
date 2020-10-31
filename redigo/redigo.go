@@ -82,7 +82,7 @@ func (rs RedisStore) Clear() error {
 			}
 		}
 
-		redisConn.Send("DEL", key)
+		_ = redisConn.Send("DEL", key)
 	}
 
 	// One final flush to send any remaining commands

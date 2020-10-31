@@ -2,10 +2,11 @@ package mongodb
 
 import (
 	"context"
-	"github.com/gofiber/utils"
-	"go.mongodb.org/mongo-driver/bson"
 	"os"
 	"testing"
+
+	"github.com/gofiber/utils"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 const (
@@ -34,9 +35,12 @@ func contains(arr []string, item string) bool {
 }
 
 func TestMongoStore_Set_Get(t *testing.T) {
+	if uri == "" {
+		t.Skip()
+	}
 	store := New(getConfig())
 	defer func() {
-		_ = store.DB.Client().Disconnect(context.TODO())
+		_ = store.db.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key"
@@ -50,9 +54,12 @@ func TestMongoStore_Set_Get(t *testing.T) {
 }
 
 func TestMongoStore_Delete(t *testing.T) {
+	if uri == "" {
+		t.Skip()
+	}
 	store := New(getConfig())
 	defer func() {
-		_ = store.DB.Client().Disconnect(context.TODO())
+		_ = store.db.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key_2"
@@ -67,20 +74,23 @@ func TestMongoStore_Delete(t *testing.T) {
 }
 
 func TestMongoStore_Clear(t *testing.T) {
+	if uri == "" {
+		t.Skip()
+	}
 	store := New(getConfig())
 	defer func() {
-		_ = store.DB.Client().Disconnect(context.TODO())
+		_ = store.db.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key_2"
 	value := []byte("123")
 
 	_ = store.Set(key, value, 10)
-	names, _ := store.DB.ListCollectionNames(context.TODO(), bson.D{})
+	names, _ := store.db.ListCollectionNames(context.TODO(), bson.D{})
 
 	utils.AssertEqual(t, true, contains(names, colName), "has collection")
 	_ = store.Clear()
 
-	names2, _ := store.DB.ListCollectionNames(context.TODO(), bson.D{})
+	names2, _ := store.db.ListCollectionNames(context.TODO(), bson.D{})
 	utils.AssertEqual(t, false, contains(names2, colName), "do not have collection")
 }

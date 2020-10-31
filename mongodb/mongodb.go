@@ -12,7 +12,7 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	DB  *mongo.Database
+	db  *mongo.Database
 	col *mongo.Collection
 }
 
@@ -77,8 +77,7 @@ func New(config ...Config) *Storage {
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 20*time.Second)
 	defer cancel()
-	err = client.Connect(ctx)
-	if err != nil {
+	if err = client.Connect(ctx); err != nil {
 		panic(err)
 	}
 
@@ -101,7 +100,7 @@ func New(config ...Config) *Storage {
 	}
 
 	return &Storage{
-		DB:  db,
+		db:  db,
 		col: col,
 	}
 }

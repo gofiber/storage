@@ -2,6 +2,7 @@ package redigo
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -13,14 +14,16 @@ import (
 // The Redis address can be changed using the redisLocation variable.
 
 var (
-	redisLocation = "127.0.0.1:6379"
-	getConn       = func() (redis.Conn, error) {
-		return redis.Dial("tcp", redisLocation)
+	uri     = os.Getenv("REDIGO_URI")
+	getConn = func() (redis.Conn, error) {
+		return redis.Dial("tcp", uri)
 	}
 )
 
 func Test_Set(t *testing.T) {
-
+	if uri == "" {
+		t.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -47,7 +50,9 @@ func Test_Set(t *testing.T) {
 }
 
 func Test_SetExpiry(t *testing.T) {
-
+	if uri == "" {
+		t.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -81,7 +86,9 @@ func Test_SetExpiry(t *testing.T) {
 }
 
 func Test_Get(t *testing.T) {
-
+	if uri == "" {
+		t.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -102,7 +109,9 @@ func Test_Get(t *testing.T) {
 }
 
 func Test_Delete(t *testing.T) {
-
+	if uri == "" {
+		t.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -127,7 +136,9 @@ func Test_Delete(t *testing.T) {
 }
 
 func Test_Clear(t *testing.T) {
-
+	if uri == "" {
+		t.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -160,6 +171,9 @@ func Test_Clear(t *testing.T) {
 }
 
 func Benchmark_Set(b *testing.B) {
+	if uri == "" {
+		b.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 
@@ -177,6 +191,9 @@ func Benchmark_Set(b *testing.B) {
 }
 
 func Benchmark_Get(b *testing.B) {
+	if uri == "" {
+		b.Skip()
+	}
 	topLevelKey := "store"
 	store := New(getConn, topLevelKey)
 

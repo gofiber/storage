@@ -1,28 +1,30 @@
 package sqlite3
 
-import (
-	"time"
-)
+import "time"
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
 }
 
-// Config defines the config for storage.
-type Config struct {
-}
-
-// ConfigDefault is the default config
-var ConfigDefault = Config{}
-
 // New creates a new storage
 func New(config ...Config) *Storage {
+	// Set default config
+	cfg := ConfigDefault
+
+	// Override config if provided
+	if len(config) > 0 {
+		cfg = configDefault(config[0])
+	}
+
+	// TODO
+	_ = cfg
+
 	return &Storage{}
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	return []byte{}, nil
+	return nil, nil
 }
 
 // Set key with value
