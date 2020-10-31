@@ -18,6 +18,10 @@ func main() {
 		Database: 	"_database", 
 		Collection: 	"_storage",
 	})
+   
+   // Access DB connection
+   // for disconnet for example
+   store.DB.Client().Disconnect(context.TODO())
 }
 
 ```
