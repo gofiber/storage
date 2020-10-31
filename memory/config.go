@@ -2,7 +2,7 @@ package memory
 
 import "time"
 
-// Config defines the config for memory storage.
+// Config defines the config for storage.
 type Config struct {
 	GCInterval time.Duration
 }

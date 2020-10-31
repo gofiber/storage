@@ -33,7 +33,7 @@ func New(config ...Config) *Storage {
 		gcInterval: cfg.GCInterval,
 	}
 
-	// start garbage collector
+	// Start garbage collector
 	go store.gc()
 
 	return store
