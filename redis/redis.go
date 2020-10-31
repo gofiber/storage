@@ -9,7 +9,7 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db *redis.Client
+	DB *redis.Client
 }
 
 // New creates a new redis storage
@@ -53,13 +53,13 @@ func New(config ...Config) *Storage {
 	}
 	// Create new store
 	return &Storage{
-		db: db,
+		DB: db,
 	}
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	val, err := s.db.Get(context.Background(), key).Bytes()
+	val, err := s.DB.Get(context.Background(), key).Bytes()
 	if err != nil {
 		if err != redis.Nil {
 			return nil, err
@@ -71,15 +71,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	return s.db.Set(context.Background(), key, val, exp).Err()
+	return s.DB.Set(context.Background(), key, val, exp).Err()
 }
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	return s.db.Del(context.Background(), key).Err()
+	return s.DB.Del(context.Background(), key).Err()
 }
 
 // Clear all keys
 func (s *Storage) Clear() error {
-	return s.db.FlushDB(context.Background()).Err()
+	return s.DB.FlushDB(context.Background()).Err()
 }

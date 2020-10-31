@@ -8,7 +8,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	mux        sync.RWMutex
-	db         map[string]entry
+	DB         map[string]entry
 	gcInterval time.Duration
 }
 
@@ -29,7 +29,7 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		db:         make(map[string]entry),
+		DB:         make(map[string]entry),
 		gcInterval: cfg.GCInterval,
 	}
 
@@ -42,7 +42,7 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
-	v, ok := s.db[key]
+	v, ok := s.DB[key]
 	s.mux.RUnlock()
 	if !ok {
 		return nil, nil
@@ -64,7 +64,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	s.mux.Lock()
-	s.db[key] = entry{val, expire}
+	s.DB[key] = entry{val, expire}
 	s.mux.Unlock()
 	return nil
 }
@@ -72,7 +72,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 // Delete key by key
 func (s *Storage) Delete(key string) error {
 	s.mux.Lock()
-	delete(s.db, key)
+	delete(s.DB, key)
 	s.mux.Unlock()
 	return nil
 }
@@ -80,7 +80,7 @@ func (s *Storage) Delete(key string) error {
 // Clear all keys
 func (s *Storage) Clear() error {
 	s.mux.Lock()
-	s.db = make(map[string]entry)
+	s.DB = make(map[string]entry)
 	s.mux.Unlock()
 	return nil
 }
@@ -93,9 +93,9 @@ func (s *Storage) gc() {
 		s.mux.Lock()
 
 		now := time.Now().Unix()
-		for id, v := range s.db {
+		for id, v := range s.DB {
 			if v.expiry < now && v.expiry != 0 {
-				delete(s.db, id)
+				delete(s.DB, id)
 			}
 		}
 		s.mux.Unlock()

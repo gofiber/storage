@@ -77,8 +77,7 @@ func New(config ...Config) *Storage {
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 20*time.Second)
 	defer cancel()
-	err = client.Connect(ctx)
-	if err != nil {
+	if err = client.Connect(ctx); err != nil {
 		panic(err)
 	}
 
