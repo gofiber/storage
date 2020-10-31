@@ -12,6 +12,8 @@ type Config struct {
 // ConfigDefault is the default config
 var ConfigDefault = Config{
 	GCInterval: 10 * time.Second,
+	FilePath:   "./db.sqlite3",
+	TableName:  "fiber",
 }
 
 // Helper function to set default values
@@ -20,10 +22,10 @@ func configDefault(cfg Config) Config {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	if cfg.FilePath == "" {
-		cfg.FilePath = "./db"
+		cfg.FilePath = ConfigDefault.FilePath
 	}
 	if cfg.TableName == "" {
-		cfg.TableName = "fiber"
+		cfg.TableName = ConfigDefault.TableName
 	}
 	return cfg
 }
