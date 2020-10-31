@@ -97,23 +97,23 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete key by key
+// Delete entry by key
 func (s *Storage) Delete(key string) error {
 	_, err := s.db.Exec(s.deleteQuery, key)
 	return err
 }
 
-// Clear all keys
+// Clear all entries, including unexpired
 func (s *Storage) Clear() error {
 	_, err := s.db.Exec(s.clearQuery)
 	return err
 }
 
-// Garbage collector to delete expired keys
+// GC deletes all expired entries
 func (s *Storage) gc() {
 	tick := time.NewTicker(s.gcInterval)
 	for {
 		<-tick.C
-		s.Clear()
+		s.db.Exec(s.gcQuery)
 	}
 }
