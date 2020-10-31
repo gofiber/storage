@@ -52,7 +52,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// Create db
-	db, err := sql.Open("sqlite3", cfg.TableName)
+	db, err := sql.Open("sqlite3", cfg.FilePath)
 	if err != nil {
 		panic(err)
 	}
@@ -114,6 +114,8 @@ func (s *Storage) gc() {
 	tick := time.NewTicker(s.gcInterval)
 	for {
 		<-tick.C
-		s.db.Exec(s.gcQuery)
+		if _, err := s.db.Exec(s.gcQuery); err != nil {
+			panic(err)
+		}
 	}
 }
