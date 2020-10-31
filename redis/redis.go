@@ -13,7 +13,7 @@ type Storage struct {
 }
 
 // New creates a new redis storage
-func New(config ...Config) Storage {
+func New(config ...Config) *Storage {
 	// Set default config
 	cfg := ConfigDefault
 
@@ -52,14 +52,14 @@ func New(config ...Config) Storage {
 		panic(err)
 	}
 	// Create new store
-	return Storage{
+	return &Storage{
 		db: db,
 	}
 }
 
 // Get value by key
-func (store *Storage) Get(key string) ([]byte, error) {
-	val, err := store.db.Get(context.Background(), key).Bytes()
+func (s *Storage) Get(key string) ([]byte, error) {
+	val, err := s.db.Get(context.Background(), key).Bytes()
 	if err != nil {
 		if err != redis.Nil {
 			return nil, err
@@ -70,16 +70,16 @@ func (store *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-func (store *Storage) Set(key string, val []byte, exp time.Duration) error {
-	return store.db.Set(context.Background(), key, val, exp).Err()
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.db.Set(context.Background(), key, val, exp).Err()
 }
 
 // Delete key by key
-func (store *Storage) Delete(key string) error {
-	return store.db.Del(context.Background(), key).Err()
+func (s *Storage) Delete(key string) error {
+	return s.db.Del(context.Background(), key).Err()
 }
 
 // Clear all keys
-func (store *Storage) Clear() error {
-	return store.db.FlushDB(context.Background()).Err()
+func (s *Storage) Clear() error {
+	return s.db.FlushDB(context.Background()).Err()
 }
