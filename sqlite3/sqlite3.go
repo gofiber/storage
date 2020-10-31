@@ -1,11 +1,35 @@
 package sqlite3
 
-import "time"
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/gofiber/utils"
+)
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	db         *sql.DB
 	gcInterval time.Duration
+
+	selectQuery string
+	insertQuery string
+	deleteQuery string
+	clearQuery  string
+	gcQuery     string
 }
+
+var (
+	migrateQuery = `
+		CREATE TABLE IF NOT EXISTS %s (
+			id VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+			key TEXT NOT NULL,
+			data TEXT NOT NULL,
+			exp BIGINT NOT NULL
+		);
+		`
+)
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -19,8 +43,19 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		gcInterval: cfg.GCInterval,
+		gcInterval:  cfg.GCInterval,
+		selectQuery: fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.TableName),
+		insertQuery: fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES (?,?,?)", cfg.TableName),
+		deleteQuery: fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.TableName),
+		clearQuery:  fmt.Sprintf("DELETE FROM %s;", cfg.TableName),
+		gcQuery:     fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.TableName),
 	}
+
+	db, err := sql.Open("sqlite3", cfg.TableName)
+	if err != nil {
+		panic(err)
+	}
+	store.db = db
 
 	// Start garbage collector
 	go store.gc()
@@ -30,22 +65,41 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	return nil, nil
+	row := s.db.QueryRow(s.selectQuery, key)
+
+	// Add db response to data
+	var (
+		data       = []byte{}
+		exp  int64 = 0
+	)
+	if err := row.Scan(&data, &exp); err != nil {
+		return nil, err
+	}
+
+	// If the expiration time has already passed, then return nil
+	if time.Now().After(time.Unix(exp, 0)) {
+		return nil, nil
+	}
+
+	return data, nil
 }
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	return nil
+	_, err := s.db.Exec(s.insertQuery, key, utils.GetString(val), time.Now().Add(exp).Unix())
+	return err
 }
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	return nil
+	_, err := s.db.Exec(s.deleteQuery, key)
+	return err
 }
 
 // Clear all keys
 func (s *Storage) Clear() error {
-	return nil
+	_, err := s.db.Exec(s.clearQuery)
+	return err
 }
 
 // Garbage collector to delete expired keys
@@ -53,6 +107,6 @@ func (s *Storage) gc() {
 	tick := time.NewTicker(s.gcInterval)
 	for {
 		<-tick.C
-		// clean entries
+		s.Clear()
 	}
 }
