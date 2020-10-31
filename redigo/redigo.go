@@ -26,11 +26,11 @@ func (rs RedisStore) Get(id string) ([]byte, error) {
 	exists, err := redis.Bool(redisConn.Do("EXISTS", key))
 
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	if !exists {
-		return []byte{}, nil
+		return nil, nil
 	}
 
 	return redis.Bytes(redisConn.Do("GET", key))
