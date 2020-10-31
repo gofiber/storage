@@ -9,8 +9,7 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	cfg Config
-	db  *redis.Client
+	db *redis.Client
 }
 
 // New creates a new redis storage
@@ -52,8 +51,7 @@ func New(config ...Config) Storage {
 	}
 	// Create new store
 	return Storage{
-		cfg: cfg,
-		db:  db,
+		db: db,
 	}
 }
 
