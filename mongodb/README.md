@@ -21,7 +21,9 @@ func main() {
    
    // Access DB connection
    // for disconnet for example
-   store.DB.Client().Disconnect(context.TODO())
+   if err := store.Close(); err != nil {
+     panic(err)
+    }
 }
 
 ```
