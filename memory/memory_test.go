@@ -16,7 +16,7 @@ func Test_Set(t *testing.T) {
 
 	store.Set(id, value, 0)
 
-	utils.AssertEqual(t, entry{value, 0}, store.DB[id])
+	utils.AssertEqual(t, entry{value, 0}, store.db[id])
 
 }
 
@@ -31,7 +31,7 @@ func Test_SetExpiry(t *testing.T) {
 	store.Set(id, value, expiry)
 
 	now := time.Now().Unix()
-	fromStore, found := store.DB[id]
+	fromStore, found := store.db[id]
 	utils.AssertEqual(t, true, found)
 
 	delta := fromStore.expiry - now
@@ -58,11 +58,11 @@ func Test_SetExpiry(t *testing.T) {
 
 // 	expireAt := time.Now().Add(time.Second * 2).Unix()
 
-// 	store.DB[id] = entry{value, expireAt}
+// 	store.db[id] = entry{value, expireAt}
 
 // 	time.Sleep(time.Second * 4) // The purpose of the long delay is to ensure the GC has time to run and delete the value
 
-// 	_, found := store.DB[id]
+// 	_, found := store.db[id]
 // 	utils.AssertEqual(t, false, found)
 
 // }
@@ -74,7 +74,7 @@ func Test_Get(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.DB[id] = entry{value, 0}
+	store.db[id] = entry{value, 0}
 
 	returnedValue, err := store.Get(id)
 	utils.AssertEqual(t, nil, err)
@@ -89,12 +89,12 @@ func Test_Delete(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.DB[id] = entry{value, 0}
+	store.db[id] = entry{value, 0}
 
 	err := store.Delete(id)
 	utils.AssertEqual(t, nil, err)
 
-	_, found := store.DB[id]
+	_, found := store.db[id]
 	utils.AssertEqual(t, false, found)
 
 }
@@ -106,11 +106,11 @@ func Test_Clear(t *testing.T) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.DB[id] = entry{value, 0}
+	store.db[id] = entry{value, 0}
 
 	err := store.Clear()
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, make(map[string]entry), store.DB)
+	utils.AssertEqual(t, make(map[string]entry), store.db)
 
 }
 
@@ -137,7 +137,7 @@ func Benchmark_Get(b *testing.B) {
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.DB[id] = entry{value, 0}
+	store.db[id] = entry{value, 0}
 
 	b.ResetTimer()
 

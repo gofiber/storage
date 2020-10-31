@@ -12,7 +12,7 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	DB  *mongo.Database
+	db  *mongo.Database
 	col *mongo.Collection
 }
 
@@ -100,7 +100,7 @@ func New(config ...Config) *Storage {
 	}
 
 	return &Storage{
-		DB:  db,
+		db:  db,
 		col: col,
 	}
 }
