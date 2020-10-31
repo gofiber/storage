@@ -15,7 +15,9 @@ import (
 // Config defines the config for storage.
 type Config struct {
 	// Custom options
-	Addr       string
+
+	//https://docs.mongodb.com/manual/reference/connection-string/
+	URI        string
 	Database   string
 	Collection string
 
@@ -52,15 +54,15 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Addr:       "127.0.0.1:27017",
+	URI:        "mongodb://127.0.0.1:27017",
 	Database:   "_database",
 	Collection: "_storage",
 }
 
 // Helper function to set default values
 func configDefault(cfg Config) Config {
-	if cfg.Addr == "" {
-		cfg.Addr = ConfigDefault.Addr
+	if cfg.URI == "" {
+		cfg.URI = ConfigDefault.URI
 	}
 	if cfg.Database == "" {
 		cfg.Database = ConfigDefault.Database

@@ -4,11 +4,8 @@ import (
 	"context"
 	"github.com/gofiber/utils"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
 	"testing"
-	"time"
 )
 
 const (
@@ -18,19 +15,13 @@ const (
 
 var uri = os.Getenv("MONGO_URI")
 
-func Connect() (*mongo.Database, *mongo.Collection) {
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
+func getConfig() Config {
+
+	return Config{
+		URI:        uri,
+		Database:   dbName,
+		Collection: colName,
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	err = client.Connect(ctx)
-
-	db := client.Database(dbName)
-
-	return db, db.Collection(colName)
 }
 
 func contains(arr []string, item string) bool {
@@ -43,10 +34,9 @@ func contains(arr []string, item string) bool {
 }
 
 func TestMongoStore_Set_Get(t *testing.T) {
-	db, col := Connect()
-	store := New(col)
+	store := New(getConfig())
 	defer func() {
-		_ = db.Client().Disconnect(context.TODO())
+		_ = store.DB.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key"
@@ -60,10 +50,9 @@ func TestMongoStore_Set_Get(t *testing.T) {
 }
 
 func TestMongoStore_Delete(t *testing.T) {
-	db, col := Connect()
-	store := New(col)
+	store := New(getConfig())
 	defer func() {
-		_ = db.Client().Disconnect(context.TODO())
+		_ = store.DB.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key_2"
@@ -78,21 +67,20 @@ func TestMongoStore_Delete(t *testing.T) {
 }
 
 func TestMongoStore_Clear(t *testing.T) {
-	db, col := Connect()
-	store := New(col)
+	store := New(getConfig())
 	defer func() {
-		_ = db.Client().Disconnect(context.TODO())
+		_ = store.DB.Client().Disconnect(context.TODO())
 	}()
 
 	key := "example_key_2"
 	value := []byte("123")
 
 	_ = store.Set(key, value, 10)
-	names, _ := db.ListCollectionNames(context.TODO(), bson.D{})
+	names, _ := store.DB.ListCollectionNames(context.TODO(), bson.D{})
 
 	utils.AssertEqual(t, true, contains(names, colName), "has collection")
 	_ = store.Clear()
 
-	names2, _ := db.ListCollectionNames(context.TODO(), bson.D{})
+	names2, _ := store.DB.ListCollectionNames(context.TODO(), bson.D{})
 	utils.AssertEqual(t, false, contains(names2, colName), "do not have collection")
 }

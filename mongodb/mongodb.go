@@ -12,7 +12,8 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db *mongo.Collection
+	DB  *mongo.Database
+	col *mongo.Collection
 }
 
 type MongoStorage struct {
@@ -42,7 +43,6 @@ func New(config ...Config) *Storage {
 	opt.SetDialer(cfg.Dialer)
 	opt.SetDirect(cfg.Direct)
 	opt.SetDisableOCSPEndpointCheck(cfg.DisableOCSPEndpointCheck)
-	opt.SetHeartbeatInterval(cfg.HeartbeatInterval)
 	opt.SetHosts(cfg.Hosts)
 	opt.SetLocalThreshold(cfg.LocalThreshold)
 	opt.SetMaxConnIdleTime(cfg.MaxConnIdleTime)
@@ -63,14 +63,28 @@ func New(config ...Config) *Storage {
 	opt.SetZlibLevel(cfg.ZlibLevel)
 	opt.SetZstdLevel(cfg.ZstdLevel)
 
+	// default time.Duration is not nil
+	// will cause panic: non-positive interval for NewTicker
+	if cfg.HeartbeatInterval > 0 {
+		opt.SetHeartbeatInterval(cfg.HeartbeatInterval)
+	}
+
 	// Create mongo client
-	client, err := mongo.NewClient(opt.ApplyURI("mongodb://" + cfg.Addr))
+	client, err := mongo.NewClient(opt.ApplyURI(cfg.URI))
+	if err != nil {
+		panic(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 20*time.Second)
+	defer cancel()
+	err = client.Connect(ctx)
 	if err != nil {
 		panic(err)
 	}
 
 	// Get collection from database
-	db := client.Database(cfg.Database).Collection(cfg.Collection)
+	db := client.Database(cfg.Database)
+	col := db.Collection(cfg.Collection)
 
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
 	// more on https://docs.mongodb.com/manual/core/index-ttl/
@@ -82,18 +96,19 @@ func New(config ...Config) *Storage {
 		Options: options.Index().SetExpireAfterSeconds(0),
 	}
 
-	if _, err := db.Indexes().CreateOne(context.TODO(), indexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(context.TODO(), indexModel); err != nil {
 		panic(err)
 	}
 
 	return &Storage{
-		db: db,
+		DB:  db,
+		col: col,
 	}
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	res := s.db.FindOne(context.TODO(), bson.M{"key": key})
+	res := s.col.FindOne(context.TODO(), bson.M{"key": key})
 	result := MongoStorage{}
 
 	if err := res.Err(); err != nil {
@@ -117,17 +132,17 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		replace.Exp = time.Now().Add(exp).UTC()
 	}
-	_, err := s.db.ReplaceOne(context.TODO(), filter, replace, options.Replace().SetUpsert(true))
+	_, err := s.col.ReplaceOne(context.TODO(), filter, replace, options.Replace().SetUpsert(true))
 	return err
 }
 
 // Delete document by key
 func (s *Storage) Delete(key string) error {
-	_, err := s.db.DeleteOne(context.TODO(), bson.M{"key": key})
+	_, err := s.col.DeleteOne(context.TODO(), bson.M{"key": key})
 	return err
 }
 
 // Clear all keys by drop collection
 func (s *Storage) Clear() error {
-	return s.db.Drop(context.TODO())
+	return s.col.Drop(context.TODO())
 }
