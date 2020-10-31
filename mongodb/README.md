@@ -14,7 +14,7 @@ func main() {
 
 	// Custom storage
 	store := mongodb.New(mongodb.Config{
-		Addr: 		"127.0.0.1:27017", 
+		URI: 		"mongodb://127.0.0.1:27017", 
 		Database: 	"_database", 
 		Collection: 	"_storage",
 	})
