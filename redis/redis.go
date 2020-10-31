@@ -26,6 +26,9 @@ func New(config ...Config) Storage {
 	db := redis.NewClient(&redis.Options{
 		Network:            cfg.Network,
 		Addr:               cfg.Addr,
+		Dialer:             cfg.Dialer,
+		OnConnect:          cfg.OnConnect,
+		Username:           cfg.Username,
 		Password:           cfg.Password,
 		DB:                 cfg.DB,
 		MaxRetries:         cfg.MaxRetries,
