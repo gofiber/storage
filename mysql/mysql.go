@@ -1,9 +1,12 @@
 package mysql
 
-import "time"
+import (
+	"time"
+)
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	gcInterval time.Duration
 }
 
 // New creates a new storage
@@ -16,10 +19,15 @@ func New(config ...Config) *Storage {
 		cfg = configDefault(config[0])
 	}
 
-	// TODO
-	_ = cfg
+	// Create storage
+	store := &Storage{
+		gcInterval: cfg.GCInterval,
+	}
 
-	return &Storage{}
+	// Start garbage collector
+	go store.gc()
+
+	return store
 }
 
 // Get value by key
@@ -40,4 +48,13 @@ func (s *Storage) Delete(key string) error {
 // Clear all keys
 func (s *Storage) Clear() error {
 	return nil
+}
+
+// Garbage collector to delete expired keys
+func (s *Storage) gc() {
+	tick := time.NewTicker(s.gcInterval)
+	for {
+		<-tick.C
+		// clean entries
+	}
 }
