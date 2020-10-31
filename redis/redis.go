@@ -20,7 +20,6 @@ func New(config ...Config) Storage {
 	// Override config if provided
 	if len(config) > 0 {
 		cfg = configDefault(config[0])
-
 	}
 
 	// Create new redis client
