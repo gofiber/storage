@@ -51,11 +51,18 @@ func New(config ...Config) *Storage {
 		gcQuery:     fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.TableName),
 	}
 
+	// Create db
 	db, err := sql.Open("sqlite3", cfg.TableName)
 	if err != nil {
 		panic(err)
 	}
 	store.db = db
+
+	// Migrate db
+	_, err = store.db.Exec(fmt.Sprintf(migrateQuery, cfg.TableName))
+	if err != nil {
+		panic(err)
+	}
 
 	// Start garbage collector
 	go store.gc()
