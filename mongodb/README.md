@@ -6,36 +6,18 @@ Storage uses MongoDB
 ```go
 package main
 
-import (
-	"context"
-	storage "github.com/gofiber/storage/mongodb"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
-)
-
-const (
-	uri     = ""
-	dbName  = ""
-	colName = ""
-)
+import "github.com/gofiber/storage/mongodb"
 
 func main() {
+	// Default storage
+	store := mongodb.New()
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
-	if err != nil {
-		panic(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	err = client.Connect(ctx)
-
-	db := client.Database(dbName)
-
-	defer db.Client().Disconnect(context.TODO())
-	
-	storage.New(db.Collection(colName))
+	// Custom storage
+	store := mongodb.New(mongodb.Config{
+		Addr: 		"127.0.0.1:27017", 
+		Database: 	"_database", 
+		Collection: 	"_storage",
+	})
 }
 
 ```
