@@ -8,14 +8,14 @@ import (
 type Storage struct {
 }
 
-// Config defines the config for mysql storage.
+// Config defines the config for storage.
 type Config struct {
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{}
 
-// New creates a new mysql storage
+// New creates a new storage
 func New(config ...Config) Storage {
 	return Storage{}
 }
