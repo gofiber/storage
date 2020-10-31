@@ -1,5 +1,8 @@
 module github.com/gofiber/storage
 
-go 1.15
+go 1.14
 
-require github.com/gofiber/fiber v1.14.6
+require (
+	github.com/gofiber/utils v0.0.10
+	github.com/gomodule/redigo v1.8.2
+)
