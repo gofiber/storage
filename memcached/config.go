@@ -13,7 +13,16 @@ var ConfigDefault = Config{
 }
 
 // Helper function to set default values
-func configDefault(cfg Config) Config {
+func configDefault(config ...Config) Config {
+	// Return default config if nothing provided
+	if len(config) < 1 {
+		return ConfigDefault
+	}
+
+	// Override default config
+	cfg := config[0]
+
+	// Set default values
 	if int(cfg.GCInterval) == 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
