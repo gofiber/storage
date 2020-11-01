@@ -9,7 +9,7 @@ import (
 )
 
 var storeConfig = Config{
-	DropTable:    true,
+	DropTable: true,
 }
 
 func init() {
