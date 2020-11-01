@@ -41,7 +41,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create db
-	db, err := sql.Open("sqlite3", cfg.FilePath)
+	db, err := sql.Open("sqlite3", cfg.Database)
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +118,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	_, err := s.db.Exec(s.sqlInsert, key, utils.GetString(val), time.Now().Add(exp).Unix())
+	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), time.Now().Add(exp).Unix())
 	return err
 }
 
