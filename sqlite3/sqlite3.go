@@ -90,7 +90,7 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = errors.New("sql: no rows in result set")
+var noRows = "sql: no rows in result set"
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
@@ -102,14 +102,14 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err != noRows {
+		if err.Error() != noRows {
 			return nil, err
 		}
 		return nil, nil
 	}
 
 	// If the expiration time has already passed, then return nil
-	if time.Now().After(time.Unix(exp, 0)) {
+	if exp <= time.Now().Unix() && exp != 0 {
 		return nil, nil
 	}
 
@@ -118,7 +118,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), time.Now().Add(exp).Unix())
+	var expSeconds int64
+	if exp != 0 {
+		expSeconds = time.Now().Add(exp).Unix()
+	}
+	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), expSeconds)
 	return err
 }
 
