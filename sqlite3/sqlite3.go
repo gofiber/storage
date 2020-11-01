@@ -90,7 +90,7 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = errors.New("sql: no rows in result set")
+var noRows = "sql: no rows in result set"
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
@@ -102,7 +102,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err != noRows {
+		if err.Error() != noRows {
 			return nil, err
 		}
 		return nil, nil
