@@ -26,12 +26,7 @@ type MongoStorage struct {
 // New creates a new MongoDB storage
 func New(config ...Config) *Storage {
 	// Set default config
-	cfg := ConfigDefault
-
-	// Override config if provided
-	if len(config) > 0 {
-		cfg = configDefault(config[0])
-	}
+	cfg := configDefault(config...)
 
 	// Set mongo options
 	opt := options.Client()
@@ -95,7 +90,7 @@ func New(config ...Config) *Storage {
 		Options: options.Index().SetExpireAfterSeconds(0),
 	}
 
-	if _, err := col.Indexes().CreateOne(context.TODO(), indexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(ctx, indexModel); err != nil {
 		panic(err)
 	}
 
@@ -107,7 +102,7 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	res := s.col.FindOne(context.TODO(), bson.M{"key": key})
+	res := s.col.FindOne(context.Background(), bson.M{"key": key})
 	result := MongoStorage{}
 
 	if err := res.Err(); err != nil {
@@ -131,17 +126,22 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		replace.Exp = time.Now().Add(exp).UTC()
 	}
-	_, err := s.col.ReplaceOne(context.TODO(), filter, replace, options.Replace().SetUpsert(true))
+	_, err := s.col.ReplaceOne(context.Background(), filter, replace, options.Replace().SetUpsert(true))
 	return err
 }
 
 // Delete document by key
 func (s *Storage) Delete(key string) error {
-	_, err := s.col.DeleteOne(context.TODO(), bson.M{"key": key})
+	_, err := s.col.DeleteOne(context.Background(), bson.M{"key": key})
 	return err
 }
 
 // Clear all keys by drop collection
 func (s *Storage) Clear() error {
-	return s.col.Drop(context.TODO())
+	return s.col.Drop(context.Background())
+}
+
+// Close database connection
+func (s *Storage) Close() error {
+	return s.db.Client().Disconnect(context.Background())
 }

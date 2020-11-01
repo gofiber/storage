@@ -12,12 +12,7 @@ type Storage struct {
 // New creates a new storage
 func New(config ...Config) *Storage {
 	// Set default config
-	cfg := ConfigDefault
-
-	// Override config if provided
-	if len(config) > 0 {
-		cfg = configDefault(config[0])
-	}
+	cfg := configDefault(config...)
 
 	// Create storage
 	store := &Storage{
