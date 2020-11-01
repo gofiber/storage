@@ -43,8 +43,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	if v.expiry < time.Now().Unix() && v.expiry != 0 {
-		_ = s.Delete(key)
+	if v.expiry <= time.Now().Unix() && v.expiry != 0 {
 		return nil, nil
 	}
 
