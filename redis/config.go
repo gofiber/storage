@@ -18,6 +18,7 @@ type Config struct {
 	// The network type, either tcp or unix.
 	// Default is tcp.
 	Network string
+
 	// host:port address.
 	Addr string
 

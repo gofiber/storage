@@ -14,7 +14,7 @@ func Test_New(t *testing.T) {
 
 func Test_Get_Set(t *testing.T) {
 	s := New(Config{
-		FilePath: ":memory:",
+		Database: ":memory:",
 	})
 	err := s.Set("fiber-10k-stars?", []byte("yes!"), time.Duration(time.Hour*1))
 	utils.AssertEqual(t, nil, err)
@@ -26,7 +26,7 @@ func Test_Get_Set(t *testing.T) {
 
 func Test_Expiration(t *testing.T) {
 	s := New(Config{
-		FilePath: ":memory:",
+		Database: ":memory:",
 	})
 
 	err := s.Set("fiber-20k-stars?", []byte("yes!"), time.Duration(time.Nanosecond/2))

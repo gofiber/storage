@@ -12,7 +12,7 @@ type Config struct {
 	// DB file path
 	//
 	// Default is "./fiber.sqlite3"
-	FilePath string
+	Database string
 
 	// DB table name
 	//
@@ -56,7 +56,7 @@ type Config struct {
 // ConfigDefault is the default config
 var ConfigDefault = Config{
 	GCInterval:      10 * time.Second,
-	FilePath:        "./fiber.sqlite3",
+	Database:        "./fiber.sqlite3",
 	TableName:       "fiber",
 	DropTable:       false,
 	MaxOpenConns:    100,
@@ -78,8 +78,8 @@ func configDefault(config ...Config) Config {
 	if int(cfg.GCInterval) == 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
-	if cfg.FilePath == "" {
-		cfg.FilePath = ConfigDefault.FilePath
+	if cfg.Database == "" {
+		cfg.Database = ConfigDefault.Database
 	}
 	if cfg.TableName == "" {
 		cfg.TableName = ConfigDefault.TableName
