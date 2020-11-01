@@ -26,12 +26,7 @@ type MongoStorage struct {
 // New creates a new MongoDB storage
 func New(config ...Config) *Storage {
 	// Set default config
-	cfg := ConfigDefault
-
-	// Override config if provided
-	if len(config) > 0 {
-		cfg = configDefault(config[0])
-	}
+	cfg := configDefault(config...)
 
 	// Set mongo options
 	opt := options.Client()
