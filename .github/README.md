@@ -10,7 +10,7 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 * [Memcached](/memcached) **(UNFINISHED)**
 * [Memory](/memory)
 * [MongoDB](/mongodb)
-* [MySQL](/mysql)         **(UNFINISHED)**
+* [MySQL](/mysql)
 * [Postgres](/postgres)
 * [Redis](/redis)
 * [SQLite3](/sqlite3)
