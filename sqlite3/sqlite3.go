@@ -118,7 +118,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), time.Now().Add(exp).Unix())
+	var expSeconds int64
+	if exp != 0 {
+		expSeconds = time.Now().Add(exp).Unix()
+	}
+	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), expSeconds)
 	return err
 }
 
