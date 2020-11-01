@@ -37,5 +37,5 @@ func Test_Expiration(t *testing.T) {
 
 	b, err := s.Get("fiber-20k-stars?")
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, []byte{}, b)
+	utils.AssertEqual(t, true, b == nil)
 }
