@@ -2,6 +2,8 @@ on:
     push:
     pull_request:
 
+name: MySQL test
+
 jobs:
     # Label of the container job
     mysql-tests:
