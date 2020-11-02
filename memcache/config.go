@@ -43,7 +43,7 @@ func configDefault(config ...Config) Config {
 
 	// Set default values
 	if len(cfg.Servers) < 1 {
-		cfg.Servers = ConfigDefault.TimServerseout
+		cfg.Servers = ConfigDefault.Servers
 	}
 	if int(cfg.Timeout) == 0 {
 		cfg.Timeout = ConfigDefault.Timeout
