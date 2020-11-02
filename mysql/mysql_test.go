@@ -27,7 +27,7 @@ func init() {
 	}
 }
 
-func Test_Set(t *testing.T) {
+func Test_MySQL_Set(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -48,7 +48,7 @@ func Test_Set(t *testing.T) {
 
 }
 
-func Test_SetExpiry(t *testing.T) {
+func Test_MySQL_SetExpiry(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -75,7 +75,7 @@ func Test_SetExpiry(t *testing.T) {
 
 }
 
-func Test_Get(t *testing.T) {
+func Test_MySQL_Get(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -90,7 +90,7 @@ func Test_Get(t *testing.T) {
 
 }
 
-func Test_Get_NoRows(t *testing.T) {
+func Test_MySQL_Get_NoRows(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -102,7 +102,7 @@ func Test_Get_NoRows(t *testing.T) {
 
 }
 
-func Test_Get_Expired(t *testing.T) {
+func Test_MySQL_Get_Expired(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -116,7 +116,7 @@ func Test_Get_Expired(t *testing.T) {
 	utils.AssertEqual(t, 0, len(returnedValue))
 }
 
-func Test_Delete(t *testing.T) {
+func Test_MySQL_Delete(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -134,7 +134,7 @@ func Test_Delete(t *testing.T) {
 
 }
 
-func Test_Clear(t *testing.T) {
+func Test_MySQL_Clear(t *testing.T) {
 
 	store := New(storeConfig)
 
@@ -152,7 +152,7 @@ func Test_Clear(t *testing.T) {
 
 }
 
-func Benchmark_Set(b *testing.B) {
+func Benchmark_MySQL_Set(b *testing.B) {
 	store := New(storeConfig)
 
 	key := "aaaa"
@@ -168,7 +168,7 @@ func Benchmark_Set(b *testing.B) {
 
 }
 
-func Benchmark_Get(b *testing.B) {
+func Benchmark_MySQL_Get(b *testing.B) {
 	store := New(storeConfig)
 
 	key := "aaaa"
