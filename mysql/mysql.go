@@ -40,6 +40,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Set options
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
