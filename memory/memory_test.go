@@ -7,20 +7,28 @@ import (
 	"github.com/gofiber/utils"
 )
 
+func Test_Config(t *testing.T) {
+	store := New(Config{})
+
+	utils.AssertEqual(t, defaultConfig.GCInterval, store.gcInterval)
+}
+
 func Test_Set(t *testing.T) {
+	t.Parallel()
 
 	store := New()
 
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.Set(id, value, 0)
+	err := store.Set(id, value, 0)
 
+	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, entry{value, 0}, store.db[id])
-
 }
 
 func Test_SetExpiry(t *testing.T) {
+	t.Parallel()
 
 	store := New()
 
@@ -28,7 +36,9 @@ func Test_SetExpiry(t *testing.T) {
 	value := []byte("Hi there!")
 	expiry := time.Second * 10
 
-	store.Set(id, value, expiry)
+	err := store.Set(id, value, expiry)
+
+	utils.AssertEqual(t, nil, err)
 
 	now := time.Now().Unix()
 	fromStore, found := store.db[id]
@@ -44,45 +54,66 @@ func Test_SetExpiry(t *testing.T) {
 
 }
 
-// func Test_GC(t *testing.T) {
+func Test_GC(t *testing.T) {
+	t.Parallel()
 
-// 	// New() isn't being used here so the gcInterval can be set low
-// 	store := &Storage{
-// 		DB:         make(map[string]entry),
-// 		gcInterval: time.Second * 1,
-// 	}
-// 	go store.gc()
-
-// 	id := "hello"
-// 	value := []byte("Hi there!")
-
-// 	expireAt := time.Now().Add(time.Second * 2).Unix()
-
-// 	store.db[id] = entry{value, expireAt}
-
-// 	time.Sleep(time.Second * 4) // The purpose of the long delay is to ensure the GC has time to run and delete the value
-
-// 	_, found := store.db[id]
-// 	utils.AssertEqual(t, false, found)
-
-// }
-
-func Test_Get(t *testing.T) {
-
-	store := New()
+	store := &Storage{
+		db:         make(map[string]entry),
+		gcInterval: time.Millisecond * 10,
+	}
 
 	id := "hello"
 	value := []byte("Hi there!")
 
-	store.db[id] = entry{value, 0}
+	expireAt := time.Now().Add(-time.Second).Unix()
 
-	returnedValue, err := store.Get(id)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, value, returnedValue)
+	store.db[id] = entry{value, expireAt}
 
+	go store.gc()
+
+	// The purpose of the long delay is to ensure the GC has time to run and delete the value
+	time.Sleep(time.Millisecond * 15)
+
+	store.mux.RLock()
+	_, found := store.db[id]
+	utils.AssertEqual(t, false, found)
+	store.mux.RUnlock()
+}
+
+func Test_Get(t *testing.T) {
+	t.Parallel()
+
+	store := New()
+
+	t.Run("exist", func(t *testing.T) {
+		id := "hello"
+		value := []byte("Hi there!")
+
+		store.db[id] = entry{value, 0}
+
+		returnedValue, err := store.Get(id)
+		utils.AssertEqual(t, nil, err)
+		utils.AssertEqual(t, value, returnedValue)
+	})
+
+	t.Run("expired", func(t *testing.T) {
+		expired := "expired"
+		store.db[expired] = entry{[]byte{}, time.Now().Add(-time.Second).Unix()}
+
+		returnedValue, err := store.Get(expired)
+		utils.AssertEqual(t, nil, err)
+		utils.AssertEqual(t, true, returnedValue == nil)
+	})
+
+	t.Run("non-exist", func(t *testing.T) {
+		returnedValue, err := store.Get("non-exist")
+		utils.AssertEqual(t, nil, err)
+		utils.AssertEqual(t, true, returnedValue == nil)
+	})
 }
 
 func Test_Delete(t *testing.T) {
+	t.Parallel()
 
 	store := New()
 
@@ -100,6 +131,7 @@ func Test_Delete(t *testing.T) {
 }
 
 func Test_Clear(t *testing.T) {
+	t.Parallel()
 
 	store := New()
 
@@ -115,23 +147,23 @@ func Test_Clear(t *testing.T) {
 }
 
 func Benchmark_Set(b *testing.B) {
-
 	store := New()
 
 	id := "hello"
 	value := []byte("Hi there!")
 	expiry := time.Duration(0)
 
+	b.ReportAllocs()
 	b.ResetTimer()
 
-	for n := 0; n < b.N; n++ {
-		store.Set(id, value, expiry)
-	}
-
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = store.Set(id, value, expiry)
+		}
+	})
 }
 
 func Benchmark_Get(b *testing.B) {
-
 	store := New()
 
 	id := "hello"
@@ -139,9 +171,12 @@ func Benchmark_Get(b *testing.B) {
 
 	store.db[id] = entry{value, 0}
 
+	b.ReportAllocs()
 	b.ResetTimer()
 
-	for n := 0; n < b.N; n++ {
-		store.Get(id)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _ = store.Get(id)
+		}
+	})
 }

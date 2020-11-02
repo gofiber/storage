@@ -7,16 +7,15 @@ type Config struct {
 	GCInterval time.Duration
 }
 
-// ConfigDefault is the default config
-var ConfigDefault = Config{
+var defaultConfig = Config{
 	GCInterval: 10 * time.Second,
 }
 
-// Helper function to set default values
+// configDefault is a helper function to set default values
 func configDefault(config ...Config) Config {
 	// Return default config if nothing provided
 	if len(config) < 1 {
-		return ConfigDefault
+		return defaultConfig
 	}
 
 	// Override default config
@@ -24,7 +23,7 @@ func configDefault(config ...Config) Config {
 
 	// Set default values
 	if int(cfg.GCInterval) == 0 {
-		cfg.GCInterval = ConfigDefault.GCInterval
+		cfg.GCInterval = defaultConfig.GCInterval
 	}
 	return cfg
 }

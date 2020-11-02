@@ -43,7 +43,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	if v.expiry <= time.Now().Unix() && v.expiry != 0 {
+	if v.expiry != 0 && v.expiry <= time.Now().Unix() {
 		return nil, nil
 	}
 
@@ -80,15 +80,11 @@ func (s *Storage) Clear() error {
 }
 
 func (s *Storage) gc() {
-	tick := time.NewTicker(s.gcInterval)
-	for {
-		<-tick.C
-
+	for t := range time.NewTicker(s.gcInterval).C {
+		now := t.Unix()
 		s.mux.Lock()
-
-		now := time.Now().Unix()
 		for id, v := range s.db {
-			if v.expiry < now && v.expiry != 0 {
+			if v.expiry != 0 && v.expiry < now {
 				delete(s.db, id)
 			}
 		}
