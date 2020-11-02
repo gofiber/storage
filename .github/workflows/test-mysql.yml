@@ -1,0 +1,46 @@
+on:
+    push:
+    pull_request:
+
+jobs:
+    # Label of the container job
+    mysql-tests:
+        # Containers must run in Linux based operating systems
+        runs-on: ubuntu-latest
+        
+        # Service containers to run with `container-job`
+        services:
+            # Label used to access the service container
+            mysql:
+                # Docker Hub image
+                image: mysql:8
+                env:
+                    MYSQL_USER: username
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: rootpassword
+                    MYSQL_DATABASE: fiber
+                ports:
+                    - 3306:3306
+                # Set health checks to wait until MySQL has started
+                options: >-
+                    --health-cmd "mysqladmin ping"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+        strategy:
+            matrix:
+                go-version: [1.14.x, 1.15.x]
+        steps:
+            - name: Install Go
+              uses: actions/setup-go@v1
+              with:
+                go-version: ${{ matrix.go-version }}
+            - name: Fetch Repository
+              uses: actions/checkout@v2
+            - name: Run Test
+              run: go test ./mysql -v -race
+              env:
+                MYSQL_ADDRESS: "127.0.0.1:3306"
+                MYSQL_USERNAME: username
+                MYSQL_PASSWORD: password
+                MYSQL_DATABASE: fiber
