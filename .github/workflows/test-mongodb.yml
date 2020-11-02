@@ -1,9 +1,10 @@
 on: [push, pull_request]
 
+name: Test MongoDB
+
 jobs:
     # Label of the container job
     mongodb-tests:
-        name: Test MongoDB
         # Containers must run in Linux based operating systems
         runs-on: ubuntu-latest
         
