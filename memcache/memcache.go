@@ -1,21 +1,25 @@
-package memcached
+package memcache
 
-import "time"
+import (
+	"time"
+
+	mc "github.com/bradfitz/gomemcache/memcache"
+)
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	db         *mc.Client
 	gcInterval time.Duration
 }
 
 // New creates a new storage
 func New(config ...Config) *Storage {
 	// Set default config
-	cfg := ConfigDefault
+	cfg := configDefault(config...)
 
-	// Override config if provided
-	if len(config) > 0 {
-		cfg = configDefault(config[0])
-	}
+	db := mc.New(cfg.ServerList...)
+	db.Timeout = cfg.Timeout
+	db.MaxIdleConns = cfg.MaxIdleConns
 
 	// Create storage
 	store := &Storage{
