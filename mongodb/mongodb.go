@@ -106,10 +106,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	result := MongoStorage{}
 
 	if err := res.Err(); err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 	if err := res.Decode(&result); err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	return result.Value, nil

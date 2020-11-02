@@ -46,11 +46,30 @@ func TestMongoStore_Set_Get(t *testing.T) {
 	key := "example_key"
 	value := []byte("123")
 
-	_ = store.Set(key, value, 0)
+	err := store.Set(key, value, 0)
+	utils.AssertEqual(t, nil, err)
 
-	getVal, _ := store.Get(key)
+	getVal, getErr := store.Get(key)
 
+	utils.AssertEqual(t, nil, getErr)
 	utils.AssertEqual(t, value, getVal, "correctly set and get value")
+}
+
+func TestMongoStore_Get_Invalid(t *testing.T) {
+	if uri == "" {
+		t.Skip()
+	}
+	store := New(getConfig())
+	defer func() {
+		_ = store.db.Client().Disconnect(context.TODO())
+	}()
+
+	key := "random_invalid_key"
+
+	getVal, getErr := store.Get(key)
+
+	utils.AssertEqual(t, true, getErr != nil)
+	utils.AssertEqual(t, true, getVal == nil, "get nil if key not found")
 }
 
 func TestMongoStore_Delete(t *testing.T) {
@@ -65,12 +84,15 @@ func TestMongoStore_Delete(t *testing.T) {
 	key := "example_key_2"
 	value := []byte("123")
 
-	_ = store.Set(key, value, 10)
-	_ = store.Delete(key)
+	err := store.Set(key, value, 0)
+	utils.AssertEqual(t, nil, err)
 
-	getVal, _ := store.Get(key)
+	err = store.Delete(key)
+	utils.AssertEqual(t, nil, err)
 
-	utils.AssertEqual(t, []byte{}, getVal, "correctly delete value")
+	getVal, getErr := store.Get(key)
+	utils.AssertEqual(t, true, getErr != nil)
+	utils.AssertEqual(t, true, getVal == nil, "correctly delete value")
 }
 
 func TestMongoStore_Clear(t *testing.T) {
@@ -85,12 +107,15 @@ func TestMongoStore_Clear(t *testing.T) {
 	key := "example_key_2"
 	value := []byte("123")
 
-	_ = store.Set(key, value, 10)
+	err := store.Set(key, value, 10)
 	names, _ := store.db.ListCollectionNames(context.TODO(), bson.D{})
 
+	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, true, contains(names, colName), "has collection")
-	_ = store.Clear()
+
+	cErr := store.Clear()
 
 	names2, _ := store.db.ListCollectionNames(context.TODO(), bson.D{})
+	utils.AssertEqual(t, nil, cErr)
 	utils.AssertEqual(t, false, contains(names2, colName), "do not have collection")
 }
