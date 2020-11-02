@@ -1,10 +1,4 @@
-on:
-    push:
-        branches: [ mongo-tests ]
-    pull_request:
-        branches: [ mongo-tests ]
-    workflow_dispatch:
-
+on: [push, pull_request]
 
 jobs:
     # Label of the container job
