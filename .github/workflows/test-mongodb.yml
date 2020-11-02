@@ -21,7 +21,7 @@ jobs:
                 image: mongo:4.4
                 ports:
                     - 27017:27017
-                environment:
+                env:
                     MONGO_INITDB_ROOT_USERNAME: root
                     MONGO_INITDB_ROOT_PASSWORD: password
         strategy:
