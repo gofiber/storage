@@ -9,6 +9,7 @@ on:
 jobs:
     # Label of the container job
     mongodb-tests:
+        name: Test MongoDB
         # Containers must run in Linux based operating systems
         runs-on: ubuntu-latest
         
@@ -20,6 +21,9 @@ jobs:
                 image: mongo:4.4
                 ports:
                     - 27017:27017
+                environment:
+                    MONGO_INITDB_ROOT_USERNAME: root
+                    MONGO_INITDB_ROOT_PASSWORD: password
         strategy:
             matrix:
                 go-version: [1.14.x, 1.15.x]
@@ -33,4 +37,4 @@ jobs:
             - name: Run Test
               run: go test ./mongodb -v -race
               env:
-                MONGO_URI: "mongodb://127.0.0.1:27017"
+                MONGO_URI: "mongodb://root:password@127.0.0.1:27017"
