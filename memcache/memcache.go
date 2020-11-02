@@ -1,10 +1,12 @@
 package memcache
 
 import (
+	"strings"
 	"sync"
 	"time"
 
 	mc "github.com/bradfitz/gomemcache/memcache"
+	"github.com/gofiber/utils"
 )
 
 // Storage interface that is implemented by storage providers
@@ -18,8 +20,11 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// Split comma separated servers into slice
+	serverList := strings.Split(utils.Trim(cfg.Servers, ' '), ",")
+
 	// Create db
-	db := mc.New(cfg.ServerList...)
+	db := mc.New(serverList...)
 
 	// Set options
 	db.Timeout = cfg.Timeout

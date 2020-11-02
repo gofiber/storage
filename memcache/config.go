@@ -4,8 +4,11 @@ import "time"
 
 // Config defines the config for storage.
 type Config struct {
-	// Server list
-	ServerList []string
+	// Server list divided by ,
+	// i.e. server1:11211, server2:11212
+	//
+	// Optional. Default is "localhost:11211"
+	Servers string
 
 	// The socket read/write timeout.
 	//
@@ -23,6 +26,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	Servers:      "localhost:11211",
 	Timeout:      100 * time.Millisecond,
 	MaxIdleConns: 2,
 }
@@ -38,8 +42,8 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 
 	// Set default values
-	if len(cfg.ServerList) < 1 {
-		panic("ServerList must not be empty")
+	if len(cfg.Servers) < 1 {
+		cfg.Servers = ConfigDefault.TimServerseout
 	}
 	if int(cfg.Timeout) == 0 {
 		cfg.Timeout = ConfigDefault.Timeout
