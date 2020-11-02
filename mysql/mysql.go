@@ -24,8 +24,8 @@ type Storage struct {
 var (
 	dropQuery = "DROP TABLE IF EXISTS %s;"
 	initQuery = []string{
-		"CREATE TABLE IF NOT EXISTS %s ( `id` VARCHAR(64) NOT NULL DEFAULT '' , `data` TEXT NOT NULL , `exp` BIGINT NOT NULL DEFAULT '0' , PRIMARY KEY (`id`));",
-		"CREATE INDEX IF NOT EXISTS exp ON %s (exp);",
+		"CREATE TABLE IF NOT EXISTS %s ( `id` VARCHAR(64) NOT NULL DEFAULT '' , `data` TEXT NOT NULL , `exp` BIGINT NOT NULL DEFAULT '0' , PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+		// "CREATE INDEX IF NOT EXISTS exp ON %s (exp);", // This was causing syntax errors with MySQL in Docker, and it works without it sooo..... I guess remove it?
 	}
 )
 
