@@ -1,6 +1,7 @@
 package memcache
 
 import (
+	"sync"
 	"time"
 
 	mc "github.com/bradfitz/gomemcache/memcache"
@@ -8,8 +9,8 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db         *mc.Client
-	gcInterval time.Duration
+	db    *mc.Client
+	items *sync.Pool
 }
 
 // New creates a new storage
@@ -17,46 +18,79 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// Create db
 	db := mc.New(cfg.ServerList...)
+
+	// Set options
 	db.Timeout = cfg.Timeout
 	db.MaxIdleConns = cfg.MaxIdleConns
 
-	// Create storage
-	store := &Storage{
-		gcInterval: cfg.GCInterval,
+	// Ping database to ensure a connection has been made
+	if err := db.Ping(); err != nil {
+		panic(err)
 	}
 
-	// Start garbage collector
-	go store.gc()
+	// Create storage
+	store := &Storage{
+		db: db,
+		items: &sync.Pool{
+			New: func() interface{} {
+				return new(mc.Item)
+			},
+		},
+	}
 
 	return store
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	return nil, nil
+	item, err := s.db.Get(key)
+	if err == mc.ErrCacheMiss {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return item.Value, nil
 }
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	return nil
+	item := s.acquireItem()
+	item.Key = key
+	item.Value = val
+	item.Expiration = int32(exp.Seconds())
+
+	err := s.db.Set(item)
+
+	s.releaseItem(item)
+
+	return err
 }
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	return nil
+	return s.db.Delete(key)
 }
 
 // Clear all keys
 func (s *Storage) Clear() error {
-	return nil
+	return s.db.DeleteAll()
 }
 
-// Garbage collector to delete expired keys
-func (s *Storage) gc() {
-	tick := time.NewTicker(s.gcInterval)
-	for {
-		<-tick.C
-		// clean entries
+// Acquire item from pool
+func (s *Storage) acquireItem() *mc.Item {
+	return s.items.Get().(*mc.Item)
+}
+
+// Release item from pool
+func (s *Storage) releaseItem(item *mc.Item) {
+	if item != nil {
+		item.Key = ""
+		item.Value = nil
+		item.Expiration = 0
+
+		s.items.Put(item)
 	}
 }

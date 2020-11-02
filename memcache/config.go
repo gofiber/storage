@@ -4,11 +4,6 @@ import "time"
 
 // Config defines the config for storage.
 type Config struct {
-	GCInterval time.Duration
-
-	// Prefix key
-	KeyPrefix string
-
 	// Server list
 	ServerList []string
 
@@ -28,7 +23,6 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	GCInterval:   10 * time.Second,
 	Timeout:      100 * time.Millisecond,
 	MaxIdleConns: 2,
 }
@@ -47,14 +41,12 @@ func configDefault(config ...Config) Config {
 	if len(cfg.ServerList) < 1 {
 		panic("ServerList must not be empty")
 	}
-	if int(cfg.GCInterval) == 0 {
-		cfg.GCInterval = ConfigDefault.GCInterval
-	}
 	if int(cfg.Timeout) == 0 {
 		cfg.Timeout = ConfigDefault.Timeout
 	}
 	if cfg.MaxIdleConns == 0 {
 		cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
 	}
+
 	return cfg
 }
