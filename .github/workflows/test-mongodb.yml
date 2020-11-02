@@ -1,14 +1,14 @@
 on:
     push:
-        branches: [ tests-setup ]
+        branches: [ mongo-tests ]
     pull_request:
-        branches: [ tests-setup ]
+        branches: [ mongo-tests ]
     workflow_dispatch:
 
 
 jobs:
     # Label of the container job
-    mysql-tests:
+    mongodb-tests:
         # Containers must run in Linux based operating systems
         runs-on: ubuntu-latest
         
