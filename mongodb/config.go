@@ -14,8 +14,6 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
-	// Custom options
-
 	//https://docs.mongodb.com/manual/reference/connection-string/
 	URI        string
 	Database   string
@@ -55,8 +53,8 @@ type Config struct {
 // ConfigDefault is the default config
 var ConfigDefault = Config{
 	URI:        "mongodb://127.0.0.1:27017",
-	Database:   "_database",
-	Collection: "_storage",
+	Database:   "fiber",
+	Collection: "fiber",
 }
 
 // Helper function to set default values
