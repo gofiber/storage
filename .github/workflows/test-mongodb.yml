@@ -1,0 +1,36 @@
+on:
+    push:
+        branches: [ tests-setup ]
+    pull_request:
+        branches: [ tests-setup ]
+    workflow_dispatch:
+
+
+jobs:
+    # Label of the container job
+    mysql-tests:
+        # Containers must run in Linux based operating systems
+        runs-on: ubuntu-latest
+        
+        # Service containers to run with `container-job`
+        services:
+            # Label used to access the service container
+            mongo:
+                # Docker Hub image
+                image: mongo:4.4
+                ports:
+                    - 27017:27017
+        strategy:
+            matrix:
+                go-version: [1.14.x, 1.15.x]
+        steps:
+            - name: Install Go
+              uses: actions/setup-go@v1
+              with:
+                go-version: ${{ matrix.go-version }}
+            - name: Fetch Repository
+              uses: actions/checkout@v2
+            - name: Run Test
+              run: go test ./mongodb -v -race
+              env:
+                MONGO_URI: "mongodb://127.0.0.1:27017"
