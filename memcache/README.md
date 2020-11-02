@@ -25,7 +25,7 @@ You can use the following possibilities to create a storage:
 store := memcache.New()
 
 // Initialize custom config
-store := memcache.New(csrf.Config{
+store := memcache.New(memcache.Config{
 	Servers:        "localhost:11211",
 	Timeout:        100 * time.Millisecond,
 	MaxIdleConns:   10,

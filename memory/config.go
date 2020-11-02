@@ -4,6 +4,9 @@ import "time"
 
 // Config defines the config for storage.
 type Config struct {
+	// Time before deleting expired keys
+	//
+	// Default is 10 * time.Second
 	GCInterval time.Duration
 }
 
