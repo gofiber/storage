@@ -10,7 +10,7 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 
 ### Signatures
 ```go
-func New(config ...Config) fiber.Storage
+func New(config ...Config) Storage
 ```
 
 ### Examples
@@ -24,9 +24,9 @@ You can use the following possibilities to create a storage:
 // Initialize default config
 store := memcache.New()
 
-// Or extend your config for customization
+// Initialize custom config
 store := memcache.New(csrf.Config{
-	Servers:        "localhost:11211, localhost:5678",
+	Servers:        "localhost:11211",
 	Timeout:        100 * time.Millisecond,
 	MaxIdleConns:   10,
 })
@@ -36,9 +36,9 @@ store := memcache.New(csrf.Config{
 ```go
 type Config struct {
 	// Server list divided by ,
-	// i.e. server1:11211, server2:11212
+	// i.e. "127.0.0.1:11211, 127.0.0.1:11212"
 	//
-	// Optional. Default is "localhost:11211"
+	// Optional. Default is "127.0.0.1:11211"
 	Servers string
 
 	// The socket read/write timeout.
