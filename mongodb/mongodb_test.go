@@ -34,7 +34,7 @@ func contains(arr []string, item string) bool {
 	return false
 }
 
-func TestMongoStore_Set_Get(t *testing.T) {
+func Test_MongoDB_Set_Get(t *testing.T) {
 	if uri == "" {
 		t.Skip()
 	}
@@ -55,7 +55,7 @@ func TestMongoStore_Set_Get(t *testing.T) {
 	utils.AssertEqual(t, value, getVal, "correctly set and get value")
 }
 
-func TestMongoStore_Get_Invalid(t *testing.T) {
+func Test_MongoDB_Get_Invalid(t *testing.T) {
 	if uri == "" {
 		t.Skip()
 	}
@@ -72,7 +72,7 @@ func TestMongoStore_Get_Invalid(t *testing.T) {
 	utils.AssertEqual(t, true, getVal == nil, "get nil if key not found")
 }
 
-func TestMongoStore_Delete(t *testing.T) {
+func Test_MongoDB_Delete(t *testing.T) {
 	if uri == "" {
 		t.Skip()
 	}
@@ -95,7 +95,7 @@ func TestMongoStore_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, getVal == nil, "correctly delete value")
 }
 
-func TestMongoStore_Clear(t *testing.T) {
+func Test_MongoDB_Clear(t *testing.T) {
 	if uri == "" {
 		t.Skip()
 	}

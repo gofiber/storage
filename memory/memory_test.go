@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/utils"
 )
 
-func Test_Set(t *testing.T) {
+func Test_Memory_Set(t *testing.T) {
 
 	store := New()
 
@@ -20,7 +20,7 @@ func Test_Set(t *testing.T) {
 
 }
 
-func Test_SetExpiry(t *testing.T) {
+func Test_Memory_SetExpiry(t *testing.T) {
 
 	store := New()
 
@@ -44,7 +44,7 @@ func Test_SetExpiry(t *testing.T) {
 
 }
 
-// func Test_GC(t *testing.T) {
+// func Test_Memory_GC(t *testing.T) {
 
 // 	// New() isn't being used here so the gcInterval can be set low
 // 	store := &Storage{
@@ -67,7 +67,7 @@ func Test_SetExpiry(t *testing.T) {
 
 // }
 
-func Test_Get(t *testing.T) {
+func Test_Memory_Get(t *testing.T) {
 
 	store := New()
 
@@ -82,7 +82,7 @@ func Test_Get(t *testing.T) {
 
 }
 
-func Test_Delete(t *testing.T) {
+func Test_Memory_Delete(t *testing.T) {
 
 	store := New()
 
@@ -99,7 +99,7 @@ func Test_Delete(t *testing.T) {
 
 }
 
-func Test_Clear(t *testing.T) {
+func Test_Memory_Clear(t *testing.T) {
 
 	store := New()
 
@@ -114,7 +114,7 @@ func Test_Clear(t *testing.T) {
 
 }
 
-func Benchmark_Set(b *testing.B) {
+func Benchmark_Memory_Set(b *testing.B) {
 
 	store := New()
 
@@ -130,7 +130,7 @@ func Benchmark_Set(b *testing.B) {
 
 }
 
-func Benchmark_Get(b *testing.B) {
+func Benchmark_Memory_Get(b *testing.B) {
 
 	store := New()
 

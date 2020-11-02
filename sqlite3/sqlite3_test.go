@@ -12,7 +12,7 @@ func Test_New(t *testing.T) {
 	New()
 }
 
-func Test_Get_Set(t *testing.T) {
+func Test_Sqlite_Get_Set(t *testing.T) {
 	s := New(Config{
 		Database: ":memory:",
 	})
@@ -24,7 +24,7 @@ func Test_Get_Set(t *testing.T) {
 	utils.AssertEqual(t, []byte("yes!"), b)
 }
 
-func Test_Expiration(t *testing.T) {
+func Test_Sqlite_Expiration(t *testing.T) {
 	s := New(Config{
 		Database: ":memory:",
 	})
