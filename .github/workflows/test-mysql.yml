@@ -40,7 +40,7 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mysql -v -race
+              run: go test ./mysql -tags=mysql -v -race
               env:
                 MYSQL_ADDRESS: "127.0.0.1:3306"
                 MYSQL_USERNAME: username

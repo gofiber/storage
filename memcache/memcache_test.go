@@ -1,1 +1,3 @@
+// +build memcache
+
 package memcache

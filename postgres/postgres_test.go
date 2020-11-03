@@ -1,1 +1,3 @@
+// +build postgres
+
 package postgres
