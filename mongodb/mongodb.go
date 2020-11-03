@@ -120,6 +120,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value, replace if document exits
+//
+// document will be remove automatically if exp is set, based on MongoDB TTL Indexes
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	filter := bson.M{"key": key}
 	replace := MongoStorage{
