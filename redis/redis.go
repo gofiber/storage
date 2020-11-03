@@ -74,6 +74,19 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Del(context.Background(), key).Err()
 }
 
+// DeleteWild key by prefix
+func (s *Storage) DeleteWild(prefix string) error {
+	item := s.db.Scan(context.Background(), 0, prefix, 0).Iterator()
+
+	for item.Next(context.Background()) {
+		if err := s.db.Del(context.Background(), item.Val()).Err(); err != nil {
+			return err
+		}
+	}
+
+	return item.Err()
+}
+
 // Clear all keys
 func (s *Storage) Clear() error {
 	return s.db.FlushDB(context.Background()).Err()
