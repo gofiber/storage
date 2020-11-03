@@ -18,9 +18,9 @@ type Storage struct {
 
 type MongoStorage struct {
 	ObjectID primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Key      string             `json:"key,omitempty" bson:"key"`
+	Key      string             `json:"key" bson:"key"`
 	Value    []byte             `json:"value" bson:"value"`
-	Exp      time.Time          `json:"exp" bson:"exp,omitempty"`
+	Exp      time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
 // New creates a new MongoDB storage
@@ -112,12 +112,16 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
+	if result.Exp.Unix() > 0 && result.Exp.Unix() <= time.Now().Unix() {
+		return nil, nil
+	}
+
 	return result.Value, nil
 }
 
 // Set key with value, replace if document exits
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	filter := bson.M{"id": key}
+	filter := bson.M{"key": key}
 	replace := MongoStorage{
 		Key:   key,
 		Value: val,
