@@ -18,11 +18,11 @@ type Storage struct {
 	items *sync.Pool
 }
 
-type MongoStorage struct {
-	ObjectID primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Key      string             `json:"key" bson:"key"`
-	Value    []byte             `json:"value" bson:"value"`
-	Exp      time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
+type item struct {
+	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Key        string             `json:"key" bson:"key"`
+	Value      []byte             `json:"value" bson:"value"`
+	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
 // New creates a new MongoDB storage
@@ -85,7 +85,10 @@ func New(config ...Config) *Storage {
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
 	// more on https://docs.mongodb.com/manual/core/index-ttl/
 	indexModel := mongo.IndexModel{
-		Keys: bson.D{{"exp", 1}},
+		Keys: bson.D{{
+			Key:   "exp",
+			Value: 1,
+		}},
 		// setting to 0
 		// means that documents will remain in the collection
 		// until they're explicitly deleted or the collection is dropped.
@@ -101,7 +104,7 @@ func New(config ...Config) *Storage {
 		col: col,
 		items: &sync.Pool{
 			New: func() interface{} {
-				return new(MongoStorage)
+				return new(item)
 			},
 		},
 	}
@@ -111,20 +114,23 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	res := s.col.FindOne(context.Background(), bson.M{"key": key})
-	result := MongoStorage{}
+	item := s.acquireItem()
 
 	if err := res.Err(); err != nil {
 		return nil, err
 	}
-	if err := res.Decode(&result); err != nil {
+	if err := res.Decode(&item); err != nil {
 		return nil, err
 	}
 
-	if !result.Exp.IsZero() && result.Exp.Unix() <= time.Now().Unix() {
+	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
 		return nil, nil
 	}
-
-	return result.Value, nil
+	// // not safe?
+	// res := item.Val
+	// s.releaseItem(item)
+	// return res, nil
+	return item.Value, nil
 }
 
 // Set key with value, replace if document exits
@@ -137,7 +143,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	item.Value = val
 
 	if exp != 0 {
-		item.Exp = time.Now().Add(exp).UTC()
+		item.Expiration = time.Now().Add(exp).UTC()
 	}
 	_, err := s.col.ReplaceOne(context.Background(), filter, item, options.Replace().SetUpsert(true))
 
@@ -162,16 +168,16 @@ func (s *Storage) Close() error {
 }
 
 // Acquire item from pool
-func (s *Storage) acquireItem() *MongoStorage {
-	return s.items.Get().(*MongoStorage)
+func (s *Storage) acquireItem() *item {
+	return s.items.Get().(*item)
 }
 
 // Release item from pool
-func (s *Storage) releaseItem(item *MongoStorage) {
+func (s *Storage) releaseItem(item *item) {
 	if item != nil {
 		item.Key = ""
 		item.Value = nil
-		item.Exp = time.Time{}
+		item.Expiration = time.Time{}
 
 		s.items.Put(item)
 	}
