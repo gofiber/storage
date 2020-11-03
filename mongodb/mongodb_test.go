@@ -1,3 +1,5 @@
+// +build mongodb
+
 package mongodb
 
 import (

@@ -30,6 +30,6 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mongodb -v -race
+              run: go test ./mongodb -tags=mongodb -v -race
               env:
                 MONGO_URI: "mongodb://root:password@127.0.0.1:27017"
