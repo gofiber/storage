@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,8 +13,9 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db  *mongo.Database
-	col *mongo.Collection
+	db    *mongo.Database
+	col   *mongo.Collection
+	items *sync.Pool
 }
 
 type MongoStorage struct {
@@ -94,10 +96,16 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	return &Storage{
+	store := &Storage{
 		db:  db,
 		col: col,
+		items: &sync.Pool{
+			New: func() interface{} {
+				return new(MongoStorage)
+			},
+		},
 	}
+	return store
 }
 
 // Get value by key
@@ -112,7 +120,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	if result.Exp.Unix() > 0 && result.Exp.Unix() <= time.Now().Unix() {
+	if !result.Exp.IsZero() && result.Exp.Unix() <= time.Now().Unix() {
 		return nil, nil
 	}
 
@@ -124,15 +132,16 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // document will be remove automatically if exp is set, based on MongoDB TTL Indexes
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	filter := bson.M{"key": key}
-	replace := MongoStorage{
-		Key:   key,
-		Value: val,
-	}
+	item := s.acquireItem()
+	item.Key = key
+	item.Value = val
 
 	if exp != 0 {
-		replace.Exp = time.Now().Add(exp).UTC()
+		item.Exp = time.Now().Add(exp).UTC()
 	}
-	_, err := s.col.ReplaceOne(context.Background(), filter, replace, options.Replace().SetUpsert(true))
+	_, err := s.col.ReplaceOne(context.Background(), filter, item, options.Replace().SetUpsert(true))
+
+	s.releaseItem(item)
 	return err
 }
 
@@ -150,4 +159,20 @@ func (s *Storage) Clear() error {
 // Close database connection
 func (s *Storage) Close() error {
 	return s.db.Client().Disconnect(context.Background())
+}
+
+// Acquire item from pool
+func (s *Storage) acquireItem() *MongoStorage {
+	return s.items.Get().(*MongoStorage)
+}
+
+// Release item from pool
+func (s *Storage) releaseItem(item *MongoStorage) {
+	if item != nil {
+		item.Key = ""
+		item.Value = nil
+		item.Exp = time.Time{}
+
+		s.items.Put(item)
+	}
 }
