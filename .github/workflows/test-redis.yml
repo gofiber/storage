@@ -21,4 +21,5 @@ jobs:
             - name: Run Test
               run: go test ./redis -tags=redis -v -race
               env:
+                REDIS_HOST: redis
                 REDIS_PORT: 6379
