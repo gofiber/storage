@@ -23,14 +23,14 @@ func Test_Redis_Get(t *testing.T) {
 	key := "john"
 	value := []byte("doe")
 
-	result, err := store.Get(id)
+	result, err := store.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, nil, result)
 
 	err = store.Set(key, value)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get(id)
+	result, err := store.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, value, result)
 }
