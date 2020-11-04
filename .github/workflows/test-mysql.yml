@@ -1,7 +1,4 @@
-on:
-    push:
-    pull_request:
-
+on: [push, pull_request]
 name: MySQL test
 
 jobs:
@@ -22,7 +19,7 @@ jobs:
                     MYSQL_ROOT_PASSWORD: rootpassword
                     MYSQL_DATABASE: fiber
                 ports:
-                    - 3306:3306
+                    - 3306
                 # Set health checks to wait until MySQL has started
                 options: >-
                     --health-cmd "mysqladmin ping"

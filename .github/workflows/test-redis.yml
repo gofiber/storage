@@ -1,0 +1,24 @@
+on: [push, pull_request]
+name: Redis test
+jobs:
+    redis-tests:
+        runs-on: ubuntu-latest
+        services:
+            redis:
+                image: redis
+                ports:
+                    - 6379/tcp
+        strategy:
+            matrix:
+                go-version: [1.14.x, 1.15.x]
+        steps:
+            - name: Install Go
+              uses: actions/setup-go@v1
+              with:
+                go-version: ${{ matrix.go-version }}
+            - name: Fetch Repository
+              uses: actions/checkout@v2
+            - name: Run Test
+              run: go test ./redis -tags=redis -v -race
+              env:
+                REDIS_PORT: 6379
