@@ -12,8 +12,10 @@ import (
 var storeConfig = ConfigDefault
 
 func init() {
-	if v := os.Getenv("REDIS_PORT"); v != "" {
-		storeConfig.Addr = "127.0.0.1:" + v
+	if p := os.Getenv("REDIS_PORT"); p != "" {
+		if h := os.Getenv("REDIS_HOST"); h != "" {
+			storeConfig.Addr = h + ":" + p
+		}
 	}
 }
 
