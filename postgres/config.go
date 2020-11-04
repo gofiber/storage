@@ -46,7 +46,7 @@ type Config struct {
 
 	// Maximum wait for connection, in seconds. Zero or
 	// n < 0 means wait indefinitely.
-	Timeout time.Duration
+	timeout time.Duration
 
 	// The maximum number of connections in the idle connection pool.
 	//
@@ -57,7 +57,7 @@ type Config struct {
 	//
 	// The default max idle connections is currently 2. This may change in
 	// a future release.
-	MaxIdleConns int
+	maxIdleConns int
 
 	// The maximum number of open connections to the database.
 	//
@@ -67,14 +67,14 @@ type Config struct {
 	//
 	// If n <= 0, then there is no limit on the number of open connections.
 	// The default is 0 (unlimited).
-	MaxOpenConns int
+	maxOpenConns int
 
 	// The maximum amount of time a connection may be reused.
 	//
 	// Expired connections may be closed lazily before reuse.
 	//
 	// If d <= 0, connections are reused forever.
-	ConnMaxLifetime time.Duration
+	connMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
@@ -85,10 +85,10 @@ var ConfigDefault = Config{
 	Database:        "fiber",
 	TableName:       "fiber",
 	DropTable:       false,
-	Timeout:         30 * time.Second,
-	MaxOpenConns:    100,
-	MaxIdleConns:    100,
-	ConnMaxLifetime: 1 * time.Second,
+	timeout:         30 * time.Second,
+	maxOpenConns:    100,
+	maxIdleConns:    100,
+	connMaxLifetime: 1 * time.Second,
 }
 
 // Helper function to set default values
@@ -120,17 +120,17 @@ func configDefault(config ...Config) Config {
 	if cfg.TableName == "" {
 		cfg.TableName = ConfigDefault.TableName
 	}
-	if int(cfg.Timeout) == 0 {
-		cfg.Timeout = ConfigDefault.Timeout
-	}
-	if cfg.MaxOpenConns == 0 {
-		cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
-	}
-	if cfg.MaxIdleConns == 0 {
-		cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
-	}
-	if int(cfg.ConnMaxLifetime) == 0 {
-		cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
-	}
+	// if int(cfg.Timeout) == 0 {
+	// 	cfg.Timeout = ConfigDefault.Timeout
+	// }
+	// if cfg.MaxOpenConns == 0 {
+	// 	cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
+	// }
+	// if cfg.MaxIdleConns == 0 {
+	// 	cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
+	// }
+	// if int(cfg.ConnMaxLifetime) == 0 {
+	// 	cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
+	// }
 	return cfg
 }

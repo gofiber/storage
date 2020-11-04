@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -11,6 +12,9 @@ import (
 type Storage struct {
 	db *redis.Client
 }
+
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
 
 // New creates a new redis storage
 func New(config ...Config) *Storage {
@@ -55,13 +59,10 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	val, err := s.db.Get(context.Background(), key).Bytes()
-	if err != nil {
-		if err != redis.Nil {
-			return nil, err
-		}
-		return nil, nil
+	if err == redis.Nil {
+		return nil, ErrNotExist
 	}
-	return val, nil
+	return val, err
 }
 
 // Set key with value

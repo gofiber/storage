@@ -1,6 +1,7 @@
 package memcache
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,9 @@ type Storage struct {
 	items *sync.Pool
 }
 
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -27,8 +31,8 @@ func New(config ...Config) *Storage {
 	db := mc.New(serverList...)
 
 	// Set options
-	db.Timeout = cfg.Timeout
-	db.MaxIdleConns = cfg.MaxIdleConns
+	db.Timeout = cfg.timeout
+	db.MaxIdleConns = cfg.maxIdleConns
 
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {

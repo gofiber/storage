@@ -30,7 +30,7 @@ type Config struct {
 	// If n < 0, no idle connections are retained.
 	//
 	// The default is 100.
-	MaxIdleConns int
+	maxIdleConns int
 
 	// The maximum number of open connections to the database.
 	//
@@ -41,7 +41,7 @@ type Config struct {
 	// If n < 0, then there is no limit on the number of open connections.
 	//
 	// The default is 100.
-	MaxOpenConns int
+	maxOpenConns int
 
 	// The maximum amount of time a connection may be reused.
 	//
@@ -50,7 +50,7 @@ type Config struct {
 	// If d < 0, connections are reused forever.
 	//
 	// The default is 1 * time.Second
-	ConnMaxLifetime time.Duration
+	connMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
@@ -59,9 +59,9 @@ var ConfigDefault = Config{
 	Database:        "./fiber.sqlite3",
 	TableName:       "fiber",
 	DropTable:       false,
-	MaxOpenConns:    100,
-	MaxIdleConns:    100,
-	ConnMaxLifetime: 1 * time.Second,
+	maxOpenConns:    100,
+	maxIdleConns:    100,
+	connMaxLifetime: 1 * time.Second,
 }
 
 // Helper function to set default values
@@ -84,14 +84,14 @@ func configDefault(config ...Config) Config {
 	if cfg.TableName == "" {
 		cfg.TableName = ConfigDefault.TableName
 	}
-	if cfg.MaxOpenConns == 0 {
-		cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
-	}
-	if cfg.MaxIdleConns == 0 {
-		cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
-	}
-	if int(cfg.ConnMaxLifetime) == 0 {
-		cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
-	}
+	// if cfg.MaxOpenConns == 0 {
+	// 	cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
+	// }
+	// if cfg.MaxIdleConns == 0 {
+	// 	cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
+	// }
+	// if int(cfg.ConnMaxLifetime) == 0 {
+	// 	cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
+	// }
 	return cfg
 }

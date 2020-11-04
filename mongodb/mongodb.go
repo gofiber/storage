@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -17,6 +18,9 @@ type Storage struct {
 	col   *mongo.Collection
 	items *sync.Pool
 }
+
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
 
 type item struct {
 	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`

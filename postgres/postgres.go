@@ -23,6 +23,9 @@ type Storage struct {
 	sqlGC     string
 }
 
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
+
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
@@ -47,7 +50,7 @@ func New(config ...Config) *Storage {
 		url.QueryEscape(cfg.Host),
 		cfg.Port,
 		url.QueryEscape(cfg.Database),
-		int64(cfg.Timeout.Seconds()))
+		int64(cfg.timeout.Seconds()))
 
 	// Create db
 	db, err := sql.Open("postgres", dsn)
@@ -56,9 +59,9 @@ func New(config ...Config) *Storage {
 	}
 
 	// Set database options
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	db.SetMaxOpenConns(cfg.maxOpenConns)
+	db.SetMaxIdleConns(cfg.maxIdleConns)
+	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
 	// Ping database
 	if err := db.Ping(); err != nil {

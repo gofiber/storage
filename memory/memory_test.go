@@ -9,181 +9,104 @@ import (
 	"github.com/gofiber/utils"
 )
 
-func Test_Memory_Config(t *testing.T) {
-	t.Parallel()
+func Test_Redis_Set(t *testing.T) {
+	var (
+		store = testStore
+		key   = "john"
+		val   = []byte("doe")
+	)
 
-	store := New(Config{})
-
-	utils.AssertEqual(t, ConfigDefault.GCInterval, store.gcInterval)
-}
-
-func Test_Memory_Set(t *testing.T) {
-	t.Parallel()
-
-	store := New()
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	err := store.Set(id, value, 0)
-
+	err := store.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, entry{value, 0}, store.db[id])
-
 }
 
-func Test_Memory_SetExpiry(t *testing.T) {
-	t.Parallel()
+func Test_Redis_Get(t *testing.T) {
+	var (
+		store = testStore
+		key   = "john"
+		val   = []byte("doe")
+	)
 
-	store := New()
-
-	id := "hello"
-	value := []byte("Hi there!")
-	expiry := time.Second * 10
-
-	err := store.Set(id, value, expiry)
-
+	err := store.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	now := time.Now().Unix()
-	fromStore, found := store.db[id]
-	utils.AssertEqual(t, true, found)
-
-	delta := fromStore.expiry - now
-	upperBound := int64(expiry.Seconds())
-	lowerBound := upperBound - 2
-
-	if !(delta <= upperBound && delta > lowerBound) {
-		t.Fatalf("Test_SetExpiry: expiry delta out of bounds (is %d, must be %d<x<=%d)", delta, lowerBound, upperBound)
-	}
-
+	result, err := store.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
 }
 
-func Test_Memory_GC(t *testing.T) {
-	t.Parallel()
+func Test_Redis_Set_Expiration(t *testing.T) {
+	var (
+		store = testStore
+		key   = "john"
+		val   = []byte("doe")
+		exp   = 500 * time.Millisecond
+	)
 
-	store := &Storage{
-		db:         make(map[string]entry),
-		gcInterval: time.Millisecond * 10,
-	}
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	expireAt := time.Now().Add(-time.Second).Unix()
-
-	store.db[id] = entry{value, expireAt}
-
-	go store.gc()
-
-	// The purpose of the long delay is to ensure the GC has time to run and delete the value
-	time.Sleep(time.Millisecond * 15)
-
-	store.mux.RLock()
-	_, found := store.db[id]
-	utils.AssertEqual(t, false, found)
-	store.mux.RUnlock()
-}
-
-func Test_Memory_Get(t *testing.T) {
-	t.Parallel()
-
-	store := New()
-
-	t.Run("exist", func(t *testing.T) {
-		id := "hello"
-		value := []byte("Hi there!")
-
-		store.db[id] = entry{value, 0}
-
-		returnedValue, err := store.Get(id)
-		utils.AssertEqual(t, nil, err)
-		utils.AssertEqual(t, value, returnedValue)
-	})
-
-	t.Run("expired", func(t *testing.T) {
-		expired := "expired"
-		store.db[expired] = entry{[]byte{}, time.Now().Add(-time.Second).Unix()}
-
-		returnedValue, err := store.Get(expired)
-		utils.AssertEqual(t, nil, err)
-		utils.AssertEqual(t, true, returnedValue == nil)
-	})
-
-	t.Run("non-exist", func(t *testing.T) {
-		returnedValue, err := store.Get("non-exist")
-		utils.AssertEqual(t, nil, err)
-		utils.AssertEqual(t, true, returnedValue == nil)
-	})
-}
-
-func Test_Memory_Delete(t *testing.T) {
-	t.Parallel()
-
-	store := New()
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db[id] = entry{value, 0}
-
-	err := store.Delete(id)
+	err := store.Set(key, val, exp)
 	utils.AssertEqual(t, nil, err)
 
-	_, found := store.db[id]
-	utils.AssertEqual(t, false, found)
+	time.Sleep(1 * time.Second)
 
 }
 
-func Test_Memory_Clear(t *testing.T) {
-	t.Parallel()
+func Test_Redis_Get_Expired(t *testing.T) {
+	var (
+		store = testStore
+		key   = "john"
+	)
 
-	store := New()
+	result, err := store.Get(key)
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+}
 
-	id := "hello"
-	value := []byte("Hi there!")
+func Test_Redis_Get_NotExist(t *testing.T) {
+	var store = testStore
 
-	store.db[id] = entry{value, 0}
+	result, err := store.Get("notexist")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+}
 
-	err := store.Clear()
+func Test_Redis_Delete(t *testing.T) {
+	var (
+		store = testStore
+		key   = "john"
+		val   = []byte("doe")
+	)
+
+	err := store.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, make(map[string]entry), store.db)
 
+	err = store.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := store.Get(key)
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Benchmark_Memory_Set(b *testing.B) {
+func Test_Redis_Clear(t *testing.T) {
+	var (
+		store = testStore
+		val   = []byte("doe")
+	)
 
-	store := New()
+	err := store.Set("john1", val, 0)
+	utils.AssertEqual(t, nil, err)
 
-	id := "hello"
-	value := []byte("Hi there!")
-	expiry := time.Duration(0)
+	err = store.Set("john2", val, 0)
+	utils.AssertEqual(t, nil, err)
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	err = store.Clear()
+	utils.AssertEqual(t, nil, err)
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_ = store.Set(id, value, expiry)
-		}
-	})
-}
+	result, err := store.Get("john1")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
 
-func Benchmark_Memory_Get(b *testing.B) {
-
-	store := New()
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db[id] = entry{value, 0}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, _ = store.Get(id)
-		}
-	})
+	result, err = store.Get("john2")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
 }

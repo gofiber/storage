@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -11,6 +12,9 @@ type Storage struct {
 	db         map[string]entry
 	gcInterval time.Duration
 }
+
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
 
 type entry struct {
 	data   []byte

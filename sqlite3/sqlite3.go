@@ -2,6 +2,7 @@ package sqlite3
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -21,6 +22,9 @@ type Storage struct {
 	sqlClear  string
 	sqlGC     string
 }
+
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
 
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
@@ -46,9 +50,9 @@ func New(config ...Config) *Storage {
 	}
 
 	// Set database options
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	db.SetMaxOpenConns(cfg.maxOpenConns)
+	db.SetMaxIdleConns(cfg.maxIdleConns)
+	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
 	// Ping database
 	if err := db.Ping(); err != nil {
