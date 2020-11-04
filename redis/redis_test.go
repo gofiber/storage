@@ -10,9 +10,7 @@ import (
 	"github.com/gofiber/utils"
 )
 
-var storeConfig = Config{
-	DropTable: true,
-}
+var storeConfig = ConfigDefault
 
 func init() {
 	if v := os.Getenv("REDIS_PORT"); v != "" {
