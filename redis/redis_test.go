@@ -27,7 +27,7 @@ func Test_Redis_Get(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, nil, result)
 
-	err = store.Set(key, value)
+	err = store.Set(key, value, 0)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := store.Get(key)
