@@ -6,7 +6,6 @@ jobs:
         services:
             redis:
                 image: redis
-                env:
                 ports:
                     - 6379:6379
         strategy:
