@@ -60,8 +60,8 @@ func New(config ...Config) *Storage {
 	}
 
 	// Drop table if set to true
-	if cfg.DropTable {
-		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.TableName)); err != nil {
+	if cfg.Clear {
+		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
 			_ = db.Close()
 			panic(err)
 		}
@@ -69,9 +69,9 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	for _, query := range initQuery {
-		if _, err := db.Exec(fmt.Sprintf(query, cfg.TableName)); err != nil {
+		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
 			_ = db.Close()
-			fmt.Println(fmt.Sprintf(query, cfg.TableName))
+			fmt.Println(fmt.Sprintf(query, cfg.Table))
 			panic(err)
 		}
 	}
@@ -80,11 +80,11 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         db,
 		gcInterval: cfg.GCInterval,
-		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.TableName),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES (?,?,?)", cfg.TableName),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.TableName),
-		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.TableName),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.TableName),
+		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES (?,?,?)", cfg.Table),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.Table),
+		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
 	}
 
 	// Start garbage collector

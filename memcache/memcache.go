@@ -39,6 +39,12 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	if cfg.Clear {
+		if err := db.DeleteAll(); err != nil {
+			panic(err)
+		}
+	}
+
 	// Create storage
 	store := &Storage{
 		db: db,

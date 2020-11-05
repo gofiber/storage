@@ -44,13 +44,22 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create data source name
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?connect_timeout=%d&sslmode=disable",
-		url.QueryEscape(cfg.Username),
-		cfg.Password,
-		url.QueryEscape(cfg.Host),
-		cfg.Port,
+	var dsn string = "postgresql://"
+	if cfg.Username != "" {
+		dsn += url.QueryEscape(cfg.Username)
+	}
+	if cfg.Password != "" {
+		dsn += ":" + cfg.Password
+	}
+	if cfg.Username != "" || cfg.Password != "" {
+		dsn += "@"
+	}
+	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	dsn += "/" + url.QueryEscape(cfg.Database)
+	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=disable",
 		url.QueryEscape(cfg.Database),
-		int64(cfg.timeout.Seconds()))
+		int64(cfg.timeout.Seconds()),
+	)
 
 	// Create db
 	db, err := sql.Open("postgres", dsn)
@@ -69,8 +78,8 @@ func New(config ...Config) *Storage {
 	}
 
 	// Drop table if set to true
-	if cfg.DropTable {
-		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.TableName)); err != nil {
+	if cfg.Clear {
+		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
 			_ = db.Close()
 			panic(err)
 		}
@@ -78,9 +87,9 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	for _, query := range initQuery {
-		if _, err := db.Exec(fmt.Sprintf(query, cfg.TableName)); err != nil {
+		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
 			_ = db.Close()
-			fmt.Println(fmt.Sprintf(query, cfg.TableName))
+			fmt.Println(fmt.Sprintf(query, cfg.Table))
 			panic(err)
 		}
 	}
@@ -89,11 +98,11 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         db,
 		gcInterval: cfg.GCInterval,
-		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=$1;`, cfg.TableName),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES ($1, $2, $3)", cfg.TableName),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=$1", cfg.TableName),
-		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.TableName),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= $1", cfg.TableName),
+		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=$1;`, cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES ($1, $2, $3)", cfg.Table),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=$1", cfg.Table),
+		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= $1", cfg.Table),
 	}
 
 	// Start garbage collector
@@ -107,7 +116,6 @@ var noRows = errors.New("sql: no rows in result set")
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	row := s.db.QueryRow(s.sqlSelect, key)
-
 	// Add db response to data
 	var (
 		data       = []byte{}

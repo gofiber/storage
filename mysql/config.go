@@ -7,80 +7,70 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
-	// Time before deleting expired keys
+	// Host name where the DB is hosted
 	//
-	// Default is 10 * time.Second
-	GCInterval time.Duration
+	// Optional. Default is "127.0.0.1"
+	Host string
 
-	// MySQL server address. Must include port.
+	// Port where the DB is listening on
 	//
-	// Default is "127.0.0.1:3306"
-	Address string
+	// Optional. Default is 3306
+	Port int
 
-	// MySQL server username
+	// Server username
 	//
-	// Default is ""
+	// Optional. Default is ""
 	Username string
 
-	// MySQL server password
+	// Server password
 	//
-	// Default is ""
+	// Optional. Default is ""
 	Password string
 
-	// MySQL database name
+	// Database name
 	//
-	// Default is "fiber"
-	DatabaseName string
+	// Optional. Default is "fiber"
+	Database string
 
-	// DB table name
+	// Table name
 	//
-	// Default is "fiber"
-	TableName string
+	// Optional. Default is "fiber_storage"
+	Table string
 
-	// When set to true, this will Drop any existing table with the same name
-	DropTable bool
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
 
-	// The maximum number of connections in the idle connection pool.
+	// Time before deleting expired keys
 	//
-	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
-	//
-	// If n < 0, no idle connections are retained.
-	//
-	// The default is 100.
-	maxIdleConns int
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 
-	// The maximum number of open connections to the database.
-	//
-	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
-	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
-	// MaxOpenConns limit.
-	//
-	// If n < 0, then there is no limit on the number of open connections.
-	//
-	// The default is 100.
-	maxOpenConns int
+	////////////////////////////////////
+	// Adaptor related config options //
+	////////////////////////////////////
 
-	// The maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d < 0, connections are reused forever.
-	//
-	// The default is 1 * time.Second
+	maxIdleConns    int
+	maxOpenConns    int
 	connMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	Host:            "127.0.0.1",
+	Port:            3306,
+	Database:        "fiber",
+	Table:           "fiber_storage",
+	Clear:           false,
 	GCInterval:      10 * time.Second,
-	Address:         "127.0.0.1:3306",
-	TableName:       "fiber",
-	DatabaseName:    "fiber",
-	DropTable:       false,
 	maxOpenConns:    100,
 	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
+}
+
+func (c Config) dsn() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", c.Username, c.Password, c.Host, c.Port, c.Database)
 }
 
 // Helper function to set default values
@@ -94,36 +84,20 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 
 	// Set default values
+	if cfg.Host == "" {
+		cfg.Host = ConfigDefault.Host
+	}
+	if cfg.Port <= 0 {
+		cfg.Port = ConfigDefault.Port
+	}
+	if cfg.Database == "" {
+		cfg.Database = ConfigDefault.Database
+	}
+	if cfg.Table == "" {
+		cfg.Table = ConfigDefault.Table
+	}
 	if int(cfg.GCInterval) == 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
-	if cfg.Address == "" {
-		cfg.Address = ConfigDefault.Address
-	}
-	if cfg.Username == "" {
-		cfg.Username = ConfigDefault.Username
-	}
-	if cfg.Password == "" {
-		cfg.Password = ConfigDefault.Password
-	}
-	if cfg.TableName == "" {
-		cfg.TableName = ConfigDefault.TableName
-	}
-	if cfg.DatabaseName == "" {
-		cfg.DatabaseName = ConfigDefault.DatabaseName
-	}
-	// if cfg.MaxOpenConns == 0 {
-	// 	cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
-	// }
-	// if cfg.MaxIdleConns == 0 {
-	// 	cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
-	// }
-	// if int(cfg.ConnMaxLifetime) == 0 {
-	// 	cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
-	// }
 	return cfg
-}
-
-func (c Config) makeDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s)/%s", c.Username, c.Password, c.Address, c.DatabaseName)
 }

@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"net/url"
 	"sync"
 	"time"
 
@@ -34,44 +35,24 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Set mongo options
-	opt := options.Client()
-	opt.SetAppName(cfg.AppName)
-	opt.SetAuth(cfg.Auth)
-	opt.SetAutoEncryptionOptions(cfg.AutoEncryptionOptions)
-	opt.SetConnectTimeout(cfg.ConnectTimeout)
-	opt.SetCompressors(cfg.Compressors)
-	opt.SetDialer(cfg.Dialer)
-	opt.SetDirect(cfg.Direct)
-	opt.SetDisableOCSPEndpointCheck(cfg.DisableOCSPEndpointCheck)
-	opt.SetHosts(cfg.Hosts)
-	opt.SetLocalThreshold(cfg.LocalThreshold)
-	opt.SetMaxConnIdleTime(cfg.MaxConnIdleTime)
-	opt.SetMaxPoolSize(cfg.MaxPoolSize)
-	opt.SetMinPoolSize(cfg.MinPoolSize)
-	opt.SetPoolMonitor(cfg.PoolMonitor)
-	opt.SetMonitor(cfg.Monitor)
-	opt.SetReadConcern(cfg.ReadConcern)
-	opt.SetReadPreference(cfg.ReadPreference)
-	opt.SetRegistry(cfg.Registry)
-	opt.SetReplicaSet(cfg.ReplicaSet)
-	opt.SetRetryReads(cfg.RetryReads)
-	opt.SetRetryWrites(cfg.RetryWrites)
-	opt.SetServerSelectionTimeout(cfg.ServerSelectionTimeout)
-	opt.SetSocketTimeout(cfg.SocketTimeout)
-	opt.SetTLSConfig(cfg.TLSConfig)
-	opt.SetWriteConcern(cfg.WriteConcern)
-	opt.SetZlibLevel(cfg.ZlibLevel)
-	opt.SetZstdLevel(cfg.ZstdLevel)
-
-	// default time.Duration is not nil
-	// will cause panic: non-positive interval for NewTicker
-	if cfg.HeartbeatInterval > 0 {
-		opt.SetHeartbeatInterval(cfg.HeartbeatInterval)
+	// Create data source name
+	var dsn string = "mongodb://"
+	if cfg.Username != "" {
+		dsn += url.QueryEscape(cfg.Username)
+	}
+	if cfg.Password != "" {
+		dsn += ":" + cfg.Password
+	}
+	if cfg.Username != "" || cfg.Password != "" {
+		dsn += "@"
 	}
 
+	// Set mongo options
+	opt := options.Client()
+	opt.ApplyURI(dsn)
+
 	// Create mongo client
-	client, err := mongo.NewClient(opt.ApplyURI(cfg.URI))
+	client, err := mongo.NewClient(opt)
 	if err != nil {
 		panic(err)
 	}

@@ -10,123 +10,105 @@ import (
 	"github.com/gofiber/utils"
 )
 
-var storeConfig = Config{
-	DropTable: true,
-}
+var testStore = New(Config{
+	Database: os.Getenv("MYSQL_DATABASE"),
+	Username: os.Getenv("MYSQL_USERNAME"),
+	Password: os.Getenv("MYSQL_PASSWORD"),
+	Clear:    true,
+})
 
-func init() {
-	if v := os.Getenv("MYSQL_ADDRESS"); v != "" {
-		storeConfig.Address = v
-	}
-	if v := os.Getenv("MYSQL_USERNAME"); v != "" {
-		storeConfig.Username = v
-	}
-	if v := os.Getenv("MYSQL_PASSWORD"); v != "" {
-		storeConfig.Password = v
-	}
-	if v := os.Getenv("MYSQL_DATABASE"); v != "" {
-		storeConfig.DatabaseName = v
-	}
-}
-
-func Test_Redis_Set(t *testing.T) {
+func Test_MYSQL_Set(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_Redis_Get(t *testing.T) {
+func Test_MYSQL_Get(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_Redis_Set_Expiration(t *testing.T) {
+func Test_MYSQL_Set_Expiration(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
-		exp   = 500 * time.Millisecond
+		key = "john"
+		val = []byte("doe")
+		exp = 500 * time.Millisecond
 	)
 
-	err := store.Set(key, val, exp)
+	err := testStore.Set(key, val, exp)
 	utils.AssertEqual(t, nil, err)
 
 	time.Sleep(1 * time.Second)
 
 }
 
-func Test_Redis_Get_Expired(t *testing.T) {
+func Test_MYSQL_Get_Expired(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
+		key = "john"
 	)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Get_NotExist(t *testing.T) {
-	var store = testStore
+func Test_MYSQL_Get_NotExist(t *testing.T) {
 
-	result, err := store.Get("notexist")
+
+	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Delete(t *testing.T) {
+func Test_MYSQL_Delete(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Delete(key)
+	err = testStore.Delete(key)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Clear(t *testing.T) {
+func Test_MYSQL_Clear(t *testing.T) {
 	var (
-		store = testStore
-		val   = []byte("doe")
+		val = []byte("doe")
 	)
 
-	err := store.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Set("john2", val, 0)
+	err = testStore.Set("john2", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Clear()
+	err = testStore.Clear()
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get("john1")
+	result, err := testStore.Get("john1")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 
-	result, err = store.Get("john2")
+	result, err = testStore.Get("john2")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }

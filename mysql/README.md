@@ -26,20 +26,50 @@ store := mysql.New()
 
 // Initialize custom config
 store := mysql.New(mysql.Config{
+	Server:          "127.0.0.1:3306",
+	Database:        "fiber",
+	Table:           "fiber",
+	Drop:            false,
 	GCInterval:      10 * time.Second,
-	Address:         "127.0.0.1:3306",
-	TableName:       "fiber",
-	DatabaseName:    "fiber",
-	DropTable:       false,
 })
 ```
 
 ### Config
 ```go
 type Config struct {
+	// Server address in <host>:<port> format
+	//
+	// Optional. Default is "127.0.0.1:3306"
+	Server string
+
+	// Server username
+	//
+	// Optional. Default is ""
+	Username string
+
+	// Server password
+	//
+	// Optional. Default is ""
+	Password string
+
+	// Database name
+	//
+	// Optional. Default is "fiber"
+	Database string
+
+	// Table name
+	//
+	// Optional. Default is "fiber"
+	Table string
+
+	// Drop any existing table with the same Table name
+	//
+	// Optional. Default is false
+	Drop bool
+
 	// Time before deleting expired keys
 	//
-	// Default is 10 * time.Second
+	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
 }
 ```
@@ -47,10 +77,10 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
+	Server:          "127.0.0.1:3306",
+	Database:        "fiber",
+	Table:           "fiber",
+	Drop:            false,
 	GCInterval:      10 * time.Second,
-	Address:         "127.0.0.1:3306",
-	TableName:       "fiber",
-	DatabaseName:    "fiber",
-	DropTable:       false,
 }
 ```

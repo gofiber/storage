@@ -20,5 +20,3 @@ jobs:
               uses: actions/checkout@v2
             - name: Run Test
               run: go test ./redis -tags=redis -v -race
-              env:
-                REDIS_ADDR: "127.0.0.1:6379"

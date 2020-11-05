@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -23,33 +24,24 @@ func New(config ...Config) *Storage {
 
 	// Create new redis client
 	db := redis.NewClient(&redis.Options{
-		Network:            cfg.Network,
-		Addr:               cfg.Addr,
-		Dialer:             cfg.Dialer,
-		OnConnect:          cfg.OnConnect,
-		Username:           cfg.Username,
-		Password:           cfg.Password,
-		DB:                 cfg.DB,
-		MaxRetries:         cfg.MaxRetries,
-		MinRetryBackoff:    cfg.MinRetryBackoff,
-		MaxRetryBackoff:    cfg.MaxRetryBackoff,
-		DialTimeout:        cfg.DialTimeout,
-		ReadTimeout:        cfg.ReadTimeout,
-		WriteTimeout:       cfg.WriteTimeout,
-		PoolSize:           cfg.PoolSize,
-		MinIdleConns:       cfg.MinIdleConns,
-		MaxConnAge:         cfg.MaxConnAge,
-		PoolTimeout:        cfg.PoolTimeout,
-		IdleTimeout:        cfg.IdleTimeout,
-		IdleCheckFrequency: cfg.IdleCheckFrequency,
-		TLSConfig:          cfg.TLSConfig,
-		Limiter:            cfg.Limiter,
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DB:       cfg.Database,
+		Username: cfg.Username,
+		Password: cfg.Password,
 	})
 
 	// Test connection
 	if err := db.Ping(context.Background()).Err(); err != nil {
 		panic(err)
 	}
+
+	// Empty collection if Clear is true
+	if cfg.Clear {
+		if err := db.FlushDB(context.Background()).Err(); err != nil {
+			panic(err)
+		}
+	}
+
 	// Create new store
 	return &Storage{
 		db: db,

@@ -1,23 +1,13 @@
 on: [push, pull_request]
-name: Test MongoDB
-
+name: MongoDB test
 jobs:
-    # Label of the container job
     mongodb-tests:
-        # Containers must run in Linux based operating systems
         runs-on: ubuntu-latest
-        
-        # Service containers to run with `container-job`
         services:
-            # Label used to access the service container
             mongo:
-                # Docker Hub image
-                image: mongo:4.4
+                image: mongo:latest
                 ports:
                     - 27017:27017
-                env:
-                    MONGO_INITDB_ROOT_USERNAME: root
-                    MONGO_INITDB_ROOT_PASSWORD: password
         strategy:
             matrix:
                 go-version: [1.14.x, 1.15.x]
@@ -30,5 +20,3 @@ jobs:
               uses: actions/checkout@v2
             - name: Run Test
               run: go test ./mongodb -tags=mongodb -v -race
-              env:
-                MONGO_URI: "mongodb://root:password@127.0.0.1:27017"

@@ -7,8 +7,13 @@ type Config struct {
 	// Server list divided by ,
 	// i.e. server1:11211, server2:11212
 	//
-	// Optional. Default is "localhost:11211"
+	// Optional. Default is "127.0.0.1:11211"
 	Servers string
+
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
 
 	// The socket read/write timeout.
 	//
@@ -26,7 +31,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Servers:      "localhost:11211",
+	Servers:      "127.0.0.1:11211",
 	timeout:      100 * time.Millisecond,
 	maxIdleConns: 2,
 }
@@ -45,12 +50,6 @@ func configDefault(config ...Config) Config {
 	if len(cfg.Servers) < 1 {
 		cfg.Servers = ConfigDefault.Servers
 	}
-	// if int(cfg.Timeout) == 0 {
-	// 	cfg.Timeout = ConfigDefault.Timeout
-	// }
-	// if cfg.MaxIdleConns == 0 {
-	// 	cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
-	// }
 
 	return cfg
 }

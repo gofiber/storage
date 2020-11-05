@@ -10,16 +10,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var testStore *Storage
+var testStore = New(Config{
+	Clear: true,
+})
 
-func init() {
-	testConfig := ConfigDefault
-	testConfig.Database = ":memory:"
-
-	testStore = New(testConfig)
-}
-
-func Test_Redis_Set(t *testing.T) {
+func Test_SQLite3_Set(t *testing.T) {
 	var (
 		store = testStore
 		key   = "john"
@@ -30,7 +25,7 @@ func Test_Redis_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_Redis_Get(t *testing.T) {
+func Test_SQLite3_Get(t *testing.T) {
 	var (
 		store = testStore
 		key   = "john"
@@ -45,7 +40,7 @@ func Test_Redis_Get(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_Redis_Set_Expiration(t *testing.T) {
+func Test_SQLite3_Set_Expiration(t *testing.T) {
 	var (
 		store = testStore
 		key   = "john"
@@ -60,7 +55,7 @@ func Test_Redis_Set_Expiration(t *testing.T) {
 
 }
 
-func Test_Redis_Get_Expired(t *testing.T) {
+func Test_SQLite3_Get_Expired(t *testing.T) {
 	var (
 		store = testStore
 		key   = "john"
@@ -71,15 +66,15 @@ func Test_Redis_Get_Expired(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Get_NotExist(t *testing.T) {
-	var store = testStore
+func Test_SQLite3_Get_NotExist(t *testing.T) {
+
 
 	result, err := store.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Delete(t *testing.T) {
+func Test_SQLite3_Delete(t *testing.T) {
 	var (
 		store = testStore
 		key   = "john"
@@ -97,7 +92,7 @@ func Test_Redis_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Clear(t *testing.T) {
+func Test_SQLite3_Clear(t *testing.T) {
 	var (
 		store = testStore
 		val   = []byte("doe")

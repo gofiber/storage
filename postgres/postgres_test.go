@@ -2,38 +2,38 @@
 
 package postgres
 
-var testStore *Storage
+import (
+	"os"
+	"testing"
+	"time"
 
-func init() {
-	testConfig := ConfigDefault
-	testConfig.Addr = "127.0.0.1:5432"
+	"github.com/gofiber/utils"
+)
 
-	if v := os.Getenv("POSTGRES_ADDR"); v != "" {
-		testConfig.Addr = v
-	}
+var testStore = New(Config{
+	Database: os.Getenv("POSTGRES_DATABASE"),
+	Username: os.Getenv("POSTGRES_USERNAME"),
+	Password: os.Getenv("POSTGRES_PASSWORD"),
+	Clear:    true,
+})
 
-	testStore = New(testConfig)
-}
-
-func Test_Redis_Set(t *testing.T) {
+func Test_Postgres_Set(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_Redis_Get(t *testing.T) {
+func Test_Postgres_Get(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := store.Get(key)
@@ -41,25 +41,23 @@ func Test_Redis_Get(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_Redis_Set_Expiration(t *testing.T) {
+func Test_Postgres_Set_Expiration(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
-		exp   = 500 * time.Millisecond
+		key = "john"
+		val = []byte("doe")
+		exp = 500 * time.Millisecond
 	)
 
-	err := store.Set(key, val, exp)
+	err := testStore.(key, val, exp)
 	utils.AssertEqual(t, nil, err)
 
 	time.Sleep(1 * time.Second)
 
 }
 
-func Test_Redis_Get_Expired(t *testing.T) {
+func Test_Postgres_Get_Expired(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
+		key = "john"
 	)
 
 	result, err := store.Get(key)
@@ -67,22 +65,21 @@ func Test_Redis_Get_Expired(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Get_NotExist(t *testing.T) {
-	var store = testStore
+func Test_Postgres_Get_NotExist(t *testing.T) {
+
 
 	result, err := store.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Delete(t *testing.T) {
+func Test_Postgres_Delete(t *testing.T) {
 	var (
-		store = testStore
-		key   = "john"
-		val   = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	err = store.Delete(key)
@@ -93,16 +90,15 @@ func Test_Redis_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Clear(t *testing.T) {
+func Test_Postgres_Clear(t *testing.T) {
 	var (
-		store = testStore
-		val   = []byte("doe")
+		val = []byte("doe")
 	)
 
-	err := store.Set("john1", val, 0)
+	err := testStore.("john1", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Set("john2", val, 0)
+	err = testStore.("john2", val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	err = store.Clear()

@@ -4,61 +4,44 @@ import "time"
 
 // Config defines the config for storage.
 type Config struct {
-	// Time before deleting expired keys
+	// Database name
 	//
-	// Default is 10 * time.Second
-	GCInterval time.Duration
-
-	// DB file path
-	//
-	// Default is "./fiber.sqlite3"
+	// Optional. Default is "fiber"
 	Database string
 
-	// DB table name
+	// Table name
 	//
-	// Default is "fiber"
-	TableName string
+	// Optional. Default is "fiber_storage"
+	Table string
 
-	// When set to true, this will Drop any existing table with the same name
-	DropTable bool
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
 
-	// The maximum number of connections in the idle connection pool.
+	// Time before deleting expired keys
 	//
-	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
-	//
-	// If n < 0, no idle connections are retained.
-	//
-	// The default is 100.
-	maxIdleConns int
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 
-	// The maximum number of open connections to the database.
-	//
-	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
-	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
-	// MaxOpenConns limit.
-	//
-	// If n < 0, then there is no limit on the number of open connections.
-	//
-	// The default is 100.
-	maxOpenConns int
+	////////////////////////////////////
+	// Adaptor related config options //
+	////////////////////////////////////
 
-	// The maximum amount of time a connection may be reused.
-	//
-	// Expired connections may be closed lazily before reuse.
-	//
-	// If d < 0, connections are reused forever.
-	//
-	// The default is 1 * time.Second
+	maxIdleConns    int
+	maxOpenConns    int
 	connMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	GCInterval:      10 * time.Second,
-	Database:        "./fiber.sqlite3",
-	TableName:       "fiber",
-	DropTable:       false,
+	// General config options
+	Database:   "./fiber.sqlite3",
+	Table:      "fiber_storage",
+	Clear:      false,
+	GCInterval: 10 * time.Second,
+
+	// Adaptor related config options
 	maxOpenConns:    100,
 	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
@@ -75,23 +58,14 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 
 	// Set default values
-	if int(cfg.GCInterval) == 0 {
-		cfg.GCInterval = ConfigDefault.GCInterval
-	}
 	if cfg.Database == "" {
 		cfg.Database = ConfigDefault.Database
 	}
-	if cfg.TableName == "" {
-		cfg.TableName = ConfigDefault.TableName
+	if cfg.Table == "" {
+		cfg.Table = ConfigDefault.Table
 	}
-	// if cfg.MaxOpenConns == 0 {
-	// 	cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
-	// }
-	// if cfg.MaxIdleConns == 0 {
-	// 	cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
-	// }
-	// if int(cfg.ConnMaxLifetime) == 0 {
-	// 	cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
-	// }
+	if int(cfg.GCInterval) == 0 {
+		cfg.GCInterval = ConfigDefault.GCInterval
+	}
 	return cfg
 }

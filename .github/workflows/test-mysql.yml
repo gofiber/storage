@@ -1,26 +1,13 @@
 on: [push, pull_request]
 name: MySQL test
-
 jobs:
-    # Label of the container job
     mysql-tests:
-        # Containers must run in Linux based operating systems
         runs-on: ubuntu-latest
-        
-        # Service containers to run with `container-job`
         services:
-            # Label used to access the service container
             mysql:
-                # Docker Hub image
-                image: mysql:8
-                env:
-                    MYSQL_USER: username
-                    MYSQL_PASSWORD: password
-                    MYSQL_ROOT_PASSWORD: rootpassword
-                    MYSQL_DATABASE: fiber
+                image: mysql:latest
                 ports:
                     - 3306:3306
-                # Set health checks to wait until MySQL has started
                 options: >-
                     --health-cmd "mysqladmin ping"
                     --health-interval 10s
@@ -38,8 +25,3 @@ jobs:
               uses: actions/checkout@v2
             - name: Run Test
               run: go test ./mysql -tags=mysql -v -race
-              env:
-                MYSQL_ADDRESS: "127.0.0.1:3306"
-                MYSQL_USERNAME: username
-                MYSQL_PASSWORD: password
-                MYSQL_DATABASE: fiber
