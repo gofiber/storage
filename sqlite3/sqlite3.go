@@ -2,6 +2,7 @@ package sqlite3
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,15 +23,18 @@ type Storage struct {
 	sqlGC     string
 }
 
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
+
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
-			key  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
-			data TEXT NOT NULL,
-			exp  BIGINT NOT NULL DEFAULT '0'
+			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+			v TEXT NOT NULL,
+			e  BIGINT NOT NULL DEFAULT '0'
 		);`,
-		`CREATE INDEX IF NOT EXISTS exp ON %s (exp);`,
+		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
 	}
 )
 
@@ -46,9 +50,9 @@ func New(config ...Config) *Storage {
 	}
 
 	// Set database options
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	db.SetMaxOpenConns(cfg.maxOpenConns)
+	db.SetMaxIdleConns(cfg.maxIdleConns)
+	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
 	// Ping database
 	if err := db.Ping(); err != nil {
@@ -56,8 +60,8 @@ func New(config ...Config) *Storage {
 	}
 
 	// Drop table if set to true
-	if cfg.DropTable {
-		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.TableName)); err != nil {
+	if cfg.Clear {
+		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
 			_ = db.Close()
 			panic(err)
 		}
@@ -65,9 +69,9 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	for _, query := range initQuery {
-		if _, err := db.Exec(fmt.Sprintf(query, cfg.TableName)); err != nil {
+		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
 			_ = db.Close()
-			fmt.Println(fmt.Sprintf(query, cfg.TableName))
+			fmt.Println(fmt.Sprintf(query, cfg.Table))
 			panic(err)
 		}
 	}
@@ -76,11 +80,11 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         db,
 		gcInterval: cfg.GCInterval,
-		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.TableName),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES (?,?,?)", cfg.TableName),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.TableName),
-		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.TableName),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.TableName),
+		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=?;`, cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (k, v, e) VALUES (?,?,?)", cfg.Table),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
+		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
 	}
 
 	// Start garbage collector
@@ -89,27 +93,23 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = "sql: no rows in result set"
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	row := s.db.QueryRow(s.sqlSelect, key)
-
 	// Add db response to data
 	var (
 		data       = []byte{}
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err.Error() != noRows {
-			return nil, err
+		if err == sql.ErrNoRows {
+			return nil, ErrNotExist
 		}
-		return nil, nil
+		return nil, err
 	}
-
 	// If the expiration time has already passed, then return nil
-	if exp <= time.Now().Unix() && exp != 0 {
-		return nil, nil
+	if exp != 0 && exp <= time.Now().Unix() {
+		return nil, ErrNotExist
 	}
 
 	return data, nil
@@ -117,6 +117,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
 	var expSeconds int64
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()

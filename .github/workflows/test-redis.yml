@@ -1,13 +1,13 @@
 on: [push, pull_request]
-name: MongoDB
+name: Redis
 jobs:
     Tests:
         runs-on: ubuntu-latest
         services:
-            mongo:
-                image: mongo:latest
+            redis:
+                image: redis:latest
                 ports:
-                    - 27017:27017
+                    - 6379:6379
         strategy:
             matrix:
                 go-version: [1.14.x, 1.15.x]
@@ -20,4 +20,4 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mongodb -tags=mongodb -v -race
+              run: go test ./redis -tags=redis -v -race

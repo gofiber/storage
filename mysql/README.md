@@ -1,34 +1,93 @@
 # MySQL
 
-A MySQL storage driver using `database/sql` and [`go-sql-driver/mysql`](https://github.com/go-sql-driver/mysql).
+A MySQL storage driver using `database/sql` and [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql).
 
-### Creation
+### Table of Contents
+- [Signatures](#signatures)
+- [Examples](#examples)
+- [Config](#config)
+- [Default Config](#default-config)
 
-To create a new instance of the MySQL store, is is reccomended that you provide a database name, a table name, a username and a password. The database must exist beforehand, but the table will be created if it does not exist.
-
+### Signatures
 ```go
-// import "github.com/gomodule/redigo/redis"
+func New(config ...Config) Storage
+```
+
+### Examples
+Import the storage package.
+```go
+import "github.com/gofiber/storage/mysql"
+```
+
+You can use the following possibilities to create a storage:
+```go
+// Initialize default config
+store := mysql.New()
+
+// Initialize custom config
 store := mysql.New(mysql.Config{
-    DatabaseName: "myDb",
-    TableName: "thisStore",
-    Username: "user",
-    Password: "yourPasswordHere",
+	Host:            "127.0.0.1",
+	Port:            3306,
+	Database:        "fiber",
+	Table:           "fiber_storage",
+	Clear:           false,
+	GCInterval:      10 * time.Second,
 })
 ```
 
-By default the store will connect to a database on `127.0.0.1:3306`. If you are using multiple MySQL stores in your application, it is strongly advised that you use different table names for each, to avoid data being overwritten or otherwise damaged.
+### Config
+```go
+type Config struct {
+	// Host name where the DB is hosted
+	//
+	// Optional. Default is "127.0.0.1"
+	Host string
 
-A full list of configuration options and their defaults can be found [in `config.go`](/config.go).
+	// Port where the DB is listening on
+	//
+	// Optional. Default is 3306
+	Port int
 
-### Running tests/benchmarks
+	// Server username
+	//
+	// Optional. Default is ""
+	Username string
 
-Tests and benchmarks for this package require a running MySQL server, and assume you have one at `127.0.0.1:3306`. The following environment variables can be used to configure the tests:
+	// Server password
+	//
+	// Optional. Default is ""
+	Password string
 
-| Name             | Corresponding `Config` option |
-| ---------------- | ----------------------------- |
-| `MYSQL_ADDRESS`  | `Address`                     |
-| `MYSQL_USERNAME` | `Username`                    |
-| `MYSQL_PASSWORD` | `Password`                    |
-| `MYSQL_DATABASE` | `DatabaseName`                |
+	// Database name
+	//
+	// Optional. Default is "fiber"
+	Database string
 
-If a given environment variable is not set, the default value is used.
+	// Table name
+	//
+	// Optional. Default is "fiber_storage"
+	Table string
+
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
+
+	// Time before deleting expired keys
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
+}
+```
+
+### Default Config
+```go
+var ConfigDefault = Config{
+	Host:            "127.0.0.1",
+	Port:            3306,
+	Database:        "fiber",
+	Table:           "fiber_storage",
+	Clear:           false,
+	GCInterval:      10 * time.Second,
+}
+```

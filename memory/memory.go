@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -11,6 +12,9 @@ type Storage struct {
 	db         map[string]entry
 	gcInterval time.Duration
 }
+
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
 
 type entry struct {
 	data   []byte
@@ -39,12 +43,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok {
-		return nil, nil
-	}
-
-	if v.expiry != 0 && v.expiry <= time.Now().Unix() {
-		return nil, nil
+	if !ok || v.expiry != 0 && v.expiry <= time.Now().Unix() {
+		return nil, ErrNotExist
 	}
 
 	return v.data, nil
@@ -52,6 +52,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
 	var expire int64
 	if exp != 0 {
 		expire = time.Now().Add(exp).Unix()

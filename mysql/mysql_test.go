@@ -10,178 +10,116 @@ import (
 	"github.com/gofiber/utils"
 )
 
-var storeConfig = Config{
-	DropTable: true,
-}
+var testStore = New(Config{
+	Database: os.Getenv("MYSQL_DATABASE"),
+	Username: os.Getenv("MYSQL_USERNAME"),
+	Password: os.Getenv("MYSQL_PASSWORD"),
+	Clear:    true,
+})
 
-func init() {
-	if v := os.Getenv("MYSQL_ADDRESS"); v != "" {
-		storeConfig.Address = v
-	}
-	if v := os.Getenv("MYSQL_USERNAME"); v != "" {
-		storeConfig.Username = v
-	}
-	if v := os.Getenv("MYSQL_PASSWORD"); v != "" {
-		storeConfig.Password = v
-	}
-	if v := os.Getenv("MYSQL_DATABASE"); v != "" {
-		storeConfig.DatabaseName = v
-	}
-}
-
-func Test_MySQL_Set(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.Set(id, value, 0)
-
+func Test_MYSQL_Set(t *testing.T) {
 	var (
-		returnedValue []byte
-		exp           int64
+		key = "john"
+		val = []byte("doe")
 	)
 
-	store.db.QueryRow(store.sqlSelect, id).Scan(&returnedValue, &exp)
-
-	utils.AssertEqual(t, returnedValue, value)
-	utils.AssertEqual(t, exp, int64(0))
-
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
 }
 
-func Test_MySQL_SetExpiry(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-	expiry := time.Second * 10
-
-	store.Set(id, value, expiry)
-
-	now := time.Now().Unix()
+func Test_MYSQL_Set_Override(t *testing.T) {
 	var (
-		returnedValue []byte
-		exp           int64
+		key = "john"
+		val = []byte("doe")
 	)
-	store.db.QueryRow(store.sqlSelect, id).Scan(&returnedValue, &exp)
 
-	delta := exp - now
-	upperBound := int64(expiry.Seconds())
-	lowerBound := upperBound - 2
-
-	if !(delta <= upperBound && delta > lowerBound) {
-		t.Fatalf("Test_SetExpiry: expiry delta out of bounds (is %d, must be %d<x<=%d)", delta, lowerBound, upperBound)
-	}
-
-}
-
-func Test_MySQL_Get(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db.Exec(store.sqlInsert, id, utils.UnsafeString(value), 0)
-
-	returnedValue, err := store.Get(id)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, value, returnedValue)
-
-}
-
-func Test_MySQL_Get_NoRows(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-
-	returnedValue, err := store.Get(id)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, 0, len(returnedValue))
-
-}
-
-func Test_MySQL_Get_Expired(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db.Exec(store.sqlInsert, id, utils.UnsafeString(value), time.Now().Add(time.Minute*-1).Unix())
-
-	returnedValue, err := store.Get(id)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, 0, len(returnedValue))
-}
-
-func Test_MySQL_Delete(t *testing.T) {
-
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db.Exec(store.sqlInsert, id, utils.UnsafeString(value), 0)
-
-	err := store.Delete(id)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	row := store.db.QueryRow(store.sqlSelect, id)
-	err = row.Scan()
-	utils.AssertEqual(t, noRows, err.Error())
-
+	err = testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
 }
 
-func Test_MySQL_Clear(t *testing.T) {
+func Test_MYSQL_Get(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
 
-	store := New(storeConfig)
-
-	id := "hello"
-	value := []byte("Hi there!")
-
-	store.db.Exec(store.sqlInsert, id, utils.UnsafeString(value), 0)
-
-	err := store.Clear()
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	row := store.db.QueryRow(store.sqlSelect, id)
-	err = row.Scan()
-	utils.AssertEqual(t, noRows, err.Error())
-
+	result, err := testStore.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
 }
 
-func Benchmark_MySQL_Set(b *testing.B) {
-	store := New(storeConfig)
+func Test_MYSQL_Set_Expiration(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+		exp = 1 * time.Second
+	)
 
-	key := "aaaa"
-	val := []byte("This is a value")
+	err := testStore.Set(key, val, exp)
+	utils.AssertEqual(t, nil, err)
 
-	expiry := time.Second * 60
-
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
-		store.Set(key, val, expiry)
-	}
-
+	time.Sleep(1100 * time.Millisecond)
 }
 
-func Benchmark_MySQL_Get(b *testing.B) {
-	store := New(storeConfig)
+func Test_MYSQL_Get_Expired(t *testing.T) {
+	var (
+		key = "john"
+	)
 
-	key := "aaaa"
-	val := []byte("This is a value")
+	result, err := testStore.Get(key)
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+}
 
-	store.Set(key, val, 0)
+func Test_MYSQL_Get_NotExist(t *testing.T) {
 
-	b.ResetTimer()
+	result, err := testStore.Get("notexist")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+}
 
-	for n := 0; n < b.N; n++ {
-		store.Get(key)
-	}
+func Test_MYSQL_Delete(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
 
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	err = testStore.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStore.Get(key)
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+}
+
+func Test_MYSQL_Clear(t *testing.T) {
+	var (
+		val = []byte("doe")
+	)
+
+	err := testStore.Set("john1", val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	err = testStore.Set("john2", val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	err = testStore.Clear()
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStore.Get("john1")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
+
+	result, err = testStore.Get("john2")
+	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, true, len(result) == 0)
 }

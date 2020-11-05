@@ -1,20 +1,19 @@
 on: [push, pull_request]
-name: MySQL
+name: Postgres
 jobs:
     Tests:
         runs-on: ubuntu-latest
         services:
-            mysql:
-                image: mysql:latest
-                env:
-                    MYSQL_DATABASE: fiber
-                    MYSQL_USER: username
-                    MYSQL_PASSWORD: password
-                    MYSQL_ROOT_PASSWORD: password
+            postgres:
+                image: postgres:latest
                 ports:
-                    - 3306:3306
+                    - 5432:5432
+                env:
+                    POSTGRES_DB: fiber
+                    POSTGRES_USER: username
+                    POSTGRES_PASSWORD: password
                 options: >-
-                    --health-cmd "mysqladmin ping"
+                    --health-cmd pg_isready
                     --health-interval 10s
                     --health-timeout 5s
                     --health-retries 5
@@ -30,8 +29,8 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mysql -tags=mysql -v -race
+              run: go test ./postgres -tags=postgres -v -race
               env:
-                MYSQL_USERNAME: username
-                MYSQL_PASSWORD: password
-                MYSQL_DATABASE: fiber
+                POSTGRES_DATABASE: fiber
+                POSTGRES_USERNAME: username
+                POSTGRES_PASSWORD: password

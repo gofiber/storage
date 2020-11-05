@@ -2,6 +2,9 @@ package mongodb
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
 	"sync"
 	"time"
 
@@ -18,6 +21,9 @@ type Storage struct {
 	items *sync.Pool
 }
 
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
+
 type item struct {
 	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	Key        string             `json:"key" bson:"key"`
@@ -30,44 +36,25 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// Create data source name
+	var dsn string = "mongodb://"
+	if cfg.Username != "" {
+		dsn += url.QueryEscape(cfg.Username)
+	}
+	if cfg.Password != "" {
+		dsn += ":" + cfg.Password
+	}
+	if cfg.Username != "" || cfg.Password != "" {
+		dsn += "@"
+	}
+	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+
 	// Set mongo options
 	opt := options.Client()
-	opt.SetAppName(cfg.AppName)
-	opt.SetAuth(cfg.Auth)
-	opt.SetAutoEncryptionOptions(cfg.AutoEncryptionOptions)
-	opt.SetConnectTimeout(cfg.ConnectTimeout)
-	opt.SetCompressors(cfg.Compressors)
-	opt.SetDialer(cfg.Dialer)
-	opt.SetDirect(cfg.Direct)
-	opt.SetDisableOCSPEndpointCheck(cfg.DisableOCSPEndpointCheck)
-	opt.SetHosts(cfg.Hosts)
-	opt.SetLocalThreshold(cfg.LocalThreshold)
-	opt.SetMaxConnIdleTime(cfg.MaxConnIdleTime)
-	opt.SetMaxPoolSize(cfg.MaxPoolSize)
-	opt.SetMinPoolSize(cfg.MinPoolSize)
-	opt.SetPoolMonitor(cfg.PoolMonitor)
-	opt.SetMonitor(cfg.Monitor)
-	opt.SetReadConcern(cfg.ReadConcern)
-	opt.SetReadPreference(cfg.ReadPreference)
-	opt.SetRegistry(cfg.Registry)
-	opt.SetReplicaSet(cfg.ReplicaSet)
-	opt.SetRetryReads(cfg.RetryReads)
-	opt.SetRetryWrites(cfg.RetryWrites)
-	opt.SetServerSelectionTimeout(cfg.ServerSelectionTimeout)
-	opt.SetSocketTimeout(cfg.SocketTimeout)
-	opt.SetTLSConfig(cfg.TLSConfig)
-	opt.SetWriteConcern(cfg.WriteConcern)
-	opt.SetZlibLevel(cfg.ZlibLevel)
-	opt.SetZstdLevel(cfg.ZstdLevel)
-
-	// default time.Duration is not nil
-	// will cause panic: non-positive interval for NewTicker
-	if cfg.HeartbeatInterval > 0 {
-		opt.SetHeartbeatInterval(cfg.HeartbeatInterval)
-	}
+	opt.ApplyURI(dsn)
 
 	// Create mongo client
-	client, err := mongo.NewClient(opt.ApplyURI(cfg.URI))
+	client, err := mongo.NewClient(opt)
 	if err != nil {
 		panic(err)
 	}
@@ -117,6 +104,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	item := s.acquireItem()
 
 	if err := res.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, ErrNotExist
+		}
 		return nil, err
 	}
 	if err := res.Decode(&item); err != nil {
@@ -124,7 +114,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
-		return nil, nil
+		return nil, ErrNotExist
 	}
 	// // not safe?
 	// res := item.Val
@@ -137,6 +127,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 //
 // document will be remove automatically if exp is set, based on MongoDB TTL Indexes
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
+
 	filter := bson.M{"key": key}
 	item := s.acquireItem()
 	item.Key = key
@@ -160,11 +155,6 @@ func (s *Storage) Delete(key string) error {
 // Clear all keys by drop collection
 func (s *Storage) Clear() error {
 	return s.col.Drop(context.Background())
-}
-
-// Close database connection
-func (s *Storage) Close() error {
-	return s.db.Client().Disconnect(context.Background())
 }
 
 // Acquire item from pool

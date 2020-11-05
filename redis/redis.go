@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -12,6 +14,9 @@ type Storage struct {
 	db *redis.Client
 }
 
+// Common storage errors
+var ErrNotExist = errors.New("key does not exist")
+
 // New creates a new redis storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -19,33 +24,24 @@ func New(config ...Config) *Storage {
 
 	// Create new redis client
 	db := redis.NewClient(&redis.Options{
-		Network:            cfg.Network,
-		Addr:               cfg.Addr,
-		Dialer:             cfg.Dialer,
-		OnConnect:          cfg.OnConnect,
-		Username:           cfg.Username,
-		Password:           cfg.Password,
-		DB:                 cfg.DB,
-		MaxRetries:         cfg.MaxRetries,
-		MinRetryBackoff:    cfg.MinRetryBackoff,
-		MaxRetryBackoff:    cfg.MaxRetryBackoff,
-		DialTimeout:        cfg.DialTimeout,
-		ReadTimeout:        cfg.ReadTimeout,
-		WriteTimeout:       cfg.WriteTimeout,
-		PoolSize:           cfg.PoolSize,
-		MinIdleConns:       cfg.MinIdleConns,
-		MaxConnAge:         cfg.MaxConnAge,
-		PoolTimeout:        cfg.PoolTimeout,
-		IdleTimeout:        cfg.IdleTimeout,
-		IdleCheckFrequency: cfg.IdleCheckFrequency,
-		TLSConfig:          cfg.TLSConfig,
-		Limiter:            cfg.Limiter,
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DB:       cfg.Database,
+		Username: cfg.Username,
+		Password: cfg.Password,
 	})
 
 	// Test connection
 	if err := db.Ping(context.Background()).Err(); err != nil {
 		panic(err)
 	}
+
+	// Empty collection if Clear is true
+	if cfg.Clear {
+		if err := db.FlushDB(context.Background()).Err(); err != nil {
+			panic(err)
+		}
+	}
+
 	// Create new store
 	return &Storage{
 		db: db,
@@ -55,17 +51,18 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	val, err := s.db.Get(context.Background(), key).Bytes()
-	if err != nil {
-		if err != redis.Nil {
-			return nil, err
-		}
-		return nil, nil
+	if err == redis.Nil {
+		return nil, ErrNotExist
 	}
-	return val, nil
+	return val, err
 }
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
 	return s.db.Set(context.Background(), key, val, exp).Err()
 }
 

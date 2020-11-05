@@ -26,9 +26,7 @@ store := memcache.New()
 
 // Initialize custom config
 store := memcache.New(memcache.Config{
-	Servers:        "localhost:11211",
-	Timeout:        100 * time.Millisecond,
-	MaxIdleConns:   10,
+	Servers: "localhost:11211",
 })
 ```
 
@@ -36,31 +34,21 @@ store := memcache.New(memcache.Config{
 ```go
 type Config struct {
 	// Server list divided by ,
-	// i.e. "127.0.0.1:11211, 127.0.0.1:11212"
+	// i.e. server1:11211, server2:11212
 	//
 	// Optional. Default is "127.0.0.1:11211"
 	Servers string
 
-	// The socket read/write timeout.
+	// Clear any existing keys in existing Table
 	//
-	// Optional. Default is 100 * time.Millisecond
-	Timeout time.Duration
-
-	// The maximum number of idle connections that will be maintained per address.
-	//
-	// Consider your expected traffic rates and latency carefully. This should
-	// be set to a number higher than your peak parallel requests.
-	//
-	// Optional. Default is 2
-	MaxIdleConns int
+	// Optional. Default is false
+	Clear bool
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Servers:      "localhost:11211",
-	Timeout:      100 * time.Millisecond,
-	MaxIdleConns: 2,
+	Servers:      "127.0.0.1:11211",
 }
 ```

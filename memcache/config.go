@@ -7,13 +7,18 @@ type Config struct {
 	// Server list divided by ,
 	// i.e. server1:11211, server2:11212
 	//
-	// Optional. Default is "localhost:11211"
+	// Optional. Default is "127.0.0.1:11211"
 	Servers string
+
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
 
 	// The socket read/write timeout.
 	//
 	// Optional. Default is 100 * time.Millisecond
-	Timeout time.Duration
+	timeout time.Duration
 
 	// The maximum number of idle connections that will be maintained per address.
 	//
@@ -21,14 +26,14 @@ type Config struct {
 	// be set to a number higher than your peak parallel requests.
 	//
 	// Optional. Default is 2
-	MaxIdleConns int
+	maxIdleConns int
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Servers:      "localhost:11211",
-	Timeout:      100 * time.Millisecond,
-	MaxIdleConns: 2,
+	Servers:      "127.0.0.1:11211",
+	timeout:      100 * time.Millisecond,
+	maxIdleConns: 2,
 }
 
 // Helper function to set default values
@@ -44,12 +49,6 @@ func configDefault(config ...Config) Config {
 	// Set default values
 	if len(cfg.Servers) < 1 {
 		cfg.Servers = ConfigDefault.Servers
-	}
-	if int(cfg.Timeout) == 0 {
-		cfg.Timeout = ConfigDefault.Timeout
-	}
-	if cfg.MaxIdleConns == 0 {
-		cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
 	}
 
 	return cfg
