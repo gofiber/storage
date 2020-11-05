@@ -26,42 +26,44 @@ store := sqlite3.New()
 
 // Initialize custom config
 store := sqlite3.New(sqlite3.Config{
-	GCInterval:      10 * time.Second,
-	Database:        "./fiber.sqlite3",
-	TableName:       "fiber",
-	DropTable:       false,
+	Database:   "./fiber.sqlite3",
+	Table:      "fiber_storage",
+	Clear:      false,
+	GCInterval: 10 * time.Second,
 })
 ```
 
 ### Config
 ```go
 type Config struct {
-	// Time before deleting expired keys
+	// Database name
 	//
-	// Default is 10 * time.Second
-	GCInterval time.Duration
-
-	// DB file path
-	//
-	// Default is "./fiber.sqlite3"
+	// Optional. Default is "fiber"
 	Database string
 
-	// DB table name
+	// Table name
 	//
-	// Default is "fiber"
-	TableName string
+	// Optional. Default is "fiber_storage"
+	Table string
 
-	// When set to true, this will Drop any existing table with the same name
-	DropTable bool
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
+
+	// Time before deleting expired keys
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	GCInterval:      10 * time.Second,
-	Database:        "./fiber.sqlite3",
-	TableName:       "fiber",
-	DropTable:       false,
+	Database:   "./fiber.sqlite3",
+	Table:      "fiber_storage",
+	Clear:      false,
+	GCInterval: 10 * time.Second,
 }
 ```

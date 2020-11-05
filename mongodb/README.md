@@ -26,57 +26,68 @@ store := mongodb.New()
 
 // Initialize custom config
 store := mongodb.New(mongodb.Config{
-	URI:        "mongodb://127.0.0.1:27017",
+	Host:       "127.0.0.1",
+	Port:       27017,
 	Database:   "fiber",
-	Collection: "fiber",
+	Collection: "fiber_storage",
+	Clear:      false,
+	GCInterval: 10 * time.Second,
 })
 ```
 
 ### Config
 ```go
 type Config struct {
-	//https://docs.mongodb.com/manual/reference/connection-string/
-	URI        string
-	Database   string
+	// Host name where the DB is hosted
+	//
+	// Optional. Default is "127.0.0.1"
+	Host string
+
+	// Port where the DB is listening on
+	//
+	// Optional. Default is 27017
+	Port int
+
+	// Server username
+	//
+	// Optional. Default is ""
+	Username string
+
+	// Server password
+	//
+	// Optional. Default is ""
+	Password string
+
+	// Database name
+	//
+	// Optional. Default is "fiber"
+	Database string
+
+	// Collection name
+	//
+	// Optional. Default is "fiber_storage"
 	Collection string
 
-	// https://pkg.go.dev/go.mongodb.org/mongo-driver@v1.4.2/mongo/options#ClientOptions
-	AppName                  string
-	Auth                     options.Credential
-	AutoEncryptionOptions    *options.AutoEncryptionOptions
-	ConnectTimeout           time.Duration
-	Compressors              []string
-	Dialer                   options.ContextDialer
-	Direct                   bool
-	DisableOCSPEndpointCheck bool
-	HeartbeatInterval        time.Duration
-	Hosts                    []string
-	LocalThreshold           time.Duration
-	MaxConnIdleTime          time.Duration
-	MaxPoolSize              uint64
-	MinPoolSize              uint64
-	PoolMonitor              *event.PoolMonitor
-	Monitor                  *event.CommandMonitor
-	ReadConcern              *readconcern.ReadConcern
-	ReadPreference           *readpref.ReadPref
-	Registry                 *bsoncodec.Registry
-	ReplicaSet               string
-	RetryReads               bool
-	RetryWrites              bool
-	ServerSelectionTimeout   time.Duration
-	SocketTimeout            time.Duration
-	TLSConfig                *tls.Config
-	WriteConcern             *writeconcern.WriteConcern
-	ZlibLevel                int
-	ZstdLevel                int
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
+
+	// Time before deleting expired keys
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	URI:        "mongodb://127.0.0.1:27017",
+	Host:       "127.0.0.1",
+	Port:       27017,
 	Database:   "fiber",
-	Collection: "fiber",
+	Collection: "fiber_storage",
+	Clear:      false,
+	GCInterval: 10 * time.Second,
 }
 ```

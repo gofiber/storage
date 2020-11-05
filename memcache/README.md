@@ -34,16 +34,21 @@ store := memcache.New(memcache.Config{
 ```go
 type Config struct {
 	// Server list divided by ,
-	// i.e. "127.0.0.1:11211, 127.0.0.1:11212"
+	// i.e. server1:11211, server2:11212
 	//
 	// Optional. Default is "127.0.0.1:11211"
 	Servers string
+
+	// Clear any existing keys in existing Table
+	//
+	// Optional. Default is false
+	Clear bool
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Servers:      "localhost:11211",
+	Servers:      "127.0.0.1:11211",
 }
 ```

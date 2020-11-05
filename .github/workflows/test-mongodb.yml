@@ -1,7 +1,7 @@
 on: [push, pull_request]
-name: MongoDB test
+name: MongoDB
 jobs:
-    mongodb-tests:
+    Tests:
         runs-on: ubuntu-latest
         services:
             mongo:

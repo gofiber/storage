@@ -26,12 +26,12 @@ store := postgres.New()
 
 // Initialize custom config
 store := postgres.New(postgres.Config{
-	GCInterval:      10 * time.Second,
 	Host:            "127.0.0.1",
 	Port:            5432,
 	Database:        "fiber",
-	TableName:       "fiber",
-	DropTable:       false,
+	Table:           "fiber_storage",
+	Clear:           false,
+	GCInterval:      10 * time.Second,
 })
 ```
 
@@ -39,56 +39,56 @@ store := postgres.New(postgres.Config{
 ```go
 // Config defines the config for storage.
 type Config struct {
-	// Time before deleting expired keys
-	//
-	// Default is 10 * time.Second
-	GCInterval time.Duration
-
-	// DB host
+	// Host name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
 	Host string
 
-	// DB port
+	// Port where the DB is listening on
 	//
-	// Optional. Default is "5432"
-	Port int64
+	// Optional. Default is 5432
+	Port int
 
-	// DB user name
+	// Server username
 	//
 	// Optional. Default is ""
 	Username string
 
-	// DB user password
+	// Server password
 	//
 	// Optional. Default is ""
 	Password string
 
-	// DB name
+	// Database name
 	//
 	// Optional. Default is "fiber"
 	Database string
 
-	// DB table name
+	// Table name
 	//
-	// Optional. Default is "fiber"
-	TableName string
+	// Optional. Default is "fiber_storage"
+	Table string
 
-	// Drop any existing table with the same name
+	// Clear any existing keys in existing Table
 	//
 	// Optional. Default is false
-	DropTable bool
+	Clear bool
+
+	// Time before deleting expired keys
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	GCInterval:      10 * time.Second,
 	Host:            "127.0.0.1",
 	Port:            5432,
 	Database:        "fiber",
-	TableName:       "fiber",
-	DropTable:       false,
+	Table:           "fiber_storage",
+	Clear:           false,
+	GCInterval:      10 * time.Second,
 }
 ```

@@ -1,7 +1,7 @@
 on: [push, pull_request]
-name: Redis test
+name: Redis
 jobs:
-    redis-tests:
+    Tests:
         runs-on: ubuntu-latest
         services:
             redis:

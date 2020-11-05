@@ -1,7 +1,7 @@
 on: [push, pull_request]
-name: MySQL test
+name: MySQL
 jobs:
-    mysql-tests:
+    Tests:
         runs-on: ubuntu-latest
         services:
             mysql:
