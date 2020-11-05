@@ -8,6 +8,10 @@ jobs:
                 image: postgres:latest
                 ports:
                     - 5432:5432
+                env:
+                    POSTGRES_DATABASE: fiber
+                    POSTGRES_USER: username
+                    POSTGRES_PASSWORD: password
                 options: >-
                     --health-cmd pg_isready
                     --health-interval 10s
@@ -27,6 +31,6 @@ jobs:
             - name: Run Test
               run: go test ./postgres -tags=postgres -v -race
               env:
-                MYSQL_USERNAME: username
-                MYSQL_PASSWORD: password
-                MYSQL_DATABASE: fiber
+                POSTGRES_DATABASE: fiber
+                POSTGRES_USER: username
+                POSTGRES_PASSWORD: password
