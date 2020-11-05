@@ -49,7 +49,7 @@ func Test_Postgres_Get(t *testing.T) {
 	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
 }
