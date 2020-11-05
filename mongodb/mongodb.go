@@ -104,6 +104,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	item := s.acquireItem()
 
 	if err := res.Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, ErrNotExist
+		}
 		return nil, err
 	}
 	if err := res.Decode(&item); err != nil {
@@ -111,7 +114,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
-		return nil, nil
+		return nil, ErrNotExist
 	}
 	// // not safe?
 	// res := item.Val
