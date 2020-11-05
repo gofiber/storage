@@ -108,11 +108,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		if err.Error() != noRows {
 			return nil, err
 		}
-		return nil, nil
+		return nil, err.Error()
 	}
 
 	// If the expiration time has already passed, then return nil
-	if exp <= time.Now().Unix() && exp != 0 {
+	if exp != 0 && exp <= time.Now().Unix() {
 		return nil, nil
 	}
 
