@@ -4,6 +4,7 @@ A Redis storage driver using [go-redis/redis](github.com/go-redis/redis).
 
 ### Table of Contents
 - [Signatures](#signatures)
+- [Installation](#installation)
 - [Examples](#examples)
 - [Config](#config)
 - [Default Config](#default-config)
@@ -18,6 +19,15 @@ func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Clear() error
+```
+### Installation
+Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+```bash
+go mod init github.com/<user>/<repo>
+```
+And then install the redis implementation:
+```bash
+go get github.com/gofiber/storage/redis
 ```
 
 ### Examples
