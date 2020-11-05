@@ -62,7 +62,7 @@ func New(config ...Config) *Storage {
 func (s *Storage) Get(key string) ([]byte, error) {
 	item, err := s.db.Get(key)
 	if err == mc.ErrCacheMiss {
-		return nil, nil
+		return nil, ErrNotExist
 	} else if err != nil {
 		return nil, err
 	}

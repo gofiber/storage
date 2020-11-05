@@ -11,6 +11,8 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ### Signatures
 ```go
 func New(config ...Config) Storage
+
+var ErrNotExist = errors.New("key does not exist")
 ```
 
 ### Examples
