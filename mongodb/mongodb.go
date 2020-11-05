@@ -127,6 +127,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 //
 // document will be remove automatically if exp is set, based on MongoDB TTL Indexes
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
+
 	filter := bson.M{"key": key}
 	item := s.acquireItem()
 	item.Key = key

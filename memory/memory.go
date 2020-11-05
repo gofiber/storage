@@ -52,6 +52,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// Ain't Nobody Got Time For That
+	if len(val) <= 0 {
+		return nil
+	}
 	var expire int64
 	if exp != 0 {
 		expire = time.Now().Add(exp).Unix()
