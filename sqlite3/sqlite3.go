@@ -97,15 +97,15 @@ func New(config ...Config) *Storage {
 func (s *Storage) Get(key string) ([]byte, error) {
 	row := s.db.QueryRow(s.sqlSelect, key)
 
-	if row.Err() == sql.ErrNoRows {
-		return nil, ErrNotExist
-	}
 	// Add db response to data
 	var (
 		data       = []byte{}
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotExist
+		}
 		return nil, err
 	}
 
