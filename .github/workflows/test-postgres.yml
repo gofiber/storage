@@ -32,5 +32,5 @@ jobs:
               run: go test ./postgres -tags=postgres -v -race
               env:
                 POSTGRES_DATABASE: fiber
-                POSTGRES_USER: username
+                POSTGRES_USERNAME: username
                 POSTGRES_PASSWORD: password
