@@ -75,7 +75,7 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		gcInterval: cfg.GCInterval,
 		db:         db,
-		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE id=?;`, cfg.Table),
+		sqlSelect:  fmt.Sprintf("SELECT data, exp FROM %s WHERE id=?;", cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
@@ -102,10 +102,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	)
 
 	if err := row.Scan(&data, &exp); err != nil {
-		if err.Error() != noRows {
-			return nil, err
+		if err == sql.ErrNoRows {
+			return nil, ErrNotExist
 		}
-		return nil, nil
+		return nil, err
 	}
 
 	// If the expiration time has already passed, then return nil
