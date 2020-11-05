@@ -98,7 +98,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf(`INSERT INTO %s (k, v, e) VALUES ($1, $2, $3)`, cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON DUPLICATE KEY UPDATE v = $4, e = $5", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1", cfg.Table),
@@ -141,7 +141,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(val) <= 0 {
 		return nil
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), time.Now().Add(exp).Unix())
+	var expSeconds int64
+	if exp != 0 {
+		expSeconds = time.Now().Add(exp).Unix()
+	}
+	valStr := utils.UnsafeString(val)
+	_, err := s.db.Exec(s.sqlInsert, key, valStr, expSeconds, valStr, expSeconds)
 	return err
 }
 
