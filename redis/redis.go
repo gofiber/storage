@@ -75,8 +75,3 @@ func (s *Storage) Delete(key string) error {
 func (s *Storage) Clear() error {
 	return s.db.FlushDB(context.Background()).Err()
 }
-
-// Close the storage
-func (s *Storage) Close() error {
-	return s.db.Close()
-}

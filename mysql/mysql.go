@@ -76,7 +76,7 @@ func New(config ...Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		db:         db,
 		sqlSelect:  fmt.Sprintf("SELECT data, exp FROM %s WHERE id=?;", cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (id, data, exp) VALUES (?,?,?) ON DUPLICATE KEY UPDATE data = ?, exp = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
@@ -126,7 +126,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), expSeconds)
+	valStr := utils.UnsafeString(val)
+	_, err := s.db.Exec(s.sqlInsert, key, valStr, expSeconds, valStr, expSeconds)
 	return err
 }
 
@@ -140,11 +141,6 @@ func (s *Storage) Delete(key string) error {
 func (s *Storage) Clear() error {
 	_, err := s.db.Exec(s.sqlClear)
 	return err
-}
-
-// Close the storage
-func (s *Storage) Close() error {
-	return s.db.Close()
 }
 
 // Garbage collector to delete expired keys

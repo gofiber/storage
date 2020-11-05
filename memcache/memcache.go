@@ -98,11 +98,6 @@ func (s *Storage) Clear() error {
 	return s.db.DeleteAll()
 }
 
-// Close the storage
-func (s *Storage) Close() error {
-	return nil
-}
-
 // Acquire item from pool
 func (s *Storage) acquireItem() *mc.Item {
 	return s.items.Get().(*mc.Item)

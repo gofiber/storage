@@ -157,11 +157,6 @@ func (s *Storage) Clear() error {
 	return s.col.Drop(context.Background())
 }
 
-// Close database connection
-func (s *Storage) Close() error {
-	return s.db.Client().Disconnect(context.Background())
-}
-
 // Acquire item from pool
 func (s *Storage) acquireItem() *item {
 	return s.items.Get().(*item)

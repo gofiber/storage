@@ -83,11 +83,6 @@ func (s *Storage) Clear() error {
 	return nil
 }
 
-// Close the storage
-func (s *Storage) Close() error {
-	return nil
-}
-
 func (s *Storage) gc() {
 	for t := range time.NewTicker(s.gcInterval).C {
 		now := t.Unix()

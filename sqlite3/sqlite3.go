@@ -141,11 +141,6 @@ func (s *Storage) Clear() error {
 	return err
 }
 
-// Close the storage
-func (s *Storage) Close() error {
-	return s.db.Close()
-}
-
 // GC deletes all expired entries
 func (s *Storage) gc() {
 	tick := time.NewTicker(s.gcInterval)
