@@ -46,7 +46,7 @@ func Test_Postgres_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Get(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := store.Get(key)
