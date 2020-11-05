@@ -82,7 +82,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
 	}
