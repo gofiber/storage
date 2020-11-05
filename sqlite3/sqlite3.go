@@ -93,21 +93,19 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = "sql: no rows in result set"
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	row := s.db.QueryRow(s.sqlSelect, key)
 
+	if row.Err() == sql.ErrNoRows {
+		return nil, ErrNotExist
+	}
 	// Add db response to data
 	var (
 		data       = []byte{}
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err.Error() != noRows {
-			return nil, err
-		}
 		return nil, err
 	}
 
