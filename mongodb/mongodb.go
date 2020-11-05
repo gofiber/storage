@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ func New(config ...Config) *Storage {
 	if cfg.Username != "" || cfg.Password != "" {
 		dsn += "@"
 	}
+	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 
 	// Set mongo options
 	opt := options.Client()
