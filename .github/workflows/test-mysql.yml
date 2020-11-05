@@ -8,6 +8,9 @@ jobs:
                 image: mysql:latest
                 env:
                     MYSQL_DATABASE: fiber
+                    MYSQL_USER: username
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: password
                 ports:
                     - 3306:3306
                 options: >-
@@ -27,3 +30,7 @@ jobs:
               uses: actions/checkout@v2
             - name: Run Test
               run: go test ./mysql -tags=mysql -v -race
+              env:
+                MYSQL_USERNAME: username
+                MYSQL_PASSWORD: password
+                MYSQL_DATABASE: fiber
