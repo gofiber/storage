@@ -15,4 +15,4 @@ jobs:
     - name: Fetch Repository
       uses: actions/checkout@v2
     - name: Run Test
-      run: cd ./memory && go test ./... -tags=memory -v -race
+      run: cd ./memory && go test ./... -v -race

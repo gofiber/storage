@@ -1,5 +1,3 @@
-// +build memcache
-
 package memcache
 
 import (

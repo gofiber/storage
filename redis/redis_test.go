@@ -1,5 +1,3 @@
-// +build redis
-
 package redis
 
 import (

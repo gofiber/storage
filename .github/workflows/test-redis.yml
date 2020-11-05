@@ -20,4 +20,4 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./redis -tags=redis -v -race
+              run: cd ./redis && go test ./... -v -race
