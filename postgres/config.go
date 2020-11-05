@@ -1,6 +1,8 @@
 package postgres
 
-import "time"
+import (
+	"time"
+)
 
 // Config defines the config for storage.
 type Config struct {
