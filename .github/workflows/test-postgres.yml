@@ -4,13 +4,8 @@ jobs:
     Tests:
         runs-on: ubuntu-latest
         services:
-            mysql:
+            postgres:
                 image: postgres:latest
-                env:
-                    MYSQL_DATABASE: fiber
-                    MYSQL_USER: username
-                    MYSQL_PASSWORD: password
-                    MYSQL_ROOT_PASSWORD: password
                 ports:
                     - 5432:5432
                 options: >-
