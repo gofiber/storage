@@ -55,7 +55,6 @@ func New(config ...Config) *Storage {
 		dsn += "@"
 	}
 	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
-	dsn += "/" + url.QueryEscape(cfg.Database)
 	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=disable",
 		url.QueryEscape(cfg.Database),
 		int64(cfg.timeout.Seconds()),
