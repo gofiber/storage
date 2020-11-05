@@ -30,7 +30,7 @@ func Test_Memcache_Set_Override(t *testing.T) {
 	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err := testStore.Set(key, val, 0)
+	err = testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 }
 
