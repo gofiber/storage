@@ -9,7 +9,7 @@ jobs:
                 ports:
                     - 5432:5432
                 env:
-                    POSTGRES_DATABASE: fiber
+                    POSTGRES_DB: fiber
                     POSTGRES_USER: username
                     POSTGRES_PASSWORD: password
                 options: >-
