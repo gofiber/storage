@@ -89,11 +89,6 @@ type Config struct {
 	//
 	// Optional. Default is false
 	Clear bool
-
-	// Time before deleting expired keys
-	//
-	// Optional. Default is 10 * time.Second
-	GCInterval time.Duration
 }
 ```
 
@@ -104,7 +99,6 @@ var ConfigDefault = Config{
 	Port:       27017,
 	Database:   "fiber",
 	Collection: "fiber_storage",
-	Clear:      false,
-	GCInterval: 10 * time.Second,
+	Clear:      false
 }
 ```
