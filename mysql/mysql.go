@@ -76,7 +76,7 @@ func New(config ...Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		db:         db,
 		sqlSelect:  fmt.Sprintf("SELECT data, exp FROM %s WHERE id=?;", cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
@@ -140,6 +140,11 @@ func (s *Storage) Delete(key string) error {
 func (s *Storage) Clear() error {
 	_, err := s.db.Exec(s.sqlClear)
 	return err
+}
+
+// Close the storage
+func (s *Storage) Close() error {
+	return s.db.Close()
 }
 
 // Garbage collector to delete expired keys
