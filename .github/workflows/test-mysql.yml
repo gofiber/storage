@@ -5,7 +5,9 @@ jobs:
         runs-on: ubuntu-latest
         services:
             mysql:
-                image: mysql:8
+                image: mysql:latest
+                env:
+                    MYSQL_DATABASE: fiber
                 ports:
                     - 3306:3306
                 options: >-
