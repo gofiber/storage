@@ -23,7 +23,7 @@ func Test_Postgres_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 }
 
@@ -46,7 +46,7 @@ func Test_Postgres_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.(key, val, 0)
+	err := testStore.Get(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := store.Get(key)
@@ -72,15 +72,14 @@ func Test_Postgres_Get_Expired(t *testing.T) {
 		key = "john"
 	)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
 func Test_Postgres_Get_NotExist(t *testing.T) {
 
-
-	result, err := store.Get("notexist")
+	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
@@ -91,13 +90,13 @@ func Test_Postgres_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Delete(key)
+	err = testStore.Delete(key)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
@@ -107,20 +106,20 @@ func Test_Postgres_Clear(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = testStore.("john2", val, 0)
+	err = testStore.Set("john2", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = store.Clear()
+	err = testStore.Clear()
 	utils.AssertEqual(t, nil, err)
 
-	result, err := store.Get("john1")
+	result, err := testStore.Get("john1")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 
-	result, err = store.Get("john2")
+	result, err = testStore.Get("john2")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
