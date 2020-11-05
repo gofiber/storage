@@ -1,18 +1,24 @@
-on: [push, pull_request]
+'on':
+  - push
+  - pull_request
 name: SQLite3
 jobs:
   Tests:
     strategy:
       matrix:
-        go-version: [1.14.x, 1.15.x]
-        platform: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
+        go-version:
+          - 1.14.x
+          - 1.15.x
+        platform:
+          - ubuntu-latest
+          - windows-latest
+    runs-on: '${{ matrix.platform }}'
     steps:
-    - name: Install Go
-      uses: actions/setup-go@v1
-      with:
-        go-version: ${{ matrix.go-version }}
-    - name: Fetch Repository
-      uses: actions/checkout@v2
-    - name: Run Test
-      run: cd ./sqlite3 && go test ./... -v -race
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Fetch Repository
+        uses: actions/checkout@v2
+      - name: Run Test
+        run: cd ./sqlite3 && go test ./... -v -race

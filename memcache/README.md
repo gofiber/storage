@@ -4,6 +4,7 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 
 ### Table of Contents
 - [Signatures](#signatures)
+- [Installation](#installation)
 - [Examples](#examples)
 - [Config](#config)
 - [Default Config](#default-config)
@@ -11,6 +12,17 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ### Signatures
 ```go
 func New(config ...Config) Storage
+
+var ErrNotExist = errors.New("key does not exist")
+```
+### Installation
+Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+```bash
+go mod init github.com/<user>/<repo>
+```
+And then install the memory implementation:
+```bash
+go get github.com/gofiber/storage/memory
 ```
 
 ### Examples

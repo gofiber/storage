@@ -4,13 +4,32 @@ An in-memory storage driver.
 
 ### Table of Contents
 - [Signatures](#signatures)
+- [Installation](#installation)
 - [Examples](#examples)
 - [Config](#config)
 - [Default Config](#default-config)
 
+
 ### Signatures
 ```go
 func New(config ...Config) Storage
+
+var ErrNotExist = errors.New("key does not exist")
+
+func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) Delete(key string) error
+func (s *Storage) Clear() error
+```
+
+### Installation
+Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+```bash
+go mod init github.com/<user>/<repo>
+```
+And then install the memory implementation:
+```bash
+go get github.com/gofiber/storage/memory
 ```
 
 ### Examples
