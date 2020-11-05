@@ -29,7 +29,7 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./postgres -tags=postgres -v -race
+              run: cd ./postgres && go test ./... -v -race
               env:
                 POSTGRES_DATABASE: fiber
                 POSTGRES_USERNAME: username

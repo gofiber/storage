@@ -15,4 +15,4 @@ jobs:
     - name: Fetch Repository
       uses: actions/checkout@v2
     - name: Run Test
-      run: go test ./sqlite3 -tags=sqlite3 -v -race
+      run: cd ./sqlite3 && go test ./... -v -race

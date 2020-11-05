@@ -20,4 +20,4 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mongodb -tags=mongodb -v -race
+              run: cd ./mongodb && go test ./... -v -race

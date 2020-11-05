@@ -30,7 +30,7 @@ jobs:
             - name: Fetch Repository
               uses: actions/checkout@v2
             - name: Run Test
-              run: go test ./mysql -tags=mysql -v -race
+              run: cd ./mysql && go test ./... -v -race
               env:
                 MYSQL_USERNAME: username
                 MYSQL_PASSWORD: password
