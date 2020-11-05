@@ -23,6 +23,19 @@ func Test_Redis_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
+func Test_Redis_Set_Override(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+}
+
 func Test_Redis_Get(t *testing.T) {
 	var (
 		key = "john"

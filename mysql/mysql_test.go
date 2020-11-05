@@ -27,6 +27,19 @@ func Test_MYSQL_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
+func Test_MYSQL_Set_Override(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	err := testStore.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+}
+
 func Test_MYSQL_Get(t *testing.T) {
 	var (
 		key = "john"
@@ -65,7 +78,6 @@ func Test_MYSQL_Get_Expired(t *testing.T) {
 }
 
 func Test_MYSQL_Get_NotExist(t *testing.T) {
-
 
 	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
