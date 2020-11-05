@@ -1,15 +1,15 @@
 'on':
   - push
   - pull_request
-name: MongoDB
+name: Memcache
 jobs:
   Tests:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: 'mongo:latest'
+        image: 'memcached:latest'
         ports:
-          - '27017:27017'
+          - '11211:11211'
     strategy:
       matrix:
         go-version:
@@ -26,4 +26,4 @@ jobs:
       - name: Fetch Repository
         uses: actions/checkout@v2
       - name: Run Test
-        run: cd ./mongodb && go test ./... -v -race
+        run: cd ./memcache && go test ./... -v -race
