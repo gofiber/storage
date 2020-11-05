@@ -30,11 +30,11 @@ var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
-			key  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
-			data TEXT NOT NULL,
-			exp  BIGINT NOT NULL DEFAULT '0'
+			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+			v TEXT NOT NULL,
+			e  BIGINT NOT NULL DEFAULT '0'
 		);`,
-		`CREATE INDEX IF NOT EXISTS exp ON %s (exp);`,
+		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
 	}
 )
 
@@ -80,11 +80,11 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         db,
 		gcInterval: cfg.GCInterval,
-		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (key, data, exp) VALUES (?,?,?)", cfg.Table),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.Table),
+		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=?;`, cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (k, v, e) VALUES (?,?,?)", cfg.Table),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
 	}
 
 	// Start garbage collector

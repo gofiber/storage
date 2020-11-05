@@ -28,7 +28,12 @@ var ErrNotExist = errors.New("key does not exist")
 var (
 	dropQuery = "DROP TABLE IF EXISTS %s;"
 	initQuery = []string{
-		"CREATE TABLE IF NOT EXISTS %s ( `id` VARCHAR(64) NOT NULL DEFAULT '' , `data` TEXT NOT NULL , `exp` BIGINT NOT NULL DEFAULT '0' , PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+		`CREATE TABLE IF NOT EXISTS %s ( 
+			k  VARCHAR(64) NOT NULL DEFAULT '', 
+			v  TEXT NOT NULL, 
+			e  BIGINT NOT NULL DEFAULT '0', 
+			PRIMARY KEY (k)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
 	}
 )
 
@@ -75,11 +80,11 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		gcInterval: cfg.GCInterval,
 		db:         db,
-		sqlSelect:  fmt.Sprintf("SELECT data, exp FROM %s WHERE id=?;", cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (id, data, exp) VALUES (?,?,?) ON DUPLICATE KEY UPDATE data = ?, exp = ?", cfg.Table),
+		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
 	}
 
 	// Start garbage collector
