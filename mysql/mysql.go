@@ -76,7 +76,7 @@ func New(config ...Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		db:         db,
 		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE id=?;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (id, data, exp) VALUES (?,?,?)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE id=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),

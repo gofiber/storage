@@ -81,7 +81,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=?;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES (?,?,?)", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (key, data, exp) VALUES (?,?,?)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=?", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= ?", cfg.Table),
@@ -96,7 +96,6 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	row := s.db.QueryRow(s.sqlSelect, key)
-
 	// Add db response to data
 	var (
 		data       = []byte{}
@@ -108,10 +107,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		}
 		return nil, err
 	}
-
 	// If the expiration time has already passed, then return nil
 	if exp != 0 && exp <= time.Now().Unix() {
-		return nil, nil
+		return nil, ErrNotExist
 	}
 
 	return data, nil

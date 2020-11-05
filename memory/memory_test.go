@@ -39,14 +39,13 @@ func Test_Memory_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
-		exp = 500 * time.Millisecond
+		exp = 1 * time.Second
 	)
 
 	err := testStore.Set(key, val, exp)
 	utils.AssertEqual(t, nil, err)
 
-	time.Sleep(1 * time.Second)
-
+	time.Sleep(1100 * time.Millisecond)
 }
 
 func Test_Memory_Get_Expired(t *testing.T) {
@@ -60,7 +59,6 @@ func Test_Memory_Get_Expired(t *testing.T) {
 }
 
 func Test_Memory_Get_NotExist(t *testing.T) {
-
 
 	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)

@@ -99,7 +99,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		sqlSelect:  fmt.Sprintf(`SELECT data, exp FROM %s WHERE key=$1;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (key, data, exp) VALUES ($1, $2, $3)", cfg.Table),
+		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (key, data, exp) VALUES ($1, $2, $3)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE key=$1", cfg.Table),
 		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE exp <= $1", cfg.Table),
