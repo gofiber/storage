@@ -25,26 +25,30 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 
 ## 📑 Storage Implementations
 
+
+* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 * [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMemcache">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Memcache?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Memory](/memory)<a href="https://github.com/gofiber/storage/actions?query=workflow%3AMemory">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Memory?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MongoDB](/mongodb)<a href="https://github.com/gofiber/storage/actions?query=workflow%3AMongoDB">
+* [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMongoDB">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MongoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MySQL](/mysql)<a href="https://github.com/gofiber/storage/actions?query=workflow%3AMySQL">
+* [MySQL](/mysql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMySQL">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MySQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Postgres](/postgres)<a href="https://github.com/gofiber/storage/actions?query=workflow%3APostgres">
+* [Postgres](/postgres) <a href="https://github.com/gofiber/storage/actions?query=workflow%3APostgres">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Postgres?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Redis](/redis)<a href="https://github.com/gofiber/storage/actions?query=workflow%3ARedis">
+* [Redis](/redis) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ARedis">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Redis?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [SQLite3](/sqlite3)<a href="https://github.com/gofiber/storage/actions?query=workflow%3ASQLite3">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/SQLite3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 
 ## 🤔 Something missing?
