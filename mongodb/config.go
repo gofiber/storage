@@ -1,9 +1,5 @@
 package mongodb
 
-import (
-	"time"
-)
-
 // Config defines the config for storage.
 type Config struct {
 	// Host name where the DB is hosted
@@ -40,11 +36,6 @@ type Config struct {
 	//
 	// Optional. Default is false
 	Reset bool
-
-	// Time before deleting expired keys
-	//
-	// Optional. Default is 10 * time.Second
-	GCInterval time.Duration
 }
 
 // ConfigDefault is the default config
@@ -54,7 +45,6 @@ var ConfigDefault = Config{
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
-	GCInterval: 10 * time.Second,
 }
 
 // Helper function to set default values

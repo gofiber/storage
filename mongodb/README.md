@@ -48,7 +48,6 @@ store := mongodb.New(mongodb.Config{
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
-	GCInterval: 10 * time.Second,
 })
 ```
 
@@ -89,11 +88,6 @@ type Config struct {
 	//
 	// Optional. Default is false
 	Reset bool
-
-	// Time before deleting expired keys
-	//
-	// Optional. Default is 10 * time.Second
-	GCInterval time.Duration
 }
 ```
 
@@ -105,6 +99,5 @@ var ConfigDefault = Config{
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
-	GCInterval: 10 * time.Second,
 }
 ```
