@@ -26,13 +26,13 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 ## 📑 Storage Implementations
 
 
-* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMemcache">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Memcache?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+* [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMongoDB">
@@ -47,7 +47,7 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 * [Redis](/redis) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ARedis">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Redis?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ALocal%20Storage">
+* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 
