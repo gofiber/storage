@@ -15,6 +15,7 @@ import (
 type Storage struct {
 	db         *sql.DB
 	gcInterval time.Duration
+	done       chan struct{}
 
 	sqlSelect string
 	sqlInsert string
@@ -97,6 +98,7 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         db,
 		gcInterval: cfg.GCInterval,
+		done:       make(chan struct{}),
 		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", cfg.Table),
@@ -164,16 +166,20 @@ func (s *Storage) Reset() error {
 
 // Close the database
 func (s *Storage) Close() error {
+	s.done <- struct{}{}
 	return s.db.Close()
 }
 
 // GC deletes all expired entries
 func (s *Storage) gc() {
-	tick := time.NewTicker(s.gcInterval)
+	ticker := time.NewTicker(s.gcInterval)
+	defer ticker.Stop()
 	for {
-		<-tick.C
-		if _, err := s.db.Exec(s.sqlGC); err != nil {
-			panic(err)
+		select {
+		case <-s.done:
+			return
+		case t := <-ticker.C:
+			_, _ = s.db.Exec(s.sqlGC, t.Unix())
 		}
 	}
 }
