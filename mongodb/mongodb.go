@@ -74,7 +74,7 @@ func New(config ...Config) *Storage {
 	db := client.Database(cfg.Database)
 	col := db.Collection(cfg.Collection)
 
-	if cfg.Clear {
+	if cfg.Reset {
 		if err = col.Drop(context.Background()); err != nil {
 			panic(err)
 		}
