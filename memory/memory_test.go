@@ -93,7 +93,7 @@ func Test_Memory_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Memory_Clear(t *testing.T) {
+func Test_Memory_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -117,9 +117,5 @@ func Test_Memory_Clear(t *testing.T) {
 }
 
 func Test_Memory_Close(t *testing.T) {
-	s := Storage{done: make(chan struct{}, 1)}
-
-	err := s.Close()
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, 1, len(s.done))
+	utils.AssertEqual(t, nil, testStore.Close())
 }

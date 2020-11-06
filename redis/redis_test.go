@@ -94,7 +94,7 @@ func Test_Redis_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Redis_Clear(t *testing.T) {
+func Test_Redis_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -115,4 +115,8 @@ func Test_Redis_Clear(t *testing.T) {
 	result, err = testStore.Get("john2")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
+}
+
+func Test_Redis_Close(t *testing.T) {
+	utils.AssertEqual(t, nil, testStore.Close())
 }

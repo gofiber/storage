@@ -137,9 +137,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // Set key with value, replace if document exits
 //
 // document will be remove automatically if exp is set, based on MongoDB TTL Indexes
+// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
-	if len(val) <= 0 {
+	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
@@ -159,6 +160,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // Delete document by key
 func (s *Storage) Delete(key string) error {
+	// Ain't Nobody Got Time For That
+	if len(key) <= 0 {
+		return nil
+	}
 	_, err := s.col.DeleteOne(context.Background(), bson.M{"key": key})
 	return err
 }

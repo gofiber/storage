@@ -1,18 +1,15 @@
-package sqlite3
+package badger
 
 import (
 	"testing"
 	"time"
 
 	"github.com/gofiber/utils"
-	_ "github.com/mattn/go-sqlite3"
 )
 
-var testStore = New(Config{
-	Reset: true,
-})
+var testStore = New()
 
-func Test_SQLite3_Set(t *testing.T) {
+func Test_Badger_Set(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -22,7 +19,7 @@ func Test_SQLite3_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_SQLite3_Set_Override(t *testing.T) {
+func Test_Badger_Set_Override(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -35,7 +32,7 @@ func Test_SQLite3_Set_Override(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_SQLite3_Get(t *testing.T) {
+func Test_Badger_Get(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -49,7 +46,7 @@ func Test_SQLite3_Get(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_SQLite3_Set_Expiration(t *testing.T) {
+func Test_Badger_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -62,7 +59,7 @@ func Test_SQLite3_Set_Expiration(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 }
 
-func Test_SQLite3_Get_Expired(t *testing.T) {
+func Test_Badger_Get_Expired(t *testing.T) {
 	var (
 		key = "john"
 	)
@@ -72,14 +69,14 @@ func Test_SQLite3_Get_Expired(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_SQLite3_Get_NotExist(t *testing.T) {
+func Test_Badger_Get_NotExist(t *testing.T) {
 
 	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_SQLite3_Delete(t *testing.T) {
+func Test_Badger_Delete(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -96,7 +93,7 @@ func Test_SQLite3_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_SQLite3_Reset(t *testing.T) {
+func Test_Badger_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -119,6 +116,6 @@ func Test_SQLite3_Reset(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_SQLite3_Close(t *testing.T) {
+func Test_Badger_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }

@@ -58,9 +58,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
+// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
-	if len(val) <= 0 {
+	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 	return s.db.Set(context.Background(), key, val, exp).Err()
@@ -68,6 +69,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	// Ain't Nobody Got Time For That
+	if len(key) <= 0 {
+		return nil
+	}
 	return s.db.Del(context.Background(), key).Err()
 }
 

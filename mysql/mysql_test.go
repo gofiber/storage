@@ -99,7 +99,7 @@ func Test_MYSQL_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_MYSQL_Clear(t *testing.T) {
+func Test_MYSQL_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -122,7 +122,6 @@ func Test_MYSQL_Clear(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Mysql_Close(t *testing.T) {
-	err := testStore.Close()
-	utils.AssertEqual(t, nil, err)
+func Test_MYSQL_Close(t *testing.T) {
+	utils.AssertEqual(t, nil, testStore.Close())
 }
