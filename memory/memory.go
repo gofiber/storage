@@ -11,6 +11,7 @@ type Storage struct {
 	mux        sync.RWMutex
 	db         map[string]entry
 	gcInterval time.Duration
+	done       chan struct{}
 }
 
 // Common storage errors
@@ -30,6 +31,7 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		db:         make(map[string]entry),
 		gcInterval: cfg.GCInterval,
+		done:       make(chan struct{}),
 	}
 
 	// Start garbage collector
@@ -83,20 +85,29 @@ func (s *Storage) Reset() error {
 	return nil
 }
 
-// Close the database
+// Close the memory storage
 func (s *Storage) Close() error {
+	s.done <- struct{}{}
 	return nil
 }
 
 func (s *Storage) gc() {
-	for t := range time.NewTicker(s.gcInterval).C {
-		now := t.Unix()
-		s.mux.Lock()
-		for id, v := range s.db {
-			if v.expiry != 0 && v.expiry < now {
-				delete(s.db, id)
+	ticker := time.NewTicker(s.gcInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case t := <-ticker.C:
+			now := t.Unix()
+			s.mux.Lock()
+			for id, v := range s.db {
+				if v.expiry != 0 && v.expiry < now {
+					delete(s.db, id)
+				}
 			}
+			s.mux.Unlock()
 		}
-		s.mux.Unlock()
 	}
 }
