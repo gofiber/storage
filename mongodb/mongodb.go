@@ -37,7 +37,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create data source name
-	var dsn string = "mongodb://"
+	var dsn = "mongodb://"
 	if cfg.Username != "" {
 		dsn += url.QueryEscape(cfg.Username)
 	}
@@ -65,9 +65,20 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	// verify that the client can connect
+	if err = client.Ping(context.Background(), nil); err != nil {
+		panic(err)
+	}
+
 	// Get collection from database
 	db := client.Database(cfg.Database)
 	col := db.Collection(cfg.Collection)
+
+	if cfg.Clear {
+		if err = col.Drop(context.Background()); err != nil {
+			panic(err)
+		}
+	}
 
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
 	// more on https://docs.mongodb.com/manual/core/index-ttl/

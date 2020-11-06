@@ -1,8 +1,6 @@
 package mongodb
 
-import (
-	"time"
-)
+import "time"
 
 // Config defines the config for storage.
 type Config struct {
@@ -54,7 +52,6 @@ var ConfigDefault = Config{
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
-	GCInterval: 10 * time.Second,
 }
 
 // Helper function to set default values
