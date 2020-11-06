@@ -121,3 +121,8 @@ func Test_MYSQL_Clear(t *testing.T) {
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
+
+func Test_Mysql_Close(t *testing.T) {
+	err := testStore.Close()
+	utils.AssertEqual(t, nil, err)
+}
