@@ -54,6 +54,7 @@ store := badger.New(badger.Config{
 
 ### Config
 ```go
+type Config struct {
 	// Database name
 	//
 	// Optional. Default is "./fiber.badger"
@@ -68,6 +69,7 @@ store := badger.New(badger.Config{
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
+}
 ```
 
 ### Default Config
