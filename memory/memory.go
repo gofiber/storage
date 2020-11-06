@@ -75,11 +75,16 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-// Clear all keys
-func (s *Storage) Clear() error {
+// Reset all keys
+func (s *Storage) Reset() error {
 	s.mux.Lock()
 	s.db = make(map[string]entry)
 	s.mux.Unlock()
+	return nil
+}
+
+// Close the database
+func (s *Storage) Close() error {
 	return nil
 }
 

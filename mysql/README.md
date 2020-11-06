@@ -18,7 +18,8 @@ var ErrNotExist = errors.New("key does not exist")
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
-func (s *Storage) Clear() error
+func (s *Storage) Reset() error
+func (s *Storage) Close() error
 ```
 ### Installation
 MySQL is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -47,7 +48,7 @@ store := mysql.New(mysql.Config{
 	Port:            3306,
 	Database:        "fiber",
 	Table:           "fiber_storage",
-	Clear:           false,
+	Reset:           false,
 	GCInterval:      10 * time.Second,
 })
 ```
@@ -85,10 +86,10 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Table string
 
-	// Clear any existing keys in existing Table
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 
 	// Time before deleting expired keys
 	//
@@ -104,7 +105,7 @@ var ConfigDefault = Config{
 	Port:            3306,
 	Database:        "fiber",
 	Table:           "fiber_storage",
-	Clear:           false,
+	Reset:           false,
 	GCInterval:      10 * time.Second,
 }
 ```

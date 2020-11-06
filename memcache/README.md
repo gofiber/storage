@@ -14,7 +14,14 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 func New(config ...Config) Storage
 
 var ErrNotExist = errors.New("key does not exist")
+
+func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) Delete(key string) error
+func (s *Storage) Reset() error
+func (s *Storage) Close() error
 ```
+
 ### Installation
 Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
@@ -51,10 +58,10 @@ type Config struct {
 	// Optional. Default is "127.0.0.1:11211"
 	Servers string
 
-	// Clear any existing keys in existing Table
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 }
 ```
 

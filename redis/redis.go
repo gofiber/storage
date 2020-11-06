@@ -36,7 +36,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// Empty collection if Clear is true
-	if cfg.Clear {
+	if cfg.Reset {
 		if err := db.FlushDB(context.Background()).Err(); err != nil {
 			panic(err)
 		}
@@ -71,7 +71,12 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Del(context.Background(), key).Err()
 }
 
-// Clear all keys
-func (s *Storage) Clear() error {
+// Reset all keys
+func (s *Storage) Reset() error {
 	return s.db.FlushDB(context.Background()).Err()
+}
+
+// Close the database
+func (s *Storage) Close() error {
+	return s.db.Close()
 }

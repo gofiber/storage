@@ -19,6 +19,9 @@ type Storage interface {
 	// The key must not be "".
 	Delete(key string) error
 
-	// Clear storage
-	Clear() error
+	// Reset the storage
+	Reset() error
+
+	// Close the storage
+	Close() error
 }

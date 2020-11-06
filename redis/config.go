@@ -27,10 +27,10 @@ type Config struct {
 	// Optional. Default is 0
 	Database int
 
-	// Clear any existing keys in existing Collection
+	// Reset clears any existing keys in existing Collection
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 
 	////////////////////////////////////
 	// Adaptor related config options //
@@ -46,7 +46,7 @@ var ConfigDefault = Config{
 	Username: "",
 	Password: "",
 	Database: 0,
-	Clear:    false,
+	Reset:    false,
 }
 
 // Helper function to set default values

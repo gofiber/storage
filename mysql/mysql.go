@@ -18,7 +18,7 @@ type Storage struct {
 	sqlSelect string
 	sqlInsert string
 	sqlDelete string
-	sqlClear  string
+	sqlReset  string
 	sqlGC     string
 }
 
@@ -59,7 +59,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// Drop table if Clear set to true
-	if cfg.Clear {
+	if cfg.Reset {
 		query := fmt.Sprintf(dropQuery, cfg.Table)
 		if _, err = db.Exec(query); err != nil {
 			_ = db.Close()
@@ -83,7 +83,7 @@ func New(config ...Config) *Storage {
 		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
-		sqlClear:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
+		sqlReset:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
 	}
 
@@ -142,10 +142,15 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// Clear all keys
-func (s *Storage) Clear() error {
-	_, err := s.db.Exec(s.sqlClear)
+// Reset all keys
+func (s *Storage) Reset() error {
+	_, err := s.db.Exec(s.sqlReset)
 	return err
+}
+
+// Close the database
+func (s *Storage) Close() error {
+	return s.db.Close()
 }
 
 // Garbage collector to delete expired keys

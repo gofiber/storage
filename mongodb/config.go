@@ -32,10 +32,10 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Collection string
 
-	// Clear any existing keys in existing collection
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 }
 
 // ConfigDefault is the default config
@@ -44,7 +44,7 @@ var ConfigDefault = Config{
 	Port:       27017,
 	Database:   "fiber",
 	Collection: "fiber_storage",
-	Clear:      false,
+	Reset:      false,
 }
 
 // Helper function to set default values

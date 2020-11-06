@@ -19,7 +19,8 @@ var ErrNotExist = errors.New("key does not exist")
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
-func (s *Storage) Clear() error
+func (s *Storage) Reset() error
+func (s *Storage) Close() error
 ```
 
 ### Installation
