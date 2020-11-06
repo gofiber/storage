@@ -93,7 +93,7 @@ func Test_Memcache_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Memcache_Clear(t *testing.T) {
+func Test_Memcache_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -114,4 +114,8 @@ func Test_Memcache_Clear(t *testing.T) {
 	result, err = testStore.Get("john2")
 	utils.AssertEqual(t, ErrNotExist, err)
 	utils.AssertEqual(t, true, len(result) == 0)
+}
+
+func Test_Memcache_Close(t *testing.T) {
+	utils.AssertEqual(t, nil, testStore.Close())
 }

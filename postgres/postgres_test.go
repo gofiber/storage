@@ -99,7 +99,7 @@ func Test_Postgres_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_Postgres_Clear(t *testing.T) {
+func Test_Postgres_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -123,6 +123,5 @@ func Test_Postgres_Clear(t *testing.T) {
 }
 
 func Test_Postgres_Close(t *testing.T) {
-	err := testStore.Close()
-	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, nil, testStore.Close())
 }
