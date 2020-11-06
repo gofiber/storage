@@ -12,7 +12,7 @@ var testStore = New(Config{
 	Database: os.Getenv("POSTGRES_DATABASE"),
 	Username: os.Getenv("POSTGRES_USERNAME"),
 	Password: os.Getenv("POSTGRES_PASSWORD"),
-	Clear:    true,
+	Reset:    true,
 })
 
 func Test_Postgres_Set(t *testing.T) {
@@ -110,7 +110,7 @@ func Test_Postgres_Clear(t *testing.T) {
 	err = testStore.Set("john2", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = testStore.Clear()
+	err = testStore.Reset()
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStore.Get("john1")

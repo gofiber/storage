@@ -18,7 +18,7 @@ var ErrNotExist = errors.New("key does not exist")
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
-func (s *Storage) Clear() error
+func (s *Storage) Reset() error
 ```
 ### Installation
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -48,7 +48,7 @@ store := redis.New(redis.Config{
 	Username: "",
 	Password: "",
 	Database: 0,
-	Clear:    false,
+	Reset:    false,
 })
 ```
 
@@ -80,10 +80,10 @@ type Config struct {
 	// Optional. Default is 0
 	Database int
 
-	// Clear any existing keys in existing Collection
+	// Reset clears any existing keys in existing Collection
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 }
 
 ```
@@ -96,6 +96,6 @@ var ConfigDefault = Config{
 	Username: "",
 	Password: "",
 	Database: 0,
-	Clear:    false,
+	Reset:    false,
 }
 ```

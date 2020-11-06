@@ -10,10 +10,10 @@ type Config struct {
 	// Optional. Default is "127.0.0.1:11211"
 	Servers string
 
-	// Clear any existing keys in existing Table
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 
 	// The socket read/write timeout.
 	//

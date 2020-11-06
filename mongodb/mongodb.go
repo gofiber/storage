@@ -152,9 +152,14 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// Clear all keys by drop collection
-func (s *Storage) Clear() error {
+// Reset all keys by drop collection
+func (s *Storage) Reset() error {
 	return s.col.Drop(context.Background())
+}
+
+// Close the database
+func (s *Storage) Close() error {
+	return s.db.Client().Disconnect(context.Background())
 }
 
 // Acquire item from pool

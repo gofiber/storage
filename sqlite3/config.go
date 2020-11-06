@@ -14,10 +14,10 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Table string
 
-	// Clear any existing keys in existing Table
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 
 	// Time before deleting expired keys
 	//
@@ -38,7 +38,7 @@ var ConfigDefault = Config{
 	// General config options
 	Database:   "./fiber.sqlite3",
 	Table:      "fiber_storage",
-	Clear:      false,
+	Reset:      false,
 	GCInterval: 10 * time.Second,
 
 	// Adaptor related config options

@@ -18,7 +18,7 @@ var ErrNotExist = errors.New("key does not exist")
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
-func (s *Storage) Clear() error
+func (s *Storage) Reset() error
 ```
 ### Installation
 SQLite3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -45,7 +45,7 @@ store := sqlite3.New()
 store := sqlite3.New(sqlite3.Config{
 	Database:   "./fiber.sqlite3",
 	Table:      "fiber_storage",
-	Clear:      false,
+	Reset:      false,
 	GCInterval: 10 * time.Second,
 })
 ```
@@ -63,10 +63,10 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Table string
 
-	// Clear any existing keys in existing Table
+	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
-	Clear bool
+	Reset bool
 
 	// Time before deleting expired keys
 	//
@@ -80,7 +80,7 @@ type Config struct {
 var ConfigDefault = Config{
 	Database:   "./fiber.sqlite3",
 	Table:      "fiber_storage",
-	Clear:      false,
+	Reset:      false,
 	GCInterval: 10 * time.Second,
 }
 ```

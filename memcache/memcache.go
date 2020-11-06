@@ -39,7 +39,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	if cfg.Clear {
+	if cfg.Reset {
 		if err := db.DeleteAll(); err != nil {
 			panic(err)
 		}
@@ -93,9 +93,14 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete(key)
 }
 
-// Clear all keys
-func (s *Storage) Clear() error {
+// Reset all keys
+func (s *Storage) Reset() error {
 	return s.db.DeleteAll()
+}
+
+// Close the database
+func (s *Storage) Close() error {
+	return nil
 }
 
 // Acquire item from pool

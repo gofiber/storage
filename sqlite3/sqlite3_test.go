@@ -9,7 +9,7 @@ import (
 )
 
 var testStore = New(Config{
-	Clear: true,
+	Reset: true,
 })
 
 func Test_SQLite3_Set(t *testing.T) {
@@ -107,7 +107,7 @@ func Test_SQLite3_Clear(t *testing.T) {
 	err = testStore.Set("john2", val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	err = testStore.Clear()
+	err = testStore.Reset()
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStore.Get("john1")
