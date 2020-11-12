@@ -53,6 +53,9 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if len(key) <= 0 {
+		return nil, ErrNotExist
+	}
 	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
