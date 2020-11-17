@@ -21,8 +21,9 @@ type Storage struct {
 	items *sync.Pool
 }
 
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
+
+// ErrNotFound means that a get call did not find the requested key.
+var ErrNotFound = errors.New("key not found")
 
 type item struct {
 	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
@@ -112,14 +113,14 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	res := s.col.FindOne(context.Background(), bson.M{"key": key})
 	item := s.acquireItem()
 
 	if err := res.Err(); err != nil {
 		if err == mongo.ErrNoDocuments {
-			return nil, ErrNotExist
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -128,7 +129,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	// // not safe?
 	// res := item.Val

@@ -24,8 +24,8 @@ type Storage struct {
 	sqlGC     string
 }
 
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
+// ErrNotFound means that a get call did not find the requested key.
+var ErrNotFound = errors.New("key not found")
 
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
@@ -98,7 +98,7 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	row := s.db.QueryRow(s.sqlSelect, key)
 	// Add db response to data
@@ -108,13 +108,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	)
 	if err := row.Scan(&data, &exp); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNotExist
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 	// If the expiration time has already passed, then return nil
 	if exp != 0 && exp <= time.Now().Unix() {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 
 	return data, nil

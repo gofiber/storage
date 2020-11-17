@@ -65,14 +65,14 @@ func Test_Memory_Get_Expired(t *testing.T) {
 	)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, ErrNotFound, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
 func Test_Memory_Get_NotExist(t *testing.T) {
 
 	result, err := testStore.Get("notexist")
-	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, ErrNotFound, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
@@ -89,7 +89,7 @@ func Test_Memory_Delete(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, ErrNotFound, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
@@ -108,11 +108,11 @@ func Test_Memory_Reset(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStore.Get("john1")
-	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, ErrNotFound, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 
 	result, err = testStore.Get("john2")
-	utils.AssertEqual(t, ErrNotExist, err)
+	utils.AssertEqual(t, ErrNotFound, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 

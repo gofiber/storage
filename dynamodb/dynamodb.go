@@ -18,8 +18,9 @@ type Storage struct {
 	table string
 }
 
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
+
+// ErrNotFound means that a get call did not find the requested key.
+var ErrNotFound = errors.New("key not found")
 
 // New creates a new storage
 func New(config Config) *Storage {
@@ -112,11 +113,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	} else if getItemOutput.Item == nil {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	attributeVal := getItemOutput.Item[valAttrName]
 	if attributeVal == nil {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	return attributeVal.B, nil
 }

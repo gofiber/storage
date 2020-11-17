@@ -16,8 +16,9 @@ type Storage struct {
 	items *sync.Pool
 }
 
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
+
+// ErrNotFound means that a get call did not find the requested key.
+var ErrNotFound = errors.New("key not found")
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -61,11 +62,11 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	}
 	item, err := s.db.Get(key)
 	if err == mc.ErrCacheMiss {
-		return nil, ErrNotExist
+		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}

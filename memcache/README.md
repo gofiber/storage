@@ -13,7 +13,8 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ```go
 func New(config ...Config) Storage
 
-var ErrNotExist = errors.New("key does not exist")
+// ErrNotFound means that a get call did not find the requested key.
+var ErrNotFound = errors.New("key not found")
 
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
