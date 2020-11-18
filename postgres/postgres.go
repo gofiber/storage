@@ -24,9 +24,9 @@ type Storage struct {
 	sqlGC     string
 }
 
-
 // ErrNotFound means that a get call did not find the requested key.
 var ErrNotFound = errors.New("key not found")
+var ErrKeyNotExist = ErrNotFound
 
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`

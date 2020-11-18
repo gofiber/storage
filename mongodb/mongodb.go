@@ -24,6 +24,7 @@ type Storage struct {
 
 // ErrNotFound means that a get call did not find the requested key.
 var ErrNotFound = errors.New("key not found")
+var ErrKeyNotExist = ErrNotFound
 
 type item struct {
 	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
