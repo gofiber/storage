@@ -21,10 +21,35 @@
   </a>
 </p>
 
-Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofiber/fiber/blob/ba08653c92f86bc69956b23714f919b705d9381e/app.go#L39-L50), to be used with various Fiber middlewares.
+Premade storage drivers that implement the [`Storage`](https://github.com/gofiber/storage/blob/main/storage.go) interface, designed to be used with various [Fiber middlewares](https://github.com/gofiber/fiber/tree/master/middleware).
+
+```go
+// Storage interface for communicating with different database/key-value
+// providers. Visit https://github.com/gofiber/storage for more info.
+type Storage interface {
+	// Get gets the value for the given key.
+	// `nil, nil` is returned when the key does not exist
+	Get(key string) ([]byte, error)
+
+	// Set stores the given value for the given key along
+	// with an expiration value, 0 means no expiration.
+	// Empty key or value will be ignored without an error.
+	Set(key string, val []byte, exp time.Duration) error
+
+	// Delete deletes the value for the given key.
+	// It returns no error if the storage does not contain the key,
+	Delete(key string) error
+
+	// Reset resets the storage and delete all keys.
+	Reset() error
+
+	// Close closes the storage and will stop any running garbage
+	// collectors and open connections.
+	Close() error
+}
+```
 
 ## 📑 Storage Implementations
-
 
 * [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
@@ -50,7 +75,3 @@ Premade storage drivers that implement [`fiber.Storage`](https://github.com/gofi
 * [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-
-## 🤔 Something missing?
-
-If you've got a custom storage driver you made that's not listed here, why not submit a [PR](https://github.com/gofiber/storage/pulls) to add it?
