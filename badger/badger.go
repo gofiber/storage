@@ -1,7 +1,6 @@
 package badger
 
 import (
-	"errors"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -14,9 +13,6 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 }
-
-
-
 
 // New creates a new memory storage
 func New(config ...Config) *Storage {
@@ -71,7 +67,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	})
 	// If no value was found return false
 	if err == badger.ErrKeyNotFound {
-		return data, ErrNotFound
+		return nil, nil
 	}
 	return data, err
 }

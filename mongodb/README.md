@@ -12,8 +12,6 @@ A MongoDB storage driver using [mongodb/mongo-go-driver](https://github.com/mong
 ### Signatures
 ```go
 func New(config ...Config) Storage
-
-
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error

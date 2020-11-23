@@ -13,8 +13,6 @@ A fast key-value DB using [dgraph-io/badger](https://github.com/dgraph-io/badger
 ### Signatures
 ```go
 func New(config ...Config) Storage
-
-
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error

@@ -12,8 +12,6 @@ A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sq
 ### Signatures
 ```go
 func New(config ...Config) Storage
-
-
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
