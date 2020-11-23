@@ -2,7 +2,6 @@ package sqlite3
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -23,9 +22,6 @@ type Storage struct {
 	sqlReset  string
 	sqlGC     string
 }
-
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
 
 var (
 	dropQuery = `DROP TABLE IF EXISTS %s;`
@@ -72,7 +68,6 @@ func New(config ...Config) *Storage {
 	for _, query := range initQuery {
 		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
 			_ = db.Close()
-			fmt.Println(fmt.Sprintf(query, cfg.Table))
 			panic(err)
 		}
 	}
@@ -98,7 +93,7 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, nil
 	}
 	row := s.db.QueryRow(s.sqlSelect, key)
 	// Add db response to data
@@ -108,13 +103,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	)
 	if err := row.Scan(&data, &exp); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNotExist
+			return nil, nil
 		}
 		return nil, err
 	}
 	// If the expiration time has already passed, then return nil
 	if exp != 0 && exp <= time.Now().Unix() {
-		return nil, ErrNotExist
+		return nil, nil
 	}
 
 	return data, nil

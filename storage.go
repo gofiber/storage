@@ -2,26 +2,26 @@ package storage
 
 import "time"
 
-// Storage interface that is implemented by storage providers for different
-// middleware packages like cache, limiter, session and csrf
+// Storage interface for communicating with different database/key-value
+// providers. Visit https://github.com/gofiber/storage for more info.
 type Storage interface {
-	// Get retrieves the value for the given key.
-	// If no value is not found it returns ErrNotExit error
+	// Get gets the value for the given key.
+	// `nil, nil` is returned when the key does not exist
 	Get(key string) ([]byte, error)
 
-	// Set stores the given value for the given key along with a
-	// time-to-live expiration value, 0 means live for ever
-	// The key must not be "" and the empty values are ignored.
-	Set(key string, val []byte, ttl time.Duration) error
+	// Set stores the given value for the given key along
+	// with an expiration value, 0 means no expiration.
+	// Empty key or value will be ignored without an error.
+	Set(key string, val []byte, exp time.Duration) error
 
-	// Delete deletes the stored value for the given key.
-	// Deleting a non-existing key-value pair does NOT lead to an error.
-	// The key must not be "".
+	// Delete deletes the value for the given key.
+	// It returns no error if the storage does not contain the key,
 	Delete(key string) error
 
-	// Reset the storage
+	// Reset resets the storage and delete all keys.
 	Reset() error
 
-	// Close the storage
+	// Close closes the storage and will stop any running garbage
+	// collectors and open connections.
 	Close() error
 }

@@ -1,7 +1,6 @@
 package memcache
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -15,9 +14,6 @@ type Storage struct {
 	db    *mc.Client
 	items *sync.Pool
 }
-
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -61,11 +57,11 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, nil
 	}
 	item, err := s.db.Get(key)
 	if err == mc.ErrCacheMiss {
-		return nil, ErrNotExist
+		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}

@@ -12,9 +12,6 @@ A Postgres storage driver using [lib/pq](https://github.com/lib/pq).
 ### Signatures
 ```go
 func New(config ...Config) Storage
-
-var ErrNotExist = errors.New("key does not exist")
-
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error

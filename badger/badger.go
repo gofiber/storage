@@ -1,7 +1,6 @@
 package badger
 
 import (
-	"errors"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -14,9 +13,6 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 }
-
-// Common storage errors
-var ErrNotExist = errors.New("key does not exist")
 
 // New creates a new memory storage
 func New(config ...Config) *Storage {
@@ -54,7 +50,7 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotExist
+		return nil, nil
 	}
 	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -71,7 +67,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	})
 	// If no value was found return false
 	if err == badger.ErrKeyNotFound {
-		return data, ErrNotExist
+		return nil, nil
 	}
 	return data, err
 }
