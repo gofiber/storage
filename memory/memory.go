@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
@@ -13,11 +12,6 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 }
-
-
-// ErrNotFound means that a get call did not find the requested key.
-var ErrNotFound = errors.New("key not found")
-var ErrKeyNotExist = ErrNotFound
 
 type entry struct {
 	data   []byte
@@ -45,13 +39,13 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotFound
+		return nil, nil
 	}
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
 	if !ok || v.expiry != 0 && v.expiry <= time.Now().Unix() {
-		return nil, ErrNotFound
+		return nil, nil
 	}
 
 	return v.data, nil

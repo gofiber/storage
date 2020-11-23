@@ -16,9 +16,7 @@ type Storage struct {
 }
 
 
-// ErrNotFound means that a get call did not find the requested key.
-var ErrNotFound = errors.New("key not found")
-var ErrKeyNotExist = ErrNotFound
+
 
 // New creates a new memory storage
 func New(config ...Config) *Storage {
@@ -56,7 +54,7 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotFound
+		return nil, nil
 	}
 	var data []byte
 	err := s.db.View(func(txn *badger.Txn) error {

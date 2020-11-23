@@ -1,7 +1,6 @@
 package memcache
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -15,11 +14,6 @@ type Storage struct {
 	db    *mc.Client
 	items *sync.Pool
 }
-
-
-// ErrNotFound means that a get call did not find the requested key.
-var ErrNotFound = errors.New("key not found")
-var ErrKeyNotExist = ErrNotFound
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -63,11 +57,11 @@ func New(config ...Config) *Storage {
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
-		return nil, ErrNotFound
+		return nil, nil
 	}
 	item, err := s.db.Get(key)
 	if err == mc.ErrCacheMiss {
-		return nil, ErrNotFound
+		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}

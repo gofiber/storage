@@ -13,8 +13,6 @@ A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sq
 ```go
 func New(config ...Config) Storage
 
-// ErrNotFound means that a get call did not find the requested key.
-var ErrNotFound = errors.New("key not found")
 
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error

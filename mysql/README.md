@@ -13,8 +13,6 @@ A MySQL storage driver using `database/sql` and [go-sql-driver/mysql](https://gi
 ```go
 func New(config ...Config) Storage
 
-// ErrNotFound means that a get call did not find the requested key.
-var ErrNotFound = errors.New("key not found")
 
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
