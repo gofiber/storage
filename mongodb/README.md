@@ -41,6 +41,7 @@ store := mongodb.New()
 
 // Initialize custom config
 store := mongodb.New(mongodb.Config{
+	Atlas:      false,
 	Host:       "127.0.0.1",
 	Port:       27017,
 	Database:   "fiber",
@@ -52,6 +53,11 @@ store := mongodb.New(mongodb.Config{
 ### Config
 ```go
 type Config struct {
+	// Whether the DB is hosted on MongoDB Atlas
+	//
+	// Optional. Default is false
+	Atlas bool
+
 	// Host name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
@@ -92,6 +98,7 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
+	Atlas:      false,
 	Host:       "127.0.0.1",
 	Port:       27017,
 	Database:   "fiber",
