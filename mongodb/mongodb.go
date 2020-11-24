@@ -33,7 +33,12 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create data source name
-	var dsn = "mongodb://"
+	var dsn = "mongodb"
+	if cfg.Atlas == true {
+		dsn += "+srv://"
+	} else {
+		dsn += "://"
+	}
 	if cfg.Username != "" {
 		dsn += url.QueryEscape(cfg.Username)
 	}
