@@ -48,7 +48,11 @@ func New(config ...Config) *Storage {
 	if cfg.Username != "" || cfg.Password != "" {
 		dsn += "@"
 	}
-	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	if cfg.Atlas == true {
+		dsn += url.QueryEscape(cfg.Host) // Cannot specify port when using MongoDB Atlas
+	} else {
+		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	}
 
 	// Set mongo options
 	opt := options.Client()
