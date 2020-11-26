@@ -71,7 +71,7 @@ func configDefault(cfg Config) Config {
 	if cfg.Host == "" {
 		cfg.Host = ConfigDefault.Host
 	} else {
-		if !strings.HasPrefix(cfg.Host, "http://") {
+		if !strings.HasPrefix(cfg.Host, "http") {
 			panic("the host should start with http:// or https://")
 		}
 	}
