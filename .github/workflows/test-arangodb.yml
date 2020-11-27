@@ -1,0 +1,38 @@
+'on':
+  - push
+  - pull_request
+name: ArangoDB
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: 'arangodb:latest'
+        env:
+          ARANGO_DATABASE: fiber
+          ARANGO_USER: username
+          ARANGO_PASSWORD: password
+          ARANGO_ROOT_PASSWORD: password
+        ports:
+          - '8529:8529'
+    strategy:
+      matrix:
+        go-version:
+          - 1.14.x
+          - 1.15.x
+        platform:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Fetch Repository
+        uses: actions/checkout@v2
+      - name: Run Test
+        run: cd ./arangodb && go test ./... -v -race
+        env:
+          ARANGO_USERNAME: username
+          ARANGO_PASSWORD: password
+          ARANGO_DATABASE: fiber
