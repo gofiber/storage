@@ -34,9 +34,9 @@ type model struct {
 }
 
 // New creates a new storage
-func New(config Config) *Storage {
+func New(config ...Config) *Storage {
 	// Set default config
-	cfg := configDefault(config)
+	cfg := configDefault(config...)
 
 	// create connection object to arango
 	conn, err := http.NewConnection(http.ConnectionConfig{

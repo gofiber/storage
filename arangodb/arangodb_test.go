@@ -1,7 +1,6 @@
 package arangodb
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -9,10 +8,7 @@ import (
 )
 
 var testStore = New(Config{
-	Database: os.Getenv("ARANGODB_DATABASE"),
-	Username: os.Getenv("ARANGODB_USERNAME"),
-	Password: os.Getenv("ARANGODB_PASSWORD"),
-	Reset:    true,
+	Reset: true,
 })
 
 func Test_ARANGODB_Set(t *testing.T) {

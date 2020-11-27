@@ -9,10 +9,7 @@ jobs:
       arangodb:
         image: 'arangodb:latest'
         env:
-          ARANGO_DATABASE: fiber
-          ARANGO_USER: username
-          ARANGO_PASSWORD: password
-          ARANGO_ROOT_PASSWORD: password
+          ARANGO_NO_AUTH: 1
         ports:
           - '8529:8529'
     strategy:
@@ -32,7 +29,3 @@ jobs:
         uses: actions/checkout@v2
       - name: Run Test
         run: cd ./arangodb && go test ./... -v -race
-        env:
-          ARANGO_DATABASE: fiber
-          ARANGO_USERNAME: username
-          ARANGO_PASSWORD: password
