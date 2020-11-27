@@ -33,6 +33,6 @@ jobs:
       - name: Run Test
         run: cd ./arangodb && go test ./... -v -race
         env:
+          ARANGO_DATABASE: fiber
           ARANGO_USERNAME: username
           ARANGO_PASSWORD: password
-          ARANGO_DATABASE: fiber

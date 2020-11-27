@@ -40,7 +40,7 @@ func New(config Config) *Storage {
 
 	// create connection object to arango
 	conn, err := http.NewConnection(http.ConnectionConfig{
-		Endpoints: []string{cfg.hostComposed()},
+		Endpoints: []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)},
 	})
 	if err != nil {
 		panic(err)

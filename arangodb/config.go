@@ -1,7 +1,6 @@
 package arangodb
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -20,12 +19,12 @@ type Config struct {
 
 	// Server username
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Username string
 
 	// Server password
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Password string
 
 	// Database name
@@ -56,10 +55,6 @@ var ConfigDefault = Config{
 	Collection: "fiber_storage",
 	Reset:      false,
 	GCInterval: 10 * time.Second,
-}
-
-func (c Config) hostComposed() string {
-	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
 // Helper function to set default values
