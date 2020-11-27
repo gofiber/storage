@@ -1,17 +1,14 @@
 package arangodb
 
 import (
-	"github.com/gofiber/utils"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/gofiber/utils"
 )
 
 var testStore = New(Config{
-	Host:     os.Getenv("ARANGODB_HOST"),
-	Username: os.Getenv("ARANGODB_USERNAME"),
-	Password: os.Getenv("ARANGODB_PASSWORD"),
-	Reset:    true,
+	Reset: true,
 })
 
 func Test_ARANGODB_Set(t *testing.T) {

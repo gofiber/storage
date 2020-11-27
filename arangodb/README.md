@@ -35,17 +35,17 @@ import "github.com/gofiber/storage/arangodb"
 
 You can use the following possibilities to create a storage:
 ```go
+// Initialize default config
+store := arangodb.New()
+
 // Initialize custom config
-// *http* is mandatory
 store := arangodb.New(arangodb.Config{
-	Host:            "http://127.0.0.1",
-	Port:            "8529",
-    Username:        "username",
-    Password:        "password"
-	Database:        "fiber",
-	Collection:      "fiber_storage",
-	Reset:           false,
-	GCInterval:      10 * time.Second,
+	Host:       "http://127.0.0.1",
+	Port:       8529,
+	Database:   "fiber",
+	Collection: "fiber_storage",
+	Reset:      false,
+	GCInterval: 10 * time.Second,
 })
 ```
 
@@ -60,16 +60,16 @@ type Config struct {
 	// Port where the DB is listening on
 	//
 	// Optional. Default is 8529
-	Port string
+	Port int
 
 	// Server username
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Username string
 
 	// Server password
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Password string
 
 	// Database name
@@ -98,7 +98,7 @@ Used only for optional fields
 ```go
 var ConfigDefault = Config{
 	Host:       "http://127.0.0.1",
-	Port:       "8529",
+	Port:       8529,
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,

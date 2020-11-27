@@ -3,10 +3,11 @@ package arangodb
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/arangodb/go-driver"
 	"github.com/arangodb/go-driver/http"
 	"github.com/gofiber/utils"
-	"time"
 )
 
 // Storage interface that is implemented by storage providers
@@ -33,13 +34,13 @@ type model struct {
 }
 
 // New creates a new storage
-func New(config Config) *Storage {
+func New(config ...Config) *Storage {
 	// Set default config
-	cfg := configDefault(config)
+	cfg := configDefault(config...)
 
 	// create connection object to arango
 	conn, err := http.NewConnection(http.ConnectionConfig{
-		Endpoints: []string{cfg.hostComposed()},
+		Endpoints: []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)},
 	})
 	if err != nil {
 		panic(err)

@@ -1,7 +1,6 @@
 package arangodb
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -16,16 +15,16 @@ type Config struct {
 	// Port where the DB is listening on
 	//
 	// Optional. Default is 8529
-	Port string
+	Port int
 
 	// Server username
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Username string
 
 	// Server password
 	//
-	// Mandatory
+	// Optional. Default is ""
 	Password string
 
 	// Database name
@@ -51,31 +50,32 @@ type Config struct {
 // ConfigDefault is the default config
 var ConfigDefault = Config{
 	Host:       "http://127.0.0.1",
-	Port:       "8529",
+	Port:       8529,
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
 	GCInterval: 10 * time.Second,
 }
 
-func (c Config) hostComposed() string {
-	return fmt.Sprintf("%s:%s", c.Host, c.Port)
-}
-
 // Helper function to set default values
-func configDefault(cfg Config) Config {
-	if cfg.Username == "" || cfg.Password == "" {
-		panic("username and password are mandatory")
+func configDefault(config ...Config) Config {
+	// Return default config if nothing provided
+	if len(config) < 1 {
+		return ConfigDefault
 	}
+
+	// Override default config
+	cfg := config[0]
+
 	// Set default values
 	if cfg.Host == "" {
 		cfg.Host = ConfigDefault.Host
 	} else {
 		if !strings.HasPrefix(cfg.Host, "http") {
-			panic("the host should start with http:// or https://")
+			panic("Host should start with `http://` or `https://`")
 		}
 	}
-	if len(cfg.Port) <= 0 {
+	if cfg.Port <= 0 {
 		cfg.Port = ConfigDefault.Port
 	}
 	if cfg.Database == "" {
