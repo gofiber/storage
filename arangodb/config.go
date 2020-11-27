@@ -16,7 +16,7 @@ type Config struct {
 	// Port where the DB is listening on
 	//
 	// Optional. Default is 8529
-	Port string
+	Port int
 
 	// Server username
 	//
@@ -51,7 +51,7 @@ type Config struct {
 // ConfigDefault is the default config
 var ConfigDefault = Config{
 	Host:       "http://127.0.0.1",
-	Port:       "8529",
+	Port:       8529,
 	Database:   "fiber",
 	Collection: "fiber_storage",
 	Reset:      false,
@@ -59,7 +59,7 @@ var ConfigDefault = Config{
 }
 
 func (c Config) hostComposed() string {
-	return fmt.Sprintf("%s:%s", c.Host, c.Port)
+	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
 // Helper function to set default values
@@ -75,7 +75,7 @@ func configDefault(cfg Config) Config {
 			panic("the host should start with http:// or https://")
 		}
 	}
-	if len(cfg.Port) <= 0 {
+	if cfg.Port <= 0 {
 		cfg.Port = ConfigDefault.Port
 	}
 	if cfg.Database == "" {
