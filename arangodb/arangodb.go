@@ -3,10 +3,11 @@ package arangodb
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/arangodb/go-driver"
 	"github.com/arangodb/go-driver/http"
 	"github.com/gofiber/utils"
-	"time"
 )
 
 // Storage interface that is implemented by storage providers

@@ -64,15 +64,12 @@ func (c Config) hostComposed() string {
 
 // Helper function to set default values
 func configDefault(cfg Config) Config {
-	if cfg.Username == "" || cfg.Password == "" {
-		panic("username and password are mandatory")
-	}
 	// Set default values
 	if cfg.Host == "" {
 		cfg.Host = ConfigDefault.Host
 	} else {
 		if !strings.HasPrefix(cfg.Host, "http") {
-			panic("the host should start with http:// or https://")
+			panic("Host should start with `http://` or `https://`")
 		}
 	}
 	if cfg.Port <= 0 {
