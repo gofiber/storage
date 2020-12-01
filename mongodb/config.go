@@ -2,6 +2,11 @@ package mongodb
 
 // Config defines the config for storage.
 type Config struct {
+	// Connection string to use for DB. Will override all other authentication values if used
+	//
+	// Optional. Default is ""
+	Connection string
+
 	// Whether the DB is hosted on MongoDB Atlas
 	//
 	// Optional. Default is false
@@ -45,6 +50,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	Connection: "",
 	Atlas:      false,
 	Host:       "127.0.0.1",
 	Port:       27017,
