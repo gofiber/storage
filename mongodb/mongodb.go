@@ -39,12 +39,7 @@ func New(config ...Config) *Storage {
 	if cfg.Connection != "" {
 		dsn = cfg.Connection
 	} else {
-		dsn = "mongodb"
-		if cfg.Atlas {
-			dsn += "+srv://"
-		} else {
-			dsn += "://"
-		}
+		dsn = "mongodb://"
 		if cfg.Username != "" {
 			dsn += url.QueryEscape(cfg.Username)
 		}
@@ -54,12 +49,7 @@ func New(config ...Config) *Storage {
 		if cfg.Username != "" || cfg.Password != "" {
 			dsn += "@"
 		}
-		// Cannot specify port when using MongoDB Atlas
-		if cfg.Atlas {
-			dsn += url.QueryEscape(cfg.Host)
-		} else {
-			dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
-		}
+		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 	}
 
 	// Set mongo options
