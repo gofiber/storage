@@ -36,8 +36,8 @@ func New(config ...Config) *Storage {
 	var dsn string
 
 	// Check if user supplied connection string
-	if cfg.Connection != "" {
-		dsn = cfg.Connection
+	if cfg.ConnectionURI != "" {
+		dsn = cfg.ConnectionURI
 	} else {
 		dsn = "mongodb://"
 		if cfg.Username != "" {

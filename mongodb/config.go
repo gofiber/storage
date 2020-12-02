@@ -5,7 +5,7 @@ type Config struct {
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
-	Connection string
+	ConnectionURI string
 
 	// Host name where the DB is hosted
 	//
@@ -45,12 +45,12 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Connection: "",
-	Host:       "127.0.0.1",
-	Port:       27017,
-	Database:   "fiber",
-	Collection: "fiber_storage",
-	Reset:      false,
+	ConnectionURI: "",
+	Host:          "127.0.0.1",
+	Port:          27017,
+	Database:      "fiber",
+	Collection:    "fiber_storage",
+	Reset:         false,
 }
 
 // Helper function to set default values

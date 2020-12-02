@@ -50,10 +50,10 @@ store := mongodb.New(mongodb.Config{
 
 // Initialize custom config using connection string
 store := mongodb.New(mongodb.Config{
-	Connection: "mongodb://user:password@127.0.0.1:27017",
-	Database:   "fiber",
-	Collection: "fiber_storage",
-	Reset:      false,
+	ConnectionURI: "mongodb://user:password@127.0.0.1:27017",
+	Database:   	 "fiber",
+	Collection: 	 "fiber_storage",
+	Reset:      	 false,
 })
 
 ```
@@ -64,7 +64,7 @@ type Config struct {
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
-	Connection string
+	ConnectionURI string
 
 	// Host name where the DB is hosted
 	//
@@ -106,11 +106,11 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Connection: "",
-	Host:       "127.0.0.1",
-	Port:       27017,
-	Database:   "fiber",
-	Collection: "fiber_storage",
-	Reset:      false,
+	ConnectionURI: "",
+	Host:          "127.0.0.1",
+	Port:          27017,
+	Database:      "fiber",
+	Collection:    "fiber_storage",
+	Reset:         false,
 }
 ```
