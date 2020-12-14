@@ -33,25 +33,22 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create data source name
-	var dsn = "mongodb"
-	if cfg.Atlas {
-		dsn += "+srv://"
+	var dsn string
+
+	// Check if user supplied connection string
+	if cfg.ConnectionURI != "" {
+		dsn = cfg.ConnectionURI
 	} else {
-		dsn += "://"
-	}
-	if cfg.Username != "" {
-		dsn += url.QueryEscape(cfg.Username)
-	}
-	if cfg.Password != "" {
-		dsn += ":" + cfg.Password
-	}
-	if cfg.Username != "" || cfg.Password != "" {
-		dsn += "@"
-	}
-	// Cannot specify port when using MongoDB Atlas
-	if cfg.Atlas {
-		dsn += url.QueryEscape(cfg.Host)
-	} else {
+		dsn = "mongodb://"
+		if cfg.Username != "" {
+			dsn += url.QueryEscape(cfg.Username)
+		}
+		if cfg.Password != "" {
+			dsn += ":" + cfg.Password
+		}
+		if cfg.Username != "" || cfg.Password != "" {
+			dsn += "@"
+		}
 		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 	}
 
