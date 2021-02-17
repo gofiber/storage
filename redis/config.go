@@ -32,6 +32,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
+	//
+	// Optional. Default is ""
+	URL string
+
 	////////////////////////////////////
 	// Adaptor related config options //
 	////////////////////////////////////
@@ -45,6 +50,7 @@ var ConfigDefault = Config{
 	Port:     6379,
 	Username: "",
 	Password: "",
+	URL:      "",
 	Database: 0,
 	Reset:    false,
 }
