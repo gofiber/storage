@@ -125,3 +125,18 @@ func Test_MYSQL_Reset(t *testing.T) {
 func Test_MYSQL_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_MYSQL_GC_Keep_Expired(t *testing.T) {
+	var (
+		testVal = []byte("doe")
+	)
+
+	err := testStore.Set("john", testVal, 0)
+	utils.AssertEqual(t, nil, err)
+
+	testStore.gc()
+
+	val, err := testStore.Get("john")
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, testVal, val)
+}
