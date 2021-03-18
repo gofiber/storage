@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"os"
 	"testing"
 	"time"
@@ -120,6 +121,31 @@ func Test_Postgres_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, true, len(result) == 0)
+}
+
+func Test_Postgres_GC(t *testing.T) {
+	var (
+		testVal = []byte("doe")
+	)
+
+	// This key should expire
+	err := testStore.Set("john", testVal, time.Nanosecond)
+	utils.AssertEqual(t, nil, err)
+
+	testStore.gc(time.Now())
+	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
+	err = row.Scan(nil, nil)
+	utils.AssertEqual(t, sql.ErrNoRows, err)
+
+	// This key should not expire
+	err = testStore.Set("john", testVal, 0)
+	utils.AssertEqual(t, nil, err)
+
+	testStore.gc(time.Now())
+	val, err := testStore.Get("john")
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, testVal, val)
+
 }
 
 func Test_Postgres_Close(t *testing.T) {
