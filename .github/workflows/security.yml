@@ -14,59 +14,59 @@ jobs:
             -   name: Run Gosec (arangodb)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./arangodb && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./arangodb && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (badger)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./badger && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./badger && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (dynamodb)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./dynamodb && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./dynamodb && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (memcache)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./memcache && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./memcache && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (memory)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./memory && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./memory && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (mongodb)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./mongodb && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./mongodb && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (mysql)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./mysql && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./mysql && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (postgres)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./postgres && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./postgres && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (redis)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./redis && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./redis && /bin/gosec -exclude-dir=internal ./..."
                     # -----
             -   name: Run Gosec (sqlite3)
                 uses: securego/gosec@master
                 with:
-                    entrypoint: "/bin/busybox"
-                    args: sh -c "cd ./sqlite3 && /bin/gosec -exclude-dir=internal ./..."
+                    entrypoint: "/bin/bash"
+                    args: -c "cd ./sqlite3 && /bin/gosec -exclude-dir=internal ./..."
