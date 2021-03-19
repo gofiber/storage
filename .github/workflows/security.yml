@@ -15,7 +15,7 @@ jobs:
                 uses: securego/gosec@master
                 with:
                     entrypoint: "/bin/bash"
-                    args: -c "cd ./arangodb && /bin/gosec -exclude-dir=internal ./..."
+                    args: "-c \"cd ./arangodb && /bin/gosec -exclude-dir=internal ./...\""
                     # -----
             -   name: Run Gosec (badger)
                 uses: securego/gosec@master
