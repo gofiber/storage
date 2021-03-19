@@ -1,72 +1,72 @@
-on: [ push, pull_request ]
+on: [push, pull_request]
 name: Security
 jobs:
     Gosec:
         runs-on: ubuntu-latest
         steps:
-            -   name: Fetch Repository
-                uses: actions/checkout@v2
-            -   name: Run Gosec (root)
-                uses: securego/gosec@master
-                with:
-                    args: -exclude-dir=internal -exclude-dir=redis -exclude-dir=badger -exclude-dir=mysql -exclude-dir=sqlite3 -exclude-dir=mongodb -exclude-dir=postgres -exclude-dir=memcache -exclude-dir=dynamodb -exclude-dir=arangodb -exclude-dir=memory ./...
-                    # -----
-            -   name: Run Gosec (arangodb)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./arangodb && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (badger)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./badger && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (dynamodb)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./dynamodb && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (memcache)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./memcache && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (memory)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./memory && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (mongodb)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./mongodb && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (mysql)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./mysql && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (postgres)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./postgres && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (redis)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./redis && /bin/gosec -exclude-dir=internal ./..."
-                    # -----
-            -   name: Run Gosec (sqlite3)
-                uses: securego/gosec@master
-                with:
-                    entrypoint: /bin/sh
-                    args: -c "cd ./sqlite3 && /bin/gosec -exclude-dir=internal ./..."
+            - name: Fetch Repository
+              uses: actions/checkout@v2
+            - name: Run Gosec (root)
+              uses: securego/gosec@master
+              with:
+                  args: -exclude-dir=internal -exclude-dir=redis -exclude-dir=badger -exclude-dir=mysql -exclude-dir=sqlite3 -exclude-dir=mongodb -exclude-dir=postgres -exclude-dir=memcache -exclude-dir=dynamodb -exclude-dir=arangodb -exclude-dir=memory ./...
+                # -----
+            - name: Run Gosec (arangodb)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./arangodb && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (badger)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./badger && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (dynamodb)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./dynamodb && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (memcache)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./memcache && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (memory)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./memory && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (mongodb)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./mongodb && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (mysql)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./mysql && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (postgres)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./postgres && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (redis)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./redis && /bin/gosec -exclude-dir=internal ./...
+                # -----
+            - name: Run Gosec (sqlite3)
+              uses: securego/gosec@master
+              with:
+                  entrypoint: /bin/sh
+                  args: cd ./sqlite3 && /bin/gosec -exclude-dir=internal ./...
