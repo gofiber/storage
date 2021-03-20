@@ -14,45 +14,45 @@ jobs:
                     go get -u github.com/securego/gosec/v2/cmd/gosec
             -   name: Run Gosec (root)
                 working-directory: .
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=redis -exclude-dir=badger -exclude-dir=mysql -exclude-dir=sqlite3 -exclude-dir=mongodb -exclude-dir=postgres -exclude-dir=memcache -exclude-dir=dynamodb -exclude-dir=arangodb -exclude-dir=memory ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=redis -exclude-dir=badger -exclude-dir=mysql -exclude-dir=sqlite3 -exclude-dir=mongodb -exclude-dir=postgres -exclude-dir=memcache -exclude-dir=dynamodb -exclude-dir=arangodb -exclude-dir=memory ./..."
                 # -----
             -   name: Run Gosec (arangodb)
                 working-directory: ./arangodb
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (badger)
                 working-directory: ./badger
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (dynamodb)
                 working-directory: ./dynamodb
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (memcache)
                 working-directory: ./memcache
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (memory)
                 working-directory: ./memory
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (mongodb)
                 working-directory: ./mongodb
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (mysql)
                 working-directory: ./mysql
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (postgres)
                 working-directory: ./postgres
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (redis)
                 working-directory: ./redis
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (sqlite3)
                 working-directory: ./sqlite3
-                run: `go env GOPATH`/bin/gosec -exclude-dir=internal ./...
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
