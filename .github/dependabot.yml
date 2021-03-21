@@ -5,7 +5,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -14,7 +14,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/arangodb/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -23,7 +23,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/badger/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -32,7 +32,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/dynamodb/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -41,7 +41,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/memcache/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -50,7 +50,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/memory/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -59,7 +59,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/mongodb/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -68,7 +68,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/mysql/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -77,7 +77,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/postgres/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -86,7 +86,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/redis/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
@@ -95,7 +95,7 @@ updates:
     -   package-ecosystem: "gomod"
         directory: "/sqlite3/" # Location of package manifests
         default_labels:
-            - "🤖 dependencies"
+            - "🤖 Dependencies"
         schedule:
             interval: "daily"
         automerged_updates:
