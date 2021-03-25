@@ -48,6 +48,12 @@ store := redis.New(redis.Config{
 	Database: 0,
 	Reset:    false,
 })
+
+// or just the url with all information
+store = redis.New(redis.Config{
+    URL:     "redis://<user>:<pass>@127.0.0.1:6379/<db>",
+    Reset:    false,
+})
 ```
 
 ### Config
@@ -77,6 +83,12 @@ type Config struct {
 	//
 	// Optional. Default is 0
 	Database int
+
+    // URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
+    //
+    // Example: redis://<user>:<pass>@localhost:6379/<db>
+    // Optional. Default is ""
+    URL string
 
 	// Reset clears any existing keys in existing Collection
 	//

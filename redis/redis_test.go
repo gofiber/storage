@@ -120,3 +120,25 @@ func Test_Redis_Reset(t *testing.T) {
 func Test_Redis_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Redis_Initalize_WithURL(t *testing.T) {
+	testStoreUrl := New(Config{
+		URL: "redis://localhost:6379",
+	})
+	var (
+		key = "clark"
+		val = []byte("kent")
+	)
+
+	err := testStoreUrl.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUrl.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUrl.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUrl.Close())
+}

@@ -19,12 +19,25 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create new redis client
-	db := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		DB:       cfg.Database,
-		Username: cfg.Username,
-		Password: cfg.Password,
-	})
+
+	var options *redis.Options
+	var err error
+
+	if cfg.URL != "" {
+		options, err = redis.ParseURL(cfg.URL)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		options = &redis.Options{
+			Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+			DB:       cfg.Database,
+			Username: cfg.Username,
+			Password: cfg.Password,
+		}
+	}
+
+	db := redis.NewClient(options)
 
 	// Test connection
 	if err := db.Ping(context.Background()).Err(); err != nil {
