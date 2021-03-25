@@ -130,14 +130,14 @@ func Test_Redis_Initalize_WithURL(t *testing.T) {
 		val = []byte("kent")
 	)
 
-	err := testStore.Set(key, val, 0)
+	err := testStoreUrl.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := testStore.Get(key)
+	result, err := testStoreUrl.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
 
-	err = testStore.Delete(key)
+	err = testStoreUrl.Delete(key)
 	utils.AssertEqual(t, nil, err)
 
 	utils.AssertEqual(t, nil, testStoreUrl.Close())
