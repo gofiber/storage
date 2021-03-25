@@ -1,0 +1,103 @@
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+    -   package-ecosystem: "gomod"
+        directory: "/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/arangodb/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/badger/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/dynamodb/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/memcache/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/memory/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/mongodb/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/mysql/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/postgres/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/redis/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/sqlite3/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"

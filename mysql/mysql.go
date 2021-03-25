@@ -82,11 +82,11 @@ func New(config ...Config) *Storage {
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlReset:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ?", cfg.Table),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
 	// Start garbage collector
-	go store.gc()
+	go store.gcTicker()
 
 	return store
 }
@@ -160,8 +160,8 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-// Garbage collector to delete expired keys
-func (s *Storage) gc() {
+// gcTicker starts the gc ticker
+func (s *Storage) gcTicker() {
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -169,7 +169,12 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			_, _ = s.db.Exec(s.sqlGC, t.Unix())
+			s.gc(t)
 		}
 	}
+}
+
+// gc deletes all expired entries
+func (s *Storage) gc(t time.Time) {
+	_, _ = s.db.Exec(s.sqlGC, t.Unix())
 }
