@@ -20,7 +20,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Set options
-	opt := badger.DefaultOptions(cfg.Database).WithLogger(nil)
+	opt := cfg.BadgerOptions
 	// TODO see if as a new function similar to WithTruncate(true)
 
 	// Open database
