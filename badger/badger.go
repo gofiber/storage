@@ -3,7 +3,7 @@ package badger
 import (
 	"time"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/gofiber/utils"
 )
 
@@ -20,7 +20,8 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Set options
-	opt := badger.DefaultOptions(cfg.Database).WithTruncate(true).WithLogger(nil)
+	opt := cfg.BadgerOptions
+	// TODO see if as a new function similar to WithTruncate(true)
 
 	// Open database
 	db, err := badger.Open(opt)
