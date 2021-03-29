@@ -22,8 +22,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Test Badger
         run: cd ./badger && go test ./... -v -race
-      - name: Test BadgerV3
-        run: cd ./badger-v3 && go test ./... -v -race
       - name: Test Memory
         run: cd ./memory && go test ./... -v -race
       - name: Test SQLite3
