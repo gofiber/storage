@@ -21,7 +21,6 @@ func New(config ...Config) *Storage {
 
 	// Set options
 	opt := cfg.BadgerOptions
-	// TODO see if as a new function similar to WithTruncate(true)
 
 	// Open database
 	db, err := badger.Open(opt)
