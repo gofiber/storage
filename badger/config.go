@@ -68,7 +68,10 @@ func configDefault(config ...Config) Config {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	overrideLogger := false
-	if cfg.BadgerOptions.Dir == defaultDatabase && cfg.BadgerOptions.Dir != cfg.Database {
+	// Detecting if no default Badger option was given
+	// Also detects when a default badger option is given with a custom database name
+	if cfg.BadgerOptions.ValueLogFileSize <= 0 || cfg.BadgerOptions.Dir == "" || cfg.BadgerOptions.ValueDir == "" ||
+		(cfg.BadgerOptions.Dir == defaultDatabase && cfg.BadgerOptions.Dir != cfg.Database) {
 		cfg.BadgerOptions = badger.DefaultOptions(cfg.Database)
 		overrideLogger = true
 	}
