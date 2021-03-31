@@ -1,6 +1,9 @@
 package badger
 
-import "time"
+import (
+	"github.com/dgraph-io/badger/v3"
+	"time"
+)
 
 // Config defines the config for storage.
 type Config struct {
@@ -18,13 +21,33 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
+
+	// BadgerOptions is a way to set options in badger
+	//
+	// Optional. Default is badger.DefaultOptions("./fiber.badger")
+	BadgerOptions badger.Options
+
+	// Logger is the default logger used by badger
+	//
+	// Optional. Default is nil
+	Logger badger.Logger
+
+	// UseLogger define if any logger will be used
+	//
+	// Optional. Default is false
+	UseLogger bool
 }
+
+const defaultDatabase = "./fiber.badger"
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Database:   "./fiber.badger",
-	Reset:      false,
-	GCInterval: 10 * time.Second,
+	Database:      defaultDatabase,
+	Reset:         false,
+	GCInterval:    10 * time.Second,
+	BadgerOptions: badger.DefaultOptions(defaultDatabase).WithLogger(nil),
+	Logger:        nil,
+	UseLogger:     false,
 }
 
 // Helper function to set default values
@@ -43,6 +66,18 @@ func configDefault(config ...Config) Config {
 	}
 	if int(cfg.GCInterval.Seconds()) <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
+	}
+	overrideLogger := false
+	if cfg.BadgerOptions.Dir == defaultDatabase && cfg.BadgerOptions.Dir != cfg.Database {
+		cfg.BadgerOptions = badger.DefaultOptions(cfg.Database)
+		overrideLogger = true
+	}
+	if overrideLogger {
+		if cfg.UseLogger && cfg.Logger != nil {
+			cfg.BadgerOptions = cfg.BadgerOptions.WithLogger(cfg.Logger)
+		} else if !cfg.UseLogger {
+			cfg.BadgerOptions = cfg.BadgerOptions.WithLogger(nil)
+		}
 	}
 	return cfg
 }
