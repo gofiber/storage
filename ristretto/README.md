@@ -56,19 +56,19 @@ type Config struct {
   NumCounters int64
 
   // MaxCost maximum cost of cache (1GB).
-	MaxCost     int64
+  MaxCost     int64
 
   // BufferItems number of keys per Get buffer.
-	BufferItems int64
+  BufferItems int64
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	NumCounters: 1e7,
-	MaxCost:     1 << 30,
-	BufferItems: 64,
-	DefaultCost: 1,
+  NumCounters: 1e7,
+  MaxCost:     1 << 30,
+  BufferItems: 64,
+  DefaultCost: 1,
 }
 ```
