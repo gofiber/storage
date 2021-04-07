@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/utils"
 )
 
-var testStore = ristretto.New(ristretto.ConfigDefault)
+var testStore = ristretto.New()
 
 func Test_Ristretto_Set(t *testing.T) {
 	var (

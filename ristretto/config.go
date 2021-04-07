@@ -15,6 +15,27 @@ var ConfigDefault = Config{
 	DefaultCost: 1,
 }
 
-func configDefault() Config {
-	return ConfigDefault
+func configDefault(config ...Config) Config {
+	if len(config) < 1 {
+		return ConfigDefault
+	}
+	cfg := config[0]
+
+	if cfg.NumCounters < 1 {
+		cfg.NumCounters = ConfigDefault.NumCounters
+	}
+
+	if cfg.MaxCost < 1 {
+		cfg.MaxCost = ConfigDefault.MaxCost
+	}
+
+	if cfg.BufferItems < 1 {
+		cfg.BufferItems = ConfigDefault.BufferItems
+	}
+
+	if cfg.DefaultCost == 0 {
+		cfg.DefaultCost = ConfigDefault.DefaultCost
+	}
+
+	return cfg
 }

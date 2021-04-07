@@ -1,7 +1,6 @@
 package ristretto
 
 import (
-	"errors"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
@@ -14,15 +13,12 @@ type Storage struct {
 }
 
 // New creates a new storage.
-func New(config Config) *Storage {
-	emptyConfig := Config{}
-	if config == emptyConfig {
-		config = configDefault()
-	}
+func New(config ...Config) *Storage {
+	cfg := configDefault(config...)
 	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: config.NumCounters,
-		MaxCost:     config.MaxCost,
-		BufferItems: config.BufferItems,
+		NumCounters: cfg.NumCounters,
+		MaxCost:     cfg.MaxCost,
+		BufferItems: cfg.BufferItems,
 	})
 
 	if err != nil {
@@ -31,7 +27,7 @@ func New(config Config) *Storage {
 
 	store := &Storage{
 		cache:       cache,
-		defaultCost: config.DefaultCost,
+		defaultCost: cfg.DefaultCost,
 	}
 
 	return store
@@ -66,11 +62,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 	saved := s.cache.SetWithTTL(key, val, s.defaultCost, exp)
 	if !saved {
-		return errors.New("Error saving to cache")
+		return nil
 	}
 	// wait for value to pass through buffers
 	time.Sleep(10 * time.Millisecond)
-
 	return nil
 }
 
