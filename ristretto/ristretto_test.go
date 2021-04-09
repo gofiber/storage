@@ -57,7 +57,7 @@ func Test_Ristretto_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	utils.AssertEqual(t, nil, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	testStore.Reset()
 }
 
 func Test_Ristretto_Get_Expired(t *testing.T) {

@@ -22,7 +22,7 @@ func New(config ...Config) *Storage {
 	})
 
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	store := &Storage{
@@ -54,7 +54,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set stores the given value for the given key along
-// with an expiration value, 0 means no expiration.
+// with an expiration value, time.Time{} means no expiration.
 // Empty key or value will be ignored without an error.
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
@@ -64,8 +64,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if !saved {
 		return nil
 	}
-	// wait for value to pass through buffers
-	time.Sleep(10 * time.Millisecond)
 	return nil
 }
 
