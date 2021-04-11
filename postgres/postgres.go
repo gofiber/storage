@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gofiber/utils"
 	_ "github.com/lib/pq"
 )
 
@@ -29,7 +28,7 @@ var (
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
-			v  TEXT NOT NULL,
+			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
 		);`,
 		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
@@ -138,7 +137,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
@@ -148,8 +146,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	valStr := utils.UnsafeString(val)
-	_, err := s.db.Exec(s.sqlInsert, key, valStr, expSeconds, valStr, expSeconds)
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
 }
 

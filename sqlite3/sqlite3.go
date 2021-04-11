@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/utils"
-
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -28,7 +26,7 @@ var (
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
-			v TEXT NOT NULL,
+			v  BLOB NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
 		);`,
 		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
@@ -126,7 +124,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), expSeconds)
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
 	return err
 }
 

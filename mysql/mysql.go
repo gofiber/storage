@@ -6,7 +6,6 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gofiber/utils"
 )
 
 // Storage interface that is implemented by storage providers
@@ -27,7 +26,7 @@ var (
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s ( 
 			k  VARCHAR(64) NOT NULL DEFAULT '', 
-			v  TEXT NOT NULL, 
+			v  BLOB NOT NULL, 
 			e  BIGINT NOT NULL DEFAULT '0', 
 			PRIMARY KEY (k)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
@@ -133,8 +132,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	valStr := utils.UnsafeString(val)
-	_, err := s.db.Exec(s.sqlInsert, key, valStr, expSeconds, valStr, expSeconds)
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
 }
 
