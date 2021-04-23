@@ -41,6 +41,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// CheckSchema checks that the "v" column data type is correct. See https://github.com/gofiber/fiber/issues/1258
+	//
+	// Optional. Default is true
+	CheckSchema bool
+
 	// Time before deleting expired keys
 	//
 	// Optional. Default is 10 * time.Second
@@ -94,6 +99,7 @@ var ConfigDefault = Config{
 	maxOpenConns:    100,
 	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
+	CheckSchema:     true,
 }
 
 // Helper function to set default values
