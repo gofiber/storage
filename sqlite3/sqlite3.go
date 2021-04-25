@@ -3,6 +3,7 @@ package sqlite3
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -22,6 +23,9 @@ type Storage struct {
 }
 
 var (
+	checkSchemaMsg = "The `v` row has an incorrect data type. " +
+		"It should be BYTEA but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md). " +
+		"To disable this check, set CheckSchema to false in the storage config."
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
@@ -31,6 +35,8 @@ var (
 		);`,
 		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
 	}
+	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
 )
 
 // New creates a new storage
@@ -80,6 +86,10 @@ func New(config ...Config) *Storage {
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlReset:   fmt.Sprintf("DELETE FROM %s;", cfg.Table),
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
+	}
+
+	if cfg.CheckSchema {
+		store.checkSchema(cfg.Table)
 	}
 
 	// Start garbage collector
@@ -167,4 +177,17 @@ func (s *Storage) gcTicker() {
 // gc deletes all expired entries
 func (s *Storage) gc(t time.Time) {
 	_, _ = s.db.Exec(s.sqlGC, t.Unix())
+}
+
+func (s *Storage) checkSchema(tableName string) {
+	var data []byte
+
+	row := s.db.QueryRow(fmt.Sprintf(checkSchemaQuery, tableName))
+	if err := row.Scan(&data); err != nil {
+		panic(err)
+	}
+
+	if strings.ToLower(string(data)) != "bytea" {
+		fmt.Printf(checkSchemaMsg, string(data))
+	}
 }
