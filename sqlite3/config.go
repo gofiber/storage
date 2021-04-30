@@ -24,11 +24,6 @@ type Config struct {
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
 
-	// CheckSchema checks that the "v" column data type is correct. See https://github.com/gofiber/fiber/issues/1258
-	//
-	// Optional. Default is true
-	CheckSchema bool
-
 	////////////////////////////////////
 	// Adaptor related config options //
 	////////////////////////////////////
@@ -50,7 +45,6 @@ var ConfigDefault = Config{
 	maxOpenConns:    100,
 	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
-	CheckSchema:     true,
 }
 
 // Helper function to set default values

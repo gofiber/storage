@@ -26,8 +26,7 @@ type Storage struct {
 
 var (
 	checkSchemaMsg = "The `v` row has an incorrect data type. " +
-		"It should be BYTEA but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md). " +
-		"To disable this check, set CheckSchema to false in the storage config."
+		"It should be BYTEA but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
@@ -108,9 +107,7 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", cfg.Table),
 	}
 
-	if cfg.CheckSchema {
-		store.checkSchema(cfg.Table)
-	}
+	store.checkSchema(cfg.Table)
 
 	// Start garbage collector
 	go store.gcTicker()
