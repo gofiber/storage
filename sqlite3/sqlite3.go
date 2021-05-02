@@ -3,7 +3,6 @@ package sqlite3
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -34,8 +33,6 @@ var (
 		);`,
 		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
 	}
-	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
-		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
 )
 
 // New creates a new storage
@@ -87,8 +84,6 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
-	store.checkSchema(cfg.Table)
-
 	// Start garbage collector
 	go store.gcTicker()
 
@@ -120,7 +115,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
-// Set key with value
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
@@ -174,17 +168,4 @@ func (s *Storage) gcTicker() {
 // gc deletes all expired entries
 func (s *Storage) gc(t time.Time) {
 	_, _ = s.db.Exec(s.sqlGC, t.Unix())
-}
-
-func (s *Storage) checkSchema(tableName string) {
-	var data []byte
-
-	row := s.db.QueryRow(fmt.Sprintf(checkSchemaQuery, tableName))
-	if err := row.Scan(&data); err != nil {
-		panic(err)
-	}
-
-	if strings.ToLower(string(data)) != "blob" {
-		fmt.Printf(checkSchemaMsg, string(data))
-	}
 }
