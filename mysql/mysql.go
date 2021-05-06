@@ -3,10 +3,10 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gofiber/utils"
 )
 
 // Storage interface that is implemented by storage providers
@@ -23,15 +23,19 @@ type Storage struct {
 }
 
 var (
+	checkSchemaMsg = "The `v` row has an incorrect data type. " +
+		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = "DROP TABLE IF EXISTS %s;"
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s ( 
 			k  VARCHAR(64) NOT NULL DEFAULT '', 
-			v  TEXT NOT NULL, 
+			v  BLOB NOT NULL, 
 			e  BIGINT NOT NULL DEFAULT '0', 
 			PRIMARY KEY (k)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
 	}
+	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
 )
 
 // New creates a new storage
@@ -85,6 +89,8 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
+	store.checkSchema(cfg.Table)
+
 	// Start garbage collector
 	go store.gcTicker()
 
@@ -133,8 +139,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	valStr := utils.UnsafeString(val)
-	_, err := s.db.Exec(s.sqlInsert, key, valStr, expSeconds, valStr, expSeconds)
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
 }
 
@@ -177,4 +182,17 @@ func (s *Storage) gcTicker() {
 // gc deletes all expired entries
 func (s *Storage) gc(t time.Time) {
 	_, _ = s.db.Exec(s.sqlGC, t.Unix())
+}
+
+func (s *Storage) checkSchema(tableName string) {
+	var data []byte
+
+	row := s.db.QueryRow(fmt.Sprintf(checkSchemaQuery, tableName))
+	if err := row.Scan(&data); err != nil {
+		panic(err)
+	}
+
+	if strings.ToLower(string(data)) != "blob" {
+		fmt.Printf(checkSchemaMsg, string(data))
+	}
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/utils"
-
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -24,11 +22,13 @@ type Storage struct {
 }
 
 var (
+	checkSchemaMsg = "The `v` row has an incorrect data type. " +
+		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
-			v TEXT NOT NULL,
+			v  BLOB NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
 		);`,
 		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
@@ -116,7 +116,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
@@ -126,7 +125,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, utils.UnsafeString(val), expSeconds)
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
 	return err
 }
 

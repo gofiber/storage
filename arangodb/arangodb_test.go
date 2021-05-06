@@ -118,6 +118,17 @@ func Test_ARANGODB_Reset(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
+func Test_ARANGODB_Non_UTF8(t *testing.T) {
+	val := []byte("0xF5")
+
+	err := testStore.Set("0xF6", val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStore.Get("0xF6")
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+}
+
 func Test_ARANGODB_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
