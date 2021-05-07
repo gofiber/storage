@@ -18,4 +18,5 @@ ALTER TABLE fiber_storage MODIFY COLUMN v BLOB;
 ```
 
 **Arangodb**
+
 No migration other then updating the library is necessary.
