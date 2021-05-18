@@ -47,6 +47,7 @@ store := postgres.New(postgres.Config{
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
+	SslMode:         "disable",
 })
 ```
 
@@ -93,6 +94,11 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
+
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SslMode string
 }
 ```
 
@@ -105,5 +111,6 @@ var ConfigDefault = Config{
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
+	SslMode:         "disable",
 }
 ```

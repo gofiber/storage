@@ -36,6 +36,11 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Table string
 
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SslMode string
+
 	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
@@ -89,6 +94,7 @@ var ConfigDefault = Config{
 	Port:            5432,
 	Database:        "fiber",
 	Table:           "fiber_storage",
+	SslMode:         "disable",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 	maxOpenConns:    100,
@@ -118,6 +124,9 @@ func configDefault(config ...Config) Config {
 	}
 	if cfg.Table == "" {
 		cfg.Table = ConfigDefault.Table
+	}
+	if cfg.SslMode == "" {
+		cfg.SslMode = ConfigDefault.SslMode
 	}
 	if int(cfg.GCInterval.Seconds()) <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
