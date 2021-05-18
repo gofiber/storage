@@ -159,6 +159,21 @@ func Test_Postgres_Non_UTF8(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
+func Test_SslRequiredMode(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			utils.AssertEqual(t, true, nil, "Connection was established with a `require`")
+		}
+	}()
+	_ = New(Config{
+		Database: "fiber",
+		Username: "username",
+		Password: "password",
+		Reset:    true,
+		SslMode:  "require",
+	})
+}
+
 func Test_Postgres_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
