@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
@@ -133,7 +134,7 @@ func Test_Postgres_GC(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	testStore.gc(time.Now())
-	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
+	row := testStore.db.QueryRow(context.Background(), testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	utils.AssertEqual(t, sql.ErrNoRows, err)
 
@@ -172,8 +173,4 @@ func Test_SslRequiredMode(t *testing.T) {
 		Reset:    true,
 		SslMode:  "require",
 	})
-}
-
-func Test_Postgres_Close(t *testing.T) {
-	utils.AssertEqual(t, nil, testStore.Close())
 }

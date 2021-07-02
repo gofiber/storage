@@ -1,6 +1,6 @@
 # Postgres
 
-A Postgres storage driver using [lib/pq](https://github.com/lib/pq).
+A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -16,7 +16,7 @@ func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
-func (s *Storage) Close() error
+func (s *Storage) Close()
 ```
 ### Installation
 Postgres is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

@@ -59,17 +59,6 @@ type Config struct {
 	// n < 0 means wait indefinitely.
 	timeout time.Duration
 
-	// The maximum number of connections in the idle connection pool.
-	//
-	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
-	//
-	// If n <= 0, no idle connections are retained.
-	//
-	// The default max idle connections is currently 2. This may change in
-	// a future release.
-	maxIdleConns int
-
 	// The maximum number of open connections to the database.
 	//
 	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
@@ -78,7 +67,7 @@ type Config struct {
 	//
 	// If n <= 0, then there is no limit on the number of open connections.
 	// The default is 0 (unlimited).
-	maxOpenConns int
+	maxOpenConns int32
 
 	// The maximum amount of time a connection may be reused.
 	//
@@ -98,7 +87,6 @@ var ConfigDefault = Config{
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 	maxOpenConns:    100,
-	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
 }
 
