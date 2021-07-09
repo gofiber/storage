@@ -172,10 +172,11 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-func (s *Storage) Close() {
+func (s *Storage) Close() error {
 	s.done <- struct{}{}
 	s.db.Stat()
 	s.db.Close()
+	return nil
 }
 
 // gcTicker starts the gc ticker
@@ -208,8 +209,4 @@ func (s *Storage) checkSchema(tableName string) {
 	if strings.ToLower(string(data)) != "bytea" {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
-}
-
-func (s *Storage) DB() *pgxpool.Pool {
-	return s.db
 }
