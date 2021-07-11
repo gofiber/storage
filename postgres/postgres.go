@@ -210,3 +210,7 @@ func (s *Storage) checkSchema(tableName string) {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
 }
+
+func (s *Storage) DB() *pgxpool.Pool {
+	return s.db
+}
