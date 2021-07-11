@@ -180,5 +180,5 @@ func Test_Postgres_Close(t *testing.T) {
 }
 
 func Test_Postgres_DB(t *testing.T) {
-	utils.AssertEqual(t, nil, testStore.DB())
+	utils.AssertEqual(t, true, testStore.DB() != nil)
 }
