@@ -4,16 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"strings"
 	"time"
-
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db         *pgxpool.Pool
+	db         pgxpool.Pool
 	gcInterval time.Duration
 	done       chan struct{}
 
@@ -45,34 +43,7 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Create data source name
-	var dsn = "postgresql://"
-	if cfg.Username != "" {
-		dsn += url.QueryEscape(cfg.Username)
-	}
-	if cfg.Password != "" {
-		dsn += ":" + cfg.Password
-	}
-	if cfg.Username != "" || cfg.Password != "" {
-		dsn += "@"
-	}
-	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
-	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
-		url.QueryEscape(cfg.Database),
-		int64(cfg.timeout.Seconds()),
-		cfg.SslMode,
-	)
-
-	cnf, _ := pgxpool.ParseConfig(dsn)
-	cnf.MaxConns = cfg.maxOpenConns
-	cnf.MaxConnLifetime = cfg.connMaxLifetime
-	cnf.MaxConnIdleTime = cfg.connMaxLifetime
-
-	db, err := pgxpool.ConnectConfig(context.Background(), cnf)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
+	db := cfg.Db
 
 	// Ping database
 	if err := db.Ping(context.Background()); err != nil {
@@ -81,7 +52,7 @@ func New(config ...Config) *Storage {
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err = db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
 			db.Close()
 			panic(err)
 		}
@@ -209,8 +180,4 @@ func (s *Storage) checkSchema(tableName string) {
 	if strings.ToLower(string(data)) != "bytea" {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
-}
-
-func (s *Storage) DB() *pgxpool.Pool {
-	return s.db
 }

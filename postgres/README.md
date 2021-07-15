@@ -17,7 +17,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) DB() pgxpool.Pool
 ```
 ### Installation
 Postgres is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -42,13 +41,10 @@ store := postgres.New()
 
 // Initialize custom config
 store := postgres.New(postgres.Config{
-	Host:            "127.0.0.1",
-	Port:            5432,
-	Database:        "fiber",
+	Db:              dbPool,
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
-	SslMode:         "disable",
 })
 ```
 
@@ -56,30 +52,10 @@ store := postgres.New(postgres.Config{
 ```go
 // Config defines the config for storage.
 type Config struct {
-	// Host name where the DB is hosted
-	//
-	// Optional. Default is "127.0.0.1"
-	Host string
-
-	// Port where the DB is listening on
-	//
-	// Optional. Default is 5432
-	Port int
-
-	// Server username
-	//
-	// Optional. Default is ""
-	Username string
-
-	// Server password
-	//
-	// Optional. Default is ""
-	Password string
-
-	// Database name
-	//
-	// Optional. Default is "fiber"
-	Database string
+    // Db pgxpool.Pool object
+    //
+    // Required
+    Db pgxpool.Pool
 
 	// Table name
 	//
@@ -95,23 +71,16 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
-
-	// The SSL mode for the connection
-	//
-	// Optional. Default is "disable"
-	SslMode string
 }
 ```
 
 ### Default Config
 ```go
+// ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:            "127.0.0.1",
-	Port:            5432,
-	Database:        "fiber",
+	Db:              pgxpool.Pool{},
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
-	SslMode:         "disable",
 }
 ```
