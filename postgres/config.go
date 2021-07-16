@@ -1,7 +1,7 @@
 package postgres
 
 import (
-	"github.com/jackc/pgx/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"time"
 )
 
