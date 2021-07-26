@@ -1,10 +1,12 @@
-package postgres
+package v2
 
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -44,6 +46,10 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	db := cfg.Db
+
+	if reflect.ValueOf(db).IsNil() {
+		panic(errors.New("db pool instance must be passed into the config"))
+	}
 
 	// Ping database
 	if err := db.Ping(context.Background()); err != nil {

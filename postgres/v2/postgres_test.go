@@ -1,4 +1,4 @@
-package postgres
+package v2
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 var testStore = New(Config{
-	Reset:    true,
+	Reset: true,
 })
 
 func Test_Postgres_Set(t *testing.T) {
@@ -163,7 +163,7 @@ func Test_SslRequiredMode(t *testing.T) {
 		}
 	}()
 	_ = New(Config{
-		Reset:    true,
+		Reset: true,
 	})
 }
 

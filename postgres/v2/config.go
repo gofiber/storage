@@ -1,7 +1,7 @@
-package postgres
+package v2
 
 import (
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/pgxpool"
 	"time"
 )
 
@@ -30,9 +30,9 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Table:           "fiber_storage",
-	Reset:           false,
-	GCInterval:      10 * time.Second,
+	Table:      "fiber_storage",
+	Reset:      false,
+	GCInterval: 10 * time.Second,
 }
 
 // Helper function to set default values
