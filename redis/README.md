@@ -1,6 +1,6 @@
 # Redis
 
-A Redis storage driver using [go-redis/redis](github.com/go-redis/redis).
+A Redis storage driver using [go-redis/redis](https://github.com/go-redis/redis).
 
 ### Table of Contents
 - [Signatures](#signatures)
