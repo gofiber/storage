@@ -1,9 +1,17 @@
 package s3
 
+import "time"
+
 // Config defines the config for storage.
 type Config struct {
 	// S3 bucket name
 	Bucket string
+
+	// AWS region
+	Region string
+
+	// Request timeout
+	Timeout time.Duration
 
 	// Reset clears any existing keys in existing Table
 	//
@@ -15,6 +23,8 @@ type Config struct {
 var ConfigDefault = Config{
 	// General config options
 	Bucket:   "",
+	Region: "",
+	Timeout: 0,
 	Reset:      false,
 }
 

@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,6 +17,7 @@ type Storage struct {
 	svc *s3.S3
 	uploader *s3manager.Uploader
 	downloader *s3manager.Downloader
+	timeout time.Duration
 	bucket string
 	done       chan struct{}
 }
@@ -26,7 +28,10 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create s3 session
-	sess, err := session.NewSession()
+	// Credentials must be given in the environment, ~/.aws/credentials, or EC2 instance role
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(cfg.Region),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -46,6 +51,7 @@ func New(config ...Config) *Storage {
 		svc: svc,
 		uploader: uploader,
 		downloader: downloader,
+		timeout: cfg.Timeout,
 		done:       make(chan struct{}),
 	}
 
@@ -79,12 +85,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 
-	_, err := s.uploader.Upload(&s3manager.UploadInput{
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket: aws.String(s.bucket),
 		Key: aws.String(key),
 		Body: bytes.NewReader(val),
 	})
-
 	return err
 }
 
@@ -94,7 +102,10 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
-	_, err := s.svc.DeleteObject(&s3.DeleteObjectInput{
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.svc.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key: aws.String(key),
 	})
@@ -115,4 +126,12 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	s.done <- struct{}{}
 	return nil
+}
+
+// Context for making requests will timeout if a non-zero timeout is configured
+func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
+	if s.timeout > 0 {
+		return context.WithTimeout(context.Background(), s.timeout)
+	}
+	return context.Background(), func() {}
 }
