@@ -13,12 +13,12 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	sess *session.Session
-	svc *s3.S3
-	uploader *s3manager.Uploader
+	sess       *session.Session
+	svc        *s3.S3
+	uploader   *s3manager.Uploader
 	downloader *s3manager.Downloader
-	timeout time.Duration
-	bucket string
+	timeout    time.Duration
+	bucket     string
 }
 
 // New creates a new storage
@@ -29,7 +29,9 @@ func New(config ...Config) *Storage {
 	// Create s3 session
 	// Credentials must be given in the environment, ~/.aws/credentials, or EC2 instance role
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(cfg.Region),
+		Endpoint:         aws.String(cfg.Endpoint),
+		Region:           aws.String(cfg.Region),
+		S3ForcePathStyle: aws.Bool(true),
 	})
 	if err != nil {
 		panic(err)
@@ -46,11 +48,12 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		sess: sess,
-		svc: svc,
-		uploader: uploader,
+		sess:       sess,
+		svc:        svc,
+		uploader:   uploader,
 		downloader: downloader,
-		timeout: cfg.Timeout,
+		bucket:     cfg.Bucket,
+		timeout:    cfg.Timeout,
 	}
 
 	// Empty bucket if set to true
@@ -71,7 +74,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	_, err := s.downloader.Download(buf, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key: aws.String(key),
+		Key:    aws.String(key),
 	})
 
 	return buf.Bytes(), err
@@ -88,8 +91,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
 		Bucket: aws.String(s.bucket),
-		Key: aws.String(key),
-		Body: bytes.NewReader(val),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(val),
 	})
 	return err
 }
@@ -105,7 +108,7 @@ func (s *Storage) Delete(key string) error {
 
 	_, err := s.svc.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key: aws.String(key),
+		Key:    aws.String(key),
 	})
 
 	return err

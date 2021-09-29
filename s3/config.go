@@ -7,9 +7,10 @@ type Config struct {
 	// S3 bucket name
 	Bucket string
 
+	// AWS endpoint
+	Endpoint string
+
 	// AWS region
-	//
-	// Optional. Default is the empty string
 	Region string
 
 	// Request timeout
@@ -27,9 +28,10 @@ type Config struct {
 var ConfigDefault = Config{
 	// General config options
 	Bucket:   "",
-	Region: "",
-	Timeout: 0,
-	Reset:      false,
+	Region:   "",
+	Endpoint: "",
+	Timeout:  0,
+	Reset:    false,
 }
 
 // Helper function to set default values
