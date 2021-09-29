@@ -8,9 +8,13 @@ type Config struct {
 	Bucket string
 
 	// AWS region
+	//
+	// Optional. Default is the empty string
 	Region string
 
 	// Request timeout
+	//
+	// Optional. Default is 0 (no timeout)
 	Timeout time.Duration
 
 	// Reset clears any existing keys in existing Table

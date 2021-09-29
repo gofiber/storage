@@ -49,9 +49,20 @@ store := s3.New(s3.Config{
 ### Config
 ```go
 // Config defines the config for storage.
+// Config defines the config for storage.
 type Config struct {
 	// S3 bucket name
 	Bucket string
+
+	// AWS region
+	//
+	// Optional. Default is the empty string
+	Region string
+
+	// Request timeout
+	//
+	// Optional. Default is 0 (no timeout)
+	Timeout time.Duration
 
 	// Reset clears any existing keys in existing Table
 	//
