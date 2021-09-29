@@ -19,7 +19,6 @@ type Storage struct {
 	downloader *s3manager.Downloader
 	timeout time.Duration
 	bucket string
-	done       chan struct{}
 }
 
 // New creates a new storage
@@ -52,7 +51,6 @@ func New(config ...Config) *Storage {
 		uploader: uploader,
 		downloader: downloader,
 		timeout: cfg.Timeout,
-		done:       make(chan struct{}),
 	}
 
 	// Empty bucket if set to true
@@ -124,7 +122,6 @@ func (s *Storage) Reset() error {
 
 // Close the database
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
 	return nil
 }
 
