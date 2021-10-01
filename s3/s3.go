@@ -13,12 +13,12 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	sess       *session.Session
-	svc        *s3.S3
-	uploader   *s3manager.Uploader
-	downloader *s3manager.Downloader
-	timeout    time.Duration
-	bucket     string
+	sess           *session.Session
+	svc            *s3.S3
+	uploader       *s3manager.Uploader
+	downloader     *s3manager.Downloader
+	requestTimeout time.Duration
+	bucket         string
 }
 
 // New creates a new storage
@@ -26,12 +26,16 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// Check required fields
+	if cfg.Bucket == "" || cfg.Region == "" || cfg.Endpoint == "" {
+		panic("invalid s3 configuration")
+	}
+
 	// Create s3 session
 	// Credentials must be given in the environment, ~/.aws/credentials, or EC2 instance role
 	sess, err := session.NewSession(&aws.Config{
-		Endpoint:         aws.String(cfg.Endpoint),
-		Region:           aws.String(cfg.Region),
-		S3ForcePathStyle: aws.Bool(true),
+		Endpoint: aws.String(cfg.Endpoint),
+		Region:   aws.String(cfg.Region),
 	})
 	if err != nil {
 		panic(err)
@@ -48,12 +52,12 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		sess:       sess,
-		svc:        svc,
-		uploader:   uploader,
-		downloader: downloader,
-		bucket:     cfg.Bucket,
-		timeout:    cfg.Timeout,
+		sess:           sess,
+		svc:            svc,
+		uploader:       uploader,
+		downloader:     downloader,
+		requestTimeout: cfg.RequestTimeout,
+		bucket:         cfg.Bucket,
 	}
 
 	// Empty bucket if set to true
@@ -130,8 +134,8 @@ func (s *Storage) Close() error {
 
 // Context for making requests will timeout if a non-zero timeout is configured
 func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
-	if s.timeout > 0 {
-		return context.WithTimeout(context.Background(), s.timeout)
+	if s.requestTimeout > 0 {
+		return context.WithTimeout(context.Background(), s.requestTimeout)
 	}
 	return context.Background(), func() {}
 }

@@ -16,7 +16,7 @@ type Config struct {
 	// Request timeout
 	//
 	// Optional. Default is 0 (no timeout)
-	Timeout time.Duration
+	RequestTimeout time.Duration
 
 	// Reset clears any existing keys in existing Table
 	//
@@ -26,11 +26,10 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	// General config options
 	Bucket:   "",
 	Region:   "",
 	Endpoint: "",
-	Timeout:  0,
+	RequestTimeout:  0,
 	Reset:    false,
 }
 

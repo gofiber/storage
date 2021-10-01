@@ -23,7 +23,7 @@ S3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support fo
 ```bash
 go mod init github.com/<user>/<repo>
 ```
-And then install the sqlite3 implementation:
+And then install the s3 implementation:
 ```bash
 go get github.com/gofiber/storage/s3
 ```
@@ -42,7 +42,9 @@ store := s3.New()
 // Initialize custom config
 store := s3.New(s3.Config{
 	Bucket:   "my-bucket-url",
-	Reset:      false,
+	Endpoint: "my-endpoint",
+	Region:   "my-region",
+	Reset:    false,
 })
 ```
 
@@ -53,15 +55,16 @@ type Config struct {
 	// S3 bucket name
 	Bucket string
 
+	// AWS endpoint
+	Endpoint string
+
 	// AWS region
-	//
-	// Optional. Default is the empty string
 	Region string
 
 	// Request timeout
 	//
 	// Optional. Default is 0 (no timeout)
-	Timeout time.Duration
+	RequestTimeout time.Duration
 
 	// Reset clears any existing keys in existing Table
 	//
@@ -71,9 +74,14 @@ type Config struct {
 ```
 
 ### Default Config
+The default configuration lacks Bucket, Region, and Endpoint which are all required and must be overwritten:
 ```go
+// ConfigDefault is the default config
 var ConfigDefault = Config{
-	Bucket:   "",
-	Reset:      false,
+	Bucket:         "",
+	Region:         "",
+	Endpoint:       "",
+	RequestTimeout: 0,
+	Reset:          false,
 }
 ```
