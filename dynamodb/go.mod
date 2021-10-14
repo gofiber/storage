@@ -2,4 +2,4 @@ module github.com/gofiber/storage/dynamodb
 
 go 1.14
 
-require github.com/aws/aws-sdk-go v1.40.46
+require github.com/aws/aws-sdk-go v1.41.2
