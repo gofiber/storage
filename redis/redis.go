@@ -30,10 +30,11 @@ func New(config ...Config) *Storage {
 		}
 	} else {
 		options = &redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-			DB:       cfg.Database,
-			Username: cfg.Username,
-			Password: cfg.Password,
+			Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+			DB:        cfg.Database,
+			Username:  cfg.Username,
+			Password:  cfg.Password,
+			TLSConfig: cfg.TLSConfig,
 		}
 	}
 
