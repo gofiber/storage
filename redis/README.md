@@ -41,13 +41,15 @@ store := redis.New()
 
 // Initialize custom config
 store := redis.New(redis.Config{
-	Host:     "127.0.0.1",
-	Port:     6379,
-	Username: "",
-	Password: "",
-	Database: 0,
-	Reset:    false,
-})
+	Host:      "127.0.0.1",
+	Port:      6379,
+	Username:  "",
+	Password:  "",
+	URL:       "",
+	Database:  0,
+	Reset:     false,
+	TLSConfig: nil,
+}
 
 // or just the url with all information
 store = redis.New(redis.Config{
@@ -94,6 +96,11 @@ type Config struct {
 	//
 	// Optional. Default is false
 	Reset bool
+
+	// TLS Config to use. When set TLS will be negotiated.
+	//
+	// Optional. Default is nil
+	TLSConfig *tls.Config
 }
 
 ```
@@ -101,11 +108,13 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Host:     "127.0.0.1",
-	Port:     6379,
-	Username: "",
-	Password: "",
-	Database: 0,
-	Reset:    false,
+	Host:      "127.0.0.1",
+	Port:      6379,
+	Username:  "",
+	Password:  "",
+	URL:       "",
+	Database:  0,
+	Reset:     false,
+	TLSConfig: nil,
 }
 ```
