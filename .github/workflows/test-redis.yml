@@ -29,7 +29,7 @@ jobs:
 
     - name: Run Redis
       run: |
-        redis-server --tls-port 6389 --port 6379 \
+        redis-server --tls-port 6380 --port 6379 \
         --tls-cert-file ./tests/tls/redis.crt \
         --tls-key-file ./tests/tls/redis.key \
         --tls-ca-cert-file ./tests/tls/ca.crt
