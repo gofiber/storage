@@ -32,7 +32,7 @@ jobs:
         redis-server --tls-port 6380 --port 6379 \
         --tls-cert-file ./redis/tests/tls/redis.crt \
         --tls-key-file ./redis/tests/tls/redis.key \
-        --tls-ca-cert-file ./redis/tests/tls/ca.crt
+        --tls-ca-cert-file ./redis/tests/tls/ca.crt&
 
     - name: Install Go
       uses: actions/setup-go@v1
