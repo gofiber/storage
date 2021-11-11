@@ -31,11 +31,11 @@ jobs:
         --tls-cert-file ./tests/tls/redis.crt \
         --tls-key-file ./tests/tls/redis.key \
         --tls-ca-cert-file ./tests/tls/ca.crt
-          
-      - name: Install Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: '${{ matrix.go-version }}'
-      
-      - name: Run Test
-        run: cd ./redis && go test ./... -v -race
+        
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: '${{ matrix.go-version }}'
+    
+    - name: Run Test
+      run: cd ./redis && go test ./... -v -race
