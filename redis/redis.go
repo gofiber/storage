@@ -25,6 +25,7 @@ func New(config ...Config) *Storage {
 
 	if cfg.URL != "" {
 		options, err = redis.ParseURL(cfg.URL)
+		options.TLSConfig = cfg.TLSConfig
 		if err != nil {
 			panic(err)
 		}
