@@ -13,7 +13,6 @@ jobs:
             -   name: Install Gosec
                 run: |
                     export PATH=${PATH}:`go env GOPATH`/bin
-                    go mod init security
                     go get -u github.com/securego/gosec/v2/cmd/gosec
             -   name: Run Gosec (root)
                 working-directory: .
