@@ -58,3 +58,7 @@ jobs:
                 working-directory: ./sqlite3
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
+            -   name: Run Gosec (ristretto)
+                working-directory: ./ristretto
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----
