@@ -24,13 +24,13 @@ type Config struct {
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
 
-	////////////////////////////////////
+	// //////////////////////////////////
 	// Adaptor related config options //
-	////////////////////////////////////
+	// //////////////////////////////////
 
-	maxIdleConns    int
-	maxOpenConns    int
-	connMaxLifetime time.Duration
+	MaxIdleConns    int
+	MaxOpenConns    int
+	ConnMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
@@ -42,9 +42,9 @@ var ConfigDefault = Config{
 	GCInterval: 10 * time.Second,
 
 	// Adaptor related config options
-	maxOpenConns:    100,
-	maxIdleConns:    100,
-	connMaxLifetime: 1 * time.Second,
+	MaxOpenConns:    100,
+	MaxIdleConns:    100,
+	ConnMaxLifetime: 1 * time.Second,
 }
 
 // Helper function to set default values
