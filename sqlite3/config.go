@@ -29,15 +29,18 @@ type Config struct {
 	// //////////////////////////////////
 
 	// MaxIdleConns sets the maximum number of connections in the idle connection pool.
-	// Default is 100.
+	//
+	// Optional. Default is 100.
 	MaxIdleConns int
 
 	// MaxOpenConns sets the maximum number of open connections to the database.
-	// Default is 100.
+	//
+	// Optional. Default is 100.
 	MaxOpenConns int
 
 	// ConnMaxLifetime sets the maximum amount of time a connection may be reused.
-	// Default is 1 second.
+	//
+	// Optional. Default is 1 second.
 	ConnMaxLifetime time.Duration
 }
 
