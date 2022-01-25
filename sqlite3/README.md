@@ -41,10 +41,13 @@ store := sqlite3.New()
 
 // Initialize custom config
 store := sqlite3.New(sqlite3.Config{
-	Database:   "./fiber.sqlite3",
-	Table:      "fiber_storage",
-	Reset:      false,
-	GCInterval: 10 * time.Second,
+	Database:        "./fiber.sqlite3",
+	Table:           "fiber_storage",
+	Reset:           false,
+	GCInterval:      10 * time.Second,
+	MaxOpenConns:    100,
+	MaxIdleConns:    100,
+	ConnMaxLifetime: 1 * time.Second,
 })
 ```
 
@@ -70,15 +73,26 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
+
+	// //////////////////////////////////
+	// Adaptor related config options //
+	// //////////////////////////////////
+
+	MaxIdleConns    int
+	MaxOpenConns    int
+	ConnMaxLifetime time.Duration
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Database:   "./fiber.sqlite3",
-	Table:      "fiber_storage",
-	Reset:      false,
-	GCInterval: 10 * time.Second,
+	Database:        "./fiber.sqlite3",
+	Table:           "fiber_storage",
+	Reset:           false,
+	GCInterval:      10 * time.Second,
+	MaxOpenConns:    100,
+	MaxIdleConns:    100,
+	ConnMaxLifetime: 1 * time.Second,
 }
 ```
