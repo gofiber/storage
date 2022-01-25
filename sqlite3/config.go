@@ -78,5 +78,14 @@ func configDefault(config ...Config) Config {
 	if int(cfg.GCInterval.Seconds()) <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
+	if cfg.MaxIdleConns <= 0 {
+		cfg.MaxIdleConns = ConfigDefault.MaxIdleConns
+	}
+	if cfg.MaxOpenConns <= 0 {
+		cfg.MaxOpenConns = ConfigDefault.MaxOpenConns
+	}
+	if cfg.ConnMaxLifetime == 0 {
+		cfg.ConnMaxLifetime = ConfigDefault.ConnMaxLifetime
+	}
 	return cfg
 }
