@@ -160,9 +160,10 @@ func returnAWSConfig(cfg Config) (aws.Config, error) {
 	endpoint := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		if cfg.Endpoint != "" {
 			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           cfg.Endpoint,
-				SigningRegion: cfg.Region,
+				PartitionID:       "aws",
+				URL:               cfg.Endpoint,
+				SigningRegion:     cfg.Region,
+				HostnameImmutable: true,
 			}, nil
 		}
 		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
