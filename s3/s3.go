@@ -3,20 +3,24 @@ package s3
 import (
 	"bytes"
 	"context"
+	"errors"
+	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	sess           *session.Session
-	svc            *s3.S3
-	uploader       *s3manager.Uploader
-	downloader     *s3manager.Downloader
+	svc            *s3.Client
+	downloader     *manager.Downloader
+	uploader       *manager.Uploader
 	requestTimeout time.Duration
 	bucket         string
 }
@@ -26,60 +30,44 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Check required fields
-	if cfg.Bucket == "" || cfg.Region == "" || cfg.Endpoint == "" {
-		panic("invalid s3 configuration")
-	}
-
 	// Create s3 session
-	// Credentials must be given in the environment, ~/.aws/credentials, or EC2 instance role
-	sess, err := session.NewSession(&aws.Config{
-		Endpoint: aws.String(cfg.Endpoint),
-		Region:   aws.String(cfg.Region),
-	})
+	// If config fields of credentials not given, credentials are using from the environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY), ~/.aws/credentials, or EC2 instance role.
+	// If config fields of credentials given, uses credentials from config.
+	awscfg, err := returnAWSConfig(cfg)
 	if err != nil {
-		panic(err)
+		log.Panicf("unable to load SDK config, %v", err)
 	}
 
-	// Create s3 API
-	svc := s3.New(sess)
-
-	// Create s3 uploader
-	uploader := s3manager.NewUploader(sess)
-
-	// Create s3 downloader
-	downloader := s3manager.NewDownloader(sess)
-
-	// Create storage
-	store := &Storage{
-		sess:           sess,
-		svc:            svc,
-		uploader:       uploader,
-		downloader:     downloader,
+	sess := s3.NewFromConfig(awscfg)
+	return &Storage{
+		svc:            sess,
+		downloader:     manager.NewDownloader(sess),
+		uploader:       manager.NewUploader(sess),
 		requestTimeout: cfg.RequestTimeout,
 		bucket:         cfg.Bucket,
 	}
-
-	// Empty bucket if set to true
-	if cfg.Reset {
-		store.Reset()
-	}
-
-	return store
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	var nsk *types.NoSuchKey
+
 	if len(key) <= 0 {
 		return nil, nil
 	}
 
-	buf := aws.NewWriteAtBuffer([]byte{})
+	ctx, cancel := s.requestContext()
+	defer cancel()
 
-	_, err := s.downloader.Download(buf, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
+	buf := manager.NewWriteAtBuffer([]byte{})
+
+	_, err := s.downloader.Download(ctx, buf, &s3.GetObjectInput{
+		Bucket: &s.bucket,
 		Key:    aws.String(key),
 	})
+	if errors.As(err, &nsk) {
+		return nil, nil
+	}
 
 	return buf.Bytes(), err
 }
@@ -93,11 +81,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	ctx, cancel := s.requestContext()
 	defer cancel()
 
-	_, err := s.uploader.UploadWithContext(ctx, &s3manager.UploadInput{
-		Bucket: aws.String(s.bucket),
+	_, err := s.uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: &s.bucket,
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(val),
 	})
+
 	return err
 }
 
@@ -110,8 +99,8 @@ func (s *Storage) Delete(key string) error {
 	ctx, cancel := s.requestContext()
 	defer cancel()
 
-	_, err := s.svc.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(s.bucket),
+	_, err := s.svc.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &s.bucket,
 		Key:    aws.String(key),
 	})
 
@@ -120,11 +109,38 @@ func (s *Storage) Delete(key string) error {
 
 // Reset all entries, including unexpired
 func (s *Storage) Reset() error {
-	iter := s3manager.NewDeleteListIterator(s.svc, &s3.ListObjectsInput{
-		Bucket: aws.String(s.bucket),
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	paginator := s3.NewListObjectsV2Paginator(s.svc, &s3.ListObjectsV2Input{
+		Bucket: &s.bucket,
 	})
-	err := s3manager.NewBatchDeleteWithClient(s.svc).Delete(aws.BackgroundContext(), iter)
-	return err
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		var objects []types.ObjectIdentifier
+		for _, object := range page.Contents {
+			objects = append(objects, types.ObjectIdentifier{
+				Key: object.Key,
+			})
+		}
+
+		_, err = s.svc.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: &s.bucket,
+			Delete: &types.Delete{
+				Objects: objects,
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Close the database
@@ -138,4 +154,37 @@ func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
 		return context.WithTimeout(context.Background(), s.requestTimeout)
 	}
 	return context.Background(), func() {}
+}
+
+func returnAWSConfig(cfg Config) (aws.Config, error) {
+	endpoint := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		if cfg.Endpoint != "" {
+			return aws.Endpoint{
+				PartitionID:   "aws",
+				URL:           cfg.Endpoint,
+				SigningRegion: cfg.Region,
+			}, nil
+		}
+		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+	})
+
+	if cfg.Credentials != (Credentials{}) {
+		credentials := credentials.NewStaticCredentialsProvider(cfg.Credentials.AccessKey, cfg.Credentials.SecretAccessKey, "")
+		return awsconfig.LoadDefaultConfig(context.TODO(),
+			awsconfig.WithRegion(cfg.Region),
+			awsconfig.WithEndpointResolverWithOptions(endpoint),
+			awsconfig.WithCredentialsProvider(credentials),
+			awsconfig.WithRetryer(func() aws.Retryer {
+				return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
+			}),
+		)
+	}
+
+	return awsconfig.LoadDefaultConfig(context.TODO(),
+		awsconfig.WithRegion(cfg.Region),
+		awsconfig.WithEndpointResolverWithOptions(endpoint),
+		awsconfig.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
+		}),
+	)
 }
