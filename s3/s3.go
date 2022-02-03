@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -35,7 +35,7 @@ func New(config ...Config) *Storage {
 	// If config fields of credentials given, uses credentials from config.
 	awscfg, err := returnAWSConfig(cfg)
 	if err != nil {
-		log.Panicf("unable to load SDK config, %v", err)
+		panic(fmt.Sprintf("unable to load SDK config, %v", err))
 	}
 
 	sess := s3.NewFromConfig(awscfg)
