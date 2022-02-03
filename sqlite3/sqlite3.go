@@ -47,9 +47,9 @@ func New(config ...Config) *Storage {
 	}
 
 	// Set database options
-	db.SetMaxOpenConns(cfg.maxOpenConns)
-	db.SetMaxIdleConns(cfg.maxIdleConns)
-	db.SetConnMaxLifetime(cfg.connMaxLifetime)
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
 	// Ping database
 	if err := db.Ping(); err != nil {
