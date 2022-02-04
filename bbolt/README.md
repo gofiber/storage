@@ -19,7 +19,7 @@ func (s *Storage) Reset() error
 func (s *Storage) Close() error
 ```
 ### Installation
-Bbolt is tested on the 4 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Bbolt is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
