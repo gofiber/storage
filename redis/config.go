@@ -1,5 +1,7 @@
 package redis
 
+import "crypto/tls"
+
 // Config defines the config for storage.
 type Config struct {
 	// Host name where the DB is hosted
@@ -38,6 +40,9 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// TLS Config to use. When set TLS will be negotiated.
+	TLSConfig *tls.Config
+
 	////////////////////////////////////
 	// Adaptor related config options //
 	////////////////////////////////////
@@ -47,13 +52,14 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:     "127.0.0.1",
-	Port:     6379,
-	Username: "",
-	Password: "",
-	URL:      "",
-	Database: 0,
-	Reset:    false,
+	Host:      "127.0.0.1",
+	Port:      6379,
+	Username:  "",
+	Password:  "",
+	URL:       "",
+	Database:  0,
+	Reset:     false,
+	TLSConfig: nil,
 }
 
 // Helper function to set default values

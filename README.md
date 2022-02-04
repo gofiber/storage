@@ -81,3 +81,6 @@ type Storage interface {
 * [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+* [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22S3%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/S3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
