@@ -31,8 +31,10 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create s3 session
-	// If config fields of credentials not given, credentials are using from the environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY), ~/.aws/credentials, or EC2 instance role.
-	// If config fields of credentials given, uses credentials from config.
+	// If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role.
+	// If config fields of credentials given, credentials are using from config.
+	//
+	// Look at: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials
 	awscfg, err := returnAWSConfig(cfg)
 	if err != nil {
 		panic(fmt.Sprintf("unable to load SDK config, %v", err))
@@ -74,7 +76,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	if len(key) <= 0 || len(val) <= 0 {
+	if len(key) <= 0 {
 		return nil
 	}
 

@@ -18,7 +18,7 @@ type Config struct {
 	// Optional. Default is 0 (no timeout)
 	RequestTimeout time.Duration
 
-	// Reset clears any existing keys in existing Table
+	// Reset clears any existing keys in existing Bucket
 	//
 	// Optional. Default is false
 	Reset bool

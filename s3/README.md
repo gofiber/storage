@@ -2,6 +2,9 @@
 
 A S3 storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2).
 
+**Note:** If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role. If config fields of credentials given, credentials are using from config. Look at: [specifying credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
+
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -66,7 +69,7 @@ type Config struct {
 	// Optional. Default is 0 (no timeout)
 	RequestTimeout time.Duration
 
-	// Reset clears any existing keys in existing Table
+	// Reset clears any existing keys in existing Bucket
 	//
 	// Optional. Default is false
 	Reset bool
