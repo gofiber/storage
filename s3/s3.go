@@ -51,7 +51,9 @@ func New(config ...Config) *Storage {
 
 	// Reset all entries if set to true
 	if cfg.Reset {
-		storage.Reset()
+		if err := storage.Reset(); err != nil {
+			panic(err)
+		}
 	}
 
 	return storage
