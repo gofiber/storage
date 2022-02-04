@@ -41,13 +41,20 @@ func New(config ...Config) *Storage {
 	}
 
 	sess := s3.NewFromConfig(awscfg)
-	return &Storage{
+	storage := &Storage{
 		svc:            sess,
 		downloader:     manager.NewDownloader(sess),
 		uploader:       manager.NewUploader(sess),
 		requestTimeout: cfg.RequestTimeout,
 		bucket:         cfg.Bucket,
 	}
+
+	// Reset all entries if set to true
+	if cfg.Reset {
+		storage.Reset()
+	}
+
+	return storage
 }
 
 // Get value by key
