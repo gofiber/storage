@@ -110,3 +110,12 @@ updates:
         automerged_updates:
             -   match:
                     dependency_name: "gofiber/fiber/*"
+    -   package-ecosystem: "gomod"
+        directory: "/bbolt/" # Location of package manifests
+        default_labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+        automerged_updates:
+            -   match:
+                    dependency_name: "gofiber/fiber/*"
