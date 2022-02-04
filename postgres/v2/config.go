@@ -1,8 +1,9 @@
 package v2
 
 import (
-	"github.com/jackc/pgx/pgxpool"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Config defines the config for storage.
