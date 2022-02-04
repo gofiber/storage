@@ -8,13 +8,15 @@ jobs:
                 uses: actions/checkout@v2
             -   name: Install Go
                 uses: actions/setup-go@v2
+                with:
+                    go-version: '^1.17.6'
             -   name: Install Gosec
                 run: |
                     export PATH=${PATH}:`go env GOPATH`/bin
                     go get -u github.com/securego/gosec/v2/cmd/gosec
             -   name: Run Gosec (root)
                 working-directory: .
-                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=redis -exclude-dir=badger -exclude-dir=mysql -exclude-dir=sqlite3 -exclude-dir=mongodb -exclude-dir=postgres -exclude-dir=memcache -exclude-dir=dynamodb -exclude-dir=arangodb -exclude-dir=memory ./..."
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=dynamodb -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 ./..."
                 # -----
             -   name: Run Gosec (arangodb)
                 working-directory: ./arangodb
@@ -54,5 +56,9 @@ jobs:
                 # -----
             -   name: Run Gosec (sqlite3)
                 working-directory: ./sqlite3
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----
+            -   name: Run Gosec (ristretto)
+                working-directory: ./ristretto
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
