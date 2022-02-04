@@ -16,7 +16,7 @@ jobs:
                     go get -u github.com/securego/gosec/v2/cmd/gosec
             -   name: Run Gosec (root)
                 working-directory: .
-                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=dynamodb -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 ./..."
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=dynamodb -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 ./..."
                 # -----
             -   name: Run Gosec (arangodb)
                 working-directory: ./arangodb
@@ -56,6 +56,10 @@ jobs:
                 # -----
             -   name: Run Gosec (sqlite3)
                 working-directory: ./sqlite3
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----
+            -   name: Run Gosec (s3)
+                working-directory: ./s3
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
             -   name: Run Gosec (ristretto)

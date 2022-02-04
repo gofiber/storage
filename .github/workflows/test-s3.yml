@@ -1,0 +1,35 @@
+'on':
+  - push
+  - pull_request
+name: S3
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.14.x
+          - 1.15.x
+          - 1.16.x
+          - 1.17.x
+        platform:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Install MinIO         
+        run: |           
+          docker run -d -p 9000:9000 --name minio minio/minio server /data     
+
+          export AWS_ACCESS_KEY_ID=minioadmin           
+          export AWS_SECRET_ACCESS_KEY=minioadmin           
+          export AWS_EC2_METADATA_DISABLED=true           
+        
+          aws --endpoint-url http://127.0.0.1:9000/ s3 mb s3://testbucket
+      - name: Install Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Fetch Repository
+        uses: actions/checkout@v2
+      - name: Run Test
+        run: cd ./s3 && go test ./... -v -race
