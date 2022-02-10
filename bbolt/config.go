@@ -52,7 +52,7 @@ func configDefault(config ...Config) Config {
 
 	// Set default values
 	if cfg.Database == "" {
-		cfg.Bucket = ConfigDefault.Database
+		cfg.Database = ConfigDefault.Database
 	}
 
 	if cfg.Bucket == "" {
