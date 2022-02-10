@@ -42,6 +42,9 @@ func Test_Ristretto_Get(t *testing.T) {
 	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
+	// stabilize with some delay in between -> bug already communicated
+	time.Sleep(10000)
+
 	result, err := testStore.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
@@ -85,6 +88,9 @@ func Test_Ristretto_Delete(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
+
+	// stabilize with some delay in between -> bug already communicated
+	time.Sleep(10000)
 
 	err = testStore.Delete(key)
 	utils.AssertEqual(t, nil, err)
