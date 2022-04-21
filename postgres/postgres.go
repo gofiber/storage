@@ -56,6 +56,11 @@ func New(config ...Config) *Storage {
 	if cfg.Username != "" || cfg.Password != "" {
 		dsn += "@"
 	}
+	if strings.HasPrefix(host, "/") {
+		dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	}else{
+		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	}
 	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
 		url.QueryEscape(cfg.Database),
