@@ -57,7 +57,7 @@ func New(config ...Config) *Storage {
 		dsn += "@"
 	}
 	// unix socket host path
-	if strings.HasPrefix(host, "/") {
+	if strings.HasPrefix(cfg.Host, "/") {
 		dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	} else {
 		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
