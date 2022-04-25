@@ -11,7 +11,7 @@ type Config struct {
 
 	// Port where the DB is listening on
 	//
-	// Optional. Default is 3306
+	// Optional. Default is 6379
 	Port int
 
 	// Server username
