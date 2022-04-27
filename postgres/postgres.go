@@ -62,12 +62,10 @@ func New(config ...Config) *Storage {
 	} else {
 		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 	}
-	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
 	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
 		url.QueryEscape(cfg.Database),
 		int64(cfg.timeout.Seconds()),
-		cfg.SslMode,
-	)
+		cfg.SslMode)
 
 	// Create db
 	db, err := sql.Open("postgres", dsn)
