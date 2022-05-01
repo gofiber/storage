@@ -56,12 +56,16 @@ func New(config ...Config) *Storage {
 	if cfg.Username != "" || cfg.Password != "" {
 		dsn += "@"
 	}
-	dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	// unix socket host path
+	if strings.HasPrefix(cfg.Host, "/") {
+		dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	} else {
+		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+	}
 	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
 		url.QueryEscape(cfg.Database),
 		int64(cfg.timeout.Seconds()),
-		cfg.SslMode,
-	)
+		cfg.SslMode)
 
 	// Create db
 	db, err := sql.Open("postgres", dsn)
