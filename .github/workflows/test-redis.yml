@@ -19,7 +19,7 @@ jobs:
                     - windows-latest
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v2
+                uses: actions/checkout@v3
 
             -   name: Setup Redis
                 uses: shogo82148/actions-setup-redis@v1
