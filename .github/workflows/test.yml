@@ -10,7 +10,7 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.15.x
+                    - 1.14.x
                     - 1.16.x
                     - 1.19.x
                 platform:
@@ -45,5 +45,9 @@ jobs:
                 run: cd ./badger && go test ./... -v -race
             -   name: Test Memory
                 run: cd ./memory && go test ./... -v -race
-            -   name: Test SQLite3
+            -   name: Test SQLite3 - with -race check
+                if: runner.os != 'Windows'
+                run: cd ./sqlite3 && go test ./... -v
+            -   name: Test SQLite3 - without -race check
+                if: runner.os == 'Windows'
                 run: cd ./sqlite3 && go test ./... -v -race
