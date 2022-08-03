@@ -40,7 +40,7 @@ jobs:
                         ${{ runner.os }}-go-${{ matrix.go-version }}-
 
             -   name: Fetch Repository
-                uses: actions/checkout@v2
+                uses: actions/checkout@v3
             -   name: Test Badger
                 run: cd ./badger && go test ./... -v -race
             -   name: Test Memory
