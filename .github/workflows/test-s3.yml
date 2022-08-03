@@ -1,17 +1,19 @@
-'on':
-  - push
-  - pull_request
+on:
+    push:
+        branches:
+            - master
+            - main
+    pull_request:
 name: S3
 jobs:
-  Tests:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version:
-          - 1.14.x
-          - 1.15.x
-          - 1.16.x
-          - 1.17.x
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.14.x
+                    - 1.16.x
+                    - 1.19.x
         platform:
           - ubuntu-latest
           - windows-latest
