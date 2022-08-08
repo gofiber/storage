@@ -48,11 +48,23 @@ store := mysql.New(mysql.Config{
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 })
+
+// Initialize custom config using connection string
+store := postgres.New(postgres.Config{
+	ConnectionURI:   "mysql://user:password@localhost:3306/fiber"
+	Reset:           false,
+	GCInterval:      10 * time.Second,
+})
 ```
 
 ### Config
 ```go
 type Config struct {
+	// Connection string to use for DB. Will override all other authentication values if used
+	//
+	// Optional. Default is ""
+	ConnectionURI string
+
 	// Host name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
@@ -98,6 +110,7 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
+	ConnectionURI:   "",
 	Host:            "127.0.0.1",
 	Port:            3306,
 	Database:        "fiber",
