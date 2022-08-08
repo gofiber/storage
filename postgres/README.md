@@ -52,7 +52,7 @@ store := postgres.New(postgres.Config{
 
 // Initialize custom config using connection string
 store := postgres.New(postgres.Config{
-	ConnectionURI:   "postgresql://user:password@localhost:5432/dbname"
+	ConnectionURI:   "postgresql://user:password@localhost:5432/fiber"
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 })
