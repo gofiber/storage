@@ -132,3 +132,7 @@ func Test_ARANGODB_Non_UTF8(t *testing.T) {
 func Test_ARANGODB_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_ARANGODB_DB(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.DB() != nil)
+}

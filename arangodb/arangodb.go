@@ -246,3 +246,8 @@ func (s *Storage) gc() {
 		}
 	}
 }
+
+// Return database client
+func (s *Storage) DB() driver.Database {
+	return s.db
+}

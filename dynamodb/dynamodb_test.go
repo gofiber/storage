@@ -105,3 +105,7 @@ func Test_DynamoDB_Reset(t *testing.T) {
 func Test_DynamoDB_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_DynamoDB_DB(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.DB() != nil)
+}

@@ -121,3 +121,7 @@ func Test_MongoDB_Reset(t *testing.T) {
 func Test_MongoDB_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_MongoDB_DB(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.DB() != nil)
+}

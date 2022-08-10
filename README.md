@@ -46,6 +46,9 @@ type Storage interface {
 	// Close closes the storage and will stop any running garbage
 	// collectors and open connections.
 	Close() error
+
+  // Returns the underlaying DB client
+  DB() db.Client
 }
 ```
 

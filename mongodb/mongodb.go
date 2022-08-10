@@ -199,3 +199,8 @@ func (s *Storage) releaseItem(item *item) {
 		s.items.Put(item)
 	}
 }
+
+// Return database client
+func (s *Storage) DB() *mongo.Database {
+	return s.db
+}

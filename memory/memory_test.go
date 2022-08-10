@@ -119,3 +119,7 @@ func Test_Memory_Reset(t *testing.T) {
 func Test_Memory_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Memory_DB(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.DB() != nil)
+}

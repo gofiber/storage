@@ -119,3 +119,7 @@ func Test_Memcache_Reset(t *testing.T) {
 func Test_Memcache_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Memcache_DB(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.DB() != nil)
+}

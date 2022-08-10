@@ -89,3 +89,8 @@ func (s *Storage) Close() error {
 	s.cache.Close()
 	return nil
 }
+
+// Return database client
+func (s *Storage) DB() *ristretto.Cache {
+	return s.db
+}

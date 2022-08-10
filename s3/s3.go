@@ -159,6 +159,11 @@ func (s *Storage) Close() error {
 	return nil
 }
 
+// Return database client
+func (s *Storage) DB() *s3.Client {
+	return s.db
+}
+
 // Context for making requests will timeout if a non-zero timeout is configured
 func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
 	if s.requestTimeout > 0 {

@@ -165,6 +165,11 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
+// Return database client
+func (s *Storage) DB() *sql.DB {
+	return s.db
+}
+
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
 	ticker := time.NewTicker(s.gcInterval)
