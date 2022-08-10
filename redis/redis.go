@@ -99,3 +99,8 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	return s.db.Close()
 }
+
+// Return database client
+func (s *Storage) DB() *redis.Client {
+	return s.db
+}
