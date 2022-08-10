@@ -92,5 +92,5 @@ func (s *Storage) Close() error {
 
 // Return database client
 func (s *Storage) DB() *ristretto.Cache {
-	return s.db
+	return s.cache
 }
