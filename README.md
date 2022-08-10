@@ -47,8 +47,8 @@ type Storage interface {
 	// collectors and open connections.
 	Close() error
 
-  // Returns the underlaying DB client
-  DB() db.Client
+	// Returns the underlying DB client
+	DB() db.Client
 }
 ```
 
