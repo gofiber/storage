@@ -107,5 +107,5 @@ func (s *Storage) Close() error {
 
 // Return database client
 func (s *Storage) DB() *bbolt.DB {
-	return s.db
+	return s.conn
 }
