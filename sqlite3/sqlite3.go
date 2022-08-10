@@ -171,6 +171,6 @@ func (s *Storage) gc(t time.Time) {
 }
 
 // Return database client
-func (s *Storage) DB() *sql.DB {
+func (s *Storage) Conn() *sql.DB {
 	return s.db
 }

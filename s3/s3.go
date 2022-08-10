@@ -160,7 +160,7 @@ func (s *Storage) Close() error {
 }
 
 // Return database client
-func (s *Storage) DB() *s3.Client {
+func (s *Storage) Conn() *s3.Client {
 	return s.svc
 }
 

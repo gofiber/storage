@@ -161,5 +161,5 @@ func Test_SQLite3_Close(t *testing.T) {
 }
 
 func Test_SQLite3_DB(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.DB() != nil)
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

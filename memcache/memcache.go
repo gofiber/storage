@@ -124,6 +124,6 @@ func (s *Storage) releaseItem(item *mc.Item) {
 }
 
 // Return database client
-func (s *Storage) DB() *mc.Client {
+func (s *Storage) Conn() *mc.Client {
 	return s.db
 }

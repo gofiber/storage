@@ -48,7 +48,7 @@ type Storage interface {
 	Close() error
 
 	// Returns the underlying DB client
-	DB() db.Client
+	Conn() db.Client
 }
 ```
 

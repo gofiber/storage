@@ -185,7 +185,7 @@ func (s *Storage) Close() error {
 }
 
 // Return database client
-func (s *Storage) DB() *sql.DB {
+func (s *Storage) Conn() *sql.DB {
 	return s.db
 }
 

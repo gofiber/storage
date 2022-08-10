@@ -121,5 +121,5 @@ func Test_Badger_Close(t *testing.T) {
 }
 
 func Test_Badger_DB(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.DB() != nil)
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

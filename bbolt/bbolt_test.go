@@ -97,5 +97,5 @@ func Test_Bbolt_Close(t *testing.T) {
 }
 
 func Test_Bbolt_DB(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.DB() != nil)
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

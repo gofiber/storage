@@ -201,6 +201,6 @@ func (s *Storage) releaseItem(item *item) {
 }
 
 // Return database client
-func (s *Storage) DB() *mongo.Database {
+func (s *Storage) Conn() *mongo.Database {
 	return s.db
 }

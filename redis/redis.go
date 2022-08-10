@@ -101,6 +101,6 @@ func (s *Storage) Close() error {
 }
 
 // Return database client
-func (s *Storage) DB() *redis.Client {
+func (s *Storage) Conn() *redis.Client {
 	return s.db
 }

@@ -266,6 +266,6 @@ func returnAWSConfig(cfg Config) (aws.Config, error) {
 }
 
 // Return database client
-func (s *Storage) DB() *awsdynamodb.Client {
+func (s *Storage) Conn() *awsdynamodb.Client {
 	return s.db
 }

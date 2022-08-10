@@ -124,7 +124,7 @@ func Test_Redis_Close(t *testing.T) {
 }
 
 func Test_Redis_DB(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.DB() != nil)
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
 
 func Test_Redis_Initalize_WithURL(t *testing.T) {

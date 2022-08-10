@@ -164,5 +164,5 @@ func Test_MYSQL_Close(t *testing.T) {
 }
 
 func Test_MYSQL_DB(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.DB() != nil)
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

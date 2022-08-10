@@ -118,6 +118,6 @@ func (s *Storage) gc() {
 }
 
 // Return database client
-func (s *Storage) DB() map[string]entry {
+func (s *Storage) Conn() map[string]entry {
 	return s.db
 }
