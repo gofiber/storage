@@ -60,6 +60,9 @@ type Storage interface {
 * [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+* [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Bbolt%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Bbolt?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 * [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22DynamoDB%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/DynamoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
@@ -86,7 +89,4 @@ type Storage interface {
   </a>
 * [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22S3%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/S3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
-  </a>
-* [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Bbolt%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Bbolt?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>

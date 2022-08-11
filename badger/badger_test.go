@@ -120,6 +120,6 @@ func Test_Badger_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_Badger_DB(t *testing.T) {
+func Test_Badger_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

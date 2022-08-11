@@ -133,6 +133,6 @@ func Test_ARANGODB_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_ARANGODB_DB(t *testing.T) {
+func Test_ARANGODB_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

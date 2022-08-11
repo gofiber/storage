@@ -106,6 +106,6 @@ func Test_S3_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_S3_DB(t *testing.T) {
+func Test_S3_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

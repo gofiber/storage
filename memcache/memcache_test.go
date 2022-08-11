@@ -120,6 +120,6 @@ func Test_Memcache_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_Memcache_DB(t *testing.T) {
+func Test_Memcache_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

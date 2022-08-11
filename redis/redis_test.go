@@ -123,7 +123,7 @@ func Test_Redis_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_Redis_DB(t *testing.T) {
+func Test_Redis_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
 
