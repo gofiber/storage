@@ -16,7 +16,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() driver.Database
+func (s *Storage) Conn() driver.Client
 ```
 ### Installation
 ArangoDB is tested on the 2 last (1.14/1.15) [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
