@@ -169,3 +169,8 @@ func (s *Storage) gcTicker() {
 func (s *Storage) gc(t time.Time) {
 	_, _ = s.db.Exec(s.sqlGC, t.Unix())
 }
+
+// Return database client
+func (s *Storage) Conn() *sql.DB {
+	return s.db
+}

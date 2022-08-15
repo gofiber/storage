@@ -17,6 +17,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
+func (s *Storage) Conn() *redis.Client
 ```
 ### Installation
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -86,11 +87,11 @@ type Config struct {
 	// Optional. Default is 0
 	Database int
 
-    // URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
-    //
-    // Example: redis://<user>:<pass>@localhost:6379/<db>
-    // Optional. Default is ""
-    URL string
+	// URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
+	//
+	// Example: redis://<user>:<pass>@localhost:6379/<db>
+	// Optional. Default is ""
+	URL string
 
 	// Reset clears any existing keys in existing Collection
 	//

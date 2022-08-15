@@ -123,6 +123,10 @@ func Test_Redis_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
+func Test_Redis_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}
+
 func Test_Redis_Initalize_WithURL(t *testing.T) {
 	testStoreUrl := New(Config{
 		URL: "redis://localhost:6379",

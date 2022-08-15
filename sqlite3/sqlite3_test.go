@@ -159,3 +159,7 @@ func Test_SQLite3_Non_UTF8(t *testing.T) {
 func Test_SQLite3_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_SQLite3_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}

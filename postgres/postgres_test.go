@@ -177,3 +177,7 @@ func Test_SslRequiredMode(t *testing.T) {
 func Test_Postgres_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Postgres_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}
