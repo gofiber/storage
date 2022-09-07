@@ -16,6 +16,7 @@ categories:
           - '📒 Documentation'
 change-template: '- $TITLE (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+sort-by: 'title'
 version-resolver:
     major:
         labels:
@@ -89,7 +90,7 @@ autolabeler:
           - '/🔥/i'
 template: |
     $CHANGES
-    
+
     **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
-    
+
     Thank you $CONTRIBUTORS for making this update possible.
