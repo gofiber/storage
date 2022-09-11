@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: S3
+name: "Tests Ristretto"
 jobs:
     Tests:
         runs-on: ubuntu-latest

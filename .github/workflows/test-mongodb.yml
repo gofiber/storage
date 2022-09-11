@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: MongoDB
+name: "Tests Mongodb"
 jobs:
     Tests:
         runs-on: ubuntu-latest

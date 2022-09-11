@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: Memcache
+name: "Tests Memcache"
 jobs:
     Tests:
         runs-on: ubuntu-latest

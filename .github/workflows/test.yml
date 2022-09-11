@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: Local Storage
+name: "Tests Local Storage"
 jobs:
     Tests:
         strategy:

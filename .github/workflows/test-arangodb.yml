@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: ArangoDB
+name: "Tests ArangoDB"
 jobs:
     Tests:
         runs-on: ubuntu-latest
