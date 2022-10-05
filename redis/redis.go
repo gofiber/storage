@@ -19,16 +19,18 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create new redis client
-
 	var options *redis.Options
 	var err error
 
 	if cfg.URL != "" {
 		options, err = redis.ParseURL(cfg.URL)
-		options.TLSConfig = cfg.TLSConfig
+
 		if err != nil {
 			panic(err)
 		}
+
+		options.TLSConfig = cfg.TLSConfig
+		options.PoolSize = cfg.PoolSize
 	} else {
 		options = &redis.Options{
 			Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -36,6 +38,7 @@ func New(config ...Config) *Storage {
 			Username:  cfg.Username,
 			Password:  cfg.Password,
 			TLSConfig: cfg.TLSConfig,
+			PoolSize:  cfg.PoolSize,
 		}
 	}
 
@@ -71,7 +74,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return val, err
 }
 
-// Set key with value
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That

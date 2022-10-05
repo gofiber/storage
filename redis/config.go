@@ -1,6 +1,9 @@
 package redis
 
-import "crypto/tls"
+import (
+	"crypto/tls"
+	"runtime"
+)
 
 // Config defines the config for storage.
 type Config struct {
@@ -43,6 +46,11 @@ type Config struct {
 	// TLS Config to use. When set TLS will be negotiated.
 	TLSConfig *tls.Config
 
+	// Maximum number of socket connections.
+	//
+	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
+	PoolSize int
+
 	////////////////////////////////////
 	// Adaptor related config options //
 	////////////////////////////////////
@@ -60,6 +68,7 @@ var ConfigDefault = Config{
 	Database:  0,
 	Reset:     false,
 	TLSConfig: nil,
+	PoolSize:  10 * runtime.GOMAXPROCS(0),
 }
 
 // Helper function to set default values

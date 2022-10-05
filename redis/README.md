@@ -50,6 +50,7 @@ store := redis.New(redis.Config{
 	Database:  0,
 	Reset:     false,
 	TLSConfig: nil,
+	PoolSize:  10 * runtime.GOMAXPROCS(0),
 }
 
 // or just the url with all information
@@ -102,6 +103,11 @@ type Config struct {
 	//
 	// Optional. Default is nil
 	TLSConfig *tls.Config
+
+	// Maximum number of socket connections.
+	//
+	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
+	PoolSize int
 }
 
 ```
@@ -117,5 +123,6 @@ var ConfigDefault = Config{
 	Database:  0,
 	Reset:     false,
 	TLSConfig: nil,
+	PoolSize:  10 * runtime.GOMAXPROCS(0),
 }
 ```
