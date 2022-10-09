@@ -126,3 +126,7 @@ func Test_Ristretto_Reset(t *testing.T) {
 func Test_Ristretto_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Ristretto_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}

@@ -1,42 +1,60 @@
-'on':
-  - push
-  - pull_request
-name: Postgres
+on:
+    push:
+        branches:
+            - master
+            - main
+    pull_request:
+name: "Tests Postgres"
 jobs:
-  Tests:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: 'postgres:latest'
-        ports:
-          - '5432:5432'
-        env:
-          POSTGRES_DB: fiber
-          POSTGRES_USER: username
-          POSTGRES_PASSWORD: password
-        options: >-
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s
-          --health-retries 5
-    strategy:
-      matrix:
-        go-version:
-          - 1.14.x
-          - 1.15.x
-          - 1.16.x
-          - 1.17.x
-        platform:
-          - ubuntu-latest
-          - windows-latest
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: '${{ matrix.go-version }}'
-      - name: Fetch Repository
-        uses: actions/checkout@v2
-      - name: Run Test
-        run: cd ./postgres && go test ./... -v -race
-        env:
-          POSTGRES_DATABASE: fiber
-          POSTGRES_USERNAME: username
-          POSTGRES_PASSWORD: password
+    Tests:
+        runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: 'postgres:latest'
+                ports:
+                    - '5432:5432'
+                env:
+                    POSTGRES_DB: fiber
+                    POSTGRES_USER: username
+                    POSTGRES_PASSWORD: password
+                options: >-
+                    --health-cmd pg_isready --health-interval 10s --health-timeout 5s
+                    --health-retries 5
+        strategy:
+            matrix:
+                go-version:
+                    - 1.14.x
+                    - 1.16.x
+                    - 1.19.x
+                platform:
+                    - ubuntu-latest
+                    - windows-latest
+        steps:
+            -   name: Install Go
+                uses: actions/setup-go@v3
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Setup Golang caches
+                uses: actions/cache@v3
+                with:
+                    # In order:
+                    # * Module download cache
+                    # * Build cache (Linux)
+                    # * Build cache (Mac)
+                    # * Build cache (Windows)
+                    path: |
+                        ~/go/pkg/mod
+                        ~/.cache/go-build
+                        ~/Library/Caches/go-build
+                        ~\AppData\Local\go-build
+                    key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+                    restore-keys: |
+                        ${{ runner.os }}-go-${{ matrix.go-version }}-
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Run Test
+                run: cd ./postgres && go test ./... -v -race
+                env:
+                    POSTGRES_DATABASE: fiber
+                    POSTGRES_USERNAME: username
+                    POSTGRES_PASSWORD: password

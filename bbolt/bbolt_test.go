@@ -95,3 +95,7 @@ func Test_Bbolt_Reset(t *testing.T) {
 func Test_Bbolt_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
+
+func Test_Bbolt_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}

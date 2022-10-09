@@ -104,3 +104,8 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	return s.conn.Close()
 }
+
+// Return database client
+func (s *Storage) Conn() *bbolt.DB {
+	return s.conn
+}

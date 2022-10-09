@@ -1,30 +1,53 @@
-'on':
-  - push
-  - pull_request
-name: Local Storage
+on:
+    push:
+        branches:
+            - master
+            - main
+    pull_request:
+name: "Tests Local Storage"
 jobs:
-  Tests:
-    strategy:
-      matrix:
-        go-version:
-          - 1.14.x
-          - 1.15.x
-          - 1.16.x
-          - 1.17.x         
-        platform:
-          - ubuntu-latest
-          - windows-latest
-    runs-on: '${{ matrix.platform }}'
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: '${{ matrix.go-version }}'
-      - name: Fetch Repository
-        uses: actions/checkout@v2
-      - name: Test Badger
-        run: cd ./badger && go test ./... -v -race
-      - name: Test Memory
-        run: cd ./memory && go test ./... -v -race
-      - name: Test SQLite3
-        run: cd ./sqlite3 && go test ./... -v -race
+    Tests:
+        strategy:
+            matrix:
+                go-version:
+                    - 1.14.x
+                    - 1.16.x
+                    - 1.19.x
+                platform:
+                    - ubuntu-latest
+                    - windows-latest
+        runs-on: '${{ matrix.platform }}'
+        steps:
+            -   name: Install Go
+                uses: actions/setup-go@v3
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Setup Golang caches
+                uses: actions/cache@v3
+                with:
+                    # In order:
+                    # * Module download cache
+                    # * Build cache (Linux)
+                    # * Build cache (Mac)
+                    # * Build cache (Windows)
+                    path: |
+                        ~/go/pkg/mod
+                        ~/.cache/go-build
+                        ~/Library/Caches/go-build
+                        ~\AppData\Local\go-build
+                    key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+                    restore-keys: |
+                        ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Test Badger
+                run: cd ./badger && go test ./... -v -race
+            -   name: Test Memory
+                run: cd ./memory && go test ./... -v -race
+            -   name: Test SQLite3 - with -race check
+                if: runner.os != 'Windows'
+                run: cd ./sqlite3 && go test ./... -v -race
+            -   name: Test SQLite3 - without -race check
+                if: runner.os == 'Windows'
+                run: cd ./sqlite3 && go test ./... -v

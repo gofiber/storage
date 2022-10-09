@@ -17,6 +17,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
+func (s *Storage) Conn() *bbolt.DB
 ```
 ### Installation
 Bbolt is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -64,7 +65,7 @@ type Config struct {
 	// Timeout is the amount of time to wait to obtain a file lock.
 	// Only available on Darwin and Linux.
 	//
-	// Optional. Default is 0 (no timeout)
+	// Optional. Default is 60 * time.Second.
 	Timeout time.Duration
 
 	// Open database in read-only mode.
@@ -85,7 +86,7 @@ type Config struct {
 var ConfigDefault = Config{
 	Database: "fiber.db",
 	Bucket:   "fiber_storage",
-	Timeout:  0,
+	Timeout:  60 * time.Second,
 	ReadOnly: false,
 	Reset:    false,
 }
