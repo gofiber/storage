@@ -3,7 +3,7 @@ package v2
 import (
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Config defines the config for storage.
