@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"reflect"
 	"testing"
 
 	"github.com/gofiber/utils"
@@ -26,7 +25,7 @@ func Test_MYSQL_New(t *testing.T) {
 		Reset:    true,
 	})
 
-	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+	utils.AssertEqual(t, true, newConfigStore.db != nil)
 	newConfigStore.Close()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", os.Getenv("MYSQL_USERNAME"), os.Getenv("MYSQL_PASSWORD"), "127.0.0.1", 3306, os.Getenv("MYSQL_DATABASE"))
@@ -35,7 +34,7 @@ func Test_MYSQL_New(t *testing.T) {
 		Reset:         true,
 	})
 
-	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+	utils.AssertEqual(t, true, newConfigStore.db != nil)
 	newConfigStore.Close()
 
 	db, _ := sql.Open("mysql", dsn)
@@ -44,7 +43,7 @@ func Test_MYSQL_New(t *testing.T) {
 		Reset: true,
 	})
 
-	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+	utils.AssertEqual(t, true, newConfigStore.db != nil)
 	newConfigStore.Close()
 }
 
