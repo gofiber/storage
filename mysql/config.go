@@ -1,12 +1,18 @@
 package mysql
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 )
 
 // Config defines the config for storage.
 type Config struct {
+	// DB Will override ConnectionURI and all other authentication values if used
+	//
+	// Optional. Default is nil
+	Db *sql.DB
+
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
@@ -63,6 +69,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	Db:              nil,
 	ConnectionURI:   "",
 	Host:            "127.0.0.1",
 	Port:            3306,
