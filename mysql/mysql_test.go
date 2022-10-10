@@ -2,11 +2,13 @@ package mysql
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
-	"time"
 
 	"github.com/gofiber/utils"
+	"time"
 )
 
 var testStore = New(Config{
@@ -15,6 +17,32 @@ var testStore = New(Config{
 	Password: os.Getenv("MYSQL_PASSWORD"),
 	Reset:    true,
 })
+
+func Test_MYSQL_New(t *testing.T) {
+	newConfigStore := New(Config{
+		Database: os.Getenv("MYSQL_DATABASE"),
+		Username: os.Getenv("MYSQL_USERNAME"),
+		Password: os.Getenv("MYSQL_PASSWORD"),
+		Reset:    true,
+	})
+	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", os.Getenv("MYSQL_USERNAME"), os.Getenv("MYSQL_PASSWORD"), "127.0.0.1", 3306, os.Getenv("MYSQL_DATABASE"))
+
+	newConfigStore = New(Config{
+		ConnectionURI: dsn,
+		Reset:         true,
+	})
+	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+
+	db, _ := sql.Open("mysql", dsn)
+
+	newConfigStore = New(Config{
+		Db:    db,
+		Reset: true,
+	})
+	utils.AssertEqual(t, reflect.TypeOf(newConfigStore.db).String(), "*sql.DB")
+}
 
 func Test_MYSQL_Set(t *testing.T) {
 	var (
