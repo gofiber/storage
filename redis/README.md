@@ -51,7 +51,7 @@ store := redis.New(redis.Config{
 	Reset:     false,
 	TLSConfig: nil,
 	PoolSize:  10 * runtime.GOMAXPROCS(0),
-}
+})
 
 // or just the url with all information
 store = redis.New(redis.Config{
