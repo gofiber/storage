@@ -40,19 +40,27 @@ var (
 
 // New creates a new storage
 func New(config ...Config) *Storage {
+	var err error
+	var db *sql.DB
+
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Create db
-	db, err := sql.Open("mysql", cfg.dsn())
-	if err != nil {
-		panic(err)
-	}
+	if cfg.Db != nil {
+		// Use passed db
+		db = cfg.Db
+	} else {
+		// Create db
+		db, err = sql.Open("mysql", cfg.dsn())
+		if err != nil {
+			panic(err)
+		}
 
-	// Set options
-	db.SetMaxOpenConns(cfg.maxOpenConns)
-	db.SetMaxIdleConns(cfg.maxIdleConns)
-	db.SetConnMaxLifetime(cfg.connMaxLifetime)
+		// Set options
+		db.SetMaxOpenConns(cfg.maxOpenConns)
+		db.SetMaxIdleConns(cfg.maxIdleConns)
+		db.SetConnMaxLifetime(cfg.connMaxLifetime)
+	}
 
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
