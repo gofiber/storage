@@ -8,5 +8,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.21
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.11
-	github.com/gofiber/utils v0.1.2
+	github.com/gofiber/utils v1.0.0
 )
