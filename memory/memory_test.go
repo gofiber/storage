@@ -123,3 +123,31 @@ func Test_Memory_Close(t *testing.T) {
 func Test_Memory_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
+
+// go test -v -run=^$ -bench=Benchmark_Memory -benchmem -count=4
+func Benchmark_Memory(b *testing.B) {
+	keyLength := 1000
+	keys := make([]string, keyLength)
+	for i := 0; i < keyLength; i++ {
+		keys[i] = utils.UUID()
+	}
+	value := []byte("joe")
+
+	ttl := 2 * time.Second
+	b.Run("fiber_memory", func(b *testing.B) {
+		d := New()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for n := 0; n < b.N; n++ {
+			for _, key := range keys {
+				d.Set(key, value, ttl)
+			}
+			for _, key := range keys {
+				_, _ = d.Get(key)
+			}
+			for _, key := range keys {
+				d.Delete(key)
+			}
+		}
+	})
+}
