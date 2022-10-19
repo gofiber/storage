@@ -2,7 +2,10 @@ package memory
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/gofiber/storage/memory/internal"
 )
 
 // Storage interface that is implemented by storage providers
@@ -14,8 +17,9 @@ type Storage struct {
 }
 
 type entry struct {
-	data   []byte
-	expiry int64
+	data []byte
+	// max value is 4294967295 -> Sun Feb 07 2106 06:28:15 GMT+0000
+	expiry uint32
 }
 
 // New creates a new memory storage
@@ -31,6 +35,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// Start garbage collector
+	internal.StartTimeStampUpdater()
 	go store.gc()
 
 	return store
@@ -44,7 +49,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok || v.expiry != 0 && v.expiry <= time.Now().Unix() {
+	if !ok || v.expiry != 0 && v.expiry <= atomic.LoadUint32(&internal.Timestamp) {
 		return nil, nil
 	}
 
@@ -52,16 +57,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
-	var expire int64
+	var expire uint32
 	if exp != 0 {
-		expire = time.Now().Add(exp).Unix()
+		expire = uint32(exp.Seconds()) + atomic.LoadUint32(&internal.Timestamp)
 	}
 
 	s.mux.Lock()
@@ -99,18 +103,24 @@ func (s *Storage) Close() error {
 func (s *Storage) gc() {
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
+	var expired []string
 
 	for {
 		select {
 		case <-s.done:
 			return
-		case t := <-ticker.C:
-			now := t.Unix()
-			s.mux.Lock()
+		case <-ticker.C:
+			expired = expired[:0]
+			s.mux.RLock()
 			for id, v := range s.db {
-				if v.expiry != 0 && v.expiry < now {
-					delete(s.db, id)
+				if v.expiry != 0 && v.expiry < atomic.LoadUint32(&internal.Timestamp) {
+					expired = append(expired, id)
 				}
+			}
+			s.mux.RUnlock()
+			s.mux.Lock()
+			for i := range expired {
+				delete(s.db, expired[i])
 			}
 			s.mux.Unlock()
 		}
