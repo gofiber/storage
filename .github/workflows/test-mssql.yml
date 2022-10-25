@@ -1,0 +1,68 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+    pull_request:
+name: "Tests MSSQL"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        services:
+            sqlcmd:
+                image: mcr.microsoft.com/mssql-tools:latest
+                stdin_open: true
+                environment:
+                    - MSSQL_SA_PASSWORD=MsSql!1234
+                    - MSSQL_DATABASE=fiber
+                    - MSSQL_BACKUP="/opt/mssql/test.bak"
+                volumes:
+                    - ./test_data.bak:/opt/mssql/test.bak
+                command: /bin/bash -c '/opt/mssql-tools/bin/sqlcmd -S mssql -U sa -P $$MSSQL_SA_PASSWORD -d tempdb -q "EXIT(RESTORE DATABASE $$MSSQL_DATABASE FROM DISK = $$MSSQL_BACKUP)"; wait;'
+
+            mssql:
+                image: mcr.microsoft.com/azure-sql-edge:latest
+                environment:
+                    - ACCEPT_EULA=Y
+                    - MSSQL_SA_PASSWORD=MsSql!1234
+                    - MSSQL_DATABASE=fiber
+                    - MSSQL_SLEEP=7
+      ports:
+          - 1433:1433
+            matrix:
+                go-version:
+                    - 1.14.x
+                    - 1.16.x
+                    - 1.19.x
+                platform:
+                    - ubuntu-latest
+                    - windows-latest
+        steps:
+            -   name: Install Go
+                uses: actions/setup-go@v3
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Setup Golang caches
+                uses: actions/cache@v3
+                with:
+                    # In order:
+                    # * Module download cache
+                    # * Build cache (Linux)
+                    # * Build cache (Mac)
+                    # * Build cache (Windows)
+                    path: |
+                        ~/go/pkg/mod
+                        ~/.cache/go-build
+                        ~/Library/Caches/go-build
+                        ~\AppData\Local\go-build
+                    key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+                    restore-keys: |
+                        ${{ runner.os }}-go-${{ matrix.go-version }}-
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Run Test
+                run: cd ./mssql && go test ./... -v -race
+                env:
+                    MSSQL_DATABASE: fiber
+                    MSSQL_USERNAME: sa
+                    MSSQL_PASSWORD: MsSql!1234
