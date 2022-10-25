@@ -122,3 +122,8 @@ func (s *Storage) releaseItem(item *mc.Item) {
 		s.items.Put(item)
 	}
 }
+
+// Return database client
+func (s *Storage) Conn() *mc.Client {
+	return s.db
+}

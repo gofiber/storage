@@ -123,3 +123,8 @@ func (s *Storage) gc() {
 		}
 	}
 }
+
+// Return database client
+func (s *Storage) Conn() *badger.DB {
+	return s.db
+}

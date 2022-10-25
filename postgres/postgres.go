@@ -46,26 +46,31 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create data source name
-	var dsn string = "postgresql://"
-	if cfg.Username != "" {
-		dsn += url.QueryEscape(cfg.Username)
-	}
-	if cfg.Password != "" {
-		dsn += ":" + cfg.Password
-	}
-	if cfg.Username != "" || cfg.Password != "" {
-		dsn += "@"
-	}
-	// unix socket host path
-	if strings.HasPrefix(cfg.Host, "/") {
-		dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	var dsn string
+	if cfg.ConnectionURI != "" {
+		dsn = cfg.ConnectionURI
 	} else {
-		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+		dsn = "postgresql://"
+		if cfg.Username != "" {
+			dsn += url.QueryEscape(cfg.Username)
+		}
+		if cfg.Password != "" {
+			dsn += ":" + cfg.Password
+		}
+		if cfg.Username != "" || cfg.Password != "" {
+			dsn += "@"
+		}
+		// unix socket host path
+		if strings.HasPrefix(cfg.Host, "/") {
+			dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+		} else {
+			dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+		}
+		dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
+			url.QueryEscape(cfg.Database),
+			int64(cfg.timeout.Seconds()),
+			cfg.SslMode)
 	}
-	dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
-		url.QueryEscape(cfg.Database),
-		int64(cfg.timeout.Seconds()),
-		cfg.SslMode)
 
 	// Create db
 	db, err := sql.Open("postgres", dsn)
@@ -182,6 +187,11 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	s.done <- struct{}{}
 	return s.db.Close()
+}
+
+// Return database client
+func (s *Storage) Conn() *sql.DB {
+	return s.db
 }
 
 // gcTicker starts the gc ticker

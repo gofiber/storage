@@ -6,6 +6,11 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
+	// Connection string to use for DB. Will override all other authentication values if used
+	//
+	// Optional. Default is ""
+	ConnectionURI string
+
 	// Host name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
@@ -90,6 +95,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	ConnectionURI:   "",
 	Host:            "127.0.0.1",
 	Port:            5432,
 	Database:        "fiber",

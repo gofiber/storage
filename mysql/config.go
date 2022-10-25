@@ -7,6 +7,11 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
+	// Connection string to use for DB. Will override all other authentication values if used
+	//
+	// Optional. Default is ""
+	ConnectionURI string
+
 	// Host name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
@@ -58,6 +63,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
+	ConnectionURI:   "",
 	Host:            "127.0.0.1",
 	Port:            3306,
 	Database:        "fiber",
@@ -70,6 +76,9 @@ var ConfigDefault = Config{
 }
 
 func (c Config) dsn() string {
+	if c.ConnectionURI != "" {
+		return c.ConnectionURI
+	}
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", c.Username, c.Password, c.Host, c.Port, c.Database)
 }
 
