@@ -9,26 +9,19 @@ jobs:
     Tests:
         runs-on: ubuntu-latest
         services:
-            sqlcmd:
-                image: mcr.microsoft.com/mssql-tools:latest
-                stdin_open: true
-                environment:
-                    - MSSQL_SA_PASSWORD=MsSql!1234
-                    - MSSQL_DATABASE=fiber
-                    - MSSQL_BACKUP="/opt/mssql/test.bak"
-                volumes:
-                    - ./test_data.bak:/opt/mssql/test.bak
-                command: /bin/bash -c '/opt/mssql-tools/bin/sqlcmd -S mssql -U sa -P $$MSSQL_SA_PASSWORD -d tempdb -q "EXIT(RESTORE DATABASE $$MSSQL_DATABASE FROM DISK = $$MSSQL_BACKUP)"; wait;'
-
             mssql:
-                image: mcr.microsoft.com/azure-sql-edge:latest
-                environment:
-                    - ACCEPT_EULA=Y
-                    - MSSQL_SA_PASSWORD=MsSql!1234
-                    - MSSQL_DATABASE=fiber
-                    - MSSQL_SLEEP=7
+                image: 'mcmoe/mssqldocker:v2019.CU4.0'
                 ports:
-                    - 1433:1433
+                    - '1433:1433'
+                env:
+                    ACCEPT_EULA: Y
+                    SA_PASSWORD: MsSql!1234
+                    MSSQL_DB: fiber
+                    MSSQL_USER: sa
+                    MSSQL_PASSWORD: MsSql!1234
+                options: >-
+                    --health-cmd ping --health-interval 10s --health-timeout 5s
+                    --health-retries 5
         strategy:
             matrix:
                 go-version:
