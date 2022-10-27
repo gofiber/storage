@@ -16,7 +16,7 @@ jobs:
                 env:
                     ACCEPT_EULA: Y
                     SA_PASSWORD: MsSql!1234
-                    MSSQL_DB: fiber
+                    MSSQL_DB: master
                     MSSQL_USER: sa
                     MSSQL_PASSWORD: MsSql!1234
                 options: >-
@@ -60,6 +60,6 @@ jobs:
             -   name: Run Test
                 run: cd ./mssql && go test ./... -v -race
                 env:
-                    MSSQL_DATABASE: fiber
+                    MSSQL_DATABASE: master
                     MSSQL_USERNAME: sa
                     MSSQL_PASSWORD: MsSql!1234
