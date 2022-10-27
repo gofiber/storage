@@ -72,6 +72,9 @@ type Storage interface {
 * [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMongoDB">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MongoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+* [MSSQL](/mssql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMSSQL">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MSSQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 * [MySQL](/mysql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMySQL">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MySQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
