@@ -112,6 +112,11 @@ func (s *Storage) Reset() error {
 	return nil
 }
 
+// Conn returns storage client
+func (s *Storage) Conn() *azblob.Client {
+	return s.client
+}
+
 // Close the storage connextion
 func (s *Storage) Close() error {
 	return nil
