@@ -19,7 +19,7 @@ jobs:
         steps:
         -   name: Install Azurite
             run: |
-                docker run -d -p 10000:10000 -e AZURITE_ACCOUNTS="azurite:YXp1cml0ZWtleQo=" mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
+                docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
         -   name: Install Go
             uses: actions/setup-go@v3
             with:

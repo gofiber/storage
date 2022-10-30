@@ -8,12 +8,12 @@ import (
 
 func newStore() *Storage {
 	return New(Config{
-		Account:   "azurite",
+		Account:   "devstoreaccount1",
 		Container: "test",
-		Endpoint:  "http://127.0.0.1:10000/azurite",
+		Endpoint:  "http://127.0.0.1:10000/devstoreaccount1",
 		Credentials: Credentials{
-			Account: "azurite",
-			Key:     "YXp1cml0ZWtleQo=",
+			Account: "devstoreaccount1",
+			Key:     "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==",
 		},
 	})
 }
@@ -124,6 +124,11 @@ func Test_AzureBlob_Reset(t *testing.T) {
 	}
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, true, len(result) == 0)
+}
+
+func Test_S3_Conn(t *testing.T) {
+	testStore := newStore()
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
 
 func Test_AzureBlob_Close(t *testing.T) {
