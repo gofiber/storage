@@ -70,3 +70,7 @@ jobs:
                 working-directory: ./bbolt
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
+            -   name: Run Gosec (gorm)
+                working-directory: ./gorm
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----

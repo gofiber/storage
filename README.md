@@ -63,6 +63,9 @@ type Storage interface {
 * [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22DynamoDB%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/DynamoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+* [GORM](/gorm) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AGORM">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/GORM?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 * [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMemcache">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Memcache?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
