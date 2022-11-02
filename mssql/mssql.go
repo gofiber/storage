@@ -2,7 +2,6 @@ package mssql
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -89,7 +88,7 @@ func New(config ...Config) *Storage {
 	db.SetMaxIdleConns(cfg.maxIdleConns)
 	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
-	// Ping database
+	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
 		panic(err)
 	}
@@ -133,23 +132,24 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = errors.New("sql: no rows in result set")
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
+
 	row := s.db.QueryRow(s.sqlSelect, key)
-	// Add db response to data
+
 	var (
 		data       = []byte{}
 		exp  int64 = 0
 	)
+
 	if err := row.Scan(&data, &exp); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
+
 		return nil, err
 	}
 
@@ -163,24 +163,25 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+
 	var expSeconds int64
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
+
 	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
 	return err
 }
 
 // Delete entry by key
 func (s *Storage) Delete(key string) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
+
 	_, err := s.db.Exec(s.sqlDelete, key)
 	return err
 }
