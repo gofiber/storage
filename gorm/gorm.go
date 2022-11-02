@@ -93,7 +93,7 @@ func New(config ...Config) *Storage {
 			panic(err)
 		}
 
-		// Set options
+		// Set database options
 		sqldb.SetMaxOpenConns(cfg.maxOpenConns)
 		sqldb.SetMaxIdleConns(cfg.maxIdleConns)
 		sqldb.SetConnMaxLifetime(cfg.connMaxLifetime)
@@ -104,7 +104,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Drop table if Clear set to true
+	// Drop table if set to true
 	if cfg.Reset {
 		if err := db.Table(cfg.Table).Migrator().DropTable(cfg.Table); err != nil {
 			_ = sqldb.Close()
@@ -185,7 +185,7 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// Reset all keys
+// Reset all entries, including unexpired
 func (s *Storage) Reset() error {
 	err := s.db.Table(s.tableName).Where("1 = 1").Delete(&table{}).Error
 	return err
