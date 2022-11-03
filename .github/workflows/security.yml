@@ -16,7 +16,7 @@ jobs:
                     go install github.com/securego/gosec/v2/cmd/gosec@latest
             -   name: Run Gosec (root)
                 working-directory: .
-                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=dynamodb -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 -exclude-dir=bbolt -exclude-dir=mssql ./..."
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=dynamodb -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 -exclude-dir=bbolt -exclude-dir=azureblob -exclude-dir=mssql ./..."
                 # -----
             -   name: Run Gosec (arangodb)
                 working-directory: ./arangodb
