@@ -98,3 +98,8 @@ updates:
             - "🤖 Dependencies"
         schedule:
             interval: "daily"
+        directory: "/mssql/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
