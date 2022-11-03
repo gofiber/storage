@@ -1,6 +1,6 @@
 # MSSQL
 
-A MSSQL storage driver using [denisenkom/go-mssqldb](https://github.com/denisenkom/go-mssqldb).
+A MSSQL storage driver using [microsoft/go-mssqldb](https://github.com/microsoft/go-mssqldb).
 
 ### Table of Contents
 - [Signatures](#signatures)
