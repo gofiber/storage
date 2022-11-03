@@ -3,17 +3,17 @@ package v2
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"reflect"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db         pgxpool.Pool
+	db         *pgxpool.Pool
 	gcInterval time.Duration
 	done       chan struct{}
 
@@ -45,10 +45,14 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	db := cfg.Db
-
-	if reflect.ValueOf(db).IsNil() {
-		panic(errors.New("db pool instance must be passed into the config"))
+	// Select db connection
+	var err error
+	db := cfg.DB
+	if db == nil {
+		db, err = pgxpool.New(context.Background(), cfg.dsn())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
+		}
 	}
 
 	// Ping database
