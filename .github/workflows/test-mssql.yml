@@ -1,0 +1,65 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+    pull_request:
+name: "Tests MSSQL"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        services:
+            mssql:
+                image: 'mcmoe/mssqldocker:v2019.CU4.0'
+                ports:
+                    - '1433:1433'
+                env:
+                    ACCEPT_EULA: Y
+                    SA_PASSWORD: MsSql!1234
+                    MSSQL_DB: master
+                    MSSQL_USER: sa
+                    MSSQL_PASSWORD: MsSql!1234
+                options: >-
+                    --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
+                    --health-interval 1s
+                    --health-timeout 30s
+                    --health-start-period 10s
+                    --health-retries 20
+        strategy:
+            matrix:
+                go-version:
+                    - 1.14.x
+                    - 1.16.x
+                    - 1.19.x
+                platform:
+                    - ubuntu-latest
+                    - windows-latest
+        steps:
+            -   name: Install Go
+                uses: actions/setup-go@v3
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Setup Golang caches
+                uses: actions/cache@v3
+                with:
+                    # In order:
+                    # * Module download cache
+                    # * Build cache (Linux)
+                    # * Build cache (Mac)
+                    # * Build cache (Windows)
+                    path: |
+                        ~/go/pkg/mod
+                        ~/.cache/go-build
+                        ~/Library/Caches/go-build
+                        ~\AppData\Local\go-build
+                    key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+                    restore-keys: |
+                        ${{ runner.os }}-go-${{ matrix.go-version }}-
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Run Test
+                run: cd ./mssql && go test ./... -v -race
+                env:
+                    MSSQL_DATABASE: master
+                    MSSQL_USERNAME: sa
+                    MSSQL_PASSWORD: MsSql!1234
