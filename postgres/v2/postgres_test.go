@@ -3,6 +3,7 @@ package v2
 import (
 	"context"
 	"database/sql"
+	"os"
 	"testing"
 	"time"
 
@@ -10,7 +11,10 @@ import (
 )
 
 var testStore = New(Config{
-	Reset: true,
+	Database: os.Getenv("POSTGRES_DATABASE"),
+	Username: os.Getenv("POSTGRES_USERNAME"),
+	Password: os.Getenv("POSTGRES_PASSWORD"),
+	Reset:    true,
 })
 
 func Test_Postgres_Set(t *testing.T) {
@@ -165,6 +169,10 @@ func Test_SslRequiredMode(t *testing.T) {
 	_ = New(Config{
 		Reset: true,
 	})
+}
+
+func Test_Postgres_Conn(t *testing.T) {
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
 
 func Test_Postgres_Close(t *testing.T) {

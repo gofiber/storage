@@ -160,6 +160,11 @@ func (s *Storage) Close() error {
 	return nil
 }
 
+// Return database client
+func (s *Storage) Conn() *pgxpool.Pool {
+	return s.db
+}
+
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
 	ticker := time.NewTicker(s.gcInterval)
