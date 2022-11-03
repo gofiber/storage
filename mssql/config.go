@@ -1,18 +1,11 @@
-package mysql
+package mssql
 
 import (
-	"database/sql"
-	"fmt"
 	"time"
 )
 
 // Config defines the config for storage.
 type Config struct {
-	// DB Will override ConnectionURI and all other authentication values if used
-	//
-	// Optional. Default is nil
-	Db *sql.DB
-
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
@@ -25,7 +18,7 @@ type Config struct {
 
 	// Port where the DB is listening on
 	//
-	// Optional. Default is 3306
+	// Optional. Default is 1433
 	Port int
 
 	// Server username
@@ -38,6 +31,11 @@ type Config struct {
 	// Optional. Default is ""
 	Password string
 
+	// Instance name
+	//
+	// Optional. Default is ""
+	Instance string
+
 	// Database name
 	//
 	// Optional. Default is "fiber"
@@ -47,6 +45,11 @@ type Config struct {
 	//
 	// Optional. Default is "fiber_storage"
 	Table string
+
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SslMode string
 
 	// Reset clears any existing keys in existing Table
 	//
@@ -62,31 +65,52 @@ type Config struct {
 	// Adaptor related config options //
 	////////////////////////////////////
 
-	maxIdleConns    int
-	maxOpenConns    int
+	// Maximum wait for connection, in seconds. Zero or
+	// n < 0 means wait indefinitely.
+	timeout time.Duration
+
+	// The maximum number of connections in the idle connection pool.
+	//
+	// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
+	// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
+	//
+	// If n <= 0, no idle connections are retained.
+	//
+	// The default max idle connections is currently 2. This may change in
+	// a future release.
+	maxIdleConns int
+
+	// The maximum number of open connections to the database.
+	//
+	// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
+	// MaxIdleConns, then MaxIdleConns will be reduced to match the new
+	// MaxOpenConns limit.
+	//
+	// If n <= 0, then there is no limit on the number of open connections.
+	// The default is 0 (unlimited).
+	maxOpenConns int
+
+	// The maximum amount of time a connection may be reused.
+	//
+	// Expired connections may be closed lazily before reuse.
+	//
+	// If d <= 0, connections are reused forever.
 	connMaxLifetime time.Duration
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Db:              nil,
 	ConnectionURI:   "",
 	Host:            "127.0.0.1",
-	Port:            3306,
+	Port:            1433,
 	Database:        "fiber",
 	Table:           "fiber_storage",
+	SslMode:         "disable",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 	maxOpenConns:    100,
 	maxIdleConns:    100,
 	connMaxLifetime: 1 * time.Second,
-}
-
-func (c Config) dsn() string {
-	if c.ConnectionURI != "" {
-		return c.ConnectionURI
-	}
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", c.Username, c.Password, c.Host, c.Port, c.Database)
 }
 
 // Helper function to set default values
@@ -111,6 +135,9 @@ func configDefault(config ...Config) Config {
 	}
 	if cfg.Table == "" {
 		cfg.Table = ConfigDefault.Table
+	}
+	if cfg.SslMode == "" {
+		cfg.SslMode = ConfigDefault.SslMode
 	}
 	if int(cfg.GCInterval.Seconds()) <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval

@@ -1,6 +1,6 @@
-# MySQL
+# MSSQL
 
-A MySQL storage driver using `database/sql` and [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql).
+A MSSQL storage driver using [microsoft/go-mssqldb](https://github.com/microsoft/go-mssqldb).
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -20,47 +20,40 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *sql.DB
 ```
 ### Installation
-MySQL is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+MSSQL is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
-And then install the mysql implementation:
+And then install the mssql implementation:
 ```bash
-go get github.com/gofiber/storage/mysql
+go get github.com/gofiber/storage/mssql
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/mysql"
+import "github.com/gofiber/storage/mssql"
 ```
 
 You can use the following possibilities to create a storage:
 ```go
 // Initialize default config
-store := mysql.New()
+store := mssql.New()
 
 // Initialize custom config
-store := mysql.New(mysql.Config{
+store := mssql.New(mssql.Config{
 	Host:            "127.0.0.1",
-	Port:            3306,
+	Port:            1433,
 	Database:        "fiber",
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
+	SslMode:         "disable",
 })
 
 // Initialize custom config using connection string
-store := mysql.New(mysql.Config{
-	ConnectionURI:   "<username>:<pw>@tcp(<HOST>:<port>)/<dbname>"
-	Reset:           false,
-	GCInterval:      10 * time.Second,
-})
-
-// Initialize custom config using sql db connection
-db, _ := sql.Open("mysql", "<username>:<pw>@tcp(<HOST>:<port>)/<dbname>")
-store := mysql.New(mysql.Config{
-	Db:              db,
+store := mssql.New(mssql.Config{
+	ConnectionURI:   "sqlserver://user:password@localhost:1433?database=fiber"
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 })
@@ -68,12 +61,8 @@ store := mysql.New(mysql.Config{
 
 ### Config
 ```go
+// Config defines the config for storage.
 type Config struct {
-	// DB Will override ConnectionURI and all other authentication values if used
-	//
-	// Optional. Default is nil
-	Db *sql.DB
-	
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
@@ -86,7 +75,7 @@ type Config struct {
 
 	// Port where the DB is listening on
 	//
-	// Optional. Default is 3306
+	// Optional. Default is 1433
 	Port int
 
 	// Server username
@@ -99,6 +88,11 @@ type Config struct {
 	// Optional. Default is ""
 	Password string
 
+	// Instance name
+	//
+	// Optional. Default is ""
+	Instance string
+	
 	// Database name
 	//
 	// Optional. Default is "fiber"
@@ -118,6 +112,11 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
+
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SslMode string
 }
 ```
 
@@ -126,10 +125,11 @@ type Config struct {
 var ConfigDefault = Config{
 	ConnectionURI:   "",
 	Host:            "127.0.0.1",
-	Port:            3306,
+	Port:            1433,
 	Database:        "fiber",
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
+	SslMode:         "disable",
 }
 ```

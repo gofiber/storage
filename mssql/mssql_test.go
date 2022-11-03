@@ -1,53 +1,22 @@
-package mysql
+package mssql
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gofiber/utils"
-	"time"
 )
 
 var testStore = New(Config{
-	Database: os.Getenv("MYSQL_DATABASE"),
-	Username: os.Getenv("MYSQL_USERNAME"),
-	Password: os.Getenv("MYSQL_PASSWORD"),
+	Database: os.Getenv("MSSQL_DATABASE"),
+	Username: os.Getenv("MSSQL_USERNAME"),
+	Password: os.Getenv("MSSQL_PASSWORD"),
 	Reset:    true,
 })
 
-func Test_MYSQL_New(t *testing.T) {
-	newConfigStore := New(Config{
-		Database: os.Getenv("MYSQL_DATABASE"),
-		Username: os.Getenv("MYSQL_USERNAME"),
-		Password: os.Getenv("MYSQL_PASSWORD"),
-		Reset:    true,
-	})
-
-	utils.AssertEqual(t, true, newConfigStore.db != nil)
-	newConfigStore.Close()
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", os.Getenv("MYSQL_USERNAME"), os.Getenv("MYSQL_PASSWORD"), "127.0.0.1", 3306, os.Getenv("MYSQL_DATABASE"))
-	newConfigStore = New(Config{
-		ConnectionURI: dsn,
-		Reset:         true,
-	})
-
-	utils.AssertEqual(t, true, newConfigStore.db != nil)
-	newConfigStore.Close()
-
-	db, _ := sql.Open("mysql", dsn)
-	newConfigStore = New(Config{
-		Db:    db,
-		Reset: true,
-	})
-
-	utils.AssertEqual(t, true, newConfigStore.db != nil)
-	newConfigStore.Close()
-}
-
-func Test_MYSQL_Set(t *testing.T) {
+func Test_MSSQL_Set(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -57,7 +26,7 @@ func Test_MYSQL_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_MYSQL_Set_Override(t *testing.T) {
+func Test_MSSQL_Set_Override(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -70,7 +39,7 @@ func Test_MYSQL_Set_Override(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_MYSQL_Get(t *testing.T) {
+func Test_MSSQL_Get(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -84,7 +53,7 @@ func Test_MYSQL_Get(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_MYSQL_Set_Expiration(t *testing.T) {
+func Test_MSSQL_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -97,7 +66,7 @@ func Test_MYSQL_Set_Expiration(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 }
 
-func Test_MYSQL_Get_Expired(t *testing.T) {
+func Test_MSSQL_Get_Expired(t *testing.T) {
 	var (
 		key = "john"
 	)
@@ -107,14 +76,14 @@ func Test_MYSQL_Get_Expired(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_MYSQL_Get_NotExist(t *testing.T) {
+func Test_MSSQL_Get_NotExist(t *testing.T) {
 
 	result, err := testStore.Get("notexist")
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_MYSQL_Delete(t *testing.T) {
+func Test_MSSQL_Delete(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -131,7 +100,7 @@ func Test_MYSQL_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_MYSQL_Reset(t *testing.T) {
+func Test_MSSQL_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -154,7 +123,7 @@ func Test_MYSQL_Reset(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_MYSQL_GC(t *testing.T) {
+func Test_MSSQL_GC(t *testing.T) {
 	var (
 		testVal = []byte("doe")
 	)
@@ -179,7 +148,7 @@ func Test_MYSQL_GC(t *testing.T) {
 
 }
 
-func Test_MYSQL_Non_UTF8(t *testing.T) {
+func Test_MSSQL_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
 	err := testStore.Set("0xF6", val, 0)
@@ -190,10 +159,25 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_MYSQL_Close(t *testing.T) {
+func Test_SslRequiredMode(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			utils.AssertEqual(t, true, nil, "Connection was established with a `require`")
+		}
+	}()
+	_ = New(Config{
+		Database: "fiber",
+		Username: "username",
+		Password: "password",
+		Reset:    true,
+		SslMode:  "require",
+	})
+}
+
+func Test_MSSQL_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_MYSQL_Conn(t *testing.T) {
+func Test_MSSQL_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }

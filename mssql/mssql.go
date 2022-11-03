@@ -1,12 +1,13 @@
-package mysql
+package mssql
 
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/microsoft/go-mssqldb"
 )
 
 // Storage interface that is implemented by storage providers
@@ -24,15 +25,18 @@ type Storage struct {
 
 var (
 	checkSchemaMsg = "The `v` row has an incorrect data type. " +
-		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
-	dropQuery = "DROP TABLE IF EXISTS %s;"
+		"It should be VARBINARY(MAX) but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
+	dropQuery = `IF EXISTS(SELECT * FROM sys.tables WHERE name = '%s')
+		DROP TABLE %s;`
 	initQuery = []string{
-		`CREATE TABLE IF NOT EXISTS %s ( 
-			k  VARCHAR(64) NOT NULL DEFAULT '', 
-			v  BLOB NOT NULL, 
-			e  BIGINT NOT NULL DEFAULT '0', 
-			PRIMARY KEY (k)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
+		`IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '%s')
+		CREATE TABLE %s (
+					k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+					v  VARBINARY(MAX) NOT NULL,
+					e  BIGINT NOT NULL DEFAULT '0'
+		);`,
+		`IF NOT EXISTS(SELECT * FROM sys.indexes WHERE name = 'e')
+		CREATE INDEX e ON %s (e);`,
 	}
 	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
 		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
@@ -40,37 +44,58 @@ var (
 
 // New creates a new storage
 func New(config ...Config) *Storage {
-	var err error
-	var db *sql.DB
-
 	// Set default config
 	cfg := configDefault(config...)
 
-	if cfg.Db != nil {
-		// Use passed db
-		db = cfg.Db
+	// Create data source name
+	var dsn string
+	if cfg.ConnectionURI != "" {
+		dsn = cfg.ConnectionURI
 	} else {
-		// Create db
-		db, err = sql.Open("mysql", cfg.dsn())
-		if err != nil {
-			panic(err)
+		dsn = "sqlserver://"
+		if cfg.Username != "" {
+			dsn += url.QueryEscape(cfg.Username)
 		}
-
-		// Set options
-		db.SetMaxOpenConns(cfg.maxOpenConns)
-		db.SetMaxIdleConns(cfg.maxIdleConns)
-		db.SetConnMaxLifetime(cfg.connMaxLifetime)
+		if cfg.Password != "" {
+			dsn += ":" + cfg.Password
+		}
+		if cfg.Username != "" || cfg.Password != "" {
+			dsn += "@"
+		}
+		// unix socket host path
+		if strings.HasPrefix(cfg.Host, "/") {
+			dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+		} else {
+			dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
+		}
+		if cfg.Instance != "" {
+			dsn += "/" + cfg.Instance
+		}
+		dsn += fmt.Sprintf("?database=%s&connection+timeout=%d&encrypt=%s",
+			url.QueryEscape(cfg.Database),
+			int64(cfg.timeout.Seconds()),
+			cfg.SslMode)
 	}
+
+	// Create db
+	db, err := sql.Open("sqlserver", dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	// Set database options
+	db.SetMaxOpenConns(cfg.maxOpenConns)
+	db.SetMaxIdleConns(cfg.maxIdleConns)
+	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
 		panic(err)
 	}
 
-	// Drop table if Clear set to true
+	// Drop table if set to true
 	if cfg.Reset {
-		query := fmt.Sprintf(dropQuery, cfg.Table)
-		if _, err = db.Exec(query); err != nil {
+		if _, err = db.Exec(strings.Replace(dropQuery, "%s", cfg.Table, -1)); err != nil {
 			_ = db.Close()
 			panic(err)
 		}
@@ -78,23 +103,25 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	for _, query := range initQuery {
-		query = fmt.Sprintf(query, cfg.Table)
-		if _, err := db.Exec(query); err != nil {
+		if _, err := db.Exec(strings.Replace(query, "%s", cfg.Table, -1)); err != nil {
 			_ = db.Close()
+
 			panic(err)
 		}
 	}
 
 	// Create storage
 	store := &Storage{
-		gcInterval: cfg.GCInterval,
 		db:         db,
+		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
-		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
-		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
+		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=@p1;`, cfg.Table),
+		sqlInsert: fmt.Sprintf(`MERGE INTO %s WITH (HOLDLOCK) AS T USING (VALUES(@p1)) AS S (k) ON (T.k = S.k)
+								WHEN MATCHED THEN UPDATE SET v = @p2, e = @p3
+								WHEN NOT MATCHED THEN INSERT (k, v, e) VALUES(@p1, @p2, @p3);`, cfg.Table),
+		sqlDelete: fmt.Sprintf("DELETE FROM %s WHERE k=@p1", cfg.Table),
+		sqlReset:  fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
+		sqlGC:     fmt.Sprintf("DELETE FROM %s WHERE e <= @p1 AND e != 0", cfg.Table),
 	}
 
 	store.checkSchema(cfg.Table)
@@ -105,26 +132,24 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = "sql: no rows in result set"
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
+
 	row := s.db.QueryRow(s.sqlSelect, key)
 
-	// Add db response to data
-
 	var (
-		data []byte
-		exp  int64
+		data       = []byte{}
+		exp  int64 = 0
 	)
 
 	if err := row.Scan(&data, &exp); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
+
 		return nil, err
 	}
 
@@ -137,31 +162,31 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // Set key with value
-// Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+
 	var expSeconds int64
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds, val, expSeconds)
+
+	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
 	return err
 }
 
-// Delete key by key
+// Delete entry by key
 func (s *Storage) Delete(key string) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
+
 	_, err := s.db.Exec(s.sqlDelete, key)
 	return err
 }
 
-// Reset all keys
+// Reset all entries, including unexpired
 func (s *Storage) Reset() error {
 	_, err := s.db.Exec(s.sqlReset)
 	return err
@@ -205,7 +230,7 @@ func (s *Storage) checkSchema(tableName string) {
 		panic(err)
 	}
 
-	if strings.ToLower(string(data)) != "blob" {
+	if strings.ToLower(string(data)) != "varbinary" {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
 }
