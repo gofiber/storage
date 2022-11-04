@@ -69,8 +69,8 @@ type Storage interface {
 * [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MongoDB%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20MongoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Mongodb%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Mongodb?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [MSSQL](/mssql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MSSQL%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20MSSQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
