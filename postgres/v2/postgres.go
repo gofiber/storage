@@ -2,12 +2,13 @@ package v2
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -108,7 +109,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
