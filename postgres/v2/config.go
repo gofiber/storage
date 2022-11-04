@@ -64,7 +64,7 @@ type Config struct {
 var ConfigDefault = Config{
 	ConnectionURI: "",
 	Host:          "127.0.0.1",
-	Port:          3306,
+	Port:          5432,
 	Database:      "fiber",
 	Table:         "fiber_storage",
 	Reset:         false,
