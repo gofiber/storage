@@ -4,7 +4,7 @@ on:
             - master
             - main
     pull_request:
-name: "Tests Postgres"
+name: "Tests Pgx"
 jobs:
     Tests:
         runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
             -   name: Fetch Repository
                 uses: actions/checkout@v3
             -   name: Run Test
-                run: cd ./postgres && go test . -v -race
+                run: cd ./postgres/v2 && go test . -v -race
                 env:
                     POSTGRES_DATABASE: fiber
                     POSTGRES_USERNAME: username
