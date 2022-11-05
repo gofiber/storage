@@ -50,45 +50,45 @@ type Storage interface {
 
 ## 📑 Storage Implementations
 
-* [ArangoDB](/arangodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22ArangoDB%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/ArangoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [ArangoDB](/arangodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+ArangoDB%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20ArangoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [AzureBlob](/azureblob) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Azure%20Blob%22">
   <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Azure%20Blob?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Bbolt%22">
+* [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Bbolt%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Bbolt?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22DynamoDB%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/DynamoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+DynamoDB%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20DynamoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMemcache">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Memcache?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Memcache%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Memcache?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Memory](/memory) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMongoDB">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MongoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [MongoDB](/mongodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Mongodb%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Mongodb?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MSSQL](/mssql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMSSQL">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MSSQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [MSSQL](/mssql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MSSQL%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20MSSQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [MySQL](/mysql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3AMySQL">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/MySQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [MySQL](/mysql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MySQL%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20MySQL?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Postgres](/postgres) <a href="https://github.com/gofiber/storage/actions?query=workflow%3APostgres">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Postgres?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Postgres](/postgres) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Postgres%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Postgres?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Redis](/redis) <a href="https://github.com/gofiber/storage/actions?query=workflow%3ARedis">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Redis?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Redis](/redis) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Redis%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Redis?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Local+Storage%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22S3%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/S3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20S3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
