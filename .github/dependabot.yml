@@ -93,6 +93,11 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
+        directory: "/azureblob/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
         directory: "/mssql/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
