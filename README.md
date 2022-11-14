@@ -53,8 +53,8 @@ type Storage interface {
 * [ArangoDB](/arangodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+ArangoDB%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20ArangoDB?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [AzureBlob](/azureblob) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Azure%20Blob%22">
-  <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Azure%20Blob?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [AzureBlob](/azureblob) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Azure+Blob%22">
+  <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Azure%20Blob?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
