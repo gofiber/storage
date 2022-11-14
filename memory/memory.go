@@ -110,10 +110,11 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
+			ts := atomic.LoadUint32(&internal.Timestamp)
 			expired = expired[:0]
 			s.mux.RLock()
 			for id, v := range s.db {
-				if v.expiry != 0 && v.expiry < atomic.LoadUint32(&internal.Timestamp) {
+				if v.expiry != 0 && v.expiry < ts {
 					expired = append(expired, id)
 				}
 			}
