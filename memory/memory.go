@@ -68,8 +68,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expire = uint32(exp.Seconds()) + atomic.LoadUint32(&internal.Timestamp)
 	}
 
+	e := entry{val, expire}
 	s.mux.Lock()
-	s.db[key] = entry{val, expire}
+	s.db[key] = e
 	s.mux.Unlock()
 	return nil
 }
@@ -88,8 +89,9 @@ func (s *Storage) Delete(key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	ndb := make(map[string]entry)
 	s.mux.Lock()
-	s.db = make(map[string]entry)
+	s.db = ndb
 	s.mux.Unlock()
 	return nil
 }
