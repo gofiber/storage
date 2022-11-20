@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/bbolt
 
-go 1.16
+go 1.18
 
 require (
 	github.com/gofiber/utils v1.0.1
