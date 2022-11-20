@@ -56,8 +56,8 @@ type Storage interface {
 * [AzureBlob](/azureblob) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Azure+Blob%22">
   <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Azure%20Blob?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [Badger](/badger) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Badger%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Badger?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Bbolt%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Bbolt?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
@@ -86,8 +86,8 @@ type Storage interface {
 * [Redis](/redis) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Redis%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Redis?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
-* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22">
-    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Local%20Storage?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+* [SQLite3](/sqlite3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Sqlite3%22">
+    <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20Sqlite3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
 * [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22">
     <img src="https://img.shields.io/github/workflow/status/gofiber/storage/Tests%20S3?label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
