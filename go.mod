@@ -1,3 +1,3 @@
 module github.com/gofiber/storage
 
-go 1.14
+go 1.19

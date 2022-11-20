@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/sqlite3
 
-go 1.14
+go 1.19
 
 require (
 	github.com/gofiber/utils v1.0.1
