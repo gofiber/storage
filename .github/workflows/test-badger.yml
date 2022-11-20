@@ -4,24 +4,18 @@ on:
             - master
             - main
     pull_request:
-name: "Tests Mongodb"
+name: "Tests Badger"
 jobs:
     Tests:
-        runs-on: ubuntu-latest
-        services:
-            mongo:
-                image: 'mongo:latest'
-                ports:
-                    - '27017:27017'
         strategy:
             matrix:
                 go-version:
-                    - 1.16.x
                     - 1.18.x
                     - 1.19.x
                 platform:
                     - ubuntu-latest
                     - windows-latest
+        runs-on: '${{ matrix.platform }}'
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v3
@@ -43,7 +37,8 @@ jobs:
                     key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
                     restore-keys: |
                         ${{ runner.os }}-go-${{ matrix.go-version }}-
+
             -   name: Fetch Repository
                 uses: actions/checkout@v3
-            -   name: Run Test
-                run: cd ./mongodb && go test ./... -v -race
+            -   name: Test Badger
+                run: cd ./badger && go test ./... -v -race
