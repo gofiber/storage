@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/postgres
 
-go 1.19
+go 1.16
 
 require (
 	github.com/gofiber/utils v1.0.1

@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/badger
 
-go 1.19
+go 1.18
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.4
@@ -19,7 +19,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v22.10.26+incompatible // indirect
 	github.com/klauspost/compress v1.15.12 // indirect
-	github.com/kr/pretty v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/net v0.2.0 // indirect

@@ -1,10 +1,10 @@
 module github.com/gofiber/storage/azureblob
 
-go 1.19
+go 1.18
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.5.1
-	github.com/gofiber/fiber/v2 v2.39.0
+	github.com/gofiber/fiber/v2 v2.40.0
 )
 
 require (
