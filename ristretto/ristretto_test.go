@@ -39,15 +39,29 @@ func Test_Ristretto_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	// Create a channel to synchronize the test
+	done := make(chan struct{})
 
-	// stabilize with some delay in between -> bug already communicated
-	time.Sleep(10000)
+	// Set the value in a goroutine
+	go func() {
+		err := testStore.Set(key, val, 0)
+		utils.AssertEqual(t, nil, err)
 
-	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+		// Send a value on the channel to signal that the value has been set
+		done <- struct{}{}
+	}()
+
+	// Wait for the value to be set or a timeout to occur
+	select {
+	case <-done:
+		// The value has been set, proceed with the test
+		result, err := testStore.Get(key)
+		utils.AssertEqual(t, nil, err)
+		utils.AssertEqual(t, val, result)
+	case <-time.After(1 * time.Second):
+		// The value was not set within 1 second, fail the test
+		t.Errorf("timed out waiting for value to be set")
+	}
 }
 
 func Test_Ristretto_Set_Expiration(t *testing.T) {
@@ -86,18 +100,32 @@ func Test_Ristretto_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	// Create a channel to synchronize the test
+	done := make(chan struct{})
 
-	// stabilize with some delay in between -> bug already communicated
-	time.Sleep(10000)
+	// Set the value in a goroutine
+	go func() {
+		err := testStore.Set(key, val, 0)
+		utils.AssertEqual(t, nil, err)
 
-	err = testStore.Delete(key)
-	utils.AssertEqual(t, nil, err)
+		// Send a value on the channel to signal that the value has been set
+		done <- struct{}{}
+	}()
 
-	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	// Wait for the value to be set or a timeout to occur
+	select {
+	case <-done:
+		// The value has been set, proceed with the test
+		err := testStore.Delete(key)
+		utils.AssertEqual(t, nil, err)
+
+		result, err := testStore.Get(key)
+		utils.AssertEqual(t, nil, err)
+		utils.AssertEqual(t, true, len(result) == 0)
+	case <-time.After(1 * time.Second):
+		// The value was not set within 1 second, fail the test
+		t.Errorf("timed out waiting for value to be set")
+	}
 }
 
 func Test_Ristretto_Reset(t *testing.T) {
