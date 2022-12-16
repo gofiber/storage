@@ -3,7 +3,7 @@ module github.com/gofiber/storage/badger
 go 1.18
 
 require (
-	github.com/dgraph-io/badger/v3 v3.2103.4
+	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gofiber/utils v1.0.1
 )
 
