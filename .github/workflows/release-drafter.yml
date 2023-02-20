@@ -5,8 +5,8 @@ on:
         branches:
             - master
             - main
-        paths:
-            - 'arangodb/**'
+#        paths:
+#            - 'arangodb/**'
 jobs:
     draft_release_arangodb:
         runs-on: ubuntu-latest
@@ -17,6 +17,7 @@ jobs:
                     config-name: release-drafter-arangodb.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Azureblob
 on:
@@ -37,6 +38,7 @@ jobs:
                     config-name: release-drafter-azureblob.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Badger
 on:
@@ -57,6 +59,7 @@ jobs:
                     config-name: release-drafter-badger.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Bbolt
 on:
@@ -77,6 +80,7 @@ jobs:
                     config-name: release-drafter-bbolt.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Dynamodb
 on:
@@ -97,6 +101,7 @@ jobs:
                     config-name: release-drafter-dynamodb.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Memcache
 on:
@@ -117,6 +122,7 @@ jobs:
                     config-name: release-drafter-memcache.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Memory
 on:
@@ -137,6 +143,7 @@ jobs:
                     config-name: release-drafter-memory.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Mongodb
 on:
@@ -157,6 +164,7 @@ jobs:
                     config-name: release-drafter-mongodb.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Mssql
 on:
@@ -177,6 +185,7 @@ jobs:
                     config-name: release-drafter-mssql.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Mysql
 on:
@@ -197,6 +206,7 @@ jobs:
                     config-name: release-drafter-mysql.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Postgres
 on:
@@ -217,6 +227,7 @@ jobs:
                     config-name: release-drafter-postgres.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Redis
 on:
@@ -237,6 +248,7 @@ jobs:
                     config-name: release-drafter-redis.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Ristretto
 on:
@@ -257,6 +269,7 @@ jobs:
                     config-name: release-drafter-ristretto.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter S3
 on:
@@ -277,6 +290,7 @@ jobs:
                     config-name: release-drafter-s3.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 ---
 name: Release Drafter Sqlite3
 on:
@@ -297,5 +311,4 @@ jobs:
                     config-name: release-drafter-sqlite3.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
