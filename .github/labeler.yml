@@ -1,0 +1,53 @@
+# Labels is an object where:
+# - keys are labels
+# - values are array of string patterns to match against title + body in issues/prs
+labels:
+    '📒 Documentation':
+          - '\bdocs\b'
+          - '\bdoc:\b'
+          - '\b\[doc\]\b'
+          - '\bREADME\b'
+          - '\btypos\b'
+          - '\bcomment\b'
+          - '\b📚\b'
+          - '\b📒\b'
+          - '\b📝\b'
+          - '\bdocumentation\b'
+    '☢️ Bug':
+          - '\bfix\b'
+          - '\brace\b'
+          - '\bbug\b'
+          - '\bmissing\b'
+          - '\bcorrect\b'
+          - '\b🐛\b'
+          - '\b☢\b'
+          - '\b🩹\b'
+          - '\b🚨\b'
+    '🧹 Updates':
+          - '\bimprove\b'
+          - '\bupdate\b'
+          - '\brefactor\b'
+          - '\bdeprecated\b'
+          - '\bremove\b'
+          - '\bunused\b'
+          - '\btest\b'
+          - '\b⚡\b'
+          - '\b👷\b'
+          - '\b🚧\b'
+          - '\b♻️\b'
+          - '\b🎨\b'
+          - '\b🧪\b'
+          - '\b🧹\b'
+    '🤖 Dependencies':
+          - '\bbumb\b'
+          - '\bdependencies\b'
+          - '\b📦\b'
+          - '\b🤖\b'
+    '✏️ Feature':
+          - '\bfeature\b'
+          - '\bcreate\b'
+          - '\bimplement\b'
+          - '\badd\b'
+          - '\b🚀\b'
+          - '\b✨\b'
+          - '\b🔥\b'
