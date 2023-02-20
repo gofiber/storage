@@ -5,8 +5,8 @@ on:
         branches:
             - master
             - main
-#        paths:
-#            - 'mongodb/**'
+        paths:
+            - 'mongodb/**'
 jobs:
     draft_release_mongodb:
         runs-on: ubuntu-latest
