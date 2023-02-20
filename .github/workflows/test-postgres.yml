@@ -3,6 +3,8 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 'postgres/**'
     pull_request:
         paths:
             - 'postgres/**'

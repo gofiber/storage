@@ -3,6 +3,8 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 'mongodb/**'
     pull_request:
         paths:
             - 'mongodb/**'

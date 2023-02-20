@@ -3,6 +3,8 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 'bbolt/**'
     pull_request:
         paths:
             - 'bbolt/**'

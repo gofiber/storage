@@ -3,6 +3,8 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 'memory/**'
     pull_request:
         paths:
             - 'memory/**'

@@ -10,6 +10,7 @@ on:
 jobs:
     draft_release_arangodb:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -29,6 +30,7 @@ on:
 jobs:
     draft_release_azureblob:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -48,6 +50,7 @@ on:
 jobs:
     draft_release_badger:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -67,6 +70,7 @@ on:
 jobs:
     draft_release_bbolt:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -86,6 +90,7 @@ on:
 jobs:
     draft_release_dynamodb:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -105,6 +110,7 @@ on:
 jobs:
     draft_release_memcache:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -124,6 +130,7 @@ on:
 jobs:
     draft_release_memory:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -143,6 +150,7 @@ on:
 jobs:
     draft_release_mongodb:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -162,6 +170,7 @@ on:
 jobs:
     draft_release_mssql:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -181,6 +190,7 @@ on:
 jobs:
     draft_release_mysql:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -200,6 +210,7 @@ on:
 jobs:
     draft_release_postgres:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -219,6 +230,7 @@ on:
 jobs:
     draft_release_redis:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -238,6 +250,7 @@ on:
 jobs:
     draft_release_ristretto:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -257,6 +270,7 @@ on:
 jobs:
     draft_release_s3:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
@@ -276,6 +290,7 @@ on:
 jobs:
     draft_release_sqlite3:
         runs-on: ubuntu-latest
+        timeout-minutes: 30
         steps:
             -   uses: release-drafter/release-drafter@v5
                 with:
