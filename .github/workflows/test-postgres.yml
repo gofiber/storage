@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'postgres/**'
 name: "Tests Postgres"
 jobs:
     Tests:

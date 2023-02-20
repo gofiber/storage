@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'mysql/**'
 name: "Tests MySQL"
 jobs:
     Tests:

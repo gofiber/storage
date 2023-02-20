@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'sqlite3/**'
 name: "Tests Sqlite3"
 jobs:
     Tests:

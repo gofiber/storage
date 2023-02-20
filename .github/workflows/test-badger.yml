@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'badger/**'
 name: "Tests Badger"
 jobs:
     Tests:

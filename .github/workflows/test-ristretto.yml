@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'ristretto/**'
 name: "Tests Ristretto"
 jobs:
     Tests:

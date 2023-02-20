@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'memory/**'
 name: "Tests Local Storage"
 jobs:
     Tests:

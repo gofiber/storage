@@ -4,6 +4,8 @@ on:
             - master
             - main
     pull_request:
+        paths:
+            - 'memcache/**'
 name: "Tests Memcache"
 jobs:
     Tests:
