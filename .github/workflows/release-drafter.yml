@@ -15,7 +15,7 @@ jobs:
     draft_release_arangodb:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-arangodb.yml
               env:
@@ -23,7 +23,7 @@ jobs:
     draft_release_azureblob:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-azureblob.yml
               env:
@@ -31,7 +31,7 @@ jobs:
     draft_release_badger:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-badger.yml
               env:
@@ -39,7 +39,7 @@ jobs:
     draft_release_bbolt:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-bbolt.yml
               env:
@@ -47,7 +47,7 @@ jobs:
     draft_release_dynamodb:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-dynamodb.yml
               env:
@@ -55,7 +55,7 @@ jobs:
     draft_release_memcache:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-memcache.yml
               env:
@@ -63,7 +63,7 @@ jobs:
     draft_release_memory:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-memory.yml
               env:
@@ -71,7 +71,7 @@ jobs:
     draft_release_mongodb:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-mongodb.yml
               env:
@@ -79,7 +79,7 @@ jobs:
     draft_release_mssql:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-mssql.yml
               env:
@@ -87,7 +87,7 @@ jobs:
     draft_release_mysql:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-mysql.yml
               env:
@@ -95,7 +95,7 @@ jobs:
     draft_release_postgres:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-postgres.yml
               env:
@@ -103,7 +103,7 @@ jobs:
     draft_release_redis:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-redis.yml
               env:
@@ -111,7 +111,7 @@ jobs:
     draft_release_ristretto:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-ristretto.yml
               env:
@@ -119,7 +119,7 @@ jobs:
     draft_release_s3:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-s3.yml
               env:
@@ -127,7 +127,7 @@ jobs:
     draft_release_sqlite3:
         runs-on: ubuntu-latest
         steps:
-            - uses: blast-hardcheese/release-drafter@v5.18.104
+            - uses: blast-hardcheese/release-drafter@v5.18.105
               with:
                 config-name: release-drafter-sqlite3.yml
               env:
