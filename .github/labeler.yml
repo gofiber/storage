@@ -1,53 +1,17 @@
-# Labels is an object where:
-# - keys are labels
-# - values are array of string patterns to match against title + body in issues/prs
+version: v1
 labels:
-    '📒 Documentation':
-        - '\bdocs\b'
-        - '\bdoc:\b'
-        - '\b\[doc\]\b'
-        - '\bREADME\b'
-        - '\btypos\b'
-        - '\bcomment\b'
-        - '📚'
-        - '📒'
-        - '📝'
-        - '\bdocumentation\b'
-    '☢️ Bug':
-        - '\bfix\b'
-        - '\brace\b'
-        - '\bbug\b'
-        - '\bmissing\b'
-        - '\bcorrect\b'
-        - '🐛'
-        - '☢'
-        - '🩹'
-        - '🚨'
-    '🧹 Updates':
-        - '\bimprove\b'
-        - '\bupdate\b'
-        - '\brefactor\b'
-        - '\bdeprecated\b'
-        - '\bremove\b'
-        - '\bunused\b'
-        - '\btest\b'
-        - '⚡'
-        - '👷'
-        - '🚧'
-        - '♻️'
-        - '🎨'
-        - '🧪'
-        - '🧹'
-    '🤖 Dependencies':
-        - '\bbumb\b'
-        - '\bdependencies\b'
-        - '📦'
-        - '🤖'
-    '✏️ Feature':
-        - '\bfeature\b'
-        - '\bcreate\b'
-        - '\bimplement\b'
-        - '\badd\b'
-        - '🚀'
-        - '✨'
-        - '🔥'
+    -   label: '📒 Documentation'
+        matcher:
+            title: '\b(docs|doc:|\[doc\]|README|typos|comment|documentation)\b|[📝📒📚]'
+    -   label: '☢️ Bug'
+        matcher:
+            title: '\b(fix|race|bug|missing|correct)\b|[🐛☢🩹🚨]'
+    -   label: '🧹 Updates'
+        matcher:
+            title: '\b(improve|update|refactor|deprecated|remove|unused|test)\b|[⚡👷🚧♻️🎨🧪🧹]'
+    -   label: '🤖 Dependencies'
+        matcher:
+            title: '\b(bumb|bdependencies)/b|[📦🤖]'
+    -   label: '✏️ Feature'
+        matcher:
+            title: '\b(feature|create|implement|add)\b|[🚀✨🔥]'
