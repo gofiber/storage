@@ -1,6 +1,6 @@
 # Postgres
 
-A Postgres storage driver using [lib/pq](https://github.com/lib/pq).
+A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -17,7 +17,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() *sql.DB
+func (s *Storage) Conn() *pgxpool.Pool
 ```
 ### Installation
 Postgres is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -26,13 +26,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the postgres implementation:
 ```bash
-go get github.com/gofiber/storage/postgres
+go get github.com/gofiber/storage/postgres/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/postgres"
+import "github.com/gofiber/storage/postgres/v2"
 ```
 
 You can use the following possibilities to create a storage:
@@ -42,18 +42,8 @@ store := postgres.New()
 
 // Initialize custom config
 store := postgres.New(postgres.Config{
-	Host:            "127.0.0.1",
-	Port:            5432,
-	Database:        "fiber",
+	Db:              dbPool,
 	Table:           "fiber_storage",
-	Reset:           false,
-	GCInterval:      10 * time.Second,
-	SslMode:         "disable",
-})
-
-// Initialize custom config using connection string
-store := postgres.New(postgres.Config{
-	ConnectionURI:   "postgresql://user:password@localhost:5432/fiber"
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 })
@@ -63,6 +53,11 @@ store := postgres.New(postgres.Config{
 ```go
 // Config defines the config for storage.
 type Config struct {
+	// DB pgxpool.Pool object will override connection uri and other connection fields
+	//
+	// Optional. Default is nil
+	DB *pgxpool.Pool
+
 	// Connection string to use for DB. Will override all other authentication values if used
 	//
 	// Optional. Default is ""
@@ -98,6 +93,11 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Table string
 
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SSLMode string
+
 	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
@@ -107,24 +107,20 @@ type Config struct {
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration
-
-	// The SSL mode for the connection
-	//
-	// Optional. Default is "disable"
-	SslMode string
 }
 ```
 
 ### Default Config
 ```go
+// ConfigDefault is the default config
 var ConfigDefault = Config{
-	ConnectionURI:   "",
-	Host:            "127.0.0.1",
-	Port:            5432,
-	Database:        "fiber",
-	Table:           "fiber_storage",
-	Reset:           false,
-	GCInterval:      10 * time.Second,
-	SslMode:         "disable",
+	ConnectionURI: "",
+	Host:          "127.0.0.1",
+	Port:          5432,
+	Database:      "fiber",
+	Table:         "fiber_storage",
+	SSLMode:       "disable",
+	Reset:         false,
+	GCInterval:    10 * time.Second,
 }
 ```
