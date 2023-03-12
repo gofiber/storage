@@ -3,7 +3,11 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 's3/**'
     pull_request:
+        paths:
+            - 's3/**'
 name: "Tests S3"
 jobs:
     Tests:
@@ -11,8 +15,8 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.14.x
                     - 1.16.x
+                    - 1.18.x
                     - 1.19.x
                 platform:
                     - ubuntu-latest

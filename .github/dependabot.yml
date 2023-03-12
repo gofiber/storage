@@ -31,7 +31,7 @@ updates:
         labels:
             - "🤖 Dependencies"
         schedule:
-            interval: "daily"
+            interval: "weekly"
     -   package-ecosystem: "gomod"
         directory: "/memcache/" # Location of package manifests
         labels:
@@ -85,7 +85,7 @@ updates:
         labels:
             - "🤖 Dependencies"
         schedule:
-            interval: "daily"
+            interval: "weekly"
     -   package-ecosystem: "gomod"
         directory: "/bbolt/" # Location of package manifests
         labels:
@@ -93,6 +93,11 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
+        directory: "/azureblob/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
         directory: "/mssql/" # Location of package manifests
         labels:
             - "🤖 Dependencies"

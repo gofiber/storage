@@ -1,10 +1,10 @@
 module github.com/gofiber/storage/bbolt
 
-go 1.16
+go 1.18
 
 require (
-	github.com/gofiber/utils v0.1.2
-	go.etcd.io/bbolt v1.3.6
+	github.com/gofiber/utils v1.0.1
+	go.etcd.io/bbolt v1.3.7
 )
 
-require golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a // indirect
+require golang.org/x/sys v0.4.0 // indirect

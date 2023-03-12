@@ -3,7 +3,11 @@ on:
         branches:
             - master
             - main
+        paths:
+            - 'postgres/**'
     pull_request:
+        paths:
+            - 'postgres/**'
 name: "Tests Postgres"
 jobs:
     Tests:
@@ -16,7 +20,7 @@ jobs:
                 env:
                     POSTGRES_DB: fiber
                     POSTGRES_USER: username
-                    POSTGRES_PASSWORD: password
+                    POSTGRES_PASSWORD: "pass#w%rd"
                 options: >-
                     --health-cmd pg_isready --health-interval 10s --health-timeout 5s
                     --health-retries 5
@@ -56,4 +60,4 @@ jobs:
                 env:
                     POSTGRES_DATABASE: fiber
                     POSTGRES_USERNAME: username
-                    POSTGRES_PASSWORD: password
+                    POSTGRES_PASSWORD: "pass#w%rd"

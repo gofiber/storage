@@ -55,7 +55,7 @@ func New(config ...Config) *Storage {
 			dsn += url.QueryEscape(cfg.Username)
 		}
 		if cfg.Password != "" {
-			dsn += ":" + cfg.Password
+			dsn += ":" + url.QueryEscape(cfg.Password)
 		}
 		if cfg.Username != "" || cfg.Password != "" {
 			dsn += "@"

@@ -1,5 +1,6 @@
 name: Dependabot auto-merge
-on: pull_request
+on:
+  pull_request
 
 permissions:
   contents: write
@@ -8,9 +9,10 @@ permissions:
 jobs:
   wait_for_checks:
     runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
        - name: Wait for check is finished
-         uses: lewagon/wait-on-check-action@v1.2.0
+         uses: lewagon/wait-on-check-action@v1.3.1
          id: wait_for_checks
          with:
              ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -26,7 +28,7 @@ jobs:
     steps:
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v1.3.5
+        uses: dependabot/fetch-metadata@v1.3.6
         with:
           github-token: "${{ secrets.PR_TOKEN }}"
       - name: Enable auto-merge for Dependabot PRs
