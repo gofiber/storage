@@ -104,7 +104,7 @@ func (c *Config) getDSN() string {
 		dsn += fmt.Sprintf("%s:%d", url.QueryEscape(c.Host), c.Port)
 	}
 
-	dsn += fmt.Sprintf("/%ssslmode=%s",
+	dsn += fmt.Sprintf("/%s?sslmode=%s",
 		url.QueryEscape(c.Database),
 		c.SSLMode)
 
