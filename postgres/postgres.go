@@ -1,19 +1,20 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
-	"net/url"
+	"os"
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db         *sql.DB
+	db         *pgxpool.Pool
 	gcInterval time.Duration
 	done       chan struct{}
 
@@ -45,62 +46,33 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Create data source name
-	var dsn string
-	if cfg.ConnectionURI != "" {
-		dsn = cfg.ConnectionURI
-	} else {
-		dsn = "postgresql://"
-		if cfg.Username != "" {
-			dsn += url.QueryEscape(cfg.Username)
+	// Select db connection
+	var err error
+	db := cfg.DB
+	if db == nil {
+		db, err = pgxpool.New(context.Background(), cfg.dsn())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		}
-		if cfg.Password != "" {
-			dsn += ":" + url.QueryEscape(cfg.Password)
-		}
-		if cfg.Username != "" || cfg.Password != "" {
-			dsn += "@"
-		}
-		// unix socket host path
-		if strings.HasPrefix(cfg.Host, "/") {
-			dsn += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-		} else {
-			dsn += fmt.Sprintf("%s:%d", url.QueryEscape(cfg.Host), cfg.Port)
-		}
-		dsn += fmt.Sprintf("/%s?connect_timeout=%d&sslmode=%s",
-			url.QueryEscape(cfg.Database),
-			int64(cfg.timeout.Seconds()),
-			cfg.SslMode)
 	}
-
-	// Create db
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	// Set database options
-	db.SetMaxOpenConns(cfg.maxOpenConns)
-	db.SetMaxIdleConns(cfg.maxIdleConns)
-	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
 	// Ping database
-	if err := db.Ping(); err != nil {
+	if err := db.Ping(context.Background()); err != nil {
 		panic(err)
 	}
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
-			_ = db.Close()
+		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+			db.Close()
 			panic(err)
 		}
 	}
 
 	// Init database queries
 	for _, query := range initQuery {
-		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
-			_ = db.Close()
-
+		if _, err := db.Exec(context.Background(), fmt.Sprintf(query, cfg.Table)); err != nil {
+			db.Close()
 			panic(err)
 		}
 	}
@@ -125,21 +97,19 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = errors.New("sql: no rows in result set")
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	row := s.db.QueryRow(s.sqlSelect, key)
+	row := s.db.QueryRow(context.Background(), s.sqlSelect, key)
 	// Add db response to data
 	var (
-		data       = []byte{}
+		data []byte
 		exp  int64 = 0
 	)
 	if err := row.Scan(&data, &exp); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -163,7 +133,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds, val, expSeconds)
+	_, err := s.db.Exec(context.Background(), s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
 }
 
@@ -173,24 +143,26 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	_, err := s.db.Exec(s.sqlDelete, key)
+	_, err := s.db.Exec(context.Background(), s.sqlDelete, key)
 	return err
 }
 
 // Reset all entries, including unexpired
 func (s *Storage) Reset() error {
-	_, err := s.db.Exec(s.sqlReset)
+	_, err := s.db.Exec(context.Background(), s.sqlReset)
 	return err
 }
 
 // Close the database
 func (s *Storage) Close() error {
 	s.done <- struct{}{}
-	return s.db.Close()
+	s.db.Stat()
+	s.db.Close()
+	return nil
 }
 
 // Return database client
-func (s *Storage) Conn() *sql.DB {
+func (s *Storage) Conn() *pgxpool.Pool {
 	return s.db
 }
 
@@ -210,13 +182,13 @@ func (s *Storage) gcTicker() {
 
 // gc deletes all expired entries
 func (s *Storage) gc(t time.Time) {
-	_, _ = s.db.Exec(s.sqlGC, t.Unix())
+	_, _ = s.db.Exec(context.Background(), s.sqlGC, t.Unix())
 }
 
 func (s *Storage) checkSchema(tableName string) {
 	var data []byte
 
-	row := s.db.QueryRow(fmt.Sprintf(checkSchemaQuery, tableName))
+	row := s.db.QueryRow(context.Background(), fmt.Sprintf(checkSchemaQuery, tableName))
 	if err := row.Scan(&data); err != nil {
 		panic(err)
 	}

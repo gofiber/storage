@@ -1,12 +1,13 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/gofiber/utils"
+	"github.com/jackc/pgx/v5"
 )
 
 var testStore = New(Config{
@@ -133,9 +134,9 @@ func Test_Postgres_GC(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	testStore.gc(time.Now())
-	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
+	row := testStore.db.QueryRow(context.Background(), testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
-	utils.AssertEqual(t, sql.ErrNoRows, err)
+	utils.AssertEqual(t, pgx.ErrNoRows, err)
 
 	// This key should not expire
 	err = testStore.Set("john", testVal, 0)
@@ -166,18 +167,14 @@ func Test_SslRequiredMode(t *testing.T) {
 		}
 	}()
 	_ = New(Config{
-		Database: "fiber",
-		Username: "username",
-		Password: "password",
-		Reset:    true,
-		SslMode:  "require",
+		Reset: true,
 	})
-}
-
-func Test_Postgres_Close(t *testing.T) {
-	utils.AssertEqual(t, nil, testStore.Close())
 }
 
 func Test_Postgres_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
+}
+
+func Test_Postgres_Close(t *testing.T) {
+	utils.AssertEqual(t, nil, testStore.Close())
 }
