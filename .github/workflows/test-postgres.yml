@@ -56,7 +56,7 @@ jobs:
             -   name: Fetch Repository
                 uses: actions/checkout@v3
             -   name: Run Test
-                run: cd ./postgres && go test . -v -race
+                run: cd ./postgres && go test ./... -v -race
                 env:
                     POSTGRES_DATABASE: fiber
                     POSTGRES_USERNAME: username
