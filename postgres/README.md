@@ -26,13 +26,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the postgres implementation:
 ```bash
-go get github.com/gofiber/storage/postgres
+go get github.com/gofiber/storage/postgres/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/postgres"
+import "github.com/gofiber/storage/postgres/v2"
 ```
 
 You can use the following possibilities to create a storage:
@@ -53,15 +53,50 @@ store := postgres.New(postgres.Config{
 ```go
 // Config defines the config for storage.
 type Config struct {
-    // Db pgxpool.Pool object
-    //
-    // Required
-    Db pgxpool.Pool
+	// DB pgxpool.Pool object will override connection uri and other connection fields
+	//
+	// Optional. Default is nil
+	DB *pgxpool.Pool
+
+	// Connection string to use for DB. Will override all other authentication values if used
+	//
+	// Optional. Default is ""
+	ConnectionURI string
+
+	// Host name where the DB is hosted
+	//
+	// Optional. Default is "127.0.0.1"
+	Host string
+
+	// Port where the DB is listening on
+	//
+	// Optional. Default is 5432
+	Port int
+
+	// Server username
+	//
+	// Optional. Default is ""
+	Username string
+
+	// Server password
+	//
+	// Optional. Default is ""
+	Password string
+
+	// Database name
+	//
+	// Optional. Default is "fiber"
+	Database string
 
 	// Table name
 	//
 	// Optional. Default is "fiber_storage"
 	Table string
+
+	// The SSL mode for the connection
+	//
+	// Optional. Default is "disable"
+	SSLMode string
 
 	// Reset clears any existing keys in existing Table
 	//
@@ -79,9 +114,13 @@ type Config struct {
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Db:              pgxpool.Pool{},
-	Table:           "fiber_storage",
-	Reset:           false,
-	GCInterval:      10 * time.Second,
+	ConnectionURI: "",
+	Host:          "127.0.0.1",
+	Port:          5432,
+	Database:      "fiber",
+	Table:         "fiber_storage",
+	SSLMode:       "disable",
+	Reset:         false,
+	GCInterval:    10 * time.Second,
 }
 ```
