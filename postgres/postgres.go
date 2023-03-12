@@ -50,7 +50,7 @@ func New(config ...Config) *Storage {
 	var err error
 	db := cfg.DB
 	if db == nil {
-		db, err = pgxpool.New(context.Background(), cfg.dsn())
+		db, err = pgxpool.New(context.Background(), cfg.getDSN())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		}
