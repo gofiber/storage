@@ -32,7 +32,7 @@ jobs:
 
                 aws --endpoint-url http://127.0.0.1:9000/ s3 mb s3://testbucket
         -   name: Install Go
-            uses: actions/setup-go@v3
+            uses: actions/setup-go@v4
             with:
                 go-version: '${{ matrix.go-version }}'
         -   name: Setup Golang caches

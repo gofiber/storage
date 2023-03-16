@@ -25,7 +25,7 @@ jobs:
             run: |
                 docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
         -   name: Install Go
-            uses: actions/setup-go@v3
+            uses: actions/setup-go@v4
             with:
                 go-version: '${{ matrix.go-version }}'
         -   name: Setup Golang caches
