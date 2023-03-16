@@ -44,7 +44,7 @@ jobs:
                     --tls-ca-cert-file ./redis/tests/tls/ca.crt&
 
             -   name: Install Go
-                uses: actions/setup-go@v3
+                uses: actions/setup-go@v4
                 with:
                     go-version: '${{ matrix.go-version }}'
 
