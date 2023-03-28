@@ -27,6 +27,7 @@ jobs:
                 platform:
                     - ubuntu-latest
                     - windows-latest
+                    - macos-latest
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v4
