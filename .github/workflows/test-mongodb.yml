@@ -37,10 +37,10 @@ jobs:
                 uses: actions/setup-go@v4
                 with:
                     go-version: '${{ matrix.go-version }}'
-                - name: Start MongoDB
-                  uses: supercharge/mongodb-github-action@1.8.0
-                  with:
-                      mongodb-version: ${{ matrix.mongodb-version }
+            -   name: Start MongoDB
+                uses: supercharge/mongodb-github-action@1.8.0
+                with:
+                    mongodb-version: ${{ matrix.mongodb-version }
             -   name: Setup Golang caches
                 uses: actions/cache@v3
                 with:
