@@ -11,7 +11,6 @@ on:
 name: "Tests MSSQL"
 jobs:
     Tests:
-        runs-on: ubuntu-latest
         services:
             mssql:
                 image: 'mcmoe/mssqldocker:v2019.CU4.0'
@@ -39,6 +38,7 @@ jobs:
                     - ubuntu-latest
                     - windows-latest
                     - macos-latest
+        runs-on: ${{ matrix.platform }}
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v4

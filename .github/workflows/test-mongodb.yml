@@ -11,7 +11,6 @@ on:
 name: "Tests Mongodb"
 jobs:
     Tests:
-        runs-on: ubuntu-latest
         services:
             mongo:
                 image: 'mongo:latest'
@@ -28,6 +27,7 @@ jobs:
                     - ubuntu-latest
                     - windows-latest
                     - macos-latest
+        runs-on: ${{ matrix.platform }}
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v4
