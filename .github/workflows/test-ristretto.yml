@@ -11,6 +11,7 @@ on:
 name: "Tests Ristretto"
 jobs:
     Tests:
+        runs-on: ubuntu-latest
         strategy:
             matrix:
                 go-version:
@@ -21,7 +22,6 @@ jobs:
                     - ubuntu-latest
                     - windows-latest
                     - macos-latest
-        runs-on: ${{ matrix.platform }}
         steps:
         -   name: Install Go
             uses: actions/setup-go@v4

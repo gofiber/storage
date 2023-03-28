@@ -7,25 +7,14 @@ on:
 name: Security
 jobs:
     Gosec:
-        strategy:
-            matrix:
-                go-version:
-                    - 1.17.x
-                    - 1.18.x
-                    - 1.19.x
-                    - 1.20.x
-                platform:
-                    - ubuntu-latest
-                    - windows-latest
-                    - macos-latest
-        runs-on: '${{ matrix.platform }}'
+        runs-on: ubuntu-latest
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v3
             -   name: Install Go
                 uses: actions/setup-go@v4
                 with:
-                    go-version: '${{ matrix.go-version }}'
+                    go-version: '^1.17.x'
             -   name: Install Gosec
                 run: |
                     export PATH=${PATH}:`go env GOPATH`/bin

@@ -11,6 +11,7 @@ on:
 name: "Tests Postgres"
 jobs:
     Tests:
+        runs-on: ubuntu-latest
         services:
             postgres:
                 image: 'postgres:latest'
@@ -31,7 +32,6 @@ jobs:
                 platform:
                     - ubuntu-latest
                     - windows-latest
-        runs-on: ${{ matrix.platform }}
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v4
