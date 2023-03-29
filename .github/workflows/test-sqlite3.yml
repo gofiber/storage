@@ -14,13 +14,11 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.16.x
+                    - 1.17.x
                     - 1.18.x
                     - 1.19.x
-                platform:
-                    - ubuntu-latest
-                    - windows-latest
-        runs-on: '${{ matrix.platform }}'
+                    - 1.20.x
+        runs-on: ubuntu-latest
         steps:
             -   name: Install Go
                 uses: actions/setup-go@v4
