@@ -100,6 +100,19 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Create unique index for the "key" field
+	keyIndexModel := mongo.IndexModel{
+		Keys: bson.D{{
+			Key:   "key",
+			Value: 1,
+		}},
+		Options: options.Index().SetUnique(true),
+	}
+
+	if _, err := col.Indexes().CreateOne(ctx, keyIndexModel); err != nil {
+		panic(err)
+	}
+
 	store := &Storage{
 		db:  db,
 		col: col,
