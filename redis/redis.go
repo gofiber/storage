@@ -19,6 +19,8 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Create new redis client
+	var db *redis.Client
+
 	if cfg.URL != "" && !cfg.EnableFailover {
 		options, err := redis.ParseURL(cfg.URL)
 
@@ -28,9 +30,9 @@ func New(config ...Config) *Storage {
 
 		options.TLSConfig = cfg.TLSConfig
 		options.PoolSize = cfg.PoolSize
-		db := redis.NewClient(options)
+		db = redis.NewClient(options)
 	} else if cfg.EnableFailover {
-		db := redis.NewFailoverClient(&redis.FailoverOptions{
+		db = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:       cfg.MasterName,
 			SentinelAddrs:    cfg.SentinelHosts,
 			ClientName:       cfg.ClientName,
@@ -42,7 +44,7 @@ func New(config ...Config) *Storage {
 			PoolSize:         cfg.PoolSize,
 		})
 	} else {
-		db := redis.NewClient(&redis.Options{
+		db = redis.NewClient(&redis.Options{
 			Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 			DB:        cfg.Database,
 			Username:  cfg.Username,
