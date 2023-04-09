@@ -53,6 +53,16 @@ store := redis.New(redis.Config{
 	PoolSize:  10 * runtime.GOMAXPROCS(0),
 })
 
+// Initialize Redis Sentinel Server Client
+store := redis.New(redis.Config{
+	EnableFailover:   true,
+	MasterName:       "master-name",
+	SentinelHosts:    []string{":6379", ":6380", ":6381"},
+	ClientName:       "",
+	SentinelUsername: "",
+	SentinelPassword: "",
+})
+
 // or just the url with all information
 store = redis.New(redis.Config{
     URL:     "redis://<user>:<pass>@127.0.0.1:6379/<db>",
@@ -108,6 +118,31 @@ type Config struct {
 	//
 	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
 	PoolSize int
+
+	// EnableFailover to use redis FailoverClient with Sentinel instead of the standard redis Client
+	//
+	// Optional. Default is false
+	EnableFailover bool
+
+	// MasterName is the sentinel master's name
+	//
+	// Optional. Default is ""
+	MasterName string
+
+	// SentinelHosts where the Redis Sentinel is hosted
+	//
+	// Optional. Default is []string{}
+	SentinelHosts []string
+
+	// SentinelUsername
+	//
+	// Optional. Default is ""
+	SentinelUsername string
+
+	// SentinelPassword
+	//
+	// Optional. Default is ""
+	SentinelPassword string
 }
 
 ```
@@ -115,14 +150,20 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Host:      "127.0.0.1",
-	Port:      6379,
-	Username:  "",
-	Password:  "",
-	URL:       "",
-	Database:  0,
-	Reset:     false,
-	TLSConfig: nil,
-	PoolSize:  10 * runtime.GOMAXPROCS(0),
+	Host:             "127.0.0.1",
+	Port:             6379,
+	Username:         "",
+	Password:         "",
+	URL:              "",
+	Database:         0,
+	Reset:            false,
+	TLSConfig:        nil,
+	PoolSize:         10 * runtime.GOMAXPROCS(0),
+	EnableFailover:   false,
+	MasterName:       "",
+	SentinelHosts:    []string{},
+	ClientName:       "",
+	SentinelUsername: "",
+	SentinelPassword: "",
 }
 ```

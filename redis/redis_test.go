@@ -191,3 +191,31 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 
 	utils.AssertEqual(t, nil, testStoreUrl.Close())
 }
+
+func Test_Redis_Sentinel(t *testing.T) {
+	testStoreSentinel := New(Config{
+		EnableFailover:   true,
+		MasterName:       "",
+		SentinelHosts:    []string{"localhost:6379"},
+		ClientName:       "",
+		SentinelUsername: "",
+		SentinelPassword: "",
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreSentinel.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreSentinel.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreSentinel.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreSentinel.Close())
+}

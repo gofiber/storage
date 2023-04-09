@@ -38,12 +38,44 @@ type Config struct {
 	// Optional. Default is ""
 	URL string
 
+	// EnableFailover to use redis FailoverClient with Sentinel instead of the standard redis Client
+	//
+	// Optional. Default is false
+	EnableFailover bool
+
+	// SentinelHosts where the Redis Sentinel is hosted
+	//
+	// Optional. Default is []string{}
+	SentinelHosts []string
+
+	// MasterName is the sentinel master's name
+	//
+	// Optional. Default is ""
+	MasterName string
+
+	// ClientName will execute the `CLIENT SETNAME ClientName` command for each sentinel conn.
+	//
+	// Optional. Default is ""
+	ClientName string
+
+	// SentinelUsername
+	//
+	// Optional. Default is ""
+	SentinelUsername string
+
+	// SentinelPassword
+	//
+	// Optional. Default is ""
+	SentinelPassword string
+
 	// Reset clears any existing keys in existing Collection
 	//
 	// Optional. Default is false
 	Reset bool
 
 	// TLS Config to use. When set TLS will be negotiated.
+	//
+	// Optional. Default is nil
 	TLSConfig *tls.Config
 
 	// Maximum number of socket connections.
@@ -60,15 +92,21 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:      "127.0.0.1",
-	Port:      6379,
-	Username:  "",
-	Password:  "",
-	URL:       "",
-	Database:  0,
-	Reset:     false,
-	TLSConfig: nil,
-	PoolSize:  10 * runtime.GOMAXPROCS(0),
+	Host:             "127.0.0.1",
+	Port:             6379,
+	Username:         "",
+	Password:         "",
+	URL:              "",
+	Database:         0,
+	Reset:            false,
+	TLSConfig:        nil,
+	PoolSize:         10 * runtime.GOMAXPROCS(0),
+	EnableFailover:   false,
+	MasterName:       "",
+	SentinelHosts:    []string{},
+	ClientName:       "",
+	SentinelUsername: "",
+	SentinelPassword: "",
 }
 
 // Helper function to set default values
