@@ -26,13 +26,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the redis implementation:
 ```bash
-go get github.com/gofiber/storage/redis
+go get github.com/gofiber/storage/redis/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/redis"
+import "github.com/gofiber/storage/redis/v2"
 ```
 
 You can use the following possibilities to create a storage:

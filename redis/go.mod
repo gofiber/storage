@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/redis
+module github.com/gofiber/storage/redis/v2
 
 go 1.18
 
