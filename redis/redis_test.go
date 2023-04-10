@@ -322,3 +322,33 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 
 	utils.AssertEqual(t, nil, testStoreUniversal.Close())
 }
+
+func Test_Redis_Cluster(t *testing.T) {
+	testStoreUniversal := New(Config{
+		Addrs: []string{
+			"localhost:7000",
+			"localhost:7001",
+			"localhost:7002",
+			"localhost:7003",
+			"localhost:7004",
+			"localhost:7005",
+		},
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreUniversal.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUniversal.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUniversal.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
+}

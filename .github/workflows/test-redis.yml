@@ -40,6 +40,12 @@ jobs:
                     --tls-key-file ./redis/tests/tls/redis.key \
                     --tls-ca-cert-file ./redis/tests/tls/ca.crt&
 
+            -   name: Install Redis Cluster
+                uses: pfapi/redis-cluster-service@v1
+
+            -   name: Start redis cluster
+                run: systemctl start redis-cluster
+
             -   name: Install Go
                 uses: actions/setup-go@v4
                 with:
