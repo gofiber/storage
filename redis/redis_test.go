@@ -192,7 +192,7 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	utils.AssertEqual(t, nil, testStoreUrl.Close())
 }
 
-func Test_Redis_Universal(t *testing.T) {
+func Test_Redis_Universal_Addrs(t *testing.T) {
 	// This should failover and create a Single Node connection.
 	testStoreUniversal := New(Config{
 		Addrs:         []string{"localhost:6379"},
@@ -216,12 +216,93 @@ func Test_Redis_Universal(t *testing.T) {
 	utils.AssertEqual(t, nil, testStoreUniversal.Close())
 }
 
-func Test_Redis_Universal_With_URL(t *testing.T) {
+func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
-	// The URL should get ignored since EnableUniversalClient is enabled
+	// The URL should get ignored since it's empty
 	testStoreUniversal := New(Config{
 		URL:           "",
 		Addrs:         []string{"localhost:6379"},
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreUniversal.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUniversal.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUniversal.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
+}
+
+func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
+	// This should failover to creating a regular *redis.Client
+	// The Addrs field should get ignored since URL is defined
+	testStoreUniversal := New(Config{
+		URL:           "redis://localhost:6379",
+		Addrs:         []string{"localhost:6355"},
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreUniversal.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUniversal.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUniversal.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
+}
+
+func Test_Redis_Universal_With_HostPort(t *testing.T) {
+	// This should failover to creating a regular *redis.Client
+	// The Host and Port should get ignored since Addrs is defined
+	testStoreUniversal := New(Config{
+		Host:          "localhost",
+		Port:          6388,
+		Addrs:         []string{"localhost:6379"},
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreUniversal.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUniversal.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUniversal.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
+}
+
+func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
+	// This should failover to creating a regular *redis.Client
+	// The Host and Port should get ignored since Addrs is defined
+	testStoreUniversal := New(Config{
+		URL:           "redis://localhost:6379",
+		Host:          "localhost",
+		Port:          6388,
+		Addrs:         []string{"localhost:6399"},
 	})
 
 	var (
