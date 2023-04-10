@@ -40,11 +40,15 @@ jobs:
                     --tls-key-file ./redis/tests/tls/redis.key \
                     --tls-ca-cert-file ./redis/tests/tls/ca.crt&
 
-            -   name: Install Redis Cluster
-                uses: pfapi/redis-cluster-service@v1
-
-            -   name: Start redis cluster
-                run: systemctl start redis-cluster
+            -   name: Setup Redis Cluster
+                uses: vishnudxb/redis-cluster@1
+                with:
+                    master1-port: 7000
+                    master2-port: 7001
+                    master3-port: 7002
+                    slave1-port: 7003
+                    slave2-port: 7004
+                    slave3-port: 7005
 
             -   name: Install Go
                 uses: actions/setup-go@v4
