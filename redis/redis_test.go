@@ -195,7 +195,7 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 func Test_Redis_Universal_Addrs(t *testing.T) {
 	// This should failover and create a Single Node connection.
 	testStoreUniversal := New(Config{
-		Addrs:         []string{"localhost:6379"},
+		Addrs: []string{"localhost:6379"},
 	})
 
 	var (
@@ -220,8 +220,8 @@ func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The URL should get ignored since it's empty
 	testStoreUniversal := New(Config{
-		URL:           "",
-		Addrs:         []string{"localhost:6379"},
+		URL:   "",
+		Addrs: []string{"localhost:6379"},
 	})
 
 	var (
@@ -246,8 +246,8 @@ func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Addrs field should get ignored since URL is defined
 	testStoreUniversal := New(Config{
-		URL:           "redis://localhost:6379",
-		Addrs:         []string{"localhost:6355"},
+		URL:   "redis://localhost:6379",
+		Addrs: []string{"localhost:6355"},
 	})
 
 	var (
@@ -272,9 +272,9 @@ func Test_Redis_Universal_With_HostPort(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Host and Port should get ignored since Addrs is defined
 	testStoreUniversal := New(Config{
-		Host:          "localhost",
-		Port:          6388,
-		Addrs:         []string{"localhost:6379"},
+		Host:  "localhost",
+		Port:  6388,
+		Addrs: []string{"localhost:6379"},
 	})
 
 	var (
@@ -299,10 +299,10 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Host and Port should get ignored since Addrs is defined
 	testStoreUniversal := New(Config{
-		URL:           "redis://localhost:6379",
-		Host:          "localhost",
-		Port:          6388,
-		Addrs:         []string{"localhost:6399"},
+		URL:   "redis://localhost:6379",
+		Host:  "localhost",
+		Port:  6388,
+		Addrs: []string{"localhost:6399"},
 	})
 
 	var (
