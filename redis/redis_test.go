@@ -192,14 +192,10 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	utils.AssertEqual(t, nil, testStoreUrl.Close())
 }
 
-func Test_Redis_Sentinel(t *testing.T) {
-	testStoreSentinel := New(Config{
-		EnableFailover:   true,
-		MasterName:       "",
-		SentinelHosts:    []string{"localhost:6379"},
-		ClientName:       "",
-		SentinelUsername: "",
-		SentinelPassword: "",
+func Test_Redis_Universal(t *testing.T) {
+	// This should failover and create a Single Node connection.
+	testStoreUniversal := New(Config{
+		Addrs:         []string{"localhost:6379"},
 	})
 
 	var (
@@ -207,15 +203,41 @@ func Test_Redis_Sentinel(t *testing.T) {
 		val = []byte("wayne")
 	)
 
-	err := testStoreSentinel.Set(key, val, 0)
+	err := testStoreUniversal.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
-	result, err := testStoreSentinel.Get(key)
+	result, err := testStoreUniversal.Get(key)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
 
-	err = testStoreSentinel.Delete(key)
+	err = testStoreUniversal.Delete(key)
 	utils.AssertEqual(t, nil, err)
 
-	utils.AssertEqual(t, nil, testStoreSentinel.Close())
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
+}
+
+func Test_Redis_Universal_With_URL(t *testing.T) {
+	// This should failover to creating a regular *redis.Client
+	// The URL should get ignored since EnableUniversalClient is enabled
+	testStoreUniversal := New(Config{
+		URL:           "",
+		Addrs:         []string{"localhost:6379"},
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStoreUniversal.Set(key, val, 0)
+	utils.AssertEqual(t, nil, err)
+
+	result, err := testStoreUniversal.Get(key)
+	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, val, result)
+
+	err = testStoreUniversal.Delete(key)
+	utils.AssertEqual(t, nil, err)
+
+	utils.AssertEqual(t, nil, testStoreUniversal.Close())
 }

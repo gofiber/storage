@@ -32,28 +32,23 @@ type Config struct {
 	// Optional. Default is 0
 	Database int
 
-	// URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
+	// URL standard format Redis URL. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
 	//
 	// Example: redis://<user>:<pass>@localhost:6379/<db>
 	// Optional. Default is ""
 	URL string
 
-	// EnableFailover to use redis FailoverClient with Sentinel instead of the standard redis Client
-	//
-	// Optional. Default is false
-	EnableFailover bool
-
-	// SentinelHosts where the Redis Sentinel is hosted
+	// Either a single address or a seed list of host:port addresses, this enables FailoverClient and ClusterClient
 	//
 	// Optional. Default is []string{}
-	SentinelHosts []string
+	Addrs []string
 
 	// MasterName is the sentinel master's name
 	//
 	// Optional. Default is ""
 	MasterName string
 
-	// ClientName will execute the `CLIENT SETNAME ClientName` command for each sentinel conn.
+	// ClientName will execute the `CLIENT SETNAME ClientName` command for each conn.
 	//
 	// Optional. Default is ""
 	ClientName string
@@ -82,31 +77,24 @@ type Config struct {
 	//
 	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
 	PoolSize int
-
-	////////////////////////////////////
-	// Adaptor related config options //
-	////////////////////////////////////
-
-	// https://pkg.go.dev/github.com/go-redis/redis/v8#Options
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:             "127.0.0.1",
-	Port:             6379,
-	Username:         "",
-	Password:         "",
-	URL:              "",
-	Database:         0,
-	Reset:            false,
-	TLSConfig:        nil,
-	PoolSize:         10 * runtime.GOMAXPROCS(0),
-	EnableFailover:   false,
-	MasterName:       "",
-	SentinelHosts:    []string{},
-	ClientName:       "",
-	SentinelUsername: "",
-	SentinelPassword: "",
+	Host:                  "127.0.0.1",
+	Port:                  6379,
+	Username:              "",
+	Password:              "",
+	URL:                   "",
+	Database:              0,
+	Reset:                 false,
+	TLSConfig:             nil,
+	PoolSize:              10 * runtime.GOMAXPROCS(0),
+	Addrs:                 []string{},
+	MasterName:            "",
+	ClientName:            "",
+	SentinelUsername:      "",
+	SentinelPassword:      "",
 }
 
 // Helper function to set default values
