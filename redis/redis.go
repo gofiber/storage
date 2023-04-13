@@ -10,7 +10,7 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db *redis.Client
+	db redis.UniversalClient
 }
 
 // New creates a new redis storage
@@ -18,31 +18,38 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Create new redis client
-	var options *redis.Options
-	var err error
+	// Create new redis universal client
+	var db redis.UniversalClient
 
+	// Parse the URL and update config values accordingly
 	if cfg.URL != "" {
-		options, err = redis.ParseURL(cfg.URL)
-
+		options, err := redis.ParseURL(cfg.URL)
 		if err != nil {
 			panic(err)
 		}
 
-		options.TLSConfig = cfg.TLSConfig
-		options.PoolSize = cfg.PoolSize
-	} else {
-		options = &redis.Options{
-			Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-			DB:        cfg.Database,
-			Username:  cfg.Username,
-			Password:  cfg.Password,
-			TLSConfig: cfg.TLSConfig,
-			PoolSize:  cfg.PoolSize,
-		}
+		// Update the config values with the parsed URL values
+		cfg.Username = options.Username
+		cfg.Password = options.Password
+		cfg.Database = options.DB
+		cfg.Addrs = []string{options.Addr}
+	} else if len(cfg.Addrs) == 0 {
+		// Fallback to Host and Port values if Addrs is empty
+		cfg.Addrs = []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}
 	}
 
-	db := redis.NewClient(options)
+	db = redis.NewUniversalClient(&redis.UniversalOptions{
+		Addrs:            cfg.Addrs,
+		MasterName:       cfg.MasterName,
+		ClientName:       cfg.ClientName,
+		SentinelUsername: cfg.SentinelUsername,
+		SentinelPassword: cfg.SentinelPassword,
+		DB:               cfg.Database,
+		Username:         cfg.Username,
+		Password:         cfg.Password,
+		TLSConfig:        cfg.TLSConfig,
+		PoolSize:         cfg.PoolSize,
+	})
 
 	// Test connection
 	if err := db.Ping(context.Background()).Err(); err != nil {
@@ -62,6 +69,8 @@ func New(config ...Config) *Storage {
 	}
 }
 
+// ...
+
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
@@ -76,7 +85,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -85,7 +93,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
@@ -103,6 +110,6 @@ func (s *Storage) Close() error {
 }
 
 // Return database client
-func (s *Storage) Conn() *redis.Client {
+func (s *Storage) Conn() redis.UniversalClient {
 	return s.db
 }

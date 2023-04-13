@@ -17,7 +17,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() *redis.Client
+func (s *Storage) Conn() redis.UniversalClient
 ```
 ### Installation
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -26,13 +26,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the redis implementation:
 ```bash
-go get github.com/gofiber/storage/redis
+go get github.com/gofiber/storage/redis/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/redis"
+import "github.com/gofiber/storage/redis/v2"
 ```
 
 You can use the following possibilities to create a storage:
@@ -46,11 +46,21 @@ store := redis.New(redis.Config{
 	Port:      6379,
 	Username:  "",
 	Password:  "",
-	URL:       "",
 	Database:  0,
 	Reset:     false,
 	TLSConfig: nil,
 	PoolSize:  10 * runtime.GOMAXPROCS(0),
+})
+
+// Initialize Redis Failover Client
+store := redis.New(redis.Config{
+	MasterName:       "master-name",
+	Addrs:            []string{":6379"},
+})
+
+// Initialize Redis Cluster Client
+store := redis.New(redis.Config{
+	Addrs:            []string{":6379", ":6380"},
 })
 
 // or just the url with all information
@@ -88,11 +98,36 @@ type Config struct {
 	// Optional. Default is 0
 	Database int
 
-	// URL the standard format redis url to parse all other options. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
+	// URL standard format Redis URL. If this is set all other config options, Host, Port, Username, Password, Database have no effect.
 	//
 	// Example: redis://<user>:<pass>@localhost:6379/<db>
 	// Optional. Default is ""
 	URL string
+
+	// Either a single address or a seed list of host:port addresses, this enables FailoverClient and ClusterClient
+	//
+	// Optional. Default is []string{}
+	Addrs []string
+
+	// MasterName is the sentinel master's name
+	//
+	// Optional. Default is ""
+	MasterName string
+
+	// ClientName will execute the `CLIENT SETNAME ClientName` command for each conn.
+	//
+	// Optional. Default is ""
+	ClientName string
+
+	// SentinelUsername
+	//
+	// Optional. Default is ""
+	SentinelUsername string
+
+	// SentinelPassword
+	//
+	// Optional. Default is ""
+	SentinelPassword string
 
 	// Reset clears any existing keys in existing Collection
 	//
@@ -109,20 +144,24 @@ type Config struct {
 	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
 	PoolSize int
 }
-
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Host:      "127.0.0.1",
-	Port:      6379,
-	Username:  "",
-	Password:  "",
-	URL:       "",
-	Database:  0,
-	Reset:     false,
-	TLSConfig: nil,
-	PoolSize:  10 * runtime.GOMAXPROCS(0),
+	Host:                  "127.0.0.1",
+	Port:                  6379,
+	Username:              "",
+	Password:              "",
+	URL:                   "",
+	Database:              0,
+	Reset:                 false,
+	TLSConfig:             nil,
+	PoolSize:              10 * runtime.GOMAXPROCS(0),
+	Addrs:                 []string{},
+	MasterName:            "",
+	ClientName:            "",
+	SentinelUsername:      "",
+	SentinelPassword:      "",
 }
 ```
