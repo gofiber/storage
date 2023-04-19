@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/arangodb/go-driver v1.5.2
-	github.com/gofiber/utils v1.0.1
+	github.com/gofiber/utils v1.1.0
 )
 
 require (
