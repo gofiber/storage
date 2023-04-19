@@ -3,7 +3,7 @@ module github.com/gofiber/storage/postgres/v2
 go 1.19
 
 require (
-	github.com/gofiber/utils v1.0.1
+	github.com/gofiber/utils v1.1.0
 	github.com/jackc/pgx/v5 v5.3.1
 )
 
