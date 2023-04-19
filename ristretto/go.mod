@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/dgraph-io/ristretto v0.1.1
-	github.com/gofiber/utils v1.0.1
+	github.com/gofiber/utils v1.1.0
 )
 
 require (
