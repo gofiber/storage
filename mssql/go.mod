@@ -3,7 +3,7 @@ module github.com/gofiber/storage/mssql
 go 1.18
 
 require (
-	github.com/gofiber/utils v1.0.1
+	github.com/gofiber/utils v1.1.0
 	github.com/microsoft/go-mssqldb v0.21.0
 )
 
