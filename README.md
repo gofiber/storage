@@ -1,8 +1,9 @@
 <p align="center">
-  <!-- <a href="https://gofiber.io">
-    <img alt="Fiber" height="125" src="https://raw.githubusercontent.com/gofiber/docs/master/static/fiber_v2_logo.svg">
-   </a>
-  <br>   -->
+  <picture>
+    <source height="125" media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gofiber/docs/master/static/img/logo-dark.svg">
+    <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/gofiber/docs/master/static/img/logo.svg">
+  </picture>
+  <br>
 
   # 📦 Storage
 
