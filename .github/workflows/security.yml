@@ -83,3 +83,7 @@ jobs:
                 working-directory: ./mssql
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
+             -   name: Run Gosec (leveldb)
+                working-directory: ./leveldb
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----

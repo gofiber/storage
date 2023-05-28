@@ -1,0 +1,19 @@
+name: Release Drafter LevelDB
+on:
+  push:
+    # branches to consider in the event; optional, defaults to all
+    branches:
+      - master
+      - main
+    paths:
+      - "leveldb/**"
+jobs:
+  draft_release_leveldb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter-leveldb.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
