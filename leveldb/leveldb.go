@@ -88,12 +88,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		cache.Expires = cache.Created + int64(exp.Seconds())
 	}
 
-	json_string, err := json.Marshal(cache)
+	jsonString, err := json.Marshal(cache)
 	if err != nil {
 		return err
 	}
 
-	return s.db.Put([]byte(key), []byte(json_string), s.writeOptions)
+	return s.db.Put([]byte(key), []byte(jsonString), s.writeOptions)
 }
 
 // Implement the logic to delete the value for the given key from the storage provider
