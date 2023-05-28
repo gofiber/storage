@@ -1,6 +1,6 @@
-# Redis
+# LevelDB
 
-A Redis storage driver using [syndtr/leveldb](https://github.com/syndtr/goleveldb).
+A LevelDB storage driver using [syndtr/leveldb](https://github.com/syndtr/goleveldb).
 
 ### Table of Contents
 
