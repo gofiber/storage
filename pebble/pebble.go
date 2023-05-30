@@ -1,19 +1,18 @@
-package leveldb
+package pebble
 
 import (
 	"encoding/json"
+	"errors"
+	"log"
 	"time"
 
-	"github.com/gofiber/storage/leveldb/internal"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/errors"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/cockroachdb/pebble"
+	"github.com/gofiber/storage/pebble/internal"
 )
 
 type Storage struct {
-	db           *leveldb.DB
-	readOptions  *opt.ReadOptions
-	writeOptions *opt.WriteOptions
+	db           *pebble.DB
+	writeOptions *pebble.WriteOptions
 }
 
 type CacheType struct {
@@ -28,33 +27,36 @@ func New(config ...Config) *Storage {
 	if !internal.IsValid(cfg.Path) {
 		panic(errors.New("invalid filepath"))
 	}
-	db, err := leveldb.OpenFile(cfg.Path, cfg.LevelDBOptions)
+
+	db, err := pebble.Open(cfg.Path, &pebble.Options{})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return &Storage{
 		db:           db,
-		readOptions:  cfg.LevelDBReadOptions,
-		writeOptions: cfg.LevelDBWriteOptions,
+		writeOptions: cfg.WriteOptions,
 	}
 }
 
-// Implement the logic to retrieve the value for the given key from the storage provider
-// Return nil, nil if the key does not exist
+// // Implement the logic to retrieve the value for the given key from the storage provider
+// // Return nil, nil if the key does not exist
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
+	data, closer, err := s.db.Get([]byte(key))
 
-	data, err := s.db.Get([]byte(key), nil)
-
-	if err != nil && err != errors.ErrNotFound {
+	if err != nil {
 		return nil, err
 	}
 
 	if data == nil {
 		return nil, nil
+	}
+
+	if err := closer.Close(); err != nil {
+		log.Fatal(err)
 	}
 
 	var cache CacheType
@@ -70,13 +72,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		s.db.Delete([]byte(key), nil)
 		return nil, nil
 	}
-
 	return cache.Data, nil
 }
 
-// Implement the logic to store the given value for the given key in the storage provider
-// Use the provided expiration value (0 means no expiration)
-// Ignore empty key or value without returning an error
+// // Implement the logic to store the given value for the given key in the storage provider
+// // Use the provided expiration value (0 means no expiration)
+// // Ignore empty key or value without returning an error
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -92,12 +93,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if err != nil {
 		return err
 	}
-
-	return s.db.Put([]byte(key), []byte(jsonString), s.writeOptions)
+	return s.db.Set([]byte(key), jsonString, s.writeOptions)
 }
 
-// Implement the logic to delete the value for the given key from the storage provider
-// Return no error if the key does not exist in the storage
+// // Implement the logic to delete the value for the given key from the storage provider
+// // Return no error if the key does not exist in the storage
 func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
@@ -106,28 +106,14 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) Reset() error {
-	iter := s.db.NewIterator(nil, nil)
-	defer iter.Release()
-
-	for iter.Next() {
-		key := iter.Key()
-		if err := s.db.Delete(key, nil); err != nil {
-			return err
-		}
-	}
-
-	if err := iter.Error(); err != nil {
-		return err
-	}
-
-	return nil
+	return s.db.Flush()
 }
 
 func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-// Return database client
-func (s *Storage) Conn() *leveldb.DB {
+// // Return database client
+func (s *Storage) Conn() *pebble.DB {
 	return s.db
 }

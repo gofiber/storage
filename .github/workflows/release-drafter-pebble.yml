@@ -1,4 +1,4 @@
-name: Release Drafter LevelDB
+name: Release Drafter Pebble
 on:
   push:
     # branches to consider in the event; optional, defaults to all
@@ -6,14 +6,14 @@ on:
       - master
       - main
     paths:
-      - "leveldb/**"
+      - "pebble/**"
 jobs:
-  draft_release_leveldb:
+  draft_release_pebble:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: release-drafter/release-drafter@v5
         with:
-          config-name: release-drafter-leveldb.yml
+          config-name: release-drafter-pebble.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

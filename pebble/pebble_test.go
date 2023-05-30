@@ -1,4 +1,4 @@
-package leveldb
+package pebble
 
 import (
 	"testing"
@@ -10,11 +10,9 @@ import (
 var testStore = New(Config{
 	"test.db",
 	nil,
-	nil,
-	nil,
 })
 
-func Test_LevelDB_Set(t *testing.T) {
+func Test_Pebble_Set(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -24,7 +22,7 @@ func Test_LevelDB_Set(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_LevelDB_Set_Override(t *testing.T) {
+func Test_Pebble_Set_Override(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -37,7 +35,7 @@ func Test_LevelDB_Set_Override(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_LevelDB_Get(t *testing.T) {
+func Test_Pebble_Get(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -51,20 +49,7 @@ func Test_LevelDB_Get(t *testing.T) {
 	utils.AssertEqual(t, val, result)
 }
 
-func Test_LevelDB_Get_Not_Exist(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
-
-	_, err = testStore.Get("jane")
-	utils.AssertEqual(t, nil, err)
-}
-
-func Test_LevelDB_Set_Expiration(t *testing.T) {
+func Test_Pebble_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -77,26 +62,20 @@ func Test_LevelDB_Set_Expiration(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 }
 
-func Test_LevelDB_Get_NotExist(t *testing.T) {
-	result, err := testStore.Get("notexist")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
-}
-
 func Test_LevelDB_Delete(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 20)
 	utils.AssertEqual(t, nil, err)
 
 	err = testStore.Delete(key)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
+	utils.AssertEqual(t, "pebble: not found", err.Error())
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
@@ -114,13 +93,11 @@ func Test_LevelDB_Reset(t *testing.T) {
 	err = testStore.Reset()
 	utils.AssertEqual(t, nil, err)
 
-	result, err := testStore.Get("john1")
+	_, err = testStore.Get("john1")
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
 
-	result, err = testStore.Get("john2")
+	_, err = testStore.Get("john2")
 	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
 }
 
 func Test_LevelDB_Close(t *testing.T) {

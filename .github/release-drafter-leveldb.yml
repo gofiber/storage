@@ -1,8 +1,8 @@
-name-template: "LevelDB - v$RESOLVED_VERSION"
-tag-template: "leveldb/v$RESOLVED_VERSION"
-tag-prefix: leveldb/v
+name-template: "Pebble - v$RESOLVED_VERSION"
+tag-template: "pebble/v$RESOLVED_VERSION"
+tag-prefix: pebble/v
 include-paths:
-  - leveldb
+  - pebble
 categories:
   - title: "🚀 New"
     labels:
@@ -38,6 +38,6 @@ version-resolver:
 template: |
   $CHANGES
 
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...leveldb/v$RESOLVED_VERSION
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...pebble/v$RESOLVED_VERSION
 
   Thank you $CONTRIBUTORS for making this update possible.

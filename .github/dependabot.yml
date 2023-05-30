@@ -27,7 +27,7 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
-        directory: "/leveldb/" # Location of package manifests
+        directory: "/pebble/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
         schedule:

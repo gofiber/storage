@@ -4,11 +4,11 @@ on:
       - master
       - main
     paths:
-      - "leveldb/**"
+      - "pebble/**"
   pull_request:
     paths:
-      - "leveldb/**"
-name: "Tests leveldb"
+      - "pebble/**"
+name: "Tests pebble"
 jobs:
   Tests:
     strategy:
@@ -42,5 +42,5 @@ jobs:
 
       - name: Fetch Repository
         uses: actions/checkout@v3
-      - name: Test LevelDB
-        run: cd ./leveldb && go test ./... -v -race
+      - name: Test Pebble
+        run: cd ./pebble && go test ./... -v -race
