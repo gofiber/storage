@@ -62,7 +62,7 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 }
 
-func Test_LevelDB_Delete(t *testing.T) {
+func Test_Pebble_Delete(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -79,7 +79,7 @@ func Test_LevelDB_Delete(t *testing.T) {
 	utils.AssertEqual(t, true, len(result) == 0)
 }
 
-func Test_LevelDB_Reset(t *testing.T) {
+func Test_Pebble_Reset(t *testing.T) {
 	var (
 		val = []byte("doe")
 	)
@@ -100,10 +100,10 @@ func Test_LevelDB_Reset(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 }
 
-func Test_LevelDB_Close(t *testing.T) {
+func Test_Pebble_Close(t *testing.T) {
 	utils.AssertEqual(t, nil, testStore.Close())
 }
 
-func Test_LevelDB_Conn(t *testing.T) {
+func Test_Pebble_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
