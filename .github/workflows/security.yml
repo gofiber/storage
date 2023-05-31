@@ -31,6 +31,10 @@ jobs:
                 working-directory: ./badger
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
+            -   name: Run Gosec (couchbase)
+                working-directory: ./couchbase
+                run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
+                # -----
             -   name: Run Gosec (dynamodb)
                 working-directory: ./dynamodb
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
