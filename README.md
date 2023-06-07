@@ -78,6 +78,9 @@ type Storage interface {
 - [MySQL](/mysql) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MySQL%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-mysql.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+- [Pebble](/pebble) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Pebble%22">
+  <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-pebble.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 - [Postgres](/postgres) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Postgres%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-postgres.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
@@ -89,6 +92,4 @@ type Storage interface {
   </a>
 - [S3](/s3) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-s3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
-- [Pebble](/pebble) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Pebble%22">
-  <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-pebble.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
-  </a>
+
