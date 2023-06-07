@@ -25,10 +25,10 @@ func (s *Storage) Conn() *badger.DB
 ### Installation
 
 Pebble is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
-
 ```bash
 go mod init github.com/<user>/<repo>
 ```
+Note: This step is only required if you don't have an existing module.
 
 And then install the Pebble implementation:
 
