@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"os"
 	"time"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/gofiber/storage/pebble/internal"
 )
 
 type Storage struct {
@@ -24,7 +24,7 @@ type CacheType struct {
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	if !internal.IsValid(cfg.Path) {
+	if !isValid(cfg.Path) {
 		panic(errors.New("invalid filepath"))
 	}
 
@@ -116,4 +116,20 @@ func (s *Storage) Close() error {
 // // Return database client
 func (s *Storage) Conn() *pebble.DB {
 	return s.db
+}
+
+func isValid(fp string) bool {
+	// Check if file already exists
+	if _, err := os.Stat(fp); err == nil {
+		return true
+	}
+
+	// Attempt to create it
+	var d []byte
+	if err := os.WriteFile(fp, d, 0644); err == nil {
+		os.Remove(fp) // And delete it
+		return true
+	}
+
+	return false
 }
