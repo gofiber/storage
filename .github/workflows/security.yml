@@ -83,7 +83,7 @@ jobs:
                 working-directory: ./mssql
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
-             -   name: Run Gosec (pebble)
+            -   name: Run Gosec (pebble)
                 working-directory: ./pebble
                 run: "`go env GOPATH`/bin/gosec -exclude-dir=internal ./..."
                 # -----
