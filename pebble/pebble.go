@@ -132,6 +132,11 @@ func isValid(fp string) bool {
 		return false
 	}
 
-	os.Remove(fp) // And delete it
+	err = os.Remove(fp) // And delete it
+
+	if err != nil {
+		return false
+	}
+
 	return true
 }
