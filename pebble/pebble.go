@@ -126,10 +126,12 @@ func isValid(fp string) bool {
 
 	// Attempt to create it
 	var d []byte
-	if err := os.WriteFile(fp, d, 0644); err == nil {
-		os.Remove(fp) // And delete it
-		return true
+	err := os.WriteFile(fp, d, 0600)
+
+	if err != nil {
+		return false
 	}
 
-	return false
+	os.Remove(fp) // And delete it
+	return true
 }
