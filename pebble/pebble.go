@@ -69,8 +69,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expires > 0 && cache.Expires <= secs {
-		s.db.Delete([]byte(key), nil)
-		return nil, nil
+		err = s.db.Delete([]byte(key), nil)
+		return nil, err
 	}
 	return cache.Data, nil
 }
