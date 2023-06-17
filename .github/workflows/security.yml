@@ -1,4 +1,4 @@
-name: Security
+name: Gosec Security Scan
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
     pull_request:
 
 jobs:
-  Gosec:
+  gosec-scan:
     runs-on: ubuntu-latest
     env:
       GO111MODULE: on
     steps:
-      -   name: Fetch Repository
-          uses: actions/checkout@v3
+      - name: Fetch Repository
+        uses: actions/checkout@v3
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
         with:

@@ -1,15 +1,19 @@
+name: Govulncheck Security Scan
+
 on: [push, pull_request_target]
-name: Vulnerability Check
+
 jobs:
-  Security:
+  govulncheck-check:
     runs-on: ubuntu-latest
     steps:
+    - name: Fetch Repository
+      uses: actions/checkout@v3
     - name: Install Go
       uses: actions/setup-go@v4
       with:
-        go-version: 1.18.x
-    - name: Fetch Repository
-      uses: actions/checkout@v3
+        go-version: '1.18.x'
+        check-latest: true
+        cache: false
     - name: Install Govulncheck
       run: |
           export GO111MODULE=on
