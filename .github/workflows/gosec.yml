@@ -1,11 +1,6 @@
 name: Gosec Security Scan
 
-on:
-  push:
-    branches:
-      - master
-      - main
-    pull_request:
+on: [push, pull_request_target]
 
 jobs:
   gosec-scan:
