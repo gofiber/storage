@@ -1,6 +1,23 @@
 name: Gosec Security Scan
 
-on: [push, pull_request_target]
+on:
+  push:
+    branches:
+      - "master"
+      - "main"
+    paths-ignore:
+      - "**.md"
+      - LICENSE
+      - ".github/ISSUE_TEMPLATE/*.yml"
+      - ".github/dependabot.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths-ignore:
+      - "**.md"
+      - LICENSE
+      - ".github/ISSUE_TEMPLATE/*.yml"
+      - ".github/dependabot.yml"
 
 jobs:
   gosec-scan:
