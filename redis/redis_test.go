@@ -165,7 +165,7 @@ func Test_Redis_Initalize_WithURL_TLS_Without_x509Pair(t *testing.T) {
 		val = []byte("kent")
 	)
 
-	err = testStoreUrl.Set(key, val, 0)
+	err := testStoreUrl.Set(key, val, 0)
 	utils.AssertEqual(t, nil, err)
 
 	result, err := testStoreUrl.Get(key)
