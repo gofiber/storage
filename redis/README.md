@@ -64,8 +64,15 @@ store := redis.New(redis.Config{
 })
 
 // Create a client with support for TLS
+cer, err := tls.LoadX509KeyPair("./client.crt", "./client.key")
+if err != nil {
+	log.Println(err)
+	return
+}
 tlsCfg := &tls.Config{
-	MinVersion:       tls.VersionTLS12,
+	MinVersion:               tls.VersionTLS12,
+	InsecureSkipVerify:       true,
+	Certificates:             []tls.Certificate{cer},
 }
 store = redis.New(redis.Config{
     URL:     	"redis://<user>:<pass>@127.0.0.1:6379/<db>",
@@ -73,7 +80,7 @@ store = redis.New(redis.Config{
     Reset:    	false,
 })
 
-// or just the url with all information
+// Create a client with a Redis URL with all information.
 store = redis.New(redis.Config{
     URL:     "redis://<user>:<pass>@127.0.0.1:6379/<db>",
     Reset:    false,

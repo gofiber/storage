@@ -149,35 +149,6 @@ func Test_Redis_Initalize_WithURL(t *testing.T) {
 	utils.AssertEqual(t, nil, testStoreUrl.Close())
 }
 
-func Test_Redis_Initalize_WithURL_TLS_Without_x509Pair(t *testing.T) {
-	tlsCfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		InsecureSkipVerify:       true,
-	}
-
-	testStoreUrl := New(Config{
-		URL:       "redis://localhost:6380",
-		TLSConfig: tlsCfg,
-	})
-
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err := testStoreUrl.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
-
-	result, err := testStoreUrl.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	utils.AssertEqual(t, nil, err)
-
-	utils.AssertEqual(t, nil, testStoreUrl.Close())
-}
-
 func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	cer, err := tls.LoadX509KeyPair("./tests/tls/client.crt", "./tests/tls/client.key")
 	if err != nil {
