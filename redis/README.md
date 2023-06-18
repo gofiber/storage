@@ -35,7 +35,7 @@ Import the storage package.
 import "github.com/gofiber/storage/redis/v2"
 ```
 
-You can use the following possibilities to create a storage:
+You can use the one of the following options to create a Redis Storage:
 ```go
 // Initialize default config
 store := redis.New()
@@ -61,6 +61,16 @@ store := redis.New(redis.Config{
 // Initialize Redis Cluster Client
 store := redis.New(redis.Config{
 	Addrs:            []string{":6379", ":6380"},
+})
+
+// Create a client with support for TLS
+tlsCfg := &tls.Config{
+	MinVersion:       tls.VersionTLS12,
+}
+store = redis.New(redis.Config{
+    URL:     	"redis://<user>:<pass>@127.0.0.1:6379/<db>",
+	TLSConfig: 	tlsCfg,
+    Reset:    	false,
 })
 
 // or just the url with all information
