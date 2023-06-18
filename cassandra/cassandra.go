@@ -45,6 +45,7 @@ func New(config ...Config) *Storage {
 
 	cluster := gocql.NewCluster(url)
 	cluster.Keyspace = cfg.Keyspace
+	cluster.ProtoVersion = 4
 
 	session, err := cluster.CreateSession()
 	if err != nil {
