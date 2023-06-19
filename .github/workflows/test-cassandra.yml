@@ -17,7 +17,9 @@ jobs:
                 image: 'cassandra:latest'
                 ports:
                     - '9042:9042'
-                options: --listen-address 0.0.0.0
+                env:
+                  CASSANDRA_LISTEN_ADDRESS: '0.0.0.0'
+                  CASSANDRA_BROADCAST_ADDRESS: '0.0.0.0'
         strategy:
             matrix:
                 go-version:
