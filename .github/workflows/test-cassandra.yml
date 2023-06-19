@@ -17,6 +17,7 @@ jobs:
                 image: 'cassandra:latest'
                 ports:
                     - '9042:9042'
+                options: --listen-address 0.0.0.0
         strategy:
             matrix:
                 go-version:
