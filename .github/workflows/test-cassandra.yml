@@ -19,7 +19,6 @@ jobs:
                     - '9042:9042'
                 env:
                   CASSANDRA_RPC_ADDRESS: '0.0.0.0'
-                  CASSANDRA_BROADCAST_ADDRESS: '0.0.0.0'
         strategy:
             matrix:
                 go-version:
