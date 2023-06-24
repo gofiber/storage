@@ -3,7 +3,7 @@ module github.com/gofiber/storage/arangodb
 go 1.17
 
 require (
-	github.com/arangodb/go-driver v1.5.2
+	github.com/arangodb/go-driver v1.6.0
 	github.com/gofiber/utils v1.1.0
 )
 
