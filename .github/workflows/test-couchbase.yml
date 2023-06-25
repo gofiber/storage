@@ -22,8 +22,9 @@ jobs:
       - name: Install couchbase
         run: |
           docker run --name couchbase -d -p 8091-8097:8091-8097 -p 9123:9123 -p 11207:11207 -p 11210:11210 -p 11280:11280 -p 18091-18097:18091-18097 couchbase:enterprise-7.1.1
-          
+          sleep 1
           docker exec --tty couchbase couchbase-cli cluster-init -c localhost:8091 --cluster-username admin --cluster-password 123456 --cluster-ramsize 256 --services data
+          sleep 1
           docker exec --tty couchbase couchbase-cli bucket-create -c localhost:8091 --username admin --password 123456 --bucket fiber_storage --bucket-type couchbase --bucket-ramsize 100
       -   name: Install Go
           uses: actions/setup-go@v4
