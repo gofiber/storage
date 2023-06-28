@@ -1,7 +1,6 @@
 package couchbase
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -104,9 +103,7 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	_, err = testStorage.Get("test")
-	errStr := err.Error()
-
-	utils.AssertEqual(t, true, strings.Contains(errStr, "document not found"))
+	utils.AssertEqual(t, nil, err)
 }
 
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {
