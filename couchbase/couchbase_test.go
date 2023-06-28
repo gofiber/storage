@@ -86,9 +86,7 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 
 	_, err = testStorage.Get("test")
-	errStr := err.Error()
-
-	utils.AssertEqual(t, true, strings.Contains(errStr, "document not found"))
+	utils.AssertEqual(t, nil, err)
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
