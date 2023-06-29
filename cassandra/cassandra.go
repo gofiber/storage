@@ -36,7 +36,6 @@ var (
 		WHERE keyspace_name = '%s' AND columnfamily_name = '%s' AND column_name = 'v';`
 )
 
-// New creates a new redis storage
 func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
