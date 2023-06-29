@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'cassandra/**'
+  pull_request:
+    paths:
+      - 'cassandra/**'
+
+name: "Tests Cassandra"
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version:
+          - 1.19.x
+          - 1.20.x
+
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v3
+        
+      - name: Run Cassandra
+        run: |
+          docker run --name cassandra -e CASSANDRA_BROADCAST_ADDRESS=0.0.0.0 -d -p 9042:9042 cassandra:latest
+          sleep 30 # Wait for Cassandra to initialize
+       
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '${{ matrix.go-version }}'
+
+      - name: Run Test
+        run: cd ./cassandra && go test ./... -v -race
+
+

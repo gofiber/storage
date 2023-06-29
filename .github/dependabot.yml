@@ -33,6 +33,12 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
+        directory: "/cassandra/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "weekly"
+    -   package-ecosystem: "gomod"
         directory: "/dynamodb/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
