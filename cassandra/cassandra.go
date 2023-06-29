@@ -1,7 +1,6 @@
 package cassandra
 
 import (
-	"os"
 	"context"
 	"fmt"
 	"github.com/gocql/gocql"
@@ -39,14 +38,8 @@ var (
 
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
-
-	// Override Cassandra host with environment variable if set
-	cassandraHost := os.Getenv("CASSANDRA_HOST")
-	if cassandraHost == "" {
-		cassandraHost = cfg.Host // Default to configuration host if not set
-	}
 	
-	url := fmt.Sprintf("%s:%d", cassandraHost, cfg.Port)	
+	url := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)	
 
 	cluster := gocql.NewCluster(url)
 	cluster.Keyspace = cfg.Keyspace
