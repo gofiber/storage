@@ -26,9 +26,9 @@ jobs:
         uses: actions/checkout@v3
         
       - name: Run Cassandra
-	run: |
-    	  docker run --name cassandra -e CASSANDRA_BROADCAST_ADDRESS=0.0.0.0 -d -p 9042:9042 cassandra:latest
-    	  sleep 30 # Wait for Cassandra to initialize
+        run: |
+          docker run --name cassandra -e CASSANDRA_BROADCAST_ADDRESS=0.0.0.0 -d -p 9042:9042 cassandra:latest
+          sleep 30 # Wait for Cassandra to initialize
        
       - name: Install Go
         uses: actions/setup-go@v4
@@ -37,4 +37,5 @@ jobs:
 
       - name: Run Test
         run: cd ./cassandra && go test ./... -v -race
+
 
