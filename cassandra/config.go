@@ -31,9 +31,8 @@ type Config struct {
 	// Optional. Default 1
 	ReplicationFactor int
 
-
 	// Database to be operated on in the cluster.
-	// 
+	//
 	// Optional. Default is "".
 	Table string
 

@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-
 type Storage struct {
-	Cluster  *gocql.ClusterConfig
-	Session  *gocql.Session
+	Cluster *gocql.ClusterConfig
+	Session *gocql.Session
 
 	cqlSelect string
 	cqlInsert string
@@ -18,6 +17,7 @@ type Storage struct {
 	cqlReset  string
 	cqlGC     string
 }
+
 var (
 	checkSchemaMsg = "The `v` column has an incorrect data type. " +
 		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
@@ -51,14 +51,20 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Primitive ping method 
+	// Primitive ping method
 	if err := session.Query("SELECT release_version FROM system.local").Exec(); err != nil {
 		session.Close()
 		panic(err)
 	}
-	
-	// Drop table if reset set		
-	ctx := context.Background()	
+	if err := session.Query(fmt.Sprintf(
+		"CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};",
+		cfg.Keyspace,
+	)).Exec(); err != nil {
+		session.Close()
+		panic(err)
+	}
+	// Drop table if reset set
+	ctx := context.Background()
 	if cfg.Reset {
 		if err := session.Query(dropQuery, cfg.Table).WithContext(ctx).Exec(); err != nil {
 			session.Close()
@@ -69,29 +75,26 @@ func New(config ...Config) *Storage {
 	// Init database queries
 	ctx = context.Background()
 	for _, query := range initQuery {
-		
+
 		if err := session.Query(fmt.Sprintf(query, cfg.Table)).WithContext(ctx).Exec(); err != nil {
 			session.Close()
 			panic(err)
 		}
 	}
 
-	
 	storage := &Storage{
-		Cluster:  cluster,
-		Session:  session,
-	
-		cqlSelect : fmt.Sprintf(`SELECT v, e FROM %s WHERE k=?`, cfg.Table),
-		cqlInsert : fmt.Sprintf(`INSERT INTO %s (k, v, e) VALUES (?, ?, ?)`, cfg.Table),
-		cqlDelete : fmt.Sprintf(`DELETE FROM %s WHERE k=?`, cfg.Table),
-		cqlReset  : fmt.Sprintf(`TRUNCATE %s`, cfg.Table),
-		cqlGC     : fmt.Sprintf(`DELETE FROM %s WHERE e <= ? AND e != 0`, cfg.Table),
+		Cluster: cluster,
+		Session: session,
+
+		cqlSelect: fmt.Sprintf(`SELECT v, e FROM %s WHERE k=?`, cfg.Table),
+		cqlInsert: fmt.Sprintf(`INSERT INTO %s (k, v, e) VALUES (?, ?, ?)`, cfg.Table),
+		cqlDelete: fmt.Sprintf(`DELETE FROM %s WHERE k=?`, cfg.Table),
+		cqlReset:  fmt.Sprintf(`TRUNCATE %s`, cfg.Table),
+		cqlGC:     fmt.Sprintf(`DELETE FROM %s WHERE e <= ? AND e != 0`, cfg.Table),
 	}
 
 	return storage
 }
-
-
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {

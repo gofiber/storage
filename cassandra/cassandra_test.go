@@ -1,18 +1,17 @@
 package cassandra
 
 import (
+	"github.com/gofiber/utils"
 	"testing"
 	"time"
-	"github.com/gofiber/utils"
 )
 
 var testStore = New(Config{})
 
-
 func Test_Cassandra_Set(t *testing.T) {
 	// Create a new instance of the Storage
 	var (
-		key = "john"
+		key   = "john"
 		value = []byte("doe")
 	)
 	err := testStore.Set(key, value, time.Minute)
@@ -45,7 +44,6 @@ func Test_Cassandra_Get(t *testing.T) {
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, val, result)
 }
-
 
 func Test_Cassandra_Set_Expiration(t *testing.T) {
 	var (

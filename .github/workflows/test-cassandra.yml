@@ -14,11 +14,6 @@ name: "Tests Cassandra"
 jobs:
   Tests:
     runs-on: ubuntu-latest
-    services:
-      cassandra:
-        image: 'cassandra:latest'
-        ports:
-          - '9042:9042'
 
     strategy:
       matrix:
@@ -29,14 +24,16 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v3
-
+        
+      - name: Run Cassandra
+        run: |
+          docker run --name cassandra -d -p 9042:9042 cassandra:latest
+          sleep 30 # Wait for Cassandra to initialize
+        
       - name: Install Go
         uses: actions/setup-go@v4
         with:
           go-version: '${{ matrix.go-version }}'
-
-      - name: Wait for Cassandra
-        run: sleep 30 # Wait for Cassandra to initialize
 
       - name: Run Test
         run: cd ./cassandra && go test ./... -v -race
