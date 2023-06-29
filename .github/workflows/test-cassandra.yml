@@ -36,5 +36,7 @@ jobs:
           go-version: '${{ matrix.go-version }}'
 
       - name: Run Test
+        env:
+          CASSANDRA_HOST: host.docker.internal
         run: cd ./cassandra && go test ./... -v -race
 
