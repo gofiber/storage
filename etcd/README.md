@@ -59,6 +59,8 @@ type Config struct {
     Username    string
     // Password is a password for authentication.
     Password    string
+	// TLS holds the client secure credentials, if any.
+	TLS *tls.Config
 }
 ```
 
@@ -66,8 +68,9 @@ type Config struct {
 ```go
 var ConfigDefault = Config{
     Endpoints:   []string{"localhost:2379"},
-    DialTimeout: 1 * time.Millisecond,
+    DialTimeout: 2 * time.Second,
     Username:    "",
     Password:    "",
+    TLS:         nil,
 }
 ```

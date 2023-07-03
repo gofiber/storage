@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"crypto/tls"
 	"time"
 )
 
@@ -14,6 +15,8 @@ type Config struct {
 	Username string
 	// Password is a password for authentication.
 	Password string
+	// TLS holds the client secure credentials, if any.
+	TLS *tls.Config
 }
 
 // ConfigDefault is the default config
@@ -22,6 +25,7 @@ var ConfigDefault = Config{
 	DialTimeout: 2 * time.Second,
 	Username:    "",
 	Password:    "",
+	TLS:         nil,
 }
 
 // Helper function to set default values

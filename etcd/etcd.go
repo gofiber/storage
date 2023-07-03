@@ -18,6 +18,7 @@ func New(config ...Config) *Storage {
 		DialTimeout: cfg.DialTimeout,
 		Username:    cfg.Username,
 		Password:    cfg.Password,
+		TLS:         cfg.TLS,
 	})
 	if err != nil {
 		panic(err)
