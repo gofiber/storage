@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/etcd
 
-go 1.20
+go 1.19
 
 require (
 	github.com/gofiber/utils v1.1.0
