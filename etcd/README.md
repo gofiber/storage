@@ -59,8 +59,6 @@ type Config struct {
     Username    string
     // Password is a password for authentication.
     Password    string
-    // Context is the context for the client.
-    Context     context.Context
 }
 ```
 
@@ -71,6 +69,5 @@ var ConfigDefault = Config{
     DialTimeout: 1 * time.Millisecond,
     Username:    "",
     Password:    "",
-    Context:     context.TODO(),
 }
 ```
