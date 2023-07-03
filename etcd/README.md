@@ -51,10 +51,15 @@ store := etcd.New(Config{
 ### Config
 ```go
 type Config struct {
+    // Endpoints is a list of URLs.
     Endpoints   []string
+    // DialTimeout is the timeout for failing to establish a connection.
     DialTimeout time.Duration
+    // Username is a username for authentication.
     Username    string
+    // Password is a password for authentication.
     Password    string
+    // Context is the context for the client.
     Context     context.Context
 }
 ```

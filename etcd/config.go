@@ -7,11 +7,16 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
-	Endpoints   []string
+	// Endpoints is a list of URLs.
+	Endpoints []string
+	// DialTimeout is the timeout for failing to establish a connection.
 	DialTimeout time.Duration
-	Username    string
-	Password    string
-	Context     context.Context
+	// Username is a username for authentication.
+	Username string
+	// Password is a password for authentication.
+	Password string
+	// Context is the context for the client.
+	Context context.Context
 }
 
 // ConfigDefault is the default config
