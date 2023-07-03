@@ -18,7 +18,6 @@ func New(config ...Config) *Storage {
 		DialTimeout: cfg.DialTimeout,
 		Username:    cfg.Username,
 		Password:    cfg.Password,
-		Context:     cfg.Context,
 	})
 	if err != nil {
 		panic(err)
@@ -35,7 +34,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	item, err := s.db.Get(context.Background(), key)
+	item, err := s.db.Get(context.TODO(), key)
 
 	if err != nil {
 		return nil, err
@@ -54,13 +53,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 
-	lease, err := s.db.Grant(context.Background(), int64(exp.Seconds()))
+	lease, err := s.db.Grant(context.TODO(), int64(exp.Seconds()))
 
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Put(context.Background(), key, string(val), clientv3.WithLease(lease.ID))
+	_, err = s.db.Put(context.TODO(), key, string(val), clientv3.WithLease(lease.ID))
 	if err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
-	_, err := s.db.Delete(context.Background(), key)
+	_, err := s.db.Delete(context.TODO(), key)
 	if err != nil {
 		return err
 	}
@@ -82,7 +81,7 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) Reset() error {
-	_, err := s.db.Delete(context.Background(), "", clientv3.WithPrefix())
+	_, err := s.db.Delete(context.TODO(), "", clientv3.WithPrefix())
 
 	if err != nil {
 		return err
