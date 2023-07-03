@@ -36,7 +36,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	item, err := s.db.Get(context.TODO(), key)
+
 	if err != nil {
+		return nil, err
+	}
+
+	if len(item.Kvs) <= 0 {
 		return nil, err
 	}
 
@@ -49,7 +54,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 
-	lease, err := s.db.Grant(context.TODO(), exp.Nanoseconds())
+	lease, err := s.db.Grant(context.TODO(), int64(exp.Seconds()))
+
 	if err != nil {
 		return err
 	}
