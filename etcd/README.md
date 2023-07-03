@@ -21,13 +21,13 @@ func (s *Storage) Conn() *clientv3.Client
 ```
 
 ### Installation
-Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Etcd is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
-And then install the memory implementation:
+And then install the etcd implementation:
 ```bash
-go get github.com/gofiber/storage/memory
+go get github.com/gofiber/storage/etcd
 ```
 
 ### Examples
