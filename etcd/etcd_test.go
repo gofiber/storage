@@ -1,11 +1,13 @@
 package etcd
 
 import (
+	"fmt"
 	"github.com/gofiber/utils"
 	"testing"
 )
 
 func Test_Etcd_Set(t *testing.T) {
+	fmt.Println("==> Etcd_Set")
 	testStore := New(Config{
 		Endpoints: []string{"localhost:2379"},
 	})

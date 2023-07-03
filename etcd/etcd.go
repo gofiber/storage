@@ -86,7 +86,7 @@ func (s *Storage) Reset() error {
 }
 
 func (s *Storage) Close() error {
-	return nil
+	return s.db.Close()
 }
 
 func (s *Storage) Conn() *clientv3.Client {

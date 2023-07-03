@@ -18,13 +18,19 @@ jobs:
                     - 1.19.x
                     - 1.20.x
         steps:
-            - name: Fetch Repository
-              uses: actions/checkout@v3
-            - name: Install etcd
-              run: |
-                  docker pull quay.io/coreos/etcd:v3.4.0
-                  
-                  docker run -d -p 2379:2379 --name mytestetcd quay.io/coreos/etcd:v3.4.0
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Install etcd
+                run: |
+                    docker pull bitnami/etcd:latest
+                    
+                    docker run -d --name Etcd-server \
+                      --publish 2379:2379 \
+                      --publish 2380:2380 \
+                      --env ALLOW_NONE_AUTHENTICATION=yes \
+                      --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
+                      bitnami/etcd:latest
+
             -   name: Install Go
                 uses: actions/setup-go@v4
                 with:
