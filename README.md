@@ -66,6 +66,9 @@ type Storage interface {
 - [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+DynamoDB%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-dynamodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+- [Etcd](/etcd) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Etcd%22">
+  <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-Etcd.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 - [Memcache](/memcache) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Memcache%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-memcache.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
