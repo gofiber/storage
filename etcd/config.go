@@ -20,7 +20,7 @@ var ConfigDefault = Config{
 	DialTimeout: 1 * time.Millisecond,
 	Username:    "",
 	Password:    "",
-	Context:     context.TODO(),
+	Context:     context.Background(),
 }
 
 // Helper function to set default values
@@ -32,6 +32,23 @@ func configDefault(config ...Config) Config {
 
 	// Override default config
 	cfg := config[0]
+
+	// Set default values
+	if len(cfg.Endpoints) < 0 {
+		cfg.Endpoints = ConfigDefault.Endpoints
+	}
+	if cfg.DialTimeout == 0 {
+		cfg.DialTimeout = ConfigDefault.DialTimeout
+	}
+	if cfg.Username == "" {
+		cfg.Username = ConfigDefault.Username
+	}
+	if cfg.Password == "" {
+		cfg.Password = ConfigDefault.Password
+	}
+	if cfg.Context == nil {
+		cfg.Context = ConfigDefault.Context
+	}
 
 	return cfg
 }
