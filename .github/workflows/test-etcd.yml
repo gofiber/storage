@@ -1,0 +1,33 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'etcd/**'
+    pull_request:
+        paths:
+            - 'etcd/**'
+name: "Tests Etcd"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.19.x
+                    - 1.20.x
+        steps:
+            - name: Fetch Repository
+              uses: actions/checkout@v3
+            - name: Install etcd
+              run: |
+                  docker pull quay.io/coreos/etcd:v3.4.
+                  
+                  docker run -d -p 2379:2379 --name mytestetcd quay.io/coreos/etcd:v3.4.0
+            -   name: Install Go
+                uses: actions/setup-go@v4
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Run Test
+                run: cd ./etcd && go test ./... -v -race
