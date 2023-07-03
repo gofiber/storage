@@ -22,8 +22,6 @@ jobs:
                 uses: actions/checkout@v3
             -   name: Install etcd
                 run: |
-                    docker pull bitnami/etcd:latest
-                    
                     docker run -d --name Etcd-server \
                       --publish 2379:2379 \
                       --publish 2380:2380 \
