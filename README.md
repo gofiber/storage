@@ -60,6 +60,9 @@ type Storage interface {
 - [Bbolt](/bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Bbolt%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-bbolt.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>
+- [Couchbase](/couchbase) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Couchbase%22">
+    <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-couchbase.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
+  </a>
 - [DynamoDB](/dynamodb) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+DynamoDB%22">
   <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-dynamodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B">
   </a>

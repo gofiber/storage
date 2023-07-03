@@ -27,6 +27,12 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
+        directory: "/couchbase/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
         directory: "/pebble/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
