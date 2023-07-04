@@ -1,0 +1,37 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'etcd/**'
+    pull_request:
+        paths:
+            - 'etcd/**'
+name: "Tests Etcd"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.19.x
+                    - 1.20.x
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+            -   name: Install etcd
+                run: |
+                    docker run -d --name Etcd-server \
+                      --publish 2379:2379 \
+                      --publish 2380:2380 \
+                      --env ALLOW_NONE_AUTHENTICATION=yes \
+                      --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
+                      bitnami/etcd:latest
+
+            -   name: Install Go
+                uses: actions/setup-go@v4
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Run Test
+                run: cd ./etcd && go test ./... -v -race
