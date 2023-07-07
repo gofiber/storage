@@ -1,4 +1,14 @@
-# DynamoDB
+---
+id: dynamodb
+title: DynamoDB
+---
+
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=dynamodb*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-dynamodb.yml?label=Tests)
+![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
+![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
+
 A DynamoDB storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2).
 
 **Note:** If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role. If config fields of credentials given, credentials are using from config. Look at: [specifying credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
