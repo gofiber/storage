@@ -14,13 +14,13 @@ sidebar_position: 1
 # 📦 Storage
 
   <a href="https://pkg.go.dev/github.com/gofiber/storage?tab=doc">
-    <img src="https://img.shields.io/badge/%F0%9F%93%9A%20godoc-pkg-00ACD7.svg?color=00ACD7&style=flat">
+    <img src="https://img.shields.io/badge/%F0%9F%93%9A%20godoc-pkg-00ACD7.svg?color=00ACD7&style=flat"/>
   </a>
   <a href="https://goreportcard.com/report/github.com/gofiber/storage">
-    <img src="https://img.shields.io/badge/%F0%9F%93%9D%20goreport-A%2B-75C46B">
+    <img src="https://img.shields.io/badge/%F0%9F%93%9D%20goreport-A%2B-75C46B"/>
   </a>
   <a href="https://gofiber.io/discord">
-    <img src="https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7">
+    <img src="https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7"/>
   </a>
 </p>
 
@@ -69,6 +69,6 @@ type Storage interface {
 - [Pebble](./pebble/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Pebble%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-pebble.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Postgres](./postgres/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Postgres%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-postgres.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Redis](./redis/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Redis%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-redis.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
-- [S3](./s3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-s3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" />
+- [S3](./s3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-s3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [SQLite3](./sqlite3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Sqlite3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-sqlite3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 
