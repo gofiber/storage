@@ -5,10 +5,8 @@ sidebar_position: 1
 ---
 
 <p align="center">
-  <picture>
-    <source height="125" media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gofiber/storage/master/.github/logo-dark.svg" />
-    <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/gofiber/storage/master/.github/logo.svg" />
-  </picture>
+  <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/gofiber/storage/master/.github/logo-dark.svg#gh-dark-mode-only" />
+  <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/gofiber/storage/master/.github/logo.svg#gh-light-mode-only" />
   <br/>
 
 # 📦 Storage
