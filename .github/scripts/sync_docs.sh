@@ -60,4 +60,5 @@ if [[ $EVENT == "push" ]]; then
 elif [[ $EVENT == "release" ]]; then
     git commit -m "Sync docs for release ${COMMIT_URL}/releases/tag/${TAG_NAME}"
 fi
+git pull
 git push https://${TOKEN}@${REPO_URL}
