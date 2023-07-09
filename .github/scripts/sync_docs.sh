@@ -60,5 +60,21 @@ if [[ $EVENT == "push" ]]; then
 elif [[ $EVENT == "release" ]]; then
     git commit -m "Sync docs for release ${COMMIT_URL}/releases/tag/${TAG_NAME}"
 fi
-git pull
-git push https://${TOKEN}@${REPO_URL}
+
+MAX_RETRIES=5
+DELAY=5
+retry=0
+
+while ((retry < MAX_RETRIES))
+do
+    git push https://${TOKEN}@${REPO_URL} && break
+    retry=$((retry + 1))
+    git pull --rebase
+    sleep $DELAY
+done
+
+if ((retry == MAX_RETRIES))
+then
+    echo "Failed to push after $MAX_RETRIES attempts. Exiting with 1."
+    exit 1
+fi
