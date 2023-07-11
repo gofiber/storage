@@ -9,8 +9,6 @@ sidebar_position: 1
   <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/gofiber/storage/master/.github/logo.svg#gh-light-mode-only" />
   <br/>
 
-# 📦 Storage
-
   <a href="https://pkg.go.dev/github.com/gofiber/storage?tab=doc">
     <img src="https://img.shields.io/badge/%F0%9F%93%9A%20godoc-pkg-00ACD7.svg?color=00ACD7&style=flat"/>
   </a>
