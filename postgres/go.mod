@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/gofiber/utils v1.1.0
-	github.com/jackc/pgx/v5 v5.4.1
+	github.com/jackc/pgx/v5 v5.4.2
 )
 
 require (
