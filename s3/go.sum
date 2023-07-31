@@ -3,8 +3,9 @@ github.com/aws/aws-sdk-go-v2 v1.19.1 h1:STs0lbbpXu3byTPcnRLghs2DH0yk9qKDo27TyyJS
 github.com/aws/aws-sdk-go-v2 v1.19.1/go.mod h1:uzbQtefpm44goOPmdKyAlXSNcwlRgF3ePWVW6EtJvvw=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10 h1:dK82zF6kkPeCo8J1e+tGx4JdvDIQzj7ygIoLg8WMuGs=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10/go.mod h1:VeTZetY5KRJLuD/7fkQXMU6Mw7H5m/KP2J5Iy9osMno=
-github.com/aws/aws-sdk-go-v2/config v1.18.28 h1:TINEaKyh1Td64tqFvn09iYpKiWjmHYrG1fa91q2gnqw=
 github.com/aws/aws-sdk-go-v2/config v1.18.28/go.mod h1:nIL+4/8JdAuNHEjn/gPEXqtnS02Q3NXB/9Z7o5xE4+A=
+github.com/aws/aws-sdk-go-v2/config v1.18.30 h1:TTAXQIn31qYFUQjkW6siVrRTX1ux+sADZDOe3jsZcMg=
+github.com/aws/aws-sdk-go-v2/config v1.18.30/go.mod h1:+YogjT7e/t9JVu/sOnZZgxTge1G+bPNk8zOaI0QIQvE=
 github.com/aws/aws-sdk-go-v2/credentials v1.13.27/go.mod h1:syOqAek45ZXZp29HlnRS/BNgMIW6uiRmeuQsz4Qh2UE=
 github.com/aws/aws-sdk-go-v2/credentials v1.13.29 h1:KNgCpThGuZyCjq9EuuqoLDenKKMwO/x1Xx01ckDa7VI=
 github.com/aws/aws-sdk-go-v2/credentials v1.13.29/go.mod h1:VMq1LcmSEa9qxBlOCYTjVuGJWEEzhGmgL552jQsmhss=
@@ -19,8 +20,9 @@ github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.36/go.mod h1:T8Jsn/uNL/
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.29/go.mod h1:M/eUABlDbw2uVrdAn+UsI6M727qp2fxkp8K0ejcBDUY=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.30 h1:lMl8S5SB8jNCB+Sty2Em4lnu3IJytceHQd7qbmfqKL0=
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.30/go.mod h1:v3GSCnFxbHzt9dlWBqvA1K1f9lmWuf4ztupZBCAIVs4=
-github.com/aws/aws-sdk-go-v2/internal/ini v1.3.36 h1:8r5m1BoAWkn0TDC34lUculryf7nUF25EgIMdjvGCkgo=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.3.36/go.mod h1:Rmw2M1hMVTwiUhjwMoIBFWFJMhvJbct06sSidxInkhY=
+github.com/aws/aws-sdk-go-v2/internal/ini v1.3.37 h1:BXiqvN7WuV/pMhz8CivhO8cG8icJcjnjHumif4ukQ0c=
+github.com/aws/aws-sdk-go-v2/internal/ini v1.3.37/go.mod h1:d4GZ62cjnz/hjKFdAu11gAwK73bdhqaFv2O4J1gaqIs=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.27 h1:cZG7psLfqpkB6H+fIrgUDWmlzM474St1LP0jcz272yI=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.27/go.mod h1:ZdjYvJpDlefgh8/hWelJhqgqJeodxu4SmbVsSdBlL7E=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 h1:y2+VQzC6Zh2ojtV2LoC0MNwHWc6qXv/j2vrQtlftkdA=
