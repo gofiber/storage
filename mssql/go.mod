@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/gofiber/utils v1.1.0
-	github.com/microsoft/go-mssqldb v1.4.0
+	github.com/microsoft/go-mssqldb v1.5.0
 )
 
 require (
