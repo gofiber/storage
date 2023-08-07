@@ -4,6 +4,9 @@ tag-prefix: mysql/v
 include-paths:
   - mysql
 categories:
+    - title: '❗ Breaking Changes'
+      labels:
+          - '❗ BreakingChange'
     - title: '🚀 New'
       labels:
           - '✏️ Feature'
@@ -19,10 +22,14 @@ categories:
           - '📒 Documentation'
 change-template: '- $TITLE (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+exclude-contributors:
+    - dependabot
+    - dependabot[bot]
 version-resolver:
     major:
         labels:
             - 'major'
+            - '❗ BreakingChange'
     minor:
         labels:
             - 'minor'
