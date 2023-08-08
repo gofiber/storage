@@ -1,0 +1,48 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'coherence/**'
+  pull_request:
+    paths:
+      - 'coherence/**'
+name: "Tests Coherence"
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.19.x
+          - 1.20.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v3
+      - name: Startup Coherence
+        run: |
+          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
+          counter=0
+          while :
+            do
+            curl -v -X GET http://localhost:30000/management/coherence/cluster/health/ready > /dev/null 2>&1
+            ret=$?
+            if [ $ret -eq 0 ] ; then
+              break
+            else
+              let counter=counter+1
+              echo "Coherence not ready, counter=$counter"
+              if [ $counter -ge 10 ] ; then
+                echo "Not ready after 60 seconds, exiting"
+                exit 1
+              fi
+            fi
+            sleep 6
+          done
+      -   name: Install Go
+          uses: actions/setup-go@v4
+          with:
+            go-version: '${{ matrix.go-version }}'
+      -   name: Run Test
+          run: cd ./coherence && go clean -testcache && go test ./... -v
