@@ -45,6 +45,6 @@ version-resolver:
 template: |
     $CHANGES
 
-    **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...memcache/v$RESOLVED_VERSION
+    **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...coherence/v$RESOLVED_VERSION
 
     Thank you $CONTRIBUTORS for making this update possible.
