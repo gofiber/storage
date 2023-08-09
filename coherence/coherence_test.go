@@ -30,6 +30,8 @@ func Test_Coherence_Set_And_Get(t *testing.T) {
 	utils.AssertEqual(t, err, nil)
 	utils.AssertEqual(t, value1, val)
 
+	utils.AssertEqual(t, true, testStore.Conn() != nil)
+
 	utils.AssertEqual(t, testStore.Close(), nil)
 }
 
@@ -48,6 +50,30 @@ func Test_Coherence_Set_Override(t *testing.T) {
 	val, err = testStore.Get(key1)
 	utils.AssertEqual(t, err, nil)
 	utils.AssertEqual(t, value2, val)
+
+	utils.AssertEqual(t, testStore.Close(), nil)
+}
+
+func Test_Coherence_Set_With_Reset(t *testing.T) {
+	var val []byte
+
+	testStore, err := newTestStore(t)
+	utils.AssertEqual(t, err, nil)
+
+	err = testStore.Set(key1, value1, 0)
+	utils.AssertEqual(t, err, nil)
+
+	val, err = testStore.Get(key1)
+	utils.AssertEqual(t, err, nil)
+	utils.AssertEqual(t, value1, val)
+
+	// get a new store but reset it, so the subsequent Get will return nil
+	testStore, err = newTestStore(t, Config{Reset: true})
+	utils.AssertEqual(t, err, nil)
+
+	val, err = testStore.Get(key1)
+	utils.AssertEqual(t, err, nil)
+	utils.AssertEqual(t, true, len(val) == 0)
 
 	utils.AssertEqual(t, testStore.Close(), nil)
 }
@@ -144,10 +170,10 @@ func Test_Coherence_With_Scope(t *testing.T) {
 	var val []byte
 
 	// create two session stores with different scopes
-	testStore1, err := newTestStore(t, Config{SessionScope: "scope1"})
+	testStore1, err := newTestStore(t, Config{ScopeName: "scope1"})
 	utils.AssertEqual(t, err, nil)
 
-	testStore2, err := newTestStore(t, Config{SessionScope: "scope2"})
+	testStore2, err := newTestStore(t, Config{ScopeName: "scope2"})
 	utils.AssertEqual(t, err, nil)
 
 	// ensure we can put the same key with different values in each scope

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultScopeName = "fiber-session-store"
+	defaultScopeName = "default-store"
 	defaultTimeout   = time.Duration(30) * time.Millisecond
 )
 
@@ -29,19 +29,23 @@ type Config struct {
 	// UseSSL specified if to use SSL or plain text, defaults to false
 	UseSSL bool
 
-	// SessionTimeout is the default session timeout to connect to Coherence, defaults to 30s
-	SessionTimeout time.Duration
+	// Timeout is the default session timeout to connect to Coherence, defaults to 30s
+	Timeout time.Duration
 
-	// SessionScope defines a scope allowing for multiple storage sessions
-	SessionScope string
+	// ScopeName defines a scope allowing for multiple storage sessions
+	ScopeName string
+
+	// Reset indicates if the store should be reset after being created
+	Reset bool
 }
 
 // DefaultConfig defines default options.
 var DefaultConfig = Config{
-	Address:        "localhost:1408",
-	UseSSL:         false,
-	SessionTimeout: time.Duration(30) * time.Millisecond,
-	SessionScope:   defaultScopeName,
+	Address:   "localhost:1408",
+	UseSSL:    false,
+	Timeout:   time.Duration(30) * time.Millisecond,
+	ScopeName: defaultScopeName,
+	Reset:     false,
 }
 
 // New returns a new [Storage] given a [coherence.Session].
@@ -67,12 +71,12 @@ func New(config ...Config) (*Storage, error) {
 		options = append(options, coh.WithPlainText())
 	}
 
-	if cfg.SessionTimeout != defaultTimeout {
-		options = append(options, coh.WithReadyTimeout(cfg.SessionTimeout))
+	if cfg.Timeout != defaultTimeout {
+		options = append(options, coh.WithReadyTimeout(cfg.Timeout))
 	}
 
-	if cfg.SessionScope != defaultScopeName {
-		scopeName = cfg.SessionScope
+	if cfg.ScopeName != defaultScopeName {
+		scopeName = cfg.ScopeName
 	}
 
 	// create the Coherence session
@@ -81,7 +85,17 @@ func New(config ...Config) (*Storage, error) {
 		return nil, err
 	}
 
-	return newCoherenceStorage(session, scopeName)
+	store, err := newCoherenceStorage(session, scopeName)
+	if err != nil {
+		return nil, err
+	}
+
+	// if REset is true then reset the store
+	if cfg.Reset {
+		return store, store.Reset()
+	}
+
+	return store, nil
 }
 
 // newCoherenceStorage returns a new Coherence [Storage].
@@ -125,4 +139,8 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	s.session.Close()
 	return nil
+}
+
+func (s *Storage) Conn() *coh.Session {
+	return s.namedCache.GetSession()
 }
