@@ -11,7 +11,7 @@ A Coherence storage driver using [https://github.com/oracle/coherence-go-client]
 
 ### Signatures
 ```go
-func New(ctx context.Context, session *coherence.Session, cacheName string) (*Storage, error)
+func New(config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
