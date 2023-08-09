@@ -5,7 +5,7 @@ package coherence
  */
 import (
 	"context"
-	"github.com/oracle/coherence-go-client/coherence"
+	coh "github.com/oracle/coherence-go-client/coherence"
 	"time"
 )
 
@@ -16,8 +16,8 @@ const (
 
 // Storage represents an implementation of Coherence storage provider.
 type Storage struct {
-	session    *coherence.Session
-	namedCache coherence.NamedCache[string, []byte]
+	session    *coh.Session
+	namedCache coh.NamedCache[string, []byte]
 	ctx        context.Context
 }
 
@@ -54,21 +54,21 @@ func New(config ...Config) (*Storage, error) {
 	if len(config) == 1 {
 		cfg = config[0]
 	}
-	options := make([]func(session *coherence.SessionOptions), 0)
+	options := make([]func(session *coh.SessionOptions), 0)
 
 	// apply any config values
 	if cfg.Address != "" {
-		options = append(options, coherence.WithAddress(cfg.Address))
+		options = append(options, coh.WithAddress(cfg.Address))
 	} else {
 		cfg.Address = DefaultConfig.Address
 	}
 
 	if !cfg.UseSSL {
-		options = append(options, coherence.WithPlainText())
+		options = append(options, coh.WithPlainText())
 	}
 
 	if cfg.SessionTimeout != defaultTimeout {
-		options = append(options, coherence.WithReadyTimeout(cfg.SessionTimeout))
+		options = append(options, coh.WithReadyTimeout(cfg.SessionTimeout))
 	}
 
 	if cfg.SessionScope != defaultScopeName {
@@ -76,7 +76,7 @@ func New(config ...Config) (*Storage, error) {
 	}
 
 	// create the Coherence session
-	session, err := coherence.NewSession(context.Background(), options...)
+	session, err := coh.NewSession(context.Background(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +85,8 @@ func New(config ...Config) (*Storage, error) {
 }
 
 // newCoherenceStorage returns a new Coherence [Storage].
-func newCoherenceStorage(session *coherence.Session, cacheName string) (*Storage, error) {
-	nc, err := coherence.GetNamedCache[string, []byte](session, "fiber$"+cacheName)
+func newCoherenceStorage(session *coh.Session, cacheName string) (*Storage, error) {
+	nc, err := coh.GetNamedCache[string, []byte](session, "fiber$"+cacheName)
 	if err != nil {
 		return nil, err
 	}
