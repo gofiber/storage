@@ -1,0 +1,57 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'rueidis/**'
+    pull_request:
+        paths:
+            - 'rueidis/**'
+name: "Tests Rueidis"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.20.x
+                redis:
+                    - '6.x'
+                    - '7.x'
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v3
+
+            -   name: Setup Redis
+                uses: shogo82148/actions-setup-redis@v1
+                with:
+                    redis-version: ${{ matrix.redis }}
+                    auto-start: 'false'
+                    redis-port: '6379'
+                    redis-tls-port: '6380'
+
+            -   name: Run Redis
+                run: |
+                    redis-server --tls-port 6380 --port 6379 \
+                    --tls-cert-file ./rueidis/tests/tls/redis.crt \
+                    --tls-key-file ./rueidis/tests/tls/redis.key \
+                    --tls-ca-cert-file ./rueidis/tests/tls/ca.crt&
+
+            -   name: Setup Redis Cluster
+                uses: vishnudxb/redis-cluster@1.0.5
+                with:
+                    master1-port: 7000
+                    master2-port: 7001
+                    master3-port: 7002
+                    slave1-port: 7003
+                    slave2-port: 7004
+                    slave3-port: 7005
+
+            -   name: Install Go
+                uses: actions/setup-go@v4
+                with:
+                    go-version: '${{ matrix.go-version }}'
+
+            -   name: Run Test
+                run: cd ./rueidis && go test ./... -v -race
