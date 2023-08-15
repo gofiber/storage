@@ -70,7 +70,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	val, err := s.db.DoCache(context.Background(), s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
-	if IsRedisNil(err) {
+	if err != nil && rueidis.IsRedisNil(err) {
 		return nil, nil
 	}
 	return val, err
