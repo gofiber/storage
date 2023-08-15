@@ -42,7 +42,6 @@ func New(config ...Config) *Storage {
 		DisableCache:        cfg.DisableCache,
 		AlwaysPipelining:    cfg.AlwaysPipelining,
 	})
-
 	if err != nil {
 		panic(err)
 	}

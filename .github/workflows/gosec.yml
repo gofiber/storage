@@ -112,7 +112,7 @@ jobs:
         working-directory: ./pebble
         run: gosec ./...
         # -----
-      - name: Run Gosec (ruedis)
-        working-directory: ./ruedis
+      - name: Run Gosec (rueidis)
+        working-directory: ./rueidis
         run: gosec ./...
         # -----
