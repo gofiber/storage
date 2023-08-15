@@ -123,7 +123,7 @@ func Test_Rueidis_Conn(t *testing.T) {
 	utils.AssertEqual(t, true, testStore.Conn() != nil)
 }
 
-func Test_Rueidis_Initalize_WithURL_TLS(t *testing.T) {
+func Test_Rueidis_WithTLS(t *testing.T) {
 	cer, err := tls.LoadX509KeyPair("./tests/tls/client.crt", "./tests/tls/client.key")
 	if err != nil {
 		log.Println(err)
@@ -144,7 +144,7 @@ func Test_Rueidis_Initalize_WithURL_TLS(t *testing.T) {
 	}
 
 	storeTLS := New(Config{
-		InitAddress: []string{"localhost:6388"},
+		InitAddress: []string{"localhost:6380"},
 		TLSConfig:   tlsCfg,
 	})
 
