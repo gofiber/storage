@@ -81,7 +81,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Ex(exp).Build()).Error()
+	if exp > 0 {
+	        return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Ex(exp).Build()).Error()
+	} else {
+	        return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Build()).Error()
+	}
 }
 
 // Delete key by key
