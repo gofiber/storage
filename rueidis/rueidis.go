@@ -70,7 +70,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	val, err := s.db.DoCache(context.Background(), s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
-	if err == rueidis.Nil {
+	if IsRedisNil(err) {
 		return nil, nil
 	}
 	return val, err
@@ -81,8 +81,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-
-	return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Build()).Error()
+	return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Ex(exp).Build()).Error()
 }
 
 // Delete key by key
@@ -90,7 +89,6 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-
 	return s.db.Do(context.Background(), s.db.B().Del().Key(key).Build()).Error()
 }
 
