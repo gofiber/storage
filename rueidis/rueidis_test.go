@@ -168,7 +168,7 @@ func Test_Rueidis_WithTLS(t *testing.T) {
 
 func Test_Rueidis_With_HostPort(t *testing.T) {
 	store := New(Config{
-		InitAddress: []string{"localhost:6399"},
+		InitAddress: []string{"localhost:6379"},
 	})
 
 	var (
