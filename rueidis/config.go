@@ -101,7 +101,7 @@ var ConfigDefault = Config{
 	Password:            "",
 	ClientName:          "",
 	SelectDB:            0,
-	InitAddress:         []string{},
+	InitAddress:         []string{"127.0.0.1:6379"},
 	TLSConfig:           nil,
 	CacheSizeEachConn:   rueidis.DefaultCacheBytes,
 	RingScaleEachConn:   rueidis.DefaultRingScale,
