@@ -116,7 +116,8 @@ updates:
             - "🤖 Dependencies"
         schedule:
             interval: "daily"
-    -   directory: "/mssql/" # Location of package manifests
+    -   package-ecosystem: "gomod"
+        directory: "/mssql/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
         schedule:
