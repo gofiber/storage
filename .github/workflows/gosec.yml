@@ -35,11 +35,7 @@ jobs:
           cache: false
       - name: Install Gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-      - name: Run Gosec (root)
-        working-directory: .
-        run: |
-          gosec -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=couchbase -exclude-dir=dynamodb -exclude-dir=etcd -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 -exclude-dir=bbolt -exclude-dir=azureblob -exclude-dir=mssql -exclude-dir=pebble -exclude-dir=rueidis ./....
-        # -----
+      # -----
       - name: Run Gosec (arangodb)
         working-directory: ./arangodb
         run: gosec ./...
