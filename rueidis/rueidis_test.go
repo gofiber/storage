@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testStore = New(Config{
@@ -20,7 +20,7 @@ func Test_Rueidis_Set(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 }
 
 func Test_Rueidis_Set_Override(t *testing.T) {
@@ -30,10 +30,10 @@ func Test_Rueidis_Set_Override(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = testStore.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 }
 
 func Test_Rueidis_Get(t *testing.T) {
@@ -43,11 +43,11 @@ func Test_Rueidis_Get(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := testStore.Get(key)
-	assert.Nil(t, err)
-	assert.Equal(t, val, result)
+	require.Nil(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Rueidis_Set_Expiration(t *testing.T) {
@@ -58,7 +58,7 @@ func Test_Rueidis_Set_Expiration(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, exp)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
 }
@@ -67,14 +67,14 @@ func Test_Rueidis_Get_Expired(t *testing.T) {
 	key := "john"
 
 	result, err := testStore.Get(key)
-	assert.Nil(t, err)
-	assert.True(t, len(result) == 0)
+	require.Nil(t, err)
+	require.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Get_NotExist(t *testing.T) {
 	result, err := testStore.Get("notexist")
-	assert.Nil(t, err)
-	assert.True(t, len(result) == 0)
+	require.Nil(t, err)
+	require.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Delete(t *testing.T) {
@@ -84,43 +84,43 @@ func Test_Rueidis_Delete(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = testStore.Delete(key)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := testStore.Get(key)
-	assert.Nil(t, err)
-	assert.True(t, len(result) == 0)
+	require.Nil(t, err)
+	require.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Reset(t *testing.T) {
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = testStore.Reset()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := testStore.Get("john1")
-	assert.Nil(t, err)
-	assert.True(t, len(result) == 0)
+	require.Nil(t, err)
+	require.True(t, len(result) == 0)
 
 	result, err = testStore.Get("john2")
-	assert.Nil(t, err)
-	assert.True(t, len(result) == 0)
+	require.Nil(t, err)
+	require.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Close(t *testing.T) {
-	assert.Nil(t, testStore.Close())
+	require.Nil(t, testStore.Close())
 }
 
 func Test_Rueidis_Conn(t *testing.T) {
-	assert.True(t, testStore.Conn() != nil)
+	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_Rueidis_WithTLS(t *testing.T) {
@@ -154,15 +154,15 @@ func Test_Rueidis_WithTLS(t *testing.T) {
 	)
 
 	err = storeTLS.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := storeTLS.Get(key)
-	assert.Nil(t, err)
-	assert.Equal(t, val, result)
+	require.Nil(t, err)
+	require.Equal(t, val, result)
 
 	err = storeTLS.Delete(key)
-	assert.Nil(t, err)
-	assert.Nil(t, storeTLS.Close())
+	require.Nil(t, err)
+	require.Nil(t, storeTLS.Close())
 }
 
 func Test_Rueidis_With_HostPort(t *testing.T) {
@@ -176,15 +176,15 @@ func Test_Rueidis_With_HostPort(t *testing.T) {
 	)
 
 	err := store.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := store.Get(key)
-	assert.Nil(t, err)
-	assert.Equal(t, val, result)
+	require.Nil(t, err)
+	require.Equal(t, val, result)
 
 	err = store.Delete(key)
-	assert.Nil(t, err)
-	assert.Nil(t, store.Close())
+	require.Nil(t, err)
+	require.Nil(t, store.Close())
 }
 
 func Test_Rueidis_Cluster(t *testing.T) {
@@ -205,13 +205,13 @@ func Test_Rueidis_Cluster(t *testing.T) {
 	)
 
 	err := store.Set(key, val, 0)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	result, err := store.Get(key)
-	assert.Nil(t, err)
-	assert.Equal(t, val, result)
+	require.Nil(t, err)
+	require.Equal(t, val, result)
 
 	err = store.Delete(key)
-	assert.Nil(t, err)
-	assert.Nil(t, store.Close())
+	require.Nil(t, err)
+	require.Nil(t, store.Close())
 }
