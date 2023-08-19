@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 var testStore = New(Config{
@@ -20,7 +20,7 @@ func Test_Rueidis_Set(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 }
 
 func Test_Rueidis_Set_Override(t *testing.T) {
@@ -30,10 +30,10 @@ func Test_Rueidis_Set_Override(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	err = testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 }
 
 func Test_Rueidis_Get(t *testing.T) {
@@ -43,11 +43,11 @@ func Test_Rueidis_Get(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	assert.Nil(t, err)
+	assert.Equal(t, val, result)
 }
 
 func Test_Rueidis_Set_Expiration(t *testing.T) {
@@ -58,7 +58,7 @@ func Test_Rueidis_Set_Expiration(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, exp)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
 }
@@ -67,14 +67,14 @@ func Test_Rueidis_Get_Expired(t *testing.T) {
 	key := "john"
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	assert.Nil(t, err)
+	assert.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Get_NotExist(t *testing.T) {
 	result, err := testStore.Get("notexist")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	assert.Nil(t, err)
+	assert.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Delete(t *testing.T) {
@@ -84,43 +84,43 @@ func Test_Rueidis_Delete(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	err = testStore.Delete(key)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	assert.Nil(t, err)
+	assert.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Reset(t *testing.T) {
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	err = testStore.Reset()
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := testStore.Get("john1")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	assert.Nil(t, err)
+	assert.True(t, len(result) == 0)
 
 	result, err = testStore.Get("john2")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	assert.Nil(t, err)
+	assert.True(t, len(result) == 0)
 }
 
 func Test_Rueidis_Close(t *testing.T) {
-	utils.AssertEqual(t, nil, testStore.Close())
+	assert.Nil(t, testStore.Close())
 }
 
 func Test_Rueidis_Conn(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.Conn() != nil)
+	assert.True(t, testStore.Conn() != nil)
 }
 
 func Test_Rueidis_WithTLS(t *testing.T) {
@@ -154,16 +154,15 @@ func Test_Rueidis_WithTLS(t *testing.T) {
 	)
 
 	err = storeTLS.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := storeTLS.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	assert.Nil(t, err)
+	assert.Equal(t, val, result)
 
 	err = storeTLS.Delete(key)
-	utils.AssertEqual(t, nil, err)
-
-	utils.AssertEqual(t, nil, storeTLS.Close())
+	assert.Nil(t, err)
+	assert.Nil(t, storeTLS.Close())
 }
 
 func Test_Rueidis_With_HostPort(t *testing.T) {
@@ -177,16 +176,15 @@ func Test_Rueidis_With_HostPort(t *testing.T) {
 	)
 
 	err := store.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := store.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	assert.Nil(t, err)
+	assert.Equal(t, val, result)
 
 	err = store.Delete(key)
-	utils.AssertEqual(t, nil, err)
-
-	utils.AssertEqual(t, nil, store.Close())
+	assert.Nil(t, err)
+	assert.Nil(t, store.Close())
 }
 
 func Test_Rueidis_Cluster(t *testing.T) {
@@ -207,14 +205,13 @@ func Test_Rueidis_Cluster(t *testing.T) {
 	)
 
 	err := store.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	assert.Nil(t, err)
 
 	result, err := store.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	assert.Nil(t, err)
+	assert.Equal(t, val, result)
 
 	err = store.Delete(key)
-	utils.AssertEqual(t, nil, err)
-
-	utils.AssertEqual(t, nil, store.Close())
+	assert.Nil(t, err)
+	assert.Nil(t, store.Close())
 }

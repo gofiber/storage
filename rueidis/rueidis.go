@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2/utils"
+	"github.com/gofiber/utils/v2"
 	"github.com/redis/rueidis"
 )
 
@@ -82,9 +82,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 	if exp > 0 {
-	        return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Ex(exp).Build()).Error()
+		return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Ex(exp).Build()).Error()
 	} else {
-	        return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Build()).Error()
+		return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(utils.ToString(val)).Build()).Error()
 	}
 }
 
