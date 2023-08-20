@@ -11,6 +11,8 @@ title: Rueidis
 
 A fast Redis Storage that does auto pipelining and supports client side caching. [redis/rueidis](https://github.com/redis/rueidis).
 
+**Note: Requires Go 1.20 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
