@@ -68,13 +68,13 @@ func Test_Rueidis_Get_Expired(t *testing.T) {
 
 	result, err := testStore.Get(key)
 	require.Nil(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, len(result))
 }
 
 func Test_Rueidis_Get_NotExist(t *testing.T) {
 	result, err := testStore.Get("notexist")
 	require.Nil(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, len(result))
 }
 
 func Test_Rueidis_Delete(t *testing.T) {
@@ -91,7 +91,7 @@ func Test_Rueidis_Delete(t *testing.T) {
 
 	result, err := testStore.Get(key)
 	require.Nil(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, len(result))
 }
 
 func Test_Rueidis_Reset(t *testing.T) {
@@ -108,11 +108,11 @@ func Test_Rueidis_Reset(t *testing.T) {
 
 	result, err := testStore.Get("john1")
 	require.Nil(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, len(result))
 
 	result, err = testStore.Get("john2")
 	require.Nil(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, len(result))
 }
 
 func Test_Rueidis_Close(t *testing.T) {
