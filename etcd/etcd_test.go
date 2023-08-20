@@ -29,7 +29,7 @@ func TestGetEtcd_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
 	val, err := testStorage.Get("not_found_key")
 
 	require.Nil(t, err)
-	require.Zero(len(val))
+	require.Zero(t, len(val))
 }
 
 func TestSetAndGet_GetShouldReturn_SettedValueWithoutError(t *testing.T) {
@@ -59,7 +59,7 @@ func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
 	val, err := testStorage.Get("test")
 
 	require.Nil(t, err)
-	require.Zero(len(val))
+	require.Zero(t, len(val))
 }
 
 func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {

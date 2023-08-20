@@ -1,7 +1,7 @@
 package bbolt
 
 import (
-	"github.com/gofiber/utils"
+	"github.com/gofiber/utils/v2"
 	"go.etcd.io/bbolt"
 )
 

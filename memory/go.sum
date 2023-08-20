@@ -1,7 +1,5 @@
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/gofiber/utils v1.1.0 h1:vdEBpn7AzIUJRhe+CiTOJdUcTg4Q9RK+pEa0KPbLdrM=
-github.com/gofiber/utils v1.1.0/go.mod h1:poZpsnhBykfnY1Mc0KeEa6mSHrS3dV0+oBWyeQmb2e0=
 github.com/gofiber/utils/v2 v2.0.0-beta.3 h1:pfOhUDDVjBJpkWv6C5jaDyYLvpui7zQ97zpyFFsUOKw=
 github.com/gofiber/utils/v2 v2.0.0-beta.3/go.mod h1:jsl17+MsKfwJjM3ONCE9Rzji/j8XNbwjhUVTjzgfDCo=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=

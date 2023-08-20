@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/utils"
+	"github.com/gofiber/utils/v2"
 )
 
 func checkTimeStamp(t testing.TB, expectedCurrent, actualCurrent uint32) {

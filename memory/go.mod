@@ -3,7 +3,6 @@ module github.com/gofiber/storage/memory
 go 1.18
 
 require (
-	github.com/gofiber/utils v1.1.0
 	github.com/gofiber/utils/v2 v2.0.0-beta.3
 	github.com/stretchr/testify v1.8.4
 )

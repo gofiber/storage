@@ -73,7 +73,6 @@ func Test_Pebble_Delete(t *testing.T) {
 
 	err = testStore.Delete(key)
 	require.Nil(t, err)
-	require.Err
 
 	result, err := testStore.Get(key)
 	require.Equal(t, "pebble: not found", err.Error())
