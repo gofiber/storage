@@ -20,7 +20,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Split comma separated servers into slice
-	serverList := strings.Split(strings.Trim(cfg.Servers, ' '), ",")
+	serverList := strings.Split(strings.TrimSpace(cfg.Servers), ",")
 
 	// Create db
 	db := mc.New(serverList...)
