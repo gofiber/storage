@@ -40,7 +40,7 @@ jobs:
                     --tls-ca-cert-file ./rueidis/tests/tls/ca.crt&
 
             -   name: Setup Redis Cluster
-                uses: vishnudxb/redis-cluster@1.0.7
+                uses: vishnudxb/redis-cluster@1.0.8
                 with:
                     master1-port: 7000
                     master2-port: 7001
