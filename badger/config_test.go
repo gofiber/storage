@@ -1,14 +1,16 @@
 package badger
 
 import (
+	"testing"
+
 	"github.com/dgraph-io/badger/v3"
 	"github.com/gofiber/utils"
-	"testing"
+	"github.com/stretchr/testify/require"
 )
 
 func assertRecoveryPanic(t *testing.T) {
 	err := recover()
-	utils.AssertEqual(t, nil, err)
+	require.Nil(t, err)
 }
 
 func Test_Badger_Only_Name(t *testing.T) {

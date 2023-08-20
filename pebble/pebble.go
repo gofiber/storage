@@ -46,7 +46,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	data, closer, err := s.db.Get([]byte(key))
-
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +125,7 @@ func isValid(fp string) bool {
 
 	// Attempt to create it
 	var d []byte
-	err := os.WriteFile(fp, d, 0600)
-
+	err := os.WriteFile(fp, d, 0o600)
 	if err != nil {
 		return false
 	}

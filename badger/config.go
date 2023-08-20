@@ -1,8 +1,9 @@
 package badger
 
 import (
-	"github.com/dgraph-io/badger/v3"
 	"time"
+
+	"github.com/dgraph-io/badger/v3"
 )
 
 // Config defines the config for storage.

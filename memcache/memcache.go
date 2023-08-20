@@ -6,7 +6,7 @@ import (
 	"time"
 
 	mc "github.com/bradfitz/gomemcache/memcache"
-	"github.com/gofiber/utils"
+	"github.com/gofiber/utils/v2"
 )
 
 // Storage interface that is implemented by storage providers
