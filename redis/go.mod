@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/redis/v2
 
-go 1.18
+go 1.19
 
 require (
 	github.com/redis/go-redis/v9 v9.1.0
