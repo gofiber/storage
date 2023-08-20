@@ -11,6 +11,8 @@ title: MSSQL
 
 A MSSQL storage driver using [microsoft/go-mssqldb](https://github.com/microsoft/go-mssqldb).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

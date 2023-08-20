@@ -11,6 +11,8 @@ title: Memcache
 
 A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradfitz/gomemcache).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

@@ -9,7 +9,7 @@ import (
 
 func assertRecoveryPanic(t *testing.T) {
 	err := recover()
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Badger_Only_Name(t *testing.T) {

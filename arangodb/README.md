@@ -11,6 +11,8 @@ title: ArangoDB
 
 A ArangoDB storage driver using `arangodb/go-driver` and [arangodb/go-driver](https://github.com/arangodb/go-driver).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

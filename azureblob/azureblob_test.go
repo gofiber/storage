@@ -27,10 +27,10 @@ func Test_AzureBlob_Get(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, val, result)
 }
 
@@ -42,7 +42,7 @@ func Test_AzureBlob_Set(t *testing.T) {
 
 	testStore := newStore()
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_AzureBlob_Delete(t *testing.T) {
@@ -53,10 +53,10 @@ func Test_AzureBlob_Delete(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Delete(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
 	if err != nil {
@@ -64,7 +64,7 @@ func Test_AzureBlob_Delete(t *testing.T) {
 			err = nil
 		}
 	}
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -76,10 +76,10 @@ func Test_AzureBlob_Override(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_AzureBlob_Get_NotExist(t *testing.T) {
@@ -90,7 +90,7 @@ func Test_AzureBlob_Get_NotExist(t *testing.T) {
 			err = nil
 		}
 	}
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -99,13 +99,13 @@ func Test_AzureBlob_Reset(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set("john1", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Reset()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get("john1")
 	if err != nil {
@@ -113,7 +113,7 @@ func Test_AzureBlob_Reset(t *testing.T) {
 			err = nil
 		}
 	}
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 
 	result, err = testStore.Get("john2")
@@ -122,7 +122,7 @@ func Test_AzureBlob_Reset(t *testing.T) {
 			err = nil
 		}
 	}
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 

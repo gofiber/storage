@@ -19,7 +19,7 @@ func Test_Pebble_Set(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Pebble_Set_Override(t *testing.T) {
@@ -29,10 +29,10 @@ func Test_Pebble_Set_Override(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Pebble_Get(t *testing.T) {
@@ -42,10 +42,10 @@ func Test_Pebble_Get(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, val, result)
 }
 
@@ -57,7 +57,7 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, exp)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
 }
@@ -69,10 +69,10 @@ func Test_Pebble_Delete(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 20)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Delete(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
 	require.Equal(t, "pebble: not found", err.Error())
@@ -83,19 +83,19 @@ func Test_Pebble_Reset(t *testing.T) {
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Reset()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = testStore.Get("john1")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = testStore.Get("john2")
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Pebble_Close(t *testing.T) {

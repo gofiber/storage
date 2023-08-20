@@ -15,7 +15,7 @@ func Test_Bbolt_Set(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Bbolt_Set_Override(t *testing.T) {
@@ -25,10 +25,10 @@ func Test_Bbolt_Set_Override(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func Test_Bbolt_Get(t *testing.T) {
@@ -38,16 +38,16 @@ func Test_Bbolt_Get(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, val, result)
 }
 
 func Test_Bbolt_Get_NotExist(t *testing.T) {
 	result, err := testStore.Get("notexist")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -58,13 +58,13 @@ func Test_Bbolt_Delete(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Delete(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -72,20 +72,20 @@ func Test_Bbolt_Reset(t *testing.T) {
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = testStore.Reset()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get("john1")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 
 	result, err = testStore.Get("john2")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 

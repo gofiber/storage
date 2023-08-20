@@ -11,6 +11,8 @@ title: SQLite3
 
 A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

@@ -11,6 +11,8 @@ title: Couchbase
 
 A Couchbase storage driver using [couchbase/gocb](https://github.com/couchbase/gocb).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

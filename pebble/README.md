@@ -11,6 +11,8 @@ title: Pebble
 
 A fast key-value DB using [cockroachdb/pebble](https://github.com/cockroachdb/pebble)
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 
 - [Signatures](#signatures)
