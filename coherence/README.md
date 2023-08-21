@@ -52,10 +52,17 @@ You can use the following possibilities to create a storage:
 // Initialize default config, to connect to localhost:1408 using plain text
 store, err := coherence.New()
 
-// Initialize custom config to connect to a different host/port and use plaintext.
+// Initialize custom config to connect to a different host/port and use plaint ext.
 store, err := coherence.New(coherence.Config{
     Address: "my-host:myport",
-    UseSSL: false,
+})
+
+// Initialize to connect with TLS enabled with your own tls.Config
+tlsConfig := config := &tls.Config{...}
+
+store, err := coherence.New(coherence.Config{
+    Address: "my-host:myport",
+    TLSConfig: tlsConfig,
 })
 ```
 

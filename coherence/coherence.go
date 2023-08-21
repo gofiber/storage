@@ -36,18 +36,13 @@ type Config struct {
 	// Reset indicates if the store should be reset after being created
 	Reset bool
 
-	// UseSSL specifies if to use SSL or plain text, defaults to false. If you specify true, then you
-	// must provide a TLSConfig
-	UseSSL bool
-
-	// TLSConfig specifies tls.Config to use when connecting
+	// TLSConfig specifies tls.Config to use when connecting, if nil then plain text is used
 	TLSConfig *tls.Config
 }
 
 // DefaultConfig defines default options.
 var DefaultConfig = Config{
 	Address:   "localhost:1408",
-	UseSSL:    false,
 	Timeout:   time.Duration(30) * time.Millisecond,
 	ScopeName: defaultScopeName,
 	Reset:     false,
@@ -72,7 +67,9 @@ func New(config ...Config) (*Storage, error) {
 		cfg.Address = DefaultConfig.Address
 	}
 
-	if !cfg.UseSSL {
+	if cfg.TLSConfig != nil {
+		options = append(options, coh.WithTLSConfig(cfg.TLSConfig))
+	} else {
 		options = append(options, coh.WithPlainText())
 	}
 
@@ -82,10 +79,6 @@ func New(config ...Config) (*Storage, error) {
 
 	if cfg.ScopeName != defaultScopeName {
 		scopeName = cfg.ScopeName
-	}
-
-	if cfg.TLSConfig != nil {
-		options = append(options, coh.WithTLSConfig(cfg.TLSConfig))
 	}
 
 	// create the Coherence session
