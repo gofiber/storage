@@ -71,9 +71,10 @@ store, err := coherence.New(coherence.Config{
 > ```go
 > store1, err := coherence.New(Config{SessionScope: "scope1"})
 > store2, err := coherence.New(Config{SessionScope: "scope2"})
-```
+> ```
 
 ### Config
+
 ```go
 // Config defines configuration options for Coherence connection.
 type Config struct {
@@ -88,6 +89,12 @@ type Config struct {
 
     // SessionScope defines a scope allowing for multiple storage sessions
     SessionScope string
+
+    // Reset indicates if the store should be reset after being created
+    Reset bool
+
+    // TLSConfig specifies tls.Config to use when connecting, if nil then plain text is used 
+    TLSConfig *tls.Config
 }
 ```
 
