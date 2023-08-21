@@ -81,14 +81,11 @@ type Config struct {
     // Address to connect to, defaults to "localhost:1408"
     Address string
 
-    // UseSSL specified if to use SSL or plain text, defaults to false
-    UseSSL bool
-
-    // SessionTimeout is the default session timeout to connect to Coherence, defaults to 30s
-    SessionTimeout time.Duration
-
-    // SessionScope defines a scope allowing for multiple storage sessions
-    SessionScope string
+    // Timeout is the default session timeout to connect to Coherence, defaults to 30s
+    Timeout time.Duration
+	
+    // ScopeName defines a scope allowing for multiple storage sessions
+    ScopeName string
 
     // Reset indicates if the store should be reset after being created
     Reset bool
