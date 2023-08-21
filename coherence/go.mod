@@ -2,7 +2,7 @@ module coherence
 
 go 1.19
 
-require github.com/oracle/coherence-go-client v1.0.0
+require github.com/oracle/coherence-go-client v1.0.1
 
 require (
 	github.com/gofiber/utils v1.1.0

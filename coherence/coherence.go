@@ -5,18 +5,14 @@ package coherence
  */
 import (
 	"context"
+	"crypto/tls"
 	coh "github.com/oracle/coherence-go-client/coherence"
-	"os"
 	"time"
 )
 
 const (
-	defaultScopeName      = "default-store"
-	defaultTimeout        = time.Duration(30) * time.Millisecond
-	envTLSCertPath        = "COHERENCE_TLS_CERTS_PATH"
-	envTLSClientCert      = "COHERENCE_TLS_CLIENT_CERT"
-	envTLSClientKey       = "COHERENCE_TLS_CLIENT_KEY"
-	envIgnoreInvalidCerts = "COHERENCE_IGNORE_INVALID_CERTS"
+	defaultScopeName = "default-store"
+	defaultTimeout   = time.Duration(30) * time.Millisecond
 )
 
 // Storage represents an implementation of Coherence storage provider.
@@ -40,31 +36,21 @@ type Config struct {
 	// Reset indicates if the store should be reset after being created
 	Reset bool
 
-	// UseSSL specifies if to use SSL or plain text, defaults to false
+	// UseSSL specifies if to use SSL or plain text, defaults to false. If you specify true, then you
+	// must provide a TLSConfig
 	UseSSL bool
 
-	// ClientCertPath defines the path to the client certificate file
-	ClientCertPath string
-
-	// ClientKeyPath defines the path to the client key file
-	ClientKeyPath string
-
-	// CaCertPath defines the path to the (CA) certificates file
-	CaCertPath string
-
-	// IgnoreInvalidCerts indicates if invalid certificates, such as self-signed should be ignored. This option
-	// should only be used for testing and not in production
-	IgnoreInvalidCerts bool
+	// TLSConfig specifies tls.Config to use when connecting
+	TLSConfig *tls.Config
 }
 
 // DefaultConfig defines default options.
 var DefaultConfig = Config{
-	Address:            "localhost:1408",
-	UseSSL:             false,
-	Timeout:            time.Duration(30) * time.Millisecond,
-	ScopeName:          defaultScopeName,
-	Reset:              false,
-	IgnoreInvalidCerts: false,
+	Address:   "localhost:1408",
+	UseSSL:    false,
+	Timeout:   time.Duration(30) * time.Millisecond,
+	ScopeName: defaultScopeName,
+	Reset:     false,
 }
 
 // New returns a new [Storage] given a [coherence.Session].
@@ -98,30 +84,8 @@ func New(config ...Config) (*Storage, error) {
 		scopeName = cfg.ScopeName
 	}
 
-	// the following options are currently only settable via environment variables
-	// in v1.0.0 of coherence-go-client. This may change in a future version.
-	if cfg.IgnoreInvalidCerts {
-		if err := os.Setenv(envIgnoreInvalidCerts, "true"); err != nil {
-			return nil, err
-		}
-	}
-
-	if cfg.ClientCertPath != "" {
-		if err := os.Setenv(envTLSClientCert, cfg.ClientCertPath); err != nil {
-			return nil, err
-		}
-	}
-
-	if cfg.ClientKeyPath != "" {
-		if err := os.Setenv(envTLSClientKey, cfg.ClientKeyPath); err != nil {
-			return nil, err
-		}
-	}
-
-	if cfg.CaCertPath != "" {
-		if err := os.Setenv(envTLSCertPath, cfg.CaCertPath); err != nil {
-			return nil, err
-		}
+	if cfg.TLSConfig != nil {
+		options = append(options, coh.WithTLSConfig(cfg.TLSConfig))
 	}
 
 	// create the Coherence session
