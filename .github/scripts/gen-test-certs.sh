@@ -6,7 +6,6 @@
 #   ./tls/redis.{crt,key}       A certificate with no key usage/policy restrictions.
 #   ./tls/client.{crt,key}      A certificate restricted for SSL client usage.
 #   ./tls/server.{crt,key}      A certificate restricted for SSL server usage.
-#   ./tls/redis.dh              DH Params file.
 
 generate_cert() {
     local name=$1
@@ -53,5 +52,3 @@ _END_
 generate_cert server "Server-only" "-extfile ./tls/openssl.cnf -extensions server_cert"
 generate_cert client "Client-only" "-extfile ./tls/openssl.cnf -extensions client_cert"
 generate_cert redis "Generic-cert"
-
-[ -f ./tls/redis.dh ] || openssl dhparam -out ./tls/redis.dh 2048
