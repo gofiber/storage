@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/sqlite3
+module github.com/gofiber/storage/sqlite3/v2
 
 go 1.19
 

@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/azureblob
+module github.com/gofiber/storage/azureblob/v2
 
 go 1.19
 

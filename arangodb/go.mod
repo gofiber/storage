@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/arangodb
+module github.com/gofiber/storage/arangodb/v2
 
 go 1.19
 

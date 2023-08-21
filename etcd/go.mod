@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/etcd
+module github.com/gofiber/storage/etcd/v2
 
 go 1.19
 

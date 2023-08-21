@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/couchbase
+module github.com/gofiber/storage/couchbase/v2
 
 go 1.19
 

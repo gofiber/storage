@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/postgres/v2
+module github.com/gofiber/storage/postgres/v3
 
 go 1.19
 

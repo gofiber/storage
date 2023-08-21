@@ -1,14 +1,13 @@
-package ristretto_test
+package ristretto
 
 import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/storage/ristretto"
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = ristretto.New()
+var testStore = New()
 
 func Test_Ristretto_Set(t *testing.T) {
 	var (

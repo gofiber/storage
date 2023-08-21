@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/bbolt
+module github.com/gofiber/storage/bbolt/v2
 
 go 1.19
 

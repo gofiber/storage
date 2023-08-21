@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/mssql
+module github.com/gofiber/storage/mssql/v2
 
 go 1.19
 

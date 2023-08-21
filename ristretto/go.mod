@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/ristretto
+module github.com/gofiber/storage/ristretto/v2
 
 go 1.19
 

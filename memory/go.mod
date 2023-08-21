@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/memory
+module github.com/gofiber/storage/memory/v2
 
 go 1.19
 

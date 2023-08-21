@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/s3
+module github.com/gofiber/storage/s3/v2
 
 go 1.19
 

@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/mysql
+module github.com/gofiber/storage/mysql/v2
 
 go 1.19
 

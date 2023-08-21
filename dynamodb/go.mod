@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/dynamodb
+module github.com/gofiber/storage/dynamodb/v2
 
 go 1.19
 

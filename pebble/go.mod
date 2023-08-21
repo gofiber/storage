@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/pebble
+module github.com/gofiber/storage/pebble/v2
 
 go 1.19
 
