@@ -69,8 +69,8 @@ store, err := coherence.New(coherence.Config{
 > Note: If you create two stores using `coherence.New()` they will effectivity be idential.
 > If you wish to have two separate stores, then you can use:
 > ```go
-> store1, err := coherence.New(Config{SessionScope: "scope1"})
-> store2, err := coherence.New(Config{SessionScope: "scope2"})
+> store1, err := coherence.New(Config{ScopeName: "scope1"})
+> store2, err := coherence.New(Config{ScopeName: "scope2"})
 > ```
 
 ### Config
@@ -97,10 +97,10 @@ type Config struct {
 
 ### Default Config
 ```go
-var ConfigDefault = Config{
-    Address:        "localhost:1408",
-    UseSSL:         false,
-    SessionTimeout: time.Duration(30) * time.Millisecond,
-    SessionScope:   defaultScopeName,
+var DefaultConfig = Config{
+    Address:   "localhost:1408",
+    Timeout:   time.Duration(30) * time.Millisecond,
+    ScopeName: defaultScopeName,
+    Reset:     false,
 }
 ```
