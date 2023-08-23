@@ -37,6 +37,13 @@ func New(config ...Config) *Storage {
 
 	storage := &Storage{minio: minioClient, cfg: cfg, ctx: context.Background()}
 
+	// Reset all entries if set to true
+	if cfg.Reset {
+		if err = storage.Reset(); err != nil {
+			panic(err)
+		}
+	}
+
 	// check bucket
 	err = storage.CheckBucket()
 	if err != nil {
