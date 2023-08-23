@@ -52,7 +52,7 @@ store := minio.New()
 // Initialize custom config
 store := minio.New(minio.Config{
     Bucket:   "test-bucket",
-    Endpoint: "storage-minio:9000",
+    Endpoint: "localhost:9000",
     Credentials: Credentials{
         accessKeyID:     "minio-user",
         secretAccessKey: "minio-password",
