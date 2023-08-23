@@ -184,3 +184,8 @@ func (s *Storage) CreateBucket() error {
 func (s *Storage) RemoveBucket() error {
 	return s.minio.RemoveBucket(s.ctx, s.cfg.Bucket)
 }
+
+// Conn Return minio client
+func (s *Storage) Conn() *minio.Client {
+	return s.minio
+}

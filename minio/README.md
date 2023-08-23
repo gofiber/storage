@@ -20,6 +20,7 @@ func (s *Storage) Close() error
 func (s *Storage) CheckBucket() error
 func (s *Storage) CreateBucket() error
 func (s *Storage) RemoveBucket() error
+func (s *Storage) Conn() *minio.Client
 ```
 ### Installation
 Install the Minio implementation:
