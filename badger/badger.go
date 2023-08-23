@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/gofiber/utils"
+	"github.com/gofiber/utils/v2"
 )
 
 // Storage interface that is implemented by storage providers

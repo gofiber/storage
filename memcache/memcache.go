@@ -6,7 +6,6 @@ import (
 	"time"
 
 	mc "github.com/bradfitz/gomemcache/memcache"
-	"github.com/gofiber/utils"
 )
 
 // Storage interface that is implemented by storage providers
@@ -21,7 +20,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	// Split comma separated servers into slice
-	serverList := strings.Split(utils.Trim(cfg.Servers, ' '), ",")
+	serverList := strings.Split(strings.TrimSpace(cfg.Servers), ",")
 
 	// Create db
 	db := mc.New(serverList...)

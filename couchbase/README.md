@@ -11,6 +11,8 @@ title: Couchbase
 
 A Couchbase storage driver using [couchbase/gocb](https://github.com/couchbase/gocb).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -35,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the Couchbase implementation:
 ```bash
-go get github.com/gofiber/storage/couchbase
+go get github.com/gofiber/storage/couchbase/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/couchbase"
+import "github.com/gofiber/storage/couchbase/v2"
 ```
 
 You can use the following possibilities to create a storage:

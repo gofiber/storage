@@ -11,7 +11,7 @@ title: Azure Blob
 
 [Azure Blob storage](https://azure.microsoft.com/en-us/products/storage/blobs/#overview) is Microsoft's object storage solution for the cloud.
 
-> NOTE: Go **1.18** or later is required. Source: [link](https://github.com/Azure/azure-sdk-for-go/blob/main/README.md)
+**Note: Requires Go 1.19 and above**
 
 ### Table of Contents
 
@@ -44,7 +44,7 @@ go mod init github.com/<user>/<repo>
 And then install the azure blob implementation:
 
 ```bash
-go get github.com/gofiber/storage/azureblob
+go get github.com/gofiber/storage/azureblob/v2
 ```
 
 ### Examples
@@ -52,7 +52,7 @@ go get github.com/gofiber/storage/azureblob
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/azureblob"
+import "github.com/gofiber/storage/azureblob/v2"
 ```
 
 You can use the following possibilities to create a storage:

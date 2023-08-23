@@ -12,6 +12,8 @@ title: Memory
 
 An in-memory storage driver.
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -38,13 +40,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the memory implementation:
 ```bash
-go get github.com/gofiber/storage/memory
+go get github.com/gofiber/storage/memory/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/memory"
+import "github.com/gofiber/storage/memory/v2"
 ```
 
 You can use the following possibilities to create a storage:

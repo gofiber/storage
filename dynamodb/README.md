@@ -13,7 +13,7 @@ A DynamoDB storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-s
 
 **Note:** If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role. If config fields of credentials given, credentials are using from config. Look at: [specifying credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
-....
+**Note: Requires Go 1.19 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -43,13 +43,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the dynamodb implementation:
 ```bash
-go get github.com/gofiber/storage/dynamodb
+go get github.com/gofiber/storage/dynamodb/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/dynamodb"
+import "github.com/gofiber/storage/dynamodb/v2"
 ```
 
 You can use the following possibilities to create a storage:

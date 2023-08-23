@@ -11,6 +11,8 @@ title: ArangoDB
 
 A ArangoDB storage driver using `arangodb/go-driver` and [arangodb/go-driver](https://github.com/arangodb/go-driver).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -35,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the mysql implementation:
 ```bash
-go get github.com/gofiber/storage/arangodb
+go get github.com/gofiber/storage/arangodb/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/arangodb"
+import "github.com/gofiber/storage/arangodb/v2"
 ```
 
 You can use the following possibilities to create a storage:

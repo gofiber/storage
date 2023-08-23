@@ -11,6 +11,8 @@ title: Postgres
 
 A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -35,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the postgres implementation:
 ```bash
-go get github.com/gofiber/storage/postgres/v2
+go get github.com/gofiber/storage/postgres/v3
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/postgres/v2"
+import "github.com/gofiber/storage/postgres/v3"
 ```
 
 You can use the following possibilities to create a storage:

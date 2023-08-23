@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gofiber/storage/memory/internal"
+	"github.com/gofiber/storage/memory/v2/internal"
 )
 
 // Storage interface that is implemented by storage providers

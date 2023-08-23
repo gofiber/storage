@@ -11,6 +11,8 @@ title: Badger
 
 A fast key-value DB using [dgraph-io/badger](https://github.com/dgraph-io/badger)
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 
 - [Signatures](#signatures)
@@ -42,7 +44,7 @@ go mod init github.com/<user>/<repo>
 And then install the badger implementation:
 
 ```bash
-go get github.com/gofiber/storage/badger
+go get github.com/gofiber/storage/badger/v2
 ```
 
 ### Examples
@@ -50,7 +52,7 @@ go get github.com/gofiber/storage/badger
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/badger"
+import "github.com/gofiber/storage/badger/v2"
 ```
 
 You can use the following possibilities to create a storage:

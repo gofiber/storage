@@ -1,9 +1,10 @@
 package azureblob
 
 import (
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
-	"github.com/gofiber/fiber/v2/utils"
 	"testing"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
+	"github.com/stretchr/testify/require"
 )
 
 func newStore() *Storage {
@@ -17,6 +18,7 @@ func newStore() *Storage {
 		},
 	})
 }
+
 func Test_AzureBlob_Get(t *testing.T) {
 	var (
 		key = "john"
@@ -25,11 +27,11 @@ func Test_AzureBlob_Get(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_AzureBlob_Set(t *testing.T) {
@@ -40,7 +42,7 @@ func Test_AzureBlob_Set(t *testing.T) {
 
 	testStore := newStore()
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 }
 
 func Test_AzureBlob_Delete(t *testing.T) {
@@ -51,10 +53,10 @@ func Test_AzureBlob_Delete(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Delete(key)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
 	if err != nil {
@@ -62,8 +64,8 @@ func Test_AzureBlob_Delete(t *testing.T) {
 			err = nil
 		}
 	}
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_AzureBlob_Override(t *testing.T) {
@@ -74,10 +76,10 @@ func Test_AzureBlob_Override(t *testing.T) {
 	testStore := newStore()
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 }
 
 func Test_AzureBlob_Get_NotExist(t *testing.T) {
@@ -88,24 +90,22 @@ func Test_AzureBlob_Get_NotExist(t *testing.T) {
 			err = nil
 		}
 	}
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_AzureBlob_Reset(t *testing.T) {
-	var (
-		val = []byte("doe")
-	)
+	val := []byte("doe")
 	testStore := newStore()
 
 	err := testStore.Set("john1", val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Reset()
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get("john1")
 	if err != nil {
@@ -113,8 +113,8 @@ func Test_AzureBlob_Reset(t *testing.T) {
 			err = nil
 		}
 	}
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 
 	result, err = testStore.Get("john2")
 	if err != nil {
@@ -122,16 +122,16 @@ func Test_AzureBlob_Reset(t *testing.T) {
 			err = nil
 		}
 	}
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_S3_Conn(t *testing.T) {
 	testStore := newStore()
-	utils.AssertEqual(t, true, testStore.Conn() != nil)
+	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_AzureBlob_Close(t *testing.T) {
 	testStore := newStore()
-	utils.AssertEqual(t, nil, testStore.Close())
+	require.Nil(t, testStore.Close())
 }
