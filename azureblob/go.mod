@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.6.1
-	github.com/gofiber/fiber/v2 v2.43.0
+	github.com/gofiber/fiber/v2 v2.48.0
 )
 
 require (
