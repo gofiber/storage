@@ -34,6 +34,7 @@ func Test_Get(t *testing.T) {
 
 	result, err = testStore.Get("doe")
 	require.Error(t, err)
+	require.Zero(t, result)
 }
 
 func Test_Get_Empty_Key(t *testing.T) {
@@ -169,7 +170,7 @@ func Test_Reset(t *testing.T) {
 
 	result, err := testStore.Get("john1")
 	require.Error(t, err)
-	require.True(t, len(result) == 0)
+	require.Zero(t, result)
 
 }
 
