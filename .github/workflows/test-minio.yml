@@ -21,7 +21,7 @@ jobs:
         steps:
             -   name: Install MinIO
                 run: |
-                    run -d --restart always -p 9000:9000 --name storage-minio -e MINIO_ROOT_USER='minio-user' -e MINIO_ROOT_PASSWORD='minio-password' minio/minio server /data
+                    docker run -d --restart always -p 9000:9000 --name storage-minio -e MINIO_ROOT_USER='minio-user' -e MINIO_ROOT_PASSWORD='minio-password' minio/minio server /data
 
             -   name: Fetch Repository
                 uses: actions/checkout@v3
