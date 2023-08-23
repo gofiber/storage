@@ -35,7 +35,7 @@ necessary for the client to operate correctly.
 To start a Coherence cluster using Docker, issue the following:
 
 ```bash
-docker run -d -p 1408:1408 ghcr.io/oracle/coherencestore-ce:22.06.5
+docker run -d -p 1408:1408 ghcr.io/oracle/coherence-ce:22.06.5
 ```
 
 See the documentation [here](https://pkg.go.dev/github.com/oracle/coherence-go-client/coherence#hdr-Obtaining_a_Session) on connection options
