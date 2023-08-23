@@ -1,4 +1,4 @@
-module coherence
+module github.com/gofiber/storage/coherence
 
 go 1.19
 
