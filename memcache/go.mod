@@ -3,7 +3,7 @@ module github.com/gofiber/storage/memcache/v2
 go 1.19
 
 require (
-	github.com/bradfitz/gomemcache v0.0.0-20221031212613-62deef7fc822
+	github.com/bradfitz/gomemcache v0.0.0-20230611145640-acc696258285
 	github.com/stretchr/testify v1.8.4
 )
 
