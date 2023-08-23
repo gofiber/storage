@@ -68,6 +68,12 @@ updates:
             - "🤖 Dependencies"
         schedule:
             interval: "daily"
+    - package-ecosystem: "gomod"
+      directory: "/minio/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
     -   package-ecosystem: "gomod"
         directory: "/mongodb/" # Location of package manifests
         labels:
