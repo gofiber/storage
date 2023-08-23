@@ -55,3 +55,4 @@ generate_cert redis "Generic-cert"
 
 # List generated certs
 ls -la ./tls
+echo "$PWD"
