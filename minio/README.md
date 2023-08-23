@@ -2,6 +2,8 @@
 
 A Minio storage driver using [minio/minio](https://github.com/minio/minio).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
