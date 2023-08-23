@@ -37,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the mssql implementation:
 ```bash
-go get github.com/gofiber/storage/mssql
+go get github.com/gofiber/storage/mssql/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/mssql"
+import "github.com/gofiber/storage/mssql/v2"
 ```
 
 You can use the following possibilities to create a storage:

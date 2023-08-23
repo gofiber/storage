@@ -44,7 +44,7 @@ Note: This step is only required if you don't have an existing module.
 And then install the Pebble implementation:
 
 ```bash
-go get github.com/gofiber/storage/pebble
+go get github.com/gofiber/storage/pebble/v2
 ```
 
 ### Examples
@@ -52,7 +52,7 @@ go get github.com/gofiber/storage/pebble
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/pebble"
+import "github.com/gofiber/storage/pebble/v2"
 ```
 
 You can use the following possibilities to create a storage:

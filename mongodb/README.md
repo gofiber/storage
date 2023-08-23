@@ -37,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the mongodb implementation:
 ```bash
-go get github.com/gofiber/storage/mongodb
+go get github.com/gofiber/storage/mongodb/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/mongodb"
+import "github.com/gofiber/storage/mongodb/v2"
 ```
 
 You can use the following possibilities to create a storage:

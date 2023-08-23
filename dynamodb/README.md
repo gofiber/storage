@@ -43,13 +43,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the dynamodb implementation:
 ```bash
-go get github.com/gofiber/storage/dynamodb
+go get github.com/gofiber/storage/dynamodb/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/dynamodb"
+import "github.com/gofiber/storage/dynamodb/v2"
 ```
 
 You can use the following possibilities to create a storage:

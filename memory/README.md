@@ -40,13 +40,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the memory implementation:
 ```bash
-go get github.com/gofiber/storage/memory
+go get github.com/gofiber/storage/memory/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/memory"
+import "github.com/gofiber/storage/memory/v2"
 ```
 
 You can use the following possibilities to create a storage:

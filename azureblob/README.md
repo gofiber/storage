@@ -44,7 +44,7 @@ go mod init github.com/<user>/<repo>
 And then install the azure blob implementation:
 
 ```bash
-go get github.com/gofiber/storage/azureblob
+go get github.com/gofiber/storage/azureblob/v2
 ```
 
 ### Examples
@@ -52,7 +52,7 @@ go get github.com/gofiber/storage/azureblob
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/azureblob"
+import "github.com/gofiber/storage/azureblob/v2"
 ```
 
 You can use the following possibilities to create a storage:

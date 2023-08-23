@@ -37,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the s3 implementation:
 ```bash
-go get github.com/gofiber/storage/bbolt
+go get github.com/gofiber/storage/bbolt/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/bbolt"
+import "github.com/gofiber/storage/bbolt/v2"
 ```
 
 You can use the following possibilities to create a storage:

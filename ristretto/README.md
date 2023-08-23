@@ -39,13 +39,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the ristretto implementation:
 ```bash
-go get github.com/gofiber/storage/ristretto
+go get github.com/gofiber/storage/ristretto/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/ristretto"
+import "github.com/gofiber/storage/ristretto/v2"
 ```
 
 You can use the following possibilities to create a storage:
