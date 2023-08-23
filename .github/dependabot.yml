@@ -30,6 +30,8 @@ updates:
         directory: "/couchbase/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
     -   package-ecosystem: "gomod"
         directory: "/coherence/" # Location of package manifests
         labels:
