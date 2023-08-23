@@ -20,7 +20,6 @@ func New(config ...Config) *Storage {
 		MaxCost:     cfg.MaxCost,
 		BufferItems: cfg.BufferItems,
 	})
-
 	if err != nil {
 		panic(err)
 	}

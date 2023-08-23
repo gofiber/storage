@@ -30,7 +30,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v4
         with:
-          go-version: '^1.18.x'
+          go-version: '^1.19.x'
           check-latest: true
           cache: false
       - name: Install Gosec
@@ -38,7 +38,7 @@ jobs:
       - name: Run Gosec (root)
         working-directory: .
         run: |
-          gosec -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=couchbase -exclude-dir=dynamodb -exclude-dir=etcd -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 -exclude-dir=bbolt -exclude-dir=azureblob -exclude-dir=mssql -exclude-dir=pebble -exclude-dir=coherence ./....
+          gosec -exclude-dir=arangodb -exclude-dir=badger -exclude-dir=couchbase -exclude-dir=dynamodb -exclude-dir=etcd -exclude-dir=memcache -exclude-dir=memory -exclude-dir=mongodb -exclude-dir=mysql -exclude-dir=postgres -exclude-dir=redis -exclude-dir=ristretto -exclude-dir=sqlite3 -exclude-dir=s3 -exclude-dir=bbolt -exclude-dir=azureblob -exclude-dir=mssql -exclude-dir=pebble -exclude-dir=rueidis -exclude-dir=coherence ./....
         # -----
       - name: Run Gosec (arangodb)
         working-directory: ./arangodb
@@ -114,5 +114,9 @@ jobs:
         # -----
       - name: Run Gosec (pebble)
         working-directory: ./pebble
+        run: gosec ./...
+        # -----
+      - name: Run Gosec (rueidis)
+        working-directory: ./rueidis
         run: gosec ./...
         # -----

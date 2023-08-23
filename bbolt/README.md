@@ -11,6 +11,7 @@ title: Bbolt
 
 A Bbolt storage driver using [etcd-io/bbolt](https://github.com/etcd-io/bbolt). Bolt is a pure Go key/value store inspired by [Howard Chu's](https://twitter.com/hyc_symas) [LMDB project](https://www.symas.com/symas-embedded-database-lmdb). The goal of the project is to provide a simple, fast, and reliable database for projects that don't require a full database server such as Postgres or MySQL.
 
+**Note: Requires Go 1.19 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -36,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the s3 implementation:
 ```bash
-go get github.com/gofiber/storage/bbolt
+go get github.com/gofiber/storage/bbolt/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/bbolt"
+import "github.com/gofiber/storage/bbolt/v2"
 ```
 
 You can use the following possibilities to create a storage:

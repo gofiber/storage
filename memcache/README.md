@@ -11,6 +11,8 @@ title: Memcache
 
 A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradfitz/gomemcache).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -36,7 +38,7 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the memory implementation:
 ```bash
-go get github.com/gofiber/storage/memory
+go get github.com/gofiber/storage/memory/v2
 ```
 
 ### Examples

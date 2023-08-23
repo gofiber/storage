@@ -2,8 +2,9 @@ package etcd
 
 import (
 	"context"
-	"go.etcd.io/etcd/client/v3"
 	"time"
+
+	"go.etcd.io/etcd/client/v3"
 )
 
 type Storage struct {
@@ -36,7 +37,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	item, err := s.db.Get(context.Background(), key)
-
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	lease, err := s.db.Grant(context.Background(), int64(exp.Seconds()))
-
 	if err != nil {
 		return err
 	}
@@ -83,7 +82,6 @@ func (s *Storage) Delete(key string) error {
 
 func (s *Storage) Reset() error {
 	_, err := s.db.Delete(context.Background(), "", clientv3.WithPrefix())
-
 	if err != nil {
 		return err
 	}

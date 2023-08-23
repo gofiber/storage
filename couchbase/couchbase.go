@@ -26,7 +26,6 @@ func New(config ...Config) *Storage {
 		},
 		Transcoder: gocb.NewLegacyTranscoder(),
 	})
-
 	if err != nil {
 		panic(err)
 	}

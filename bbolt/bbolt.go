@@ -3,7 +3,7 @@ package bbolt
 import (
 	"time"
 
-	"github.com/gofiber/utils"
+	"github.com/gofiber/utils/v2"
 	"go.etcd.io/bbolt"
 )
 
@@ -18,7 +18,7 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	conn, err := bbolt.Open(cfg.Database, 0666, &bbolt.Options{
+	conn, err := bbolt.Open(cfg.Database, 0o666, &bbolt.Options{
 		Timeout:  cfg.Timeout,
 		ReadOnly: cfg.ReadOnly,
 	})
@@ -42,7 +42,6 @@ func New(config ...Config) *Storage {
 		conn:   conn,
 		bucket: cfg.Bucket,
 	}
-
 }
 
 // Get value by key

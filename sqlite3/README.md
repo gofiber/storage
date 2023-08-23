@@ -11,6 +11,8 @@ title: SQLite3
 
 A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
 
+**Note: Requires Go 1.19 and above**
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -35,13 +37,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the sqlite3 implementation:
 ```bash
-go get github.com/gofiber/storage/sqlite3
+go get github.com/gofiber/storage/sqlite3/v2
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/sqlite3"
+import "github.com/gofiber/storage/sqlite3/v2"
 ```
 
 You can use the following possibilities to create a storage:
