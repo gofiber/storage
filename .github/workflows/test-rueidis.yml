@@ -38,9 +38,9 @@ jobs:
             -   name: Run Redis
                 run: |
                     redis-server --tls-port 6380 --port 6379 \
-                    --tls-cert-file ./.github/scripts/tls/redis.crt \
-                    --tls-key-file ./.github/scripts/tls/redis.key \
-                    --tls-ca-cert-file ./.github/scripts/tls/ca.crt &
+                    --tls-cert-file ./tls/redis.crt \
+                    --tls-key-file ./tls/redis.key \
+                    --tls-ca-cert-file ./tls/ca.crt &
 
             -   name: Setup Redis Cluster
                 uses: vishnudxb/redis-cluster@1.0.8
