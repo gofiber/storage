@@ -1,13 +1,4 @@
----
-id: minio
-title: minio
----
-
-![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=minio*)
-[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
-![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-minio.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
+# Minio
 
 A Minio storage driver using [minio/minio](https://github.com/minio/minio).
 
@@ -26,7 +17,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() *s3.Client
+func (s *Storage) CheckBucket() error
+func (s *Storage) CreateBucket() error
+func (s *Storage) RemoveBucket() error
 ```
 ### Installation
 Install the Minio implementation:
