@@ -34,7 +34,7 @@ func Test_Get(t *testing.T) {
 
 	result, err = testStore.Get("doe")
 	require.Error(t, err)
-	require.Zero(t, result)
+	require.Zero(t, len(result))
 }
 
 func Test_Get_Empty_Key(t *testing.T) {
@@ -56,8 +56,9 @@ func Test_Get_Not_Exists_Bucket(t *testing.T) {
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	_, err := testStore.Get(key)
+	result, err := testStore.Get(key)
 	require.Error(t, err)
+	require.Zero(t, len(result))
 	require.EqualError(t, err, "the specified bucket does not exist")
 
 	testStore.cfg.Bucket = "test-bucket"
@@ -170,7 +171,7 @@ func Test_Reset(t *testing.T) {
 
 	result, err := testStore.Get("john1")
 	require.Error(t, err)
-	require.Zero(t, result)
+	require.Zero(t, len(result))
 
 }
 
