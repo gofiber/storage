@@ -124,7 +124,7 @@ func Test_Rueidis_Conn(t *testing.T) {
 }
 
 func Test_Rueidis_WithTLS(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("./tls/client.crt", "./tls/client.key")
+	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
 	if err != nil {
 		log.Println(err)
 		require.NoError(t, err)
