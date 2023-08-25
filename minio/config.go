@@ -6,50 +6,57 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
-	// Minio bucket name
+	// Bucket
+	// Default test-bucket
 	Bucket string
 
-	// Minio endpoint
+	// Endpoint is a host name or an IP address
 	Endpoint string
 
-	// Minio region
+	// Region Set this value to override region cache
+	// Optional
 	Region string
 
-	// Minio token
+	// Token Set this value to provide x-amz-security-token (AWS S3 specific)
+	// Optional, Default is false
 	Token string
 
-	// Minio secure
+	// Secure If set to true, https is used instead of http.
+	// Default is false
 	Secure bool
 
 	// Reset clears any existing keys in existing Bucket
 	// Optional. Default is false
 	Reset bool
 
-	// Credentials overrides Minio access key and Minio secret key. Not recommended.
-	// Optional. Default is Credentials{}
+	// Credentials Minio access key and Minio secret key.
+	// Need to be defined
 	Credentials Credentials
 
-	// Get object options
+	// GetObjectOptions Options for GET requests specifying additional options like encryption, If-Match
 	GetObjectOptions minio.GetObjectOptions
 
-	// Put object options
+	// PutObjectOptions
+	// Allows user to set optional custom metadata, content headers, encryption keys and number of threads for multipart upload operation.
 	PutObjectOptions minio.PutObjectOptions
 
-	// List object options
+	// ListObjectsOptions Options per to list objects
 	ListObjectsOptions minio.ListObjectsOptions
 
-	// Remove object options
+	// RemoveObjectOptions Allows user to set options
 	RemoveObjectOptions minio.RemoveObjectOptions
 }
 
 type Credentials struct {
-	accessKeyID     string
+	// accessKeyID is like user-id that uniquely identifies your account.
+	accessKeyID string
+	// secretAccessKey is the password to your account.
 	secretAccessKey string
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Bucket:              "",
+	Bucket:              "test-bucket",
 	Endpoint:            "",
 	Region:              "",
 	Token:               "",
