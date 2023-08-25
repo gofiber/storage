@@ -1,6 +1,6 @@
 # Minio
 
-A Minio storage driver using [minio/minio](https://github.com/minio/minio).
+A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go).
 
 **Note: Requires Go 1.19 and above**
 
