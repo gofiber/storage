@@ -48,6 +48,17 @@ func Test_Get_Empty_Key(t *testing.T) {
 
 }
 
+func Test_Get_Not_Exists_Key(t *testing.T) {
+	var (
+		key = "not-exists"
+	)
+
+	_, err := testStore.Get(key)
+	require.Error(t, err)
+	require.EqualError(t, err, "The specified key does not exist.")
+
+}
+
 func Test_Get_Not_Exists_Bucket(t *testing.T) {
 	var (
 		key = "john"
