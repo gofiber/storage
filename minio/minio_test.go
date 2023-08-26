@@ -10,7 +10,7 @@ import (
 
 var testStore = New(
 	Config{
-		Bucket:   "test-bucket",
+		Bucket:   "fiber-bucket",
 		Endpoint: "localhost:9000",
 		Credentials: Credentials{
 			accessKeyID:     "minio-user",
@@ -70,9 +70,9 @@ func Test_Get_Not_Exists_Bucket(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.Error(t, err)
 	require.Zero(t, len(result))
-	require.EqualError(t, err, "the specified bucket does not exist")
+	require.EqualError(t, err, "The specified bucket does not exist")
 
-	testStore.cfg.Bucket = "test-bucket"
+	testStore.cfg.Bucket = "fiber-bucket"
 
 }
 
@@ -109,17 +109,10 @@ func Test_Set_Not_Exists_Bucket(t *testing.T) {
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
 	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
+	require.Error(t, err)
+	require.EqualError(t, err, "The specified bucket does not exist")
 
-	// remove object
-	err = testStore.Delete(key)
-	require.NoError(t, err)
-
-	// remove bucket
-	err = testStore.RemoveBucket()
-	require.NoError(t, err)
-
-	testStore.cfg.Bucket = "test-bucket"
+	testStore.cfg.Bucket = "fiber-bucket"
 }
 
 func Test_Delete(t *testing.T) {
@@ -160,9 +153,9 @@ func Test_Delete_Not_Exists_Bucket(t *testing.T) {
 	err := testStore.Delete(key)
 
 	require.Error(t, err)
-	require.EqualError(t, err, "the specified bucket does not exist")
+	require.EqualError(t, err, "The specified bucket does not exist")
 
-	testStore.cfg.Bucket = "test-bucket"
+	testStore.cfg.Bucket = "fiber-bucket"
 
 }
 

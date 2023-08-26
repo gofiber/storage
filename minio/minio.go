@@ -64,12 +64,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, errors.New("the key value is required")
 	}
 
-	// check bucket
-	err := s.CheckBucket()
-	if err != nil {
-		return nil, err
-	}
-
 	// get object
 	object, err := s.minio.GetObject(s.ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
 	if err != nil {
@@ -93,16 +87,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return errors.New("the key value is required")
 	}
 
-	// check bucket
-	err := s.CheckBucket()
-	if err != nil {
-		// create bucket
-		err = s.CreateBucket()
-		if err != nil {
-			return err
-		}
-	}
-
 	// create Reader
 	file := bytes.NewReader(val)
 
@@ -110,7 +94,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	s.cfg.PutObjectOptions.ContentType = http.DetectContentType(val)
 
 	// put object
-	_, err = s.minio.PutObject(s.ctx, s.cfg.Bucket, key, file, file.Size(), s.cfg.PutObjectOptions)
+	_, err := s.minio.PutObject(s.ctx, s.cfg.Bucket, key, file, file.Size(), s.cfg.PutObjectOptions)
 
 	return err
 }
@@ -122,26 +106,14 @@ func (s *Storage) Delete(key string) error {
 		return errors.New("the key value is required")
 	}
 
-	// check bucket
-	err := s.CheckBucket()
-	if err != nil {
-		return err
-	}
-
 	// remove
-	err = s.minio.RemoveObject(s.ctx, s.cfg.Bucket, key, s.cfg.RemoveObjectOptions)
+	err := s.minio.RemoveObject(s.ctx, s.cfg.Bucket, key, s.cfg.RemoveObjectOptions)
 
 	return err
 }
 
 // Reset all entries, including unexpired
 func (s *Storage) Reset() error {
-
-	// check bucket
-	err := s.CheckBucket()
-	if err != nil {
-		return err
-	}
 
 	objectsCh := make(chan minio.ObjectInfo)
 
