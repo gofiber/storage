@@ -61,7 +61,7 @@ store := minio.New(minio.Config{
 // Config defines the config for storage.
 type Config struct {
     // Bucket
-    // Default test-bucket
+    // Default fiber-bucket
     Bucket string
     
     // Endpoint is a host name or an IP address
