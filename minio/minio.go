@@ -173,7 +173,7 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// CheckBucket Check to see if already exist bucket
+// CheckBucket Check to see if bucket already exists
 func (s *Storage) CheckBucket() error {
 	exists, err := s.minio.BucketExists(s.ctx, s.cfg.Bucket)
 	if !exists || err != nil {
