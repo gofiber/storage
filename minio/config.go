@@ -56,7 +56,7 @@ type Credentials struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Bucket:              "test-bucket",
+	Bucket:              "fiber-bucket",
 	Endpoint:            "",
 	Region:              "",
 	Token:               "",
