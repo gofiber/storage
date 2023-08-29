@@ -27,7 +27,7 @@ func New(config ...Config) *Storage {
 
 	// Minio instance
 	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.Credentials.accessKeyID, cfg.Credentials.secretAccessKey, cfg.Token),
+		Creds:  credentials.NewStaticV4(cfg.Credentials.AccessKeyID, cfg.Credentials.SecretAccessKey, cfg.Token),
 		Secure: cfg.Secure,
 		Region: cfg.Region,
 	})

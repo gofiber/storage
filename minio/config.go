@@ -48,10 +48,10 @@ type Config struct {
 }
 
 type Credentials struct {
-	// accessKeyID is like user-id that uniquely identifies your account.
-	accessKeyID string
-	// secretAccessKey is the password to your account.
-	secretAccessKey string
+	// AccessKeyID is like user-id that uniquely identifies your account.
+	AccessKeyID string
+	// SecretAccessKey is the password to your account.
+	SecretAccessKey string
 }
 
 // ConfigDefault is the default config

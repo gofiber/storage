@@ -120,7 +120,7 @@ var ConfigDefault = Config{
     RemoveObjectOptions: minio.RemoveObjectOptions{},
 }
 type Credentials struct {
-    accessKeyID     string
-    secretAccessKey string
+    AccessKeyID     string
+    SecretAccessKey string
 }
 ```
