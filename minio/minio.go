@@ -10,6 +10,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/valyala/bytebufferpool"
 )
 
 // Storage interface that is implemented by storage providers
@@ -71,7 +72,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// convert to byte
-	buf := new(bytes.Buffer)
+	buf := new(bytebufferpool.ByteBuffer)
 	_, err = buf.ReadFrom(object)
 	if err != nil {
 		return nil, err

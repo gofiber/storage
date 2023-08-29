@@ -3,14 +3,15 @@ module github.com/gofiber/storage/minio
 go 1.19
 
 require (
-	github.com/minio/minio-go/v7 v7.0.62
+	github.com/minio/minio-go/v7 v7.0.63
 	github.com/stretchr/testify v1.8.4
+	github.com/valyala/bytebufferpool v1.0.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
