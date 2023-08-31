@@ -72,13 +72,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// convert to byte
-	buf := new(bytebufferpool.ByteBuffer)
-	_, err = buf.ReadFrom(object)
+	bb := bytebufferpool.Get()
+	_, err = bb.ReadFrom(object)
 	if err != nil {
 		return nil, err
 	}
-
-	return buf.Bytes(), nil
+	return bb.Bytes(), nil
 }
 
 // Set key with value
