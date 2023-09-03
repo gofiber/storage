@@ -73,6 +73,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	// convert to byte
 	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
 	_, err = bb.ReadFrom(object)
 	if err != nil {
 		return nil, err
