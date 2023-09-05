@@ -74,7 +74,7 @@ err := store.Set("my-key", []byte("my-value"))
 Or, call `SetWithChecksum()` to create an object with checksum to
 ask S3 server to verify data integrity on server side:
 
-> Currently 4 algorithm are supported:
+> Currently 4 algorithms are supported:
 >   - types.ChecksumAlgorithmCrc32 (`CRC32`)
 >   - types.ChecksumAlgorithmCrc32c (`CRC32C`)
 >   - types.ChecksumAlgorithmSha1 (`SHA1`)

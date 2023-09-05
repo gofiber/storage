@@ -1,5 +1,9 @@
 package s3
 
+import (
+	"time"
+)
+
 var testStore *Storage
 
 func init() {
@@ -12,7 +16,7 @@ func init() {
 				AccessKey:       "minioadmin",
 				SecretAccessKey: "minioadmin",
 			},
+			RequestTimeout: 10 * time.Second,
 		},
 	)
-
 }

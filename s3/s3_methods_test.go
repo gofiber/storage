@@ -10,7 +10,7 @@ import (
 
 func Test_S3_SetWithChecksum(t *testing.T) {
 	var (
-		key       = "john"
+		key       = "set-with-checksum"
 		val       = []byte("doe")
 		sha256sum = sha256.New().Sum(val)
 		checksum  = map[types.ChecksumAlgorithm][]byte{

@@ -12,8 +12,8 @@ import (
 // Additional methods for S3, but not required by gofiber Storage interface.
 
 // SetWithChecksum sets key with value and checksum.
-// Key of `checksum` map is algorithm in upper cases, value is the checksum.
-// Currently only 4 algorithm are supported:
+//
+// Currently 4 algorithms are supported:
 //   - types.ChecksumAlgorithmCrc32 (`CRC32`)
 //   - types.ChecksumAlgorithmCrc32c (`CRC32C`)
 //   - types.ChecksumAlgorithmSha1 (`SHA1`)
