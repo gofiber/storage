@@ -72,6 +72,10 @@ jobs:
         working-directory: ./memory
         run: gosec ./...
         # -----
+      - name: Run Gosec (minio)
+        working-directory: ./minio
+        run: gosec ./...
+        # -----
       - name: Run Gosec (mongodb)
         working-directory: ./mongodb
         run: gosec ./...
