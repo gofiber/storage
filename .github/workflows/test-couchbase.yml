@@ -20,7 +20,7 @@ jobs:
           - 1.21.x
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install couchbase
         run: |
           docker run --name couchbase -d -p 8091-8097:8091-8097 -p 9123:9123 -p 11207:11207 -p 11210:11210 -p 11280:11280 -p 18091-18097:18091-18097 couchbase:enterprise-7.1.1
