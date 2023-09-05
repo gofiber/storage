@@ -8,18 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(
-	Config{
-		Bucket:   "testbucket",
-		Endpoint: "http://127.0.0.1:9000/",
-		Region:   "us-east-1",
-		Credentials: Credentials{
-			AccessKey:       "minioadmin",
-			SecretAccessKey: "minioadmin",
-		},
-	},
-)
-
 func Test_S3_SetWithChecksum(t *testing.T) {
 	var (
 		key       = "john"
