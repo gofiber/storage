@@ -14,7 +14,7 @@ func Test_S3_SetWithChecksum(t *testing.T) {
 		sha256sum = sha256.New().Sum(val)
 	)
 
-	err := testStore.SetWithChecksum(key, val, map[string]string{"SHA256": string(sha256sum)})
+	err := testStore.SetWithChecksum(key, val, map[string][]byte{"SHA256": sha256sum})
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)

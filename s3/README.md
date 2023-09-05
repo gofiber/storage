@@ -32,7 +32,9 @@ func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *s3.Client
 ```
+
 ### Installation
+
 S3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
@@ -43,7 +45,9 @@ go get github.com/gofiber/storage/s3/v2
 ```
 
 ### Examples
+
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/s3/v2"
 ```
@@ -60,6 +64,25 @@ store := s3.New(s3.Config{
 	Region:   "my-region",
 	Reset:    false,
 })
+```
+
+Create an object with `Set()`:
+```go
+err := store.Set("my-key", []byte("my-value"))
+```
+
+Or, call `SetWithChecksum()` to create an object with checksum to
+ask S3 server to verify data integrity on server side:
+
+> Currently only 4 algorithm are supported: `CRC32`, `CRC32C`, `SHA1`, `SHA256`.
+> For more information, see [PutObjectInput](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#PutObjectInput).
+
+```go
+val := []byte("my-value")
+sha256sum := sha256.New().Sum256(val)
+checksum := map[string][]byte{"SHA256": sha256sum}
+
+err := store.SetWithChecksum("my-key", []byte("my-value"), checksum)
 ```
 
 ### Config
