@@ -74,13 +74,22 @@ err := store.Set("my-key", []byte("my-value"))
 Or, call `SetWithChecksum()` to create an object with checksum to
 ask S3 server to verify data integrity on server side:
 
-> Currently only 4 algorithm are supported: `CRC32`, `CRC32C`, `SHA1`, `SHA256`.
+> Currently 4 algorithm are supported:
+>   - types.ChecksumAlgorithmCrc32 (`CRC32`)
+>   - types.ChecksumAlgorithmCrc32c (`CRC32C`)
+>   - types.ChecksumAlgorithmSha1 (`SHA1`)
+>   - types.ChecksumAlgorithmSha256 (`SHA256`)
+>
 > For more information, see [PutObjectInput](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#PutObjectInput).
 
 ```go
 val := []byte("my-value")
 sha256sum := sha256.New().Sum256(val)
-checksum := map[string][]byte{"SHA256": sha256sum}
+
+// import "github.com/aws/aws-sdk-go-v2/service/s3/types"
+checksum  = map[types.ChecksumAlgorithm][]byte{
+    types.ChecksumAlgorithmSha256: sha256sum,
+}
 
 err := store.SetWithChecksum("my-key", []byte("my-value"), checksum)
 ```
