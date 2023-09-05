@@ -2,7 +2,6 @@ package s3
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -38,13 +37,13 @@ func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.Che
 	for alg, sum := range checksum {
 		switch alg {
 		case types.ChecksumAlgorithmCrc32:
-			poi.ChecksumCRC32 = aws.String(hex.EncodeToString(sum))
+			poi.ChecksumCRC32 = aws.String(string(sum))
 		case types.ChecksumAlgorithmCrc32c:
-			poi.ChecksumCRC32C = aws.String(hex.EncodeToString(sum))
+			poi.ChecksumCRC32C = aws.String(string(sum))
 		case types.ChecksumAlgorithmSha1:
-			poi.ChecksumSHA1 = aws.String(hex.EncodeToString(sum))
+			poi.ChecksumSHA1 = aws.String(string(sum))
 		case types.ChecksumAlgorithmSha256:
-			poi.ChecksumSHA256 = aws.String(hex.EncodeToString(sum))
+			poi.ChecksumSHA256 = aws.String(string(sum))
 		default:
 			return fmt.Errorf("invalid checksum algorithm: %s", alg)
 		}
