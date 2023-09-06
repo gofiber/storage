@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,6 +11,29 @@ import (
 )
 
 // Additional methods for S3, but not required by gofiber Storage interface.
+
+// CreateBucket creates a new bucket.
+func (s *Storage) CreateBucket(bucket string) error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.svc.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String(bucket),
+	})
+
+	return err
+}
+
+func (s *Storage) DeleteBucket(bucket string) error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.svc.DeleteBucket(ctx, &s3.DeleteBucketInput{
+		Bucket: aws.String(bucket),
+	})
+
+	return err
+}
 
 // SetWithChecksum sets key with value and checksum.
 //
@@ -25,31 +49,34 @@ func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.Che
 		return nil
 	}
 
-	ctx, cancel := s.requestContext()
-	defer cancel()
-
-	poi := &s3.PutObjectInput{
+	poi := s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(val),
 	}
 
 	for alg, sum := range checksum {
+		// S3 requires base64 encoded checksum.
+		b64str := base64.StdEncoding.EncodeToString(sum)
+
 		switch alg {
 		case types.ChecksumAlgorithmCrc32:
-			poi.ChecksumCRC32 = aws.String(string(sum))
+			poi.ChecksumCRC32 = aws.String(b64str)
 		case types.ChecksumAlgorithmCrc32c:
-			poi.ChecksumCRC32C = aws.String(string(sum))
+			poi.ChecksumCRC32C = aws.String(b64str)
 		case types.ChecksumAlgorithmSha1:
-			poi.ChecksumSHA1 = aws.String(string(sum))
+			poi.ChecksumSHA1 = aws.String(b64str)
 		case types.ChecksumAlgorithmSha256:
-			poi.ChecksumSHA256 = aws.String(string(sum))
+			poi.ChecksumSHA256 = aws.String(b64str)
 		default:
 			return fmt.Errorf("invalid checksum algorithm: %s", alg)
 		}
 	}
 
-	_, err := s.uploader.Upload(ctx, poi)
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.uploader.Upload(ctx, &poi)
 
 	return err
 }
