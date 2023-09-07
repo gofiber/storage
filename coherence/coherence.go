@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultScopeName = "default-store"
-	defaultTimeout   = time.Duration(30) * time.Millisecond
+	defaultTimeout   = time.Duration(30) * time.Second
 )
 
 // Storage represents an implementation of Coherence storage provider.
