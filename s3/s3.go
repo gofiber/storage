@@ -159,7 +159,7 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// Return database client
+// Conn returns database client.
 func (s *Storage) Conn() *s3.Client {
 	return s.svc
 }
@@ -186,11 +186,11 @@ func returnAWSConfig(cfg Config) (aws.Config, error) {
 	})
 
 	if cfg.Credentials != (Credentials{}) {
-		credentials := credentials.NewStaticCredentialsProvider(cfg.Credentials.AccessKey, cfg.Credentials.SecretAccessKey, "")
+		creds := credentials.NewStaticCredentialsProvider(cfg.Credentials.AccessKey, cfg.Credentials.SecretAccessKey, "")
 		return awsconfig.LoadDefaultConfig(context.TODO(),
 			awsconfig.WithRegion(cfg.Region),
 			awsconfig.WithEndpointResolverWithOptions(endpoint),
-			awsconfig.WithCredentialsProvider(credentials),
+			awsconfig.WithCredentialsProvider(creds),
 			awsconfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
 			}),
