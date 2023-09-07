@@ -24,6 +24,7 @@ func (s *Storage) CreateBucket(bucket string) error {
 	return err
 }
 
+// DeleteBucket deletes a bucket.
 func (s *Storage) DeleteBucket(bucket string) error {
 	ctx, cancel := s.requestContext()
 	defer cancel()

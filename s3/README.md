@@ -31,6 +31,11 @@ func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *s3.Client
+
+// Additional useful methods.
+func (s *Storage) CreateBucker(bucket string) error
+func (s *Storage) DeleteBucket(bucket string) error
+func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.ChecksumAlgorithm][]byte) error
 ```
 
 ### Installation
@@ -83,15 +88,19 @@ ask S3 server to verify data integrity on server side:
 > For more information, see [PutObjectInput](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#PutObjectInput).
 
 ```go
+key := "my-key"
 val := []byte("my-value")
-sha256sum := sha256.New().Sum256(val)
+
+hash := sha256.New()
+hash.Write(val)
+sha256sum := hash.Sum(nil)
 
 // import "github.com/aws/aws-sdk-go-v2/service/s3/types"
 checksum  = map[types.ChecksumAlgorithm][]byte{
     types.ChecksumAlgorithmSha256: sha256sum,
 }
 
-err := store.SetWithChecksum("my-key", []byte("my-value"), checksum)
+err := store.SetWithChecksum(key, val, checksum)
 ```
 
 ### Config
@@ -136,7 +145,9 @@ type Credentials struct {
 ```
 
 ### Default Config
+
 The default configuration lacks Bucket, Region, and Endpoint which are all required and must be overwritten:
+
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
