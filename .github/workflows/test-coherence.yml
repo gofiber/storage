@@ -20,7 +20,7 @@ jobs:
           - 1.21.x
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Startup Coherence
         run: |
           docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5

@@ -31,8 +31,15 @@ func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *s3.Client
+
+// Additional useful methods.
+func (s *Storage) CreateBucker(bucket string) error
+func (s *Storage) DeleteBucket(bucket string) error
+func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.ChecksumAlgorithm][]byte) error
 ```
+
 ### Installation
+
 S3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
@@ -43,7 +50,9 @@ go get github.com/gofiber/storage/s3/v2
 ```
 
 ### Examples
+
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/s3/v2"
 ```
@@ -60,6 +69,38 @@ store := s3.New(s3.Config{
 	Region:   "my-region",
 	Reset:    false,
 })
+```
+
+Create an object with `Set()`:
+```go
+err := store.Set("my-key", []byte("my-value"))
+```
+
+Or, call `SetWithChecksum()` to create an object with checksum to
+ask S3 server to verify data integrity on server side:
+
+> Currently 4 algorithms are supported:
+>   - types.ChecksumAlgorithmCrc32 (`CRC32`)
+>   - types.ChecksumAlgorithmCrc32c (`CRC32C`)
+>   - types.ChecksumAlgorithmSha1 (`SHA1`)
+>   - types.ChecksumAlgorithmSha256 (`SHA256`)
+>
+> For more information, see [PutObjectInput](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3#PutObjectInput).
+
+```go
+key := "my-key"
+val := []byte("my-value")
+
+hash := sha256.New()
+hash.Write(val)
+sha256sum := hash.Sum(nil)
+
+// import "github.com/aws/aws-sdk-go-v2/service/s3/types"
+checksum  = map[types.ChecksumAlgorithm][]byte{
+    types.ChecksumAlgorithmSha256: sha256sum,
+}
+
+err := store.SetWithChecksum(key, val, checksum)
 ```
 
 ### Config
@@ -104,7 +145,9 @@ type Credentials struct {
 ```
 
 ### Default Config
+
 The default configuration lacks Bucket, Region, and Endpoint which are all required and must be overwritten:
+
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
