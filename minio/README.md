@@ -51,7 +51,7 @@ store := minio.New(minio.Config{
     Endpoint: "localhost:9000",
     Credentials: Credentials{
         AccessKeyID:     "minio-user",
-		SecretAccessKey: "minio-password",
+        SecretAccessKey: "minio-password",
     },
 })
 ```
