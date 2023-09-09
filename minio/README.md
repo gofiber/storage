@@ -50,8 +50,8 @@ store := minio.New(minio.Config{
     Bucket:   "fiber-bucket",
     Endpoint: "localhost:9000",
     Credentials: Credentials{
-        accessKeyID:     "minio-user",
-        secretAccessKey: "minio-password",
+        AccessKeyID:     "minio-user",
+		SecretAccessKey: "minio-password",
     },
 })
 ```
