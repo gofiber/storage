@@ -46,6 +46,8 @@ cat > ./tls/openssl.cnf <<_END_
 [ server_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = server
+subjectAltName = DNS:localhost"
+
 [ client_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = client
