@@ -188,6 +188,49 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	require.Nil(t, testStoreUrl.Close())
 }
 
+func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
+	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	tlsCfg := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		InsecureSkipVerify:       false,
+		Certificates:             []tls.Certificate{cer},
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+	}
+
+	testStoreUrl := New(Config{
+		URL:       "redis://localhost:6380",
+		TLSConfig: tlsCfg,
+	})
+
+	var (
+		key = "clark"
+		val = []byte("kent")
+	)
+
+	err = testStoreUrl.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStoreUrl.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	err = testStoreUrl.Delete(key)
+	require.NoError(t, err)
+
+	require.Nil(t, testStoreUrl.Close())
+}
+
 func Test_Redis_Universal_Addrs(t *testing.T) {
 	// This should failover and create a Single Node connection.
 	testStoreUniversal := New(Config{

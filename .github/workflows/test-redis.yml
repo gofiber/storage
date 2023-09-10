@@ -28,6 +28,12 @@ jobs:
             -   name: Generate TLS certs
                 run: ./.github/scripts/gen-test-certs.sh
 
+            -   name: Add Custom CA cert
+                run: cp /home/runner/work/storage/storage/tls/ca.crt /usr/local/share/ca-certificates/custom.crt
+
+            -   name: Trust Custom CA Cert
+                run: sudo update-ca-certificates
+
             -   name: Setup Redis
                 uses: shogo82148/actions-setup-redis@v1
                 with:
