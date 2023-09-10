@@ -231,6 +231,29 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 	require.Nil(t, testStoreUrl.Close())
 }
 
+func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
+	testStoreUrl := New(Config{
+		URL: "rediss://localhost:6380",
+	})
+
+	var (
+		key = "clark"
+		val = []byte("kent")
+	)
+
+	err := testStoreUrl.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStoreUrl.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	err = testStoreUrl.Delete(key)
+	require.NoError(t, err)
+
+	require.Nil(t, testStoreUrl.Close())
+}
+
 func Test_Redis_Universal_Addrs(t *testing.T) {
 	// This should failover and create a Single Node connection.
 	testStoreUniversal := New(Config{
