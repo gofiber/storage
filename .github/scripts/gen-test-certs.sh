@@ -53,9 +53,9 @@ keyUsage = digitalSignature, keyEncipherment
 nsCertType = client
 _END_
 
-generate_cert server "localhost" "-extfile ./tls/openssl.cnf -extensions server_cert"
+generate_cert server "Server-only" "-extfile ./tls/openssl.cnf -extensions server_cert"
 generate_cert client "Client-only" "-extfile ./tls/openssl.cnf -extensions client_cert"
-generate_cert redis "Generic-cert"
+generate_cert redis "localhost" "-extfile ./tls/openssl.cnf -extensions server_cert"
 
 # List generated certs
 ls -la ./tls
