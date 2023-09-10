@@ -29,7 +29,7 @@ jobs:
                 run: ./.github/scripts/gen-test-certs.sh
 
             -   name: Add Custom CA cert
-                run: cp /home/runner/work/storage/storage/tls/ca.crt /usr/local/share/ca-certificates/custom.crt
+                run: sudo cp /home/runner/work/storage/storage/tls/ca.crt /usr/local/share/ca-certificates/custom.crt
 
             -   name: Trust Custom CA Cert
                 run: sudo update-ca-certificates
