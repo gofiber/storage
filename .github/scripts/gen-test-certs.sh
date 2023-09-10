@@ -25,6 +25,7 @@ generate_cert() {
             -CA ./tls/ca.crt \
             -CAkey ./tls/ca.key \
             -CAserial ./tls/ca.txt \
+            -addext 'subjectAltName = DNS:localhost' \
             -CAcreateserial \
             -days 365 \
             $opts \
@@ -38,7 +39,6 @@ openssl req \
     -key ./tls/ca.key \
     -days 3650 \
     -subj '/O=Redis Test/CN=Certificate Authority' \
-    -addext 'subjectAltName = DNS:localhost' \
     -out ./tls/ca.crt
 
 cat > ./tls/openssl.cnf <<_END_
