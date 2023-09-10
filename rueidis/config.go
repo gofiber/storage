@@ -24,6 +24,12 @@ type Config struct {
 	// Optional. Default is ""
 	ClientName string
 
+	// URL standard format Redis URL. If this is set all other config options, InitAddress, Username, Password, ClientName, and SelectDB have no effect.
+	//
+	// Example: redis://<user>:<pass>@localhost:6379/<db>
+	// Optional. Default is ""
+	URL string
+
 	// SelectDB to be selected after connecting to the server.
 	//
 	// Optional. Default is 0
@@ -100,6 +106,7 @@ var ConfigDefault = Config{
 	Username:            "",
 	Password:            "",
 	ClientName:          "",
+	URL:                 "",
 	SelectDB:            0,
 	InitAddress:         []string{"127.0.0.1:6379"},
 	TLSConfig:           nil,
@@ -137,6 +144,9 @@ func configDefault(config ...Config) Config {
 	}
 	if userConfig.ClientName != "" {
 		cfg.ClientName = userConfig.ClientName
+	}
+	if userConfig.URL != "" {
+		cfg.URL = userConfig.URL
 	}
 	if userConfig.SelectDB != 0 {
 		cfg.SelectDB = userConfig.SelectDB

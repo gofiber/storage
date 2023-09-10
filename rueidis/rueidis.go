@@ -24,6 +24,28 @@ func New(config ...Config) *Storage {
 	var db rueidis.Client
 	cacheTTL = cfg.CacheTTL
 
+	// Parse the URL and update config values accordingly
+	if cfg.URL != "" {
+		// This will panic if parsing URL fails
+		options := rueidis.MustParseURL(cfg.URL)
+
+		// Update the config values with the parsed URL values
+		cfg.InitAddress = options.InitAddress
+		cfg.Username = options.Username
+		cfg.Password = options.Password
+		cfg.SelectDB = options.SelectDB
+
+		// Update ClientName if returned
+		if cfg.ClientName == "" && options.ClientName != "" {
+			cfg.ClientName = options.ClientName
+		}
+
+		// Update TLSConfig if returned
+		if cfg.TLSConfig == nil && options.TLSConfig != nil {
+			cfg.TLSConfig = options.TLSConfig
+		}
+	}
+
 	// Update config values accordingly and start new Client
 	db, err := rueidis.NewClient(rueidis.ClientOption{
 		Username:            cfg.Username,

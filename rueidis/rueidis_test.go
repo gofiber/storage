@@ -187,6 +187,28 @@ func Test_Rueidis_With_HostPort(t *testing.T) {
 	require.Nil(t, store.Close())
 }
 
+func Test_Rueidis_With_URL(t *testing.T) {
+	store := New(Config{
+		URL: "redis://localhost:6379",
+	})
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := store.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	err = store.Delete(key)
+	require.NoError(t, err)
+	require.Nil(t, store.Close())
+}
+
 func Test_Rueidis_Cluster(t *testing.T) {
 	store := New(Config{
 		InitAddress: []string{
