@@ -233,7 +233,7 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 
 func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
 	testStoreUrl := New(Config{
-		URL: "rediss://localhost:6380",
+		URL: "rediss://localhost:16380",
 	})
 
 	var (
