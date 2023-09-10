@@ -146,7 +146,7 @@ func Test_Redis_Initalize_WithURL(t *testing.T) {
 }
 
 func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("./tests/tls/client.crt", "./tests/tls/client.key")
+	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
 	if err != nil {
 		log.Println(err)
 		return

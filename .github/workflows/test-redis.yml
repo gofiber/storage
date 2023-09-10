@@ -25,6 +25,9 @@ jobs:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
 
+            -   name: Generate TLS certs
+                run: ./.github/scripts/gen-test-certs.sh
+
             -   name: Setup Redis
                 uses: shogo82148/actions-setup-redis@v1
                 with:
@@ -36,9 +39,9 @@ jobs:
             -   name: Run Redis
                 run: |
                     redis-server --tls-port 6380 --port 6379 \
-                    --tls-cert-file ./redis/tests/tls/redis.crt \
-                    --tls-key-file ./redis/tests/tls/redis.key \
-                    --tls-ca-cert-file ./redis/tests/tls/ca.crt&
+                    --tls-cert-file /home/runner/work/storage/storage/tls/redis.crt \
+                    --tls-key-file /home/runner/work/storage/storage/tls/redis.key \
+                    --tls-ca-cert-file /home/runner/work/storage/storage/tls/ca.crt &
 
             -   name: Setup Redis Cluster
                 uses: vishnudxb/redis-cluster@1.0.8
