@@ -7,6 +7,8 @@
 #   ./tls/client.{crt,key}      A certificate restricted for SSL client usage.
 #   ./tls/server.{crt,key}      A certificate restricted for SSL server usage.
 
+set -e
+
 generate_cert() {
     local name=$1
     local cn="$2"
@@ -25,7 +27,6 @@ generate_cert() {
             -CA ./tls/ca.crt \
             -CAkey ./tls/ca.key \
             -CAserial ./tls/ca.txt \
-            -addext 'subjectAltName = DNS:localhost' \
             -CAcreateserial \
             -days 365 \
             $opts \
@@ -45,6 +46,7 @@ cat > ./tls/openssl.cnf <<_END_
 [ server_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = server
+subjectAltName = DNS:localhost
 [ client_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = client
