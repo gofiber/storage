@@ -13,6 +13,7 @@ import (
 const (
 	defaultScopeName = "default-store"
 	defaultTimeout   = time.Duration(30) * time.Second
+	defaultAddress   = "localhost:1408"
 )
 
 // Storage represents an implementation of Coherence storage provider.
@@ -42,30 +43,20 @@ type Config struct {
 
 // DefaultConfig defines default options.
 var DefaultConfig = Config{
-	Address:   "localhost:1408",
-	Timeout:   time.Duration(30) * time.Millisecond,
+	Address:   defaultAddress,
+	Timeout:   defaultTimeout,
 	ScopeName: defaultScopeName,
 	Reset:     false,
 }
 
-// New returns a new [Storage] given a [coherence.Session].
+// New returns a new [Storage] given a [Config].
 func New(config ...Config) (*Storage, error) {
-	var (
-		scopeName = defaultScopeName
-		cfg       = DefaultConfig
-	)
+	cfg := setupConfig(config...)
 
-	if len(config) == 1 {
-		cfg = config[0]
-	}
 	options := make([]func(session *coh.SessionOptions), 0)
 
-	// apply any config values
-	if cfg.Address != "" {
-		options = append(options, coh.WithAddress(cfg.Address))
-	} else {
-		cfg.Address = DefaultConfig.Address
-	}
+	// apply any config values as Coherence options
+	options = append(options, coh.WithAddress(cfg.Address))
 
 	if cfg.TLSConfig != nil {
 		options = append(options, coh.WithTLSConfig(cfg.TLSConfig))
@@ -73,13 +64,7 @@ func New(config ...Config) (*Storage, error) {
 		options = append(options, coh.WithPlainText())
 	}
 
-	if cfg.Timeout != defaultTimeout {
-		options = append(options, coh.WithReadyTimeout(cfg.Timeout))
-	}
-
-	if cfg.ScopeName != defaultScopeName {
-		scopeName = cfg.ScopeName
-	}
+	options = append(options, coh.WithRequestTimeout(cfg.Timeout))
 
 	// create the Coherence session
 	session, err := coh.NewSession(context.Background(), options...)
@@ -87,7 +72,7 @@ func New(config ...Config) (*Storage, error) {
 		return nil, err
 	}
 
-	store, err := newCoherenceStorage(session, scopeName)
+	store, err := newCoherenceStorage(session, cfg.ScopeName)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +83,29 @@ func New(config ...Config) (*Storage, error) {
 	}
 
 	return store, nil
+}
+
+// setupConfig sets the default config.
+func setupConfig(config ...Config) Config {
+	// if nothing provided then use the default config values
+	if len(config) == 0 {
+		return DefaultConfig
+	}
+
+	cfg := config[0]
+
+	// Check for any invalid default values and overwrite them
+	if cfg.Address == "" {
+		cfg.Address = DefaultConfig.Address
+	}
+	if cfg.ScopeName == "" {
+		cfg.ScopeName = DefaultConfig.ScopeName
+	}
+	if cfg.Timeout == 0 {
+		cfg.Timeout = DefaultConfig.Timeout
+	}
+
+	return cfg
 }
 
 // newCoherenceStorage returns a new Coherence [Storage].
