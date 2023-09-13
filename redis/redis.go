@@ -33,6 +33,11 @@ func New(config ...Config) *Storage {
 		cfg.Password = options.Password
 		cfg.Database = options.DB
 		cfg.Addrs = []string{options.Addr}
+
+		// If cfg.TLSConfig is not provided, and options returns one, use it.
+		if cfg.TLSConfig == nil && options.TLSConfig != nil {
+			cfg.TLSConfig = options.TLSConfig
+		}
 	} else if len(cfg.Addrs) == 0 {
 		// Fallback to Host and Port values if Addrs is empty
 		cfg.Addrs = []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}

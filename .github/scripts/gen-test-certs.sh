@@ -7,6 +7,8 @@
 #   ./tls/client.{crt,key}      A certificate restricted for SSL client usage.
 #   ./tls/server.{crt,key}      A certificate restricted for SSL server usage.
 
+set -e
+
 generate_cert() {
     local name=$1
     local cn="$2"
@@ -44,6 +46,8 @@ cat > ./tls/openssl.cnf <<_END_
 [ server_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = server
+subjectAltName = DNS:localhost"
+
 [ client_cert ]
 keyUsage = digitalSignature, keyEncipherment
 nsCertType = client
@@ -51,7 +55,7 @@ _END_
 
 generate_cert server "Server-only" "-extfile ./tls/openssl.cnf -extensions server_cert"
 generate_cert client "Client-only" "-extfile ./tls/openssl.cnf -extensions client_cert"
-generate_cert redis "Generic-cert"
+generate_cert redis "localhost" "-extfile ./tls/openssl.cnf -extensions server_cert"
 
 # List generated certs
 ls -la ./tls
