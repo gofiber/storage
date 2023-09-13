@@ -1,4 +1,15 @@
-# Minio
+---
+id: minio
+title: Minio
+---
+
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=minio*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-minio.yml?label=Tests)
+![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
+![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
+
+## Minio
 
 A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go).
 
@@ -50,8 +61,8 @@ store := minio.New(minio.Config{
     Bucket:   "fiber-bucket",
     Endpoint: "localhost:9000",
     Credentials: Credentials{
-        accessKeyID:     "minio-user",
-        secretAccessKey: "minio-password",
+        AccessKeyID:     "minio-user",
+        SecretAccessKey: "minio-password",
     },
 })
 ```
