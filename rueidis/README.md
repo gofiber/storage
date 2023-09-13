@@ -61,6 +61,11 @@ store := rueidis.New(rueidis.Config{
     TLSConfig:      nil,
 })
 
+// Initialize using Rueidis URL
+store := rueidis.New(rueidis.Config{
+    URL:    "redis://localhost:6379",
+})
+
 // Initialize Rueidis Cluster Client
 store := rueidis.New(rueidis.Config{
     InitAddress:    []string{":6379", ":6380"},
@@ -104,6 +109,12 @@ type Config struct {
 	//
 	// Optional. Default is ""
 	ClientName string
+
+	// URL standard format Redis URL. If this is set all other config options, InitAddress, Username, Password, ClientName, and SelectDB have no effect.
+	//
+	// Example: redis://<user>:<pass>@localhost:6379/<db>
+	// Optional. Default is ""
+	URL string
 
 	// SelectDB to be selected after connecting to the server.
 	//
