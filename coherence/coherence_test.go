@@ -17,6 +17,18 @@ var (
 	value2     = []byte("value2")
 )
 
+// newTestStore returns a new Coherence Store and ensures it is reset.
+func newTestStore(t testing.TB, config ...Config) (*Storage, error) {
+	t.Helper()
+
+	testStore, err := New(config...)
+	utils.AssertEqual(t, err, nil)
+
+	err = testStore.Reset()
+
+	return testStore, err
+}
+
 func Test_Coherence_Set_And_Get(t *testing.T) {
 	var val []byte
 
@@ -196,12 +208,50 @@ func Test_Coherence_With_Scope(t *testing.T) {
 	utils.AssertEqual(t, testStore2.Close(), nil)
 }
 
-// newTestStore returns a new Coherence Store and ensures it is reset.
-func newTestStore(t *testing.T, config ...Config) (*Storage, error) {
-	testStore, err := New(config...)
-	utils.AssertEqual(t, err, nil)
+func Benchmark_Coherence_Set(b *testing.B) {
+	testStore, err := newTestStore(b)
+	utils.AssertEqual(b, nil, err)
 
-	err = testStore.Reset()
+	b.ReportAllocs()
+	b.ResetTimer()
 
-	return testStore, err
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	utils.AssertEqual(b, nil, err)
+}
+
+func Benchmark_Coherence_Get(b *testing.B) {
+	testStore, err := newTestStore(b)
+	utils.AssertEqual(b, nil, err)
+
+	err = testStore.Set("john", []byte("doe"), 0)
+	utils.AssertEqual(b, nil, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	utils.AssertEqual(b, nil, err)
+}
+
+func Benchmark_Coherence_Delete(b *testing.B) {
+	testStore, err := newTestStore(b)
+	utils.AssertEqual(b, nil, err)
+
+	err = testStore.Set("john", []byte("doe"), 0)
+	utils.AssertEqual(b, nil, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = testStore.Delete("john")
+	}
+
+	utils.AssertEqual(b, nil, err)
 }

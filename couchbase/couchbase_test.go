@@ -127,3 +127,64 @@ func TestGetConn_ReturnsNotNill(t *testing.T) {
 	})
 	require.True(t, testStorage.Conn() != nil)
 }
+
+func Benchmark_Couchbase_Set(b *testing.B) {
+	testStore := New(Config{
+		Username: "admin",
+		Password: "123456",
+		Host:     "127.0.0.1:8091",
+		Bucket:   "fiber_storage",
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Couchbase_Get(b *testing.B) {
+	testStore := New(Config{
+		Username: "admin",
+		Password: "123456",
+		Host:     "127.0.0.1:8091",
+		Bucket:   "fiber_storage",
+	})
+
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Couchbase_Delete(b *testing.B) {
+	testStore := New(Config{
+		Username: "admin",
+		Password: "123456",
+		Host:     "127.0.0.1:8091",
+		Bucket:   "fiber_storage",
+	})
+
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
+}

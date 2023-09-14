@@ -108,3 +108,55 @@ func TestGetConn_ReturnsNotNill(t *testing.T) {
 
 	require.True(t, testStorage.Conn() != nil)
 }
+
+func Benchmark_Etcd_Set(b *testing.B) {
+	testStore := New(Config{
+		Endpoints: []string{"localhost:2379"},
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Etcd_Get(b *testing.B) {
+	testStore := New(Config{
+		Endpoints: []string{"localhost:2379"},
+	})
+
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Etcd_Delete(b *testing.B) {
+	testStore := New(Config{
+		Endpoints: []string{"localhost:2379"},
+	})
+
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
+}

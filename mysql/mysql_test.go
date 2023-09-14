@@ -189,3 +189,43 @@ func Test_MYSQL_Close(t *testing.T) {
 func Test_MYSQL_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
 }
+
+func Benchmark_MYSQL_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_MYSQL_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_MYSQL_Delete(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
+}

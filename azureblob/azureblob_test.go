@@ -135,3 +135,47 @@ func Test_AzureBlob_Close(t *testing.T) {
 	testStore := newStore()
 	require.Nil(t, testStore.Close())
 }
+
+func Benchmark_AzureBlob_Set(b *testing.B) {
+	testStore := newStore()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_AzureBlob_Get(b *testing.B) {
+	testStore := newStore()
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_AzureBlob_Delete(b *testing.B) {
+	testStore := newStore()
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
+}
