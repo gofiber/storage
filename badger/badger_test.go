@@ -147,7 +147,7 @@ func Benchmark_Badger_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Badger_Delete(b *testing.B) {
+func Benchmark_Badger_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 

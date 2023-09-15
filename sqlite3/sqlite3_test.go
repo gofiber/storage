@@ -182,7 +182,7 @@ func Benchmark_SQLite3_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_SQLite3_Delete(b *testing.B) {
+func Benchmark_SQLite3_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 

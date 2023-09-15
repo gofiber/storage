@@ -56,7 +56,7 @@ jobs:
                     --tls-auth-clients no &
 
             -   name: Setup Redis Cluster
-                uses: vishnudxb/redis-cluster@1.0.8
+                uses: vishnudxb/redis-cluster@1.0.9
                 with:
                     master1-port: 7000
                     master2-port: 7001
@@ -64,6 +64,7 @@ jobs:
                     slave1-port: 7003
                     slave2-port: 7004
                     slave3-port: 7005
+                    sleep-duration: 10
 
             -   name: Install Go
                 uses: actions/setup-go@v4

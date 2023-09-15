@@ -136,7 +136,7 @@ func Benchmark_Bbolt_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Bbolt_Delete(b *testing.B) {
+func Benchmark_Bbolt_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 

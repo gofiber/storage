@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/utils/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,34 +117,6 @@ func Test_Storage_Memory_Close(t *testing.T) {
 
 func Test_Storage_Memory_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
-}
-
-// go test -v -run=^$ -bench=Benchmark_Storage_Memory -benchmem -count=4
-func Benchmark_Storage_Memory(b *testing.B) {
-	keyLength := 1000
-	keys := make([]string, keyLength)
-	for i := 0; i < keyLength; i++ {
-		keys[i] = utils.UUID()
-	}
-	value := []byte("joe")
-
-	ttl := 2 * time.Second
-	b.Run("fiber_memory", func(b *testing.B) {
-		d := New()
-		b.ReportAllocs()
-		b.ResetTimer()
-		for n := 0; n < b.N; n++ {
-			for _, key := range keys {
-				d.Set(key, value, ttl)
-			}
-			for _, key := range keys {
-				_, _ = d.Get(key)
-			}
-			for _, key := range keys {
-				d.Delete(key)
-			}
-		}
-	})
 }
 
 func Benchmark_Memory_Set(b *testing.B) {
