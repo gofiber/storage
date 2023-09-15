@@ -84,7 +84,7 @@ func Test_Ristretto_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	testStore.Reset()
+	require.NoError(t, testStore.Reset())
 }
 
 func Test_Ristretto_Get_Expired(t *testing.T) {
@@ -190,14 +190,13 @@ func Benchmark_Ristretto_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Ristretto_Delete(b *testing.B) {
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
-
+func Benchmark_Ristretto_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
 	}
 

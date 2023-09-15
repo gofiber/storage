@@ -163,14 +163,13 @@ func Benchmark_AzureBlob_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_AzureBlob_Delete(b *testing.B) {
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
-
+func Benchmark_AzureBlob_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
 	}
 

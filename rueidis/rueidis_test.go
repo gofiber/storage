@@ -130,11 +130,10 @@ func Test_Rueidis_WithTLS(t *testing.T) {
 		require.NoError(t, err)
 	}
 	tlsCfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
-		InsecureSkipVerify:       true,
-		Certificates:             []tls.Certificate{cer},
+		MinVersion:         tls.VersionTLS12,
+		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cer},
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
@@ -264,14 +263,13 @@ func Benchmark_Rueidis_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Rueidis_Delete(b *testing.B) {
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
-
+func Benchmark_Rueidis_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
 	}
 

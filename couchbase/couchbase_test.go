@@ -129,16 +129,15 @@ func Benchmark_Couchbase_Get(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Couchbase_Delete(b *testing.B) {
+func Benchmark_Couchbase_SetAndDelete(b *testing.B) {
 	testStore := newTestStore(b)
-
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
 	}
 
