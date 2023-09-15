@@ -1,13 +1,24 @@
 package ristretto
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New()
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore = New()
+
+	code := m.Run()
+
+	_ = testStore.Reset()
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 func Test_Ristretto_Set(t *testing.T) {
 	var (

@@ -7,134 +7,100 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSetCouchbase_ShouldReturnNoError(t *testing.T) {
-	testStorage := New(Config{
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+	return New(Config{
 		Username: "admin",
 		Password: "123456",
 		Host:     "127.0.0.1:8091",
 		Bucket:   "fiber_storage",
 	})
+}
 
-	err := testStorage.Set("test", []byte("test"), 0)
+func TestSetCouchbase_ShouldReturnNoError(t *testing.T) {
+	testStore := newTestStore(t)
+
+	err := testStore.Set("test", []byte("test"), 0)
 
 	require.NoError(t, err)
 }
 
 func TestGetCouchbase_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(t)
 
-	val, err := testStorage.Get("not_found_key")
+	val, err := testStore.Get("not_found_key")
 
 	require.NoError(t, err)
 	require.Zero(t, len(val))
 }
 
-func TestSetAndGet_GetShouldReturn_SettedValueWithoutError(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+func TestSetAndGet_GetShouldReturn_SetValueWithoutError(t *testing.T) {
+	testStore := newTestStore(t)
 
-	err := testStorage.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
-	val, err := testStorage.Get("test")
+	val, err := testStore.Get("test")
 
 	require.NoError(t, err)
 	require.Equal(t, val, []byte("fiber_test_value"))
 }
 
 func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(t)
 
-	err := testStorage.Set("test", []byte("fiber_test_value"), 3*time.Second)
+	err := testStore.Set("test", []byte("fiber_test_value"), 3*time.Second)
 	require.NoError(t, err)
 
 	time.Sleep(6 * time.Second)
 
-	val, err := testStorage.Get("test")
+	val, err := testStore.Get("test")
 
 	require.NoError(t, err)
 	require.Zero(t, len(val))
 }
 
 func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(t)
 
-	err := testStorage.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
-	err = testStorage.Delete("test")
+	err = testStore.Delete("test")
 	require.NoError(t, err)
 
-	_, err = testStorage.Get("test")
+	_, err = testStore.Get("test")
 	require.NoError(t, err)
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(t)
 
-	err := testStorage.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
-	err = testStorage.Reset()
+	err = testStore.Reset()
 	require.NoError(t, err)
 
-	_, err = testStorage.Get("test")
+	_, err = testStore.Get("test")
 	require.NoError(t, err)
 }
 
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(t)
 
-	err := testStorage.Close()
+	err := testStore.Close()
 	require.NoError(t, err)
 }
 
-func TestGetConn_ReturnsNotNill(t *testing.T) {
-	testStorage := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
-	require.True(t, testStorage.Conn() != nil)
+func TestGetConn_ReturnsNotNil(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_Couchbase_Set(b *testing.B) {
-	testStore := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -148,12 +114,7 @@ func Benchmark_Couchbase_Set(b *testing.B) {
 }
 
 func Benchmark_Couchbase_Get(b *testing.B) {
-	testStore := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(b)
 
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -169,12 +130,7 @@ func Benchmark_Couchbase_Get(b *testing.B) {
 }
 
 func Benchmark_Couchbase_Delete(b *testing.B) {
-	testStore := New(Config{
-		Username: "admin",
-		Password: "123456",
-		Host:     "127.0.0.1:8091",
-		Bucket:   "fiber_storage",
-	})
+	testStore := newTestStore(b)
 
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)

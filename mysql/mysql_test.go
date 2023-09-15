@@ -26,7 +26,7 @@ func Test_MYSQL_New(t *testing.T) {
 	})
 
 	require.True(t, newConfigStore.db != nil)
-	newConfigStore.Close()
+	require.NoError(t, newConfigStore.Close())
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", os.Getenv("MYSQL_USERNAME"), os.Getenv("MYSQL_PASSWORD"), "127.0.0.1", 3306, os.Getenv("MYSQL_DATABASE"))
 	newConfigStore = New(Config{

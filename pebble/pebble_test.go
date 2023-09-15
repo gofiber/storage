@@ -8,8 +8,8 @@ import (
 )
 
 var testStore = New(Config{
-	"test.db",
-	nil,
+	Path:         "test.db",
+	WriteOptions: nil,
 })
 
 func Test_Pebble_Set(t *testing.T) {

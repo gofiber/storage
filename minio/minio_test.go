@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -8,16 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(
-	Config{
-		Bucket:   "fiber-bucket",
-		Endpoint: "localhost:9000",
-		Credentials: Credentials{
-			AccessKeyID:     "minio-user",
-			SecretAccessKey: "minio-password",
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore = New(
+		Config{
+			Bucket:   "fiber-bucket",
+			Endpoint: "localhost:9000",
+			Credentials: Credentials{
+				AccessKeyID:     "minio-user",
+				SecretAccessKey: "minio-password",
+			},
+			Reset: true,
 		},
-	},
-)
+	)
+
+	code := m.Run()
+
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 func Test_Get(t *testing.T) {
 	var (

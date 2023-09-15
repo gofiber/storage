@@ -19,8 +19,8 @@ func TestMain(m *testing.M) {
 			Endpoint: "http://127.0.0.1:9000/",
 			Region:   "us-east-1",
 			Credentials: Credentials{
-				AccessKey:       "minioadmin",
-				SecretAccessKey: "minioadmin",
+				AccessKey:       "minio-user",
+				SecretAccessKey: "minio-password",
 			},
 			RequestTimeout: 3 * time.Second,
 		},

@@ -5,6 +5,7 @@ package coherence
  */
 import (
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 	"time"
 )
@@ -16,6 +17,19 @@ var (
 	value1     = []byte("value1")
 	value2     = []byte("value2")
 )
+
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore, _ = New(Config{
+		Reset: true,
+	})
+
+	code := m.Run()
+
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 // newTestStore returns a new Coherence Store and ensures it is reset.
 func newTestStore(t testing.TB, config ...Config) (*Storage, error) {
@@ -32,10 +46,7 @@ func newTestStore(t testing.TB, config ...Config) (*Storage, error) {
 func Test_Coherence_Set_And_Get(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	err = testStore.Set(key1, value1, 0)
+	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
 	val, err = testStore.Get(key1)
@@ -43,16 +54,12 @@ func Test_Coherence_Set_And_Get(t *testing.T) {
 	require.Equal(t, value1, val)
 
 	require.NotNil(t, testStore.Conn())
-	require.Equal(t, nil, testStore.Close())
 }
 
 func Test_Coherence_Set_Override(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	err = testStore.Set(key1, value1, 0)
+	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key1, value2, 0)
@@ -61,17 +68,12 @@ func Test_Coherence_Set_Override(t *testing.T) {
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.Equal(t, value2, val)
-
-	require.Equal(t, nil, testStore.Close())
 }
 
 func Test_Coherence_Set_With_Reset(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	err = testStore.Set(key1, value1, 0)
+	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
 	val, err = testStore.Get(key1)
@@ -79,24 +81,21 @@ func Test_Coherence_Set_With_Reset(t *testing.T) {
 	require.Equal(t, value1, val)
 
 	// get a new store but reset it, so the subsequent Get will return nil
-	testStore, err = newTestStore(t, Config{Reset: true})
+	testStore2, err := newTestStore(t, Config{Reset: true})
 	require.NoError(t, err)
 
-	val, err = testStore.Get(key1)
+	val, err = testStore2.Get(key1)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
 
-	require.Equal(t, nil, testStore.Close())
+	require.Equal(t, nil, testStore2.Close())
 }
 
 func Test_Coherence_Set_With_Expiry(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
 	// set with an expiry of 5 seconds
-	err = testStore.Set(key1, value1, time.Duration(5)*time.Second)
+	err := testStore.Set(key1, value1, time.Duration(5)*time.Second)
 	require.NoError(t, err)
 	time.Sleep(time.Duration(6) * time.Second)
 
@@ -104,29 +103,20 @@ func Test_Coherence_Set_With_Expiry(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
 
-	require.Equal(t, nil, testStore.Close())
 }
 
 func Test_Coherence_Get_Missing(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	val, err = testStore.Get(missingKey)
+	val, err := testStore.Get(missingKey)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
-
-	require.Equal(t, nil, testStore.Close())
 }
 
 func Test_Coherence_Reset(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	err = testStore.Set(key1, value1, 0)
+	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key2, value2, 0)
@@ -152,17 +142,12 @@ func Test_Coherence_Reset(t *testing.T) {
 	val, err = testStore.Get(key2)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
-
-	require.Equal(t, nil, testStore.Close())
 }
 
 func Test_Coherence_Set_And_Delete(t *testing.T) {
 	var val []byte
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	err = testStore.Set(key1, value1, 0)
+	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key1)
@@ -172,8 +157,6 @@ func Test_Coherence_Set_And_Delete(t *testing.T) {
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
-
-	require.Equal(t, nil, testStore.Close())
 }
 
 // TestCoherenceWithScope ensures we can create multiple session stores with multiple scopes.
@@ -208,12 +191,10 @@ func Test_Coherence_With_Scope(t *testing.T) {
 }
 
 func Benchmark_Coherence_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -222,10 +203,7 @@ func Benchmark_Coherence_Set(b *testing.B) {
 }
 
 func Benchmark_Coherence_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
-
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -239,10 +217,7 @@ func Benchmark_Coherence_Get(b *testing.B) {
 }
 
 func Benchmark_Coherence_Delete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
-
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()

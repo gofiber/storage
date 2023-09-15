@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New()
+var testStore = New(Config{
+	Reset: true,
+})
 
 func Test_Badger_Set(t *testing.T) {
 	var (

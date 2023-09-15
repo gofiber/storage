@@ -1,13 +1,16 @@
 package dynamodb
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(
-	Config{
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore = New(Config{
 		Table:    "fiber_storage",
 		Endpoint: "http://localhost:8000/",
 		Region:   "us-east-1",
@@ -15,8 +18,14 @@ var testStore = New(
 			AccessKey:       "dummy",
 			SecretAccessKey: "dummy",
 		},
-	},
-)
+		Reset: true,
+	})
+
+	code := m.Run()
+
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 func Test_DynamoDB_Set(t *testing.T) {
 	var (
