@@ -140,10 +140,11 @@
     'use strict';
     (function () {
         // Colors from https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
-        const colors = ['#00add8', '#dea584', '#f1e05a', '#000080', '#3572a5', '#f34b7d', '#a270ba', '#b07219', '#178600', '#38ff38', '#ff3838', '#333333'];
+        const colors = ['#00add8', '#dea584', '#f1e05a', '#000080', '#3572a5', '#f34b7d', '#a270ba', '#b07219', '#178600', '#38ff38', '#ff3838', '#333333', '#800000', '#FF5733', '#33FF57', '#E833FF', '#FF5733', '#5733FF', '#33A6FF', '#FF33E3', '#ff8133', '#FFFF33', '#33FFFF', '#FF3333', '#33FF33', '#3333FF'];
+
 
         function init(packages) {
-            const pkgRegEx = new RegExp('_(' + packages.join('|') + ')/', 'i');
+            const pkgRegEx = new RegExp('_(' + packages.join('|') + ')(/|_)', 'i');
 
             function addBench(map, name, result) {
                 const arr = map.get(name);
@@ -175,6 +176,10 @@
             }
 
             const data = window.BENCHMARK_DATA;
+            data.entries.Benchmark = data.entries.Benchmark.map((item) => {
+                item.benches = item.benches.filter((benchData) => benchData.unit.includes('ns/op'));
+                return item;
+            });
 
             // Render header
             document.getElementById('last-update').textContent = new Date(data.lastUpdate).toString();
