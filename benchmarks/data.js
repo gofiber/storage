@@ -166,24 +166,6 @@ window.BENCHMARK_DATA = {
             "extra": "846166 times\n2 procs"
           },
           {
-            "name": "Benchmark_Badger_Delete - ns/op",
-            "value": 20435,
-            "unit": "ns/op",
-            "extra": "62421 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - B/op",
-            "value": 2785,
-            "unit": "B/op",
-            "extra": "62421 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - allocs/op",
-            "value": 76,
-            "unit": "allocs/op",
-            "extra": "62421 times\n2 procs"
-          },
-          {
             "name": "Benchmark_Bbolt_Set - ns/op",
             "value": 304909,
             "unit": "ns/op",
@@ -218,24 +200,6 @@ window.BENCHMARK_DATA = {
             "value": 7,
             "unit": "allocs/op",
             "extra": "1449415 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Bbolt_Delete - ns/op",
-            "value": 603266,
-            "unit": "ns/op",
-            "extra": "2683 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Bbolt_Delete - B/op",
-            "value": 12526,
-            "unit": "B/op",
-            "extra": "2683 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Bbolt_Delete - allocs/op",
-            "value": 84,
-            "unit": "allocs/op",
-            "extra": "2683 times\n2 procs"
           },
           {
             "name": "Benchmark_Coherence_Set - ns/op",
@@ -506,24 +470,6 @@ window.BENCHMARK_DATA = {
             "value": 4,
             "unit": "allocs/op",
             "extra": "6987 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Storage_Memory/fiber_memory - ns/op",
-            "value": 165111,
-            "unit": "ns/op",
-            "extra": "7136 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Storage_Memory/fiber_memory - B/op",
-            "value": 661,
-            "unit": "B/op",
-            "extra": "7136 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Storage_Memory/fiber_memory - allocs/op",
-            "value": 0,
-            "unit": "allocs/op",
-            "extra": "7136 times\n2 procs"
           },
           {
             "name": "Benchmark_Memory_Set - ns/op",
@@ -1191,24 +1137,6 @@ window.BENCHMARK_DATA = {
             "unit": "allocs/op",
             "extra": "56742 times\n2 procs"
           },
-          {
-            "name": "Benchmark_SQLite3_Delete - ns/op",
-            "value": 2134828,
-            "unit": "ns/op",
-            "extra": "541 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_SQLite3_Delete - B/op",
-            "value": 966,
-            "unit": "B/op",
-            "extra": "541 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_SQLite3_Delete - allocs/op",
-            "value": 43,
-            "unit": "allocs/op",
-            "extra": "541 times\n2 procs"
-          }
         ]
       },
       {
@@ -1372,24 +1300,6 @@ window.BENCHMARK_DATA = {
             "value": 12,
             "unit": "allocs/op",
             "extra": "620241 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - ns/op",
-            "value": 27461,
-            "unit": "ns/op",
-            "extra": "43749 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - B/op",
-            "value": 2785,
-            "unit": "B/op",
-            "extra": "43749 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - allocs/op",
-            "value": 76,
-            "unit": "allocs/op",
-            "extra": "43749 times\n2 procs"
           },
           {
             "name": "Benchmark_Bbolt_Set - ns/op",
@@ -2562,24 +2472,6 @@ window.BENCHMARK_DATA = {
             "value": 12,
             "unit": "allocs/op",
             "extra": "894682 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - ns/op",
-            "value": 19873,
-            "unit": "ns/op",
-            "extra": "62432 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - B/op",
-            "value": 2785,
-            "unit": "B/op",
-            "extra": "62432 times\n2 procs"
-          },
-          {
-            "name": "Benchmark_Badger_Delete - allocs/op",
-            "value": 76,
-            "unit": "allocs/op",
-            "extra": "62432 times\n2 procs"
           },
           {
             "name": "Benchmark_Bbolt_Set - ns/op",
