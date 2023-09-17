@@ -298,14 +298,6 @@
                             },
                         },
                     },
-                    onClick: (_event, activeElems) => {
-                        if (activeElems.length === 0) {
-                            return;
-                        }
-                        const index = activeElems[0].index;
-                        const url = dataset[index].commit.url;
-                        window.open(url, '_blank');
-                    },
                 };
 
                 new Chart(canvas, {
