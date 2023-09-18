@@ -1,13 +1,24 @@
 package ristretto
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New()
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore = New()
+
+	code := m.Run()
+
+	_ = testStore.Reset()
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 func Test_Ristretto_Set(t *testing.T) {
 	var (
@@ -73,7 +84,7 @@ func Test_Ristretto_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	testStore.Reset()
+	require.NoError(t, testStore.Reset())
 }
 
 func Test_Ristretto_Get_Expired(t *testing.T) {
@@ -151,4 +162,43 @@ func Test_Ristretto_Close(t *testing.T) {
 
 func Test_Ristretto_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Benchmark_Ristretto_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Ristretto_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Ristretto_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

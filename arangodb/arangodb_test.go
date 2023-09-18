@@ -11,7 +11,7 @@ var testStore = New(Config{
 	Reset: true,
 })
 
-func Test_ARANGODB_Set(t *testing.T) {
+func Test_ArangoDB_Set(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -21,7 +21,7 @@ func Test_ARANGODB_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_ARANGODB_Upsert(t *testing.T) {
+func Test_ArangoDB_Upsert(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -34,7 +34,7 @@ func Test_ARANGODB_Upsert(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_ARANGODB_Get(t *testing.T) {
+func Test_ArangoDB_Get(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -48,7 +48,7 @@ func Test_ARANGODB_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_ARANGODB_Set_Expiration(t *testing.T) {
+func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -61,7 +61,7 @@ func Test_ARANGODB_Set_Expiration(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 }
 
-func Test_ARANGODB_Get_Expired(t *testing.T) {
+func Test_ArangoDB_Get_Expired(t *testing.T) {
 	key := "john"
 
 	result, err := testStore.Get(key)
@@ -69,13 +69,13 @@ func Test_ARANGODB_Get_Expired(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_ARANGODB_Get_NotExist(t *testing.T) {
+func Test_ArangoDB_Get_NotExist(t *testing.T) {
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
-func Test_ARANGODB_Delete(t *testing.T) {
+func Test_ArangoDB_Delete(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -92,7 +92,7 @@ func Test_ARANGODB_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_ARANGODB_Reset(t *testing.T) {
+func Test_ArangoDB_Reset(t *testing.T) {
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
@@ -113,7 +113,7 @@ func Test_ARANGODB_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_ARANGODB_Non_UTF8(t *testing.T) {
+func Test_ArangoDB_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
 	err := testStore.Set("0xF6", val, 0)
@@ -124,10 +124,49 @@ func Test_ARANGODB_Non_UTF8(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_ARANGODB_Close(t *testing.T) {
+func Test_ArangoDB_Close(t *testing.T) {
 	require.Nil(t, testStore.Close())
 }
 
-func Test_ARANGODB_Conn(t *testing.T) {
+func Test_ArangoDB_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Benchmark_ArangoDB_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_ArangoDB_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_ArangoDB_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

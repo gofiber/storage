@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofiber/utils/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,30 +119,41 @@ func Test_Storage_Memory_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
 }
 
-// go test -v -run=^$ -bench=Benchmark_Storage_Memory -benchmem -count=4
-func Benchmark_Storage_Memory(b *testing.B) {
-	keyLength := 1000
-	keys := make([]string, keyLength)
-	for i := 0; i < keyLength; i++ {
-		keys[i] = utils.UUID()
-	}
-	value := []byte("joe")
+func Benchmark_Memory_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
 
-	ttl := 2 * time.Second
-	b.Run("fiber_memory", func(b *testing.B) {
-		d := New()
-		b.ReportAllocs()
-		b.ResetTimer()
-		for n := 0; n < b.N; n++ {
-			for _, key := range keys {
-				d.Set(key, value, ttl)
-			}
-			for _, key := range keys {
-				_, _ = d.Get(key)
-			}
-			for _, key := range keys {
-				d.Delete(key)
-			}
-		}
-	})
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Memory_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Memory_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

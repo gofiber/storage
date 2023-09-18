@@ -152,11 +152,10 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 		return
 	}
 	tlsCfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
-		InsecureSkipVerify:       true,
-		Certificates:             []tls.Certificate{cer},
+		MinVersion:         tls.VersionTLS12,
+		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{cer},
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
@@ -195,11 +194,10 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 		return
 	}
 	tlsCfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
-		InsecureSkipVerify:       false,
-		Certificates:             []tls.Certificate{cer},
+		MinVersion:         tls.VersionTLS12,
+		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		InsecureSkipVerify: false,
+		Certificates:       []tls.Certificate{cer},
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
@@ -413,4 +411,43 @@ func Test_Redis_Cluster(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Nil(t, testStoreUniversal.Close())
+}
+
+func Benchmark_Redis_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Redis_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Redis_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

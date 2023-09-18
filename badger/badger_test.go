@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New()
+var testStore = New(Config{
+	Reset: true,
+})
 
 func Test_Badger_Set(t *testing.T) {
 	var (
@@ -117,4 +119,43 @@ func Test_Badger_Close(t *testing.T) {
 
 func Test_Badger_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Benchmark_Badger_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Badger_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Badger_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

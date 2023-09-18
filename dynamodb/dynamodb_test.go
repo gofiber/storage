@@ -1,13 +1,16 @@
 package dynamodb
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(
-	Config{
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	testStore = New(Config{
 		Table:    "fiber_storage",
 		Endpoint: "http://localhost:8000/",
 		Region:   "us-east-1",
@@ -15,8 +18,14 @@ var testStore = New(
 			AccessKey:       "dummy",
 			SecretAccessKey: "dummy",
 		},
-	},
-)
+		Reset: true,
+	})
+
+	code := m.Run()
+
+	_ = testStore.Close()
+	os.Exit(code)
+}
 
 func Test_DynamoDB_Set(t *testing.T) {
 	var (
@@ -105,4 +114,43 @@ func Test_DynamoDB_Close(t *testing.T) {
 
 func Test_DynamoDB_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Benchmark_DynamoDB_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_DynamoDB_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_DynamoDB_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }
