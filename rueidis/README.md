@@ -183,7 +183,7 @@ type Config struct {
 
 	// CacheTTL TTL
 	//
-	// Optional. Default is time.Second
+	// Optional. Default is time.Minute
 	CacheTTL time.Duration
 }
 ```
@@ -207,6 +207,6 @@ var ConfigDefault = Config{
 	DisableCache:        false,
 	AlwaysPipelining:    true,
 	Reset:               false,
-	CacheTTL:            time.Second,
+	CacheTTL:            time.Minute,
 }
 ```
