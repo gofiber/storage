@@ -284,7 +284,8 @@
                                     return [data.commit.message, data.commit.timestamp + ' committed by @' + data.commit.committer.username];
                                 },
                                 label: (context) => {
-                                    const {range, unit, value} = dataset[context.dataIndex].bench;
+                                    const {range, unit} = dataset[context.dataIndex].bench;
+                                    const value = context.dataset.data[context.dataIndex];
                                     let label = [context.dataset.label, value, unit].filter(Boolean).join(' ');
                                     if (range) {
                                         label += ' (' + range + ')';
