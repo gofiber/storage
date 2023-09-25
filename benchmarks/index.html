@@ -53,6 +53,10 @@
             flex: none;
         }
 
+        .switch-light span {
+            max-width: 100px;
+        }
+
         .spacer {
             flex: auto;
         }
@@ -112,6 +116,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/css-toggle-switch@latest/dist/toggle-switch.css" />
     <title>Benchmarks</title>
 </head>
 
@@ -126,6 +131,19 @@
         <a id="repository-link" rel="noopener"></a>
     </div>
 </header>
+<label class="switch-light switch-candy" onclick="">
+    <input type="checkbox" checked>
+
+    <strong>
+        Grouping
+    </strong>
+
+    <span>
+    <span>Off</span>
+    <span>On</span>
+    <a></a>
+  </span>
+</label>
 <main id="main"></main>
 <footer>
     <button id="dl-button">Download data as JSON</button>
@@ -142,41 +160,40 @@
         // Colors from https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
         const colors = ['#00add8', '#dea584', '#f1e05a', '#000080', '#3572a5', '#f34b7d', '#a270ba', '#b07219', '#178600', '#38ff38', '#ff3838', '#333333', '#800000', '#FF5733', '#33FF57', '#E833FF', '#FF5733', '#5733FF', '#33A6FF', '#FF33E3', '#ff8133', '#FFFF33', '#33FFFF', '#FF3333', '#33FF33', '#3333FF'];
 
-
-        function init(packages) {
-            const pkgRegEx = new RegExp('_(' + packages.join('|') + ')(/|_)', 'i');
-
-            function addBench(map, name, result) {
-                const arr = map.get(name);
-                if (arr === undefined) {
-                    map.set(name, [result]);
-                } else {
-                    arr.push(result);
-                }
+        function addBench(map, name, result) {
+            const arr = map.get(name);
+            if (arr === undefined) {
+                map.set(name, [result]);
+            } else {
+                arr.push(result);
             }
+        }
 
-            function collectBenchesPerTestCase(entries) {
-                const map = new Map();
-                for (const entry of entries) {
-                    const {commit, date, tool, benches} = entry;
-                    for (const bench of benches) {
-                        const result = {commit, date, tool, bench};
-                        if (pkgRegEx.test(bench.name)) {
-                            const pkgName = bench.name.match(pkgRegEx)[1];
-                            bench.name = bench.name.replace(pkgRegEx, '_');
-                            const pkgMap = map.get(bench.name) || new Map();
-                            map.set(bench.name, pkgMap);
-                            addBench(pkgMap, pkgName, result);
-                        } else {
-                            addBench(map, bench.name, result);
-                        }
+        function collectBenchesPerTestCase(entries, grouping) {
+            const map = new Map();
+            for (const entry of entries) {
+                const {commit, date, tool, benches} = entry;
+                for (const bench of benches) {
+                    const result = {commit, date, tool, bench};
+                    if (grouping && pkgRegEx.test(bench.name)) {
+                        const pkgName = bench.name.match(pkgRegEx)[1];
+                        bench.name = bench.name.replace(pkgRegEx, '_');
+                        const pkgMap = map.get(bench.name) || new Map();
+                        map.set(bench.name, pkgMap);
+                        addBench(pkgMap, pkgName, result);
+                    } else {
+                        addBench(map, bench.name, result);
                     }
                 }
-                return map;
             }
+            return map;
+        }
 
+        function init(packages, grouping = true) {
             const data = window.BENCHMARK_DATA;
-            data.entries.Benchmark = data.entries.Benchmark.map((item) => {
+            // make a copy of the original data
+            let dataEntries = JSON.parse(JSON.stringify(data.entries));
+            dataEntries.Benchmark = dataEntries.Benchmark.map((item) => {
                 item.benches = item.benches.filter((benchData) => benchData.unit.includes('ns/op'));
                 return item;
             });
@@ -197,9 +214,9 @@
             };
 
             // Prepare data points for charts
-            return Object.keys(data.entries).map(name => ({
+            return Object.keys(dataEntries).map(name => ({
                 name,
-                dataSet: collectBenchesPerTestCase(data.entries[name]),
+                dataSet: collectBenchesPerTestCase(dataEntries[name], grouping),
             }));
         }
 
@@ -227,110 +244,126 @@
             };
         }
 
+        function getColorForName(name) {
+            const pkgName = name.match(pkgRegEx)?.[1] || name;
+            let colorIndex = window.packages.findIndex((p) => p.toLowerCase() === pkgName.toLowerCase());
+            if (colorIndex === -1) {
+                colorIndex = 0;
+            }
+
+            return colors[colorIndex];
+        }
+
+        function renderGraph(parent, name, dataset) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'benchmark-chart';
+            parent.appendChild(canvas);
+
+            let dataList = [];
+            const isPackageDataSet = dataset instanceof Map;
+            if (dataset instanceof Map) {
+                let i = 0;
+                for (const [packageName, packageDataSet] of dataset.entries()) {
+                    dataList.push(toDataSet(packageName, packageDataSet, getColorForName(packageName)));
+                    ++i;
+                }
+                dataset = Array.from(dataset)?.[0]?.[1] || [];
+            } else if (Array.isArray(dataset)) {
+                dataList.push(toDataSet(name, dataset, getColorForName(name)));
+            }
+
+            const data = {labels: dataset.map(d => d.commit.id.slice(0, 7)), datasets: dataList};
+            const options = {
+                onResize: (chart, newSize) => {
+                    chart.options.plugins.legend.display = window.screen.width < 450 ? false : true;
+                    chart.update();
+                },
+                plugins: {
+                    title: {
+                        display: isPackageDataSet,
+                        text: name,
+                    },
+                    legend: {
+                        display: window.screen.width < 450 ? false : true,
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'commit',
+                            },
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: dataset.length > 0 ? dataset[0].bench.unit : '',
+                            },
+                            beginAtZero: true,
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (context) => {
+                                const index = context[0].dataIndex;
+                                const data = dataset[index];
+                                return [data.commit.message, data.commit.timestamp + ' committed by @' + data.commit.committer.username];
+                            },
+                            label: (context) => {
+                                const {range, unit} = dataset[context.dataIndex].bench;
+                                const value = context.dataset.data[context.dataIndex];
+                                let label = [context.dataset.label, value, unit].filter(Boolean).join(' ');
+                                if (range) {
+                                    label += ' (' + range + ')';
+                                }
+                                return label;
+                            },
+                        },
+                    },
+                },
+            };
+
+            new Chart(canvas, {
+                type: 'line',
+                data,
+                options,
+            });
+        }
+
+        function renderBenchSet(name, benchSet, main) {
+            const setElem = document.createElement('div');
+            setElem.className = 'benchmark-set';
+            main.appendChild(setElem);
+
+            const nameElem = document.createElement('h1');
+            nameElem.className = 'benchmark-title';
+            nameElem.textContent = name;
+            setElem.appendChild(nameElem);
+
+            const graphsElem = document.createElement('div');
+            graphsElem.className = 'benchmark-graphs';
+            setElem.appendChild(graphsElem);
+
+            for (const [benchName, benches] of benchSet.entries()) {
+                renderGraph(graphsElem, benchName, benches);
+            }
+        }
+
         function renderAllChars(dataSets) {
-
-            function renderGraph(parent, name, dataset) {
-                const canvas = document.createElement('canvas');
-                canvas.className = 'benchmark-chart';
-                parent.appendChild(canvas);
-
-                let dataList = [];
-                const isPackageDataSet = dataset instanceof Map;
-                if (dataset instanceof Map) {
-                    let i = 0;
-                    for (const [packageName, packageDataSet] of dataset.entries()) {
-                        dataList.push(toDataSet(packageName, packageDataSet, colors[i]));
-                        ++i;
-                    }
-                    dataset = Array.from(dataset)?.[0]?.[1] || [];
-                } else if (Array.isArray(dataset)) {
-                    dataList.push(toDataSet(name, dataset, colors[1]));
-                }
-
-                const data = {labels: dataset.map(d => d.commit.id.slice(0, 7)), datasets: dataList};
-                const options = {
-                    onResize: (chart, newSize) => {
-                        chart.options.plugins.legend.display = window.screen.width < 450 ? false : true;
-                        chart.update();
-                    },
-                    plugins: {
-                        title: {
-                            display: isPackageDataSet,
-                            text: name,
-                        },
-                        legend: {
-                            display: window.screen.width < 450 ? false : true,
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'commit',
-                                },
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: dataset.length > 0 ? dataset[0].bench.unit : '',
-                                },
-                                beginAtZero: true,
-                            },
-                        },
-                        tooltip: {
-                            callbacks: {
-                                title: (context) => {
-                                    const index = context[0].dataIndex;
-                                    const data = dataset[index];
-                                    return [data.commit.message, data.commit.timestamp + ' committed by @' + data.commit.committer.username];
-                                },
-                                label: (context) => {
-                                    const {range, unit} = dataset[context.dataIndex].bench;
-                                    const value = context.dataset.data[context.dataIndex];
-                                    let label = [context.dataset.label, value, unit].filter(Boolean).join(' ');
-                                    if (range) {
-                                        label += ' (' + range + ')';
-                                    }
-                                    return label;
-                                },
-                            },
-                        },
-                    },
-                };
-
-                new Chart(canvas, {
-                    type: 'line',
-                    data,
-                    options,
-                });
-            }
-
-            function renderBenchSet(name, benchSet, main) {
-                const setElem = document.createElement('div');
-                setElem.className = 'benchmark-set';
-                main.appendChild(setElem);
-
-                const nameElem = document.createElement('h1');
-                nameElem.className = 'benchmark-title';
-                nameElem.textContent = name;
-                setElem.appendChild(nameElem);
-
-                const graphsElem = document.createElement('div');
-                graphsElem.className = 'benchmark-graphs';
-                setElem.appendChild(graphsElem);
-
-                for (const [benchName, benches] of benchSet.entries()) {
-                    renderGraph(graphsElem, benchName, benches);
-                }
-            }
-
             const main = document.getElementById('main');
+            main.innerHTML = '';
             for (const {name, dataSet} of dataSets) {
                 renderBenchSet(name, dataSet, main);
             }
         }
 
         fetchPackageNames(window.BENCHMARK_DATA.repoUrl).then((packages) => {
-            renderAllChars(init(packages)); // Start
+            window.packages = packages;
+            window.pkgRegEx = new RegExp('_(' + packages.join('|') + ')(/|_)', 'i');
+            renderAllChars(init(window.packages)); // Start
+        });
+
+        document.querySelector('.switch-light').addEventListener('click', (event) => {
+            renderAllChars(init(window.packages, event.currentTarget.querySelector('input').checked));
         });
     })();
 </script>
