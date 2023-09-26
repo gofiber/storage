@@ -189,7 +189,7 @@
             return map;
         }
 
-        function init(packages, grouping = true) {
+        function init(packages) {
             const data = window.BENCHMARK_DATA;
             // make a copy of the original data
             let dataEntries = JSON.parse(JSON.stringify(data.entries));
@@ -216,7 +216,7 @@
             // Prepare data points for charts
             return Object.keys(dataEntries).map(name => ({
                 name,
-                dataSet: collectBenchesPerTestCase(dataEntries[name], grouping),
+                dataSet: collectBenchesPerTestCase(dataEntries[name], window.grouping),
             }));
         }
 
@@ -275,7 +275,7 @@
             const data = {labels: dataset.map(d => d.commit.id.slice(0, 7)), datasets: dataList};
             const options = {
                 onResize: (chart, newSize) => {
-                    chart.options.plugins.legend.display = window.screen.width < 450 ? false : true;
+                    chart.options.plugins.legend.display = window.screen.width < 450 ? dataList.length === 1 : true;
                     chart.update();
                 },
                 plugins: {
@@ -284,7 +284,7 @@
                         text: name,
                     },
                     legend: {
-                        display: window.screen.width < 450 ? false : true,
+                        display: window.screen.width < 450 ? dataList.length === 1 : true,
                     },
                     scales: {
                         x: {
@@ -356,6 +356,7 @@
             }
         }
 
+        window.grouping = true;
         fetchPackageNames(window.BENCHMARK_DATA.repoUrl).then((packages) => {
             window.packages = packages;
             window.pkgRegEx = new RegExp('_(' + packages.join('|') + ')(/|_)', 'i');
@@ -363,7 +364,8 @@
         });
 
         document.querySelector('.switch-light').addEventListener('click', (event) => {
-            renderAllChars(init(window.packages, event.currentTarget.querySelector('input').checked));
+            window.grouping = event.currentTarget.querySelector('input').checked;
+            renderAllChars(init(window.packages));
         });
     })();
 </script>
