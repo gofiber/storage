@@ -86,15 +86,15 @@ tlsCfg := &tls.Config{
 	Certificates:             []tls.Certificate{cer},
 }
 store = redis.New(redis.Config{
-    URL:     	"redis://<user>:<pass>@127.0.0.1:6379/<db>",
+	URL:     	"redis://<user>:<pass>@127.0.0.1:6379/<db>",
 	TLSConfig: 	tlsCfg,
-    Reset:    	false,
+	Reset:    	false,
 })
 
 // Create a client with a Redis URL with all information.
 store = redis.New(redis.Config{
-    URL:     "redis://<user>:<pass>@127.0.0.1:6379/<db>",
-    Reset:    false,
+	URL:     "redis://<user>:<pass>@127.0.0.1:6379/<db>",
+	Reset:    false,
 })
 ```
 
