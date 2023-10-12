@@ -3,7 +3,7 @@ module github.com/gofiber/storage/azureblob/v2
 go 1.19
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.1.0
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.0
 	github.com/stretchr/testify v1.8.4
 )
 
