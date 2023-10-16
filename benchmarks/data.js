@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697444169104,
+  "lastUpdate": 1697444218348,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -40588,6 +40588,1200 @@ window.BENCHMARK_DATA = {
             "value": 43,
             "unit": "allocs/op",
             "extra": "716 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f864d67dbc5707940d48b90b2afde27adc4fc516",
+          "message": "Merge pull request #1038 from gofiber/dependabot/go_modules/s3/github.com/aws/aws-sdk-go-v2/feature/s3/manager-1.11.90\n\nBump github.com/aws/aws-sdk-go-v2/feature/s3/manager from 1.11.89 to 1.11.90 in /s3",
+          "timestamp": "2023-10-16T10:07:39+02:00",
+          "tree_id": "d81557fd2f1ea42d0050c7b4ede66c86593b3e74",
+          "url": "https://github.com/gofiber/storage/commit/f864d67dbc5707940d48b90b2afde27adc4fc516"
+        },
+        "date": 1697444217615,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_ArangoDB_Set - ns/op",
+            "value": 673361,
+            "unit": "ns/op",
+            "extra": "1767 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Set - B/op",
+            "value": 15445,
+            "unit": "B/op",
+            "extra": "1767 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Set - allocs/op",
+            "value": 225,
+            "unit": "allocs/op",
+            "extra": "1767 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - ns/op",
+            "value": 537243,
+            "unit": "ns/op",
+            "extra": "2174 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - B/op",
+            "value": 15207,
+            "unit": "B/op",
+            "extra": "2174 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - allocs/op",
+            "value": 226,
+            "unit": "allocs/op",
+            "extra": "2174 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - ns/op",
+            "value": 925024,
+            "unit": "ns/op",
+            "extra": "1261 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - B/op",
+            "value": 23325,
+            "unit": "B/op",
+            "extra": "1261 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - allocs/op",
+            "value": 341,
+            "unit": "allocs/op",
+            "extra": "1261 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - ns/op",
+            "value": 3230306,
+            "unit": "ns/op",
+            "extra": "318 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - B/op",
+            "value": 10370,
+            "unit": "B/op",
+            "extra": "318 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - allocs/op",
+            "value": 166,
+            "unit": "allocs/op",
+            "extra": "318 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - ns/op",
+            "value": 1840000,
+            "unit": "ns/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - B/op",
+            "value": 11720,
+            "unit": "B/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - allocs/op",
+            "value": 211,
+            "unit": "allocs/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - ns/op",
+            "value": 4100134,
+            "unit": "ns/op",
+            "extra": "304 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - B/op",
+            "value": 18645,
+            "unit": "B/op",
+            "extra": "304 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - allocs/op",
+            "value": 288,
+            "unit": "allocs/op",
+            "extra": "304 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - ns/op",
+            "value": 10005,
+            "unit": "ns/op",
+            "extra": "121947 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - B/op",
+            "value": 1399,
+            "unit": "B/op",
+            "extra": "121947 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - allocs/op",
+            "value": 38,
+            "unit": "allocs/op",
+            "extra": "121947 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - ns/op",
+            "value": 1406,
+            "unit": "ns/op",
+            "extra": "922200 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - B/op",
+            "value": 416,
+            "unit": "B/op",
+            "extra": "922200 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - allocs/op",
+            "value": 12,
+            "unit": "allocs/op",
+            "extra": "922200 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - ns/op",
+            "value": 19915,
+            "unit": "ns/op",
+            "extra": "60657 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - B/op",
+            "value": 2786,
+            "unit": "B/op",
+            "extra": "60657 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - allocs/op",
+            "value": 77,
+            "unit": "allocs/op",
+            "extra": "60657 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - ns/op",
+            "value": 376584,
+            "unit": "ns/op",
+            "extra": "3254 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - B/op",
+            "value": 6274,
+            "unit": "B/op",
+            "extra": "3254 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - allocs/op",
+            "value": 42,
+            "unit": "allocs/op",
+            "extra": "3254 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - ns/op",
+            "value": 872.7,
+            "unit": "ns/op",
+            "extra": "1523329 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - B/op",
+            "value": 480,
+            "unit": "B/op",
+            "extra": "1523329 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "1523329 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - ns/op",
+            "value": 725284,
+            "unit": "ns/op",
+            "extra": "1658 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - B/op",
+            "value": 12526,
+            "unit": "B/op",
+            "extra": "1658 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - allocs/op",
+            "value": 84,
+            "unit": "allocs/op",
+            "extra": "1658 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - ns/op",
+            "value": 1932172,
+            "unit": "ns/op",
+            "extra": "588 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - B/op",
+            "value": 6578,
+            "unit": "B/op",
+            "extra": "588 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - allocs/op",
+            "value": 118,
+            "unit": "allocs/op",
+            "extra": "588 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - ns/op",
+            "value": 1301252,
+            "unit": "ns/op",
+            "extra": "772 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - B/op",
+            "value": 6524,
+            "unit": "B/op",
+            "extra": "772 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - allocs/op",
+            "value": 113,
+            "unit": "allocs/op",
+            "extra": "772 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - ns/op",
+            "value": 4970594,
+            "unit": "ns/op",
+            "extra": "433 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - B/op",
+            "value": 12902,
+            "unit": "B/op",
+            "extra": "433 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - allocs/op",
+            "value": 226,
+            "unit": "allocs/op",
+            "extra": "433 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - ns/op",
+            "value": 187257,
+            "unit": "ns/op",
+            "extra": "7322 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - B/op",
+            "value": 3775,
+            "unit": "B/op",
+            "extra": "7322 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - allocs/op",
+            "value": 66,
+            "unit": "allocs/op",
+            "extra": "7322 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - ns/op",
+            "value": 155652,
+            "unit": "ns/op",
+            "extra": "9350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - B/op",
+            "value": 3304,
+            "unit": "B/op",
+            "extra": "9350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - allocs/op",
+            "value": 60,
+            "unit": "allocs/op",
+            "extra": "9350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - ns/op",
+            "value": 387447,
+            "unit": "ns/op",
+            "extra": "2988 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - B/op",
+            "value": 14532,
+            "unit": "B/op",
+            "extra": "2988 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - allocs/op",
+            "value": 132,
+            "unit": "allocs/op",
+            "extra": "2988 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - ns/op",
+            "value": 935120,
+            "unit": "ns/op",
+            "extra": "1141 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - B/op",
+            "value": 24208,
+            "unit": "B/op",
+            "extra": "1141 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - allocs/op",
+            "value": 335,
+            "unit": "allocs/op",
+            "extra": "1141 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - ns/op",
+            "value": 789918,
+            "unit": "ns/op",
+            "extra": "1531 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - B/op",
+            "value": 26048,
+            "unit": "B/op",
+            "extra": "1531 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - allocs/op",
+            "value": 363,
+            "unit": "allocs/op",
+            "extra": "1531 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
+            "value": 1807545,
+            "unit": "ns/op",
+            "extra": "724 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
+            "value": 48302,
+            "unit": "B/op",
+            "extra": "724 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
+            "value": 666,
+            "unit": "allocs/op",
+            "extra": "724 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - ns/op",
+            "value": 1266169,
+            "unit": "ns/op",
+            "extra": "884 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - B/op",
+            "value": 13560,
+            "unit": "B/op",
+            "extra": "884 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - allocs/op",
+            "value": 237,
+            "unit": "allocs/op",
+            "extra": "884 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - ns/op",
+            "value": 334341,
+            "unit": "ns/op",
+            "extra": "3805 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - B/op",
+            "value": 7425,
+            "unit": "B/op",
+            "extra": "3805 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - allocs/op",
+            "value": 125,
+            "unit": "allocs/op",
+            "extra": "3805 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - ns/op",
+            "value": 1882849,
+            "unit": "ns/op",
+            "extra": "606 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - B/op",
+            "value": 20609,
+            "unit": "B/op",
+            "extra": "606 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - allocs/op",
+            "value": 353,
+            "unit": "allocs/op",
+            "extra": "606 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - ns/op",
+            "value": 104172,
+            "unit": "ns/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - B/op",
+            "value": 35,
+            "unit": "B/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - ns/op",
+            "value": 102473,
+            "unit": "ns/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - B/op",
+            "value": 200,
+            "unit": "B/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - allocs/op",
+            "value": 9,
+            "unit": "allocs/op",
+            "extra": "10000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - ns/op",
+            "value": 196480,
+            "unit": "ns/op",
+            "extra": "6034 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - B/op",
+            "value": 51,
+            "unit": "B/op",
+            "extra": "6034 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "6034 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - ns/op",
+            "value": 61.45,
+            "unit": "ns/op",
+            "extra": "19738026 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "19738026 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "19738026 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - ns/op",
+            "value": 21.52,
+            "unit": "ns/op",
+            "extra": "56223458 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "56223458 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "56223458 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - ns/op",
+            "value": 114.3,
+            "unit": "ns/op",
+            "extra": "10349948 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "10349948 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "10349948 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - ns/op",
+            "value": 0.3717,
+            "unit": "ns/op",
+            "extra": "1000000000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "1000000000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "1000000000 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - ns/op",
+            "value": 57.24,
+            "unit": "ns/op",
+            "extra": "21499881 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "21499881 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "21499881 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - ns/op",
+            "value": 2203894,
+            "unit": "ns/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - B/op",
+            "value": 86216,
+            "unit": "B/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - allocs/op",
+            "value": 295,
+            "unit": "allocs/op",
+            "extra": "614 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - ns/op",
+            "value": 839707,
+            "unit": "ns/op",
+            "extra": "1437 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - B/op",
+            "value": 15559,
+            "unit": "B/op",
+            "extra": "1437 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - allocs/op",
+            "value": 201,
+            "unit": "allocs/op",
+            "extra": "1437 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - ns/op",
+            "value": 3243949,
+            "unit": "ns/op",
+            "extra": "350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - B/op",
+            "value": 97583,
+            "unit": "B/op",
+            "extra": "350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - allocs/op",
+            "value": 463,
+            "unit": "allocs/op",
+            "extra": "350 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - ns/op",
+            "value": 401861,
+            "unit": "ns/op",
+            "extra": "2923 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - B/op",
+            "value": 6669,
+            "unit": "B/op",
+            "extra": "2923 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - allocs/op",
+            "value": 100,
+            "unit": "allocs/op",
+            "extra": "2923 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - ns/op",
+            "value": 345262,
+            "unit": "ns/op",
+            "extra": "3500 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - B/op",
+            "value": 7468,
+            "unit": "B/op",
+            "extra": "3500 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - allocs/op",
+            "value": 83,
+            "unit": "allocs/op",
+            "extra": "3500 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - ns/op",
+            "value": 835060,
+            "unit": "ns/op",
+            "extra": "1474 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - B/op",
+            "value": 11875,
+            "unit": "B/op",
+            "extra": "1474 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - allocs/op",
+            "value": 172,
+            "unit": "allocs/op",
+            "extra": "1474 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - ns/op",
+            "value": 3565251,
+            "unit": "ns/op",
+            "extra": "339 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - B/op",
+            "value": 15027,
+            "unit": "B/op",
+            "extra": "339 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - allocs/op",
+            "value": 281,
+            "unit": "allocs/op",
+            "extra": "339 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - ns/op",
+            "value": 2660277,
+            "unit": "ns/op",
+            "extra": "477 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - B/op",
+            "value": 14741,
+            "unit": "B/op",
+            "extra": "477 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - allocs/op",
+            "value": 282,
+            "unit": "allocs/op",
+            "extra": "477 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - ns/op",
+            "value": 6999517,
+            "unit": "ns/op",
+            "extra": "193 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - B/op",
+            "value": 27001,
+            "unit": "B/op",
+            "extra": "193 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - allocs/op",
+            "value": 532,
+            "unit": "allocs/op",
+            "extra": "193 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - ns/op",
+            "value": 1002021,
+            "unit": "ns/op",
+            "extra": "1216 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - B/op",
+            "value": 6579,
+            "unit": "B/op",
+            "extra": "1216 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - allocs/op",
+            "value": 40,
+            "unit": "allocs/op",
+            "extra": "1216 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - ns/op",
+            "value": 1013998,
+            "unit": "ns/op",
+            "extra": "1186 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - B/op",
+            "value": 6610,
+            "unit": "B/op",
+            "extra": "1186 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - allocs/op",
+            "value": 50,
+            "unit": "allocs/op",
+            "extra": "1186 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - ns/op",
+            "value": 4067787,
+            "unit": "ns/op",
+            "extra": "279 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - B/op",
+            "value": 12669,
+            "unit": "B/op",
+            "extra": "279 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - allocs/op",
+            "value": 77,
+            "unit": "allocs/op",
+            "extra": "279 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - ns/op",
+            "value": 562662,
+            "unit": "ns/op",
+            "extra": "2016 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - B/op",
+            "value": 120,
+            "unit": "B/op",
+            "extra": "2016 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "2016 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - ns/op",
+            "value": 2013,
+            "unit": "ns/op",
+            "extra": "598224 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - B/op",
+            "value": 288,
+            "unit": "B/op",
+            "extra": "598224 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "598224 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - ns/op",
+            "value": 1104071,
+            "unit": "ns/op",
+            "extra": "1002 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - B/op",
+            "value": 220,
+            "unit": "B/op",
+            "extra": "1002 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "1002 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - ns/op",
+            "value": 400232,
+            "unit": "ns/op",
+            "extra": "2752 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - B/op",
+            "value": 255,
+            "unit": "B/op",
+            "extra": "2752 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "2752 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - ns/op",
+            "value": 140182,
+            "unit": "ns/op",
+            "extra": "8343 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - B/op",
+            "value": 521,
+            "unit": "B/op",
+            "extra": "8343 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - allocs/op",
+            "value": 10,
+            "unit": "allocs/op",
+            "extra": "8343 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - ns/op",
+            "value": 824965,
+            "unit": "ns/op",
+            "extra": "1389 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - B/op",
+            "value": 400,
+            "unit": "B/op",
+            "extra": "1389 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "1389 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - ns/op",
+            "value": 40628,
+            "unit": "ns/op",
+            "extra": "29764 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - B/op",
+            "value": 268,
+            "unit": "B/op",
+            "extra": "29764 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - allocs/op",
+            "value": 10,
+            "unit": "allocs/op",
+            "extra": "29764 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - ns/op",
+            "value": 42329,
+            "unit": "ns/op",
+            "extra": "28777 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - B/op",
+            "value": 200,
+            "unit": "B/op",
+            "extra": "28777 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "28777 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - ns/op",
+            "value": 82645,
+            "unit": "ns/op",
+            "extra": "14169 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - B/op",
+            "value": 456,
+            "unit": "B/op",
+            "extra": "14169 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - allocs/op",
+            "value": 18,
+            "unit": "allocs/op",
+            "extra": "14169 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - ns/op",
+            "value": 611.1,
+            "unit": "ns/op",
+            "extra": "1938524 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - B/op",
+            "value": 123,
+            "unit": "B/op",
+            "extra": "1938524 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "1938524 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - ns/op",
+            "value": 129.2,
+            "unit": "ns/op",
+            "extra": "8143675 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - B/op",
+            "value": 19,
+            "unit": "B/op",
+            "extra": "8143675 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "8143675 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - ns/op",
+            "value": 1267,
+            "unit": "ns/op",
+            "extra": "938176 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - B/op",
+            "value": 219,
+            "unit": "B/op",
+            "extra": "938176 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - allocs/op",
+            "value": 6,
+            "unit": "allocs/op",
+            "extra": "938176 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - ns/op",
+            "value": 47930,
+            "unit": "ns/op",
+            "extra": "24226 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - B/op",
+            "value": 30,
+            "unit": "B/op",
+            "extra": "24226 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "24226 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - ns/op",
+            "value": 57004,
+            "unit": "ns/op",
+            "extra": "20778 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - B/op",
+            "value": 568,
+            "unit": "B/op",
+            "extra": "20778 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - allocs/op",
+            "value": 10,
+            "unit": "allocs/op",
+            "extra": "20778 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - ns/op",
+            "value": 97664,
+            "unit": "ns/op",
+            "extra": "12685 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - B/op",
+            "value": 30,
+            "unit": "B/op",
+            "extra": "12685 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "12685 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - ns/op",
+            "value": 2204418,
+            "unit": "ns/op",
+            "extra": "601 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - B/op",
+            "value": 60902,
+            "unit": "B/op",
+            "extra": "601 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - allocs/op",
+            "value": 529,
+            "unit": "allocs/op",
+            "extra": "601 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - ns/op",
+            "value": 976701,
+            "unit": "ns/op",
+            "extra": "1177 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - B/op",
+            "value": 60191,
+            "unit": "B/op",
+            "extra": "1177 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - allocs/op",
+            "value": 480,
+            "unit": "allocs/op",
+            "extra": "1177 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - ns/op",
+            "value": 3119717,
+            "unit": "ns/op",
+            "extra": "388 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - B/op",
+            "value": 83165,
+            "unit": "B/op",
+            "extra": "388 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - allocs/op",
+            "value": 871,
+            "unit": "allocs/op",
+            "extra": "388 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - ns/op",
+            "value": 1069515,
+            "unit": "ns/op",
+            "extra": "999 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - B/op",
+            "value": 626,
+            "unit": "B/op",
+            "extra": "999 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - allocs/op",
+            "value": 24,
+            "unit": "allocs/op",
+            "extra": "999 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - ns/op",
+            "value": 20265,
+            "unit": "ns/op",
+            "extra": "60098 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - B/op",
+            "value": 856,
+            "unit": "B/op",
+            "extra": "60098 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - allocs/op",
+            "value": 45,
+            "unit": "allocs/op",
+            "extra": "60098 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - ns/op",
+            "value": 2469004,
+            "unit": "ns/op",
+            "extra": "494 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - B/op",
+            "value": 967,
+            "unit": "B/op",
+            "extra": "494 times\n2 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - allocs/op",
+            "value": 43,
+            "unit": "allocs/op",
+            "extra": "494 times\n2 procs"
           }
         ]
       }
