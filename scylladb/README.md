@@ -1,6 +1,11 @@
-# ScyllaDB
+---
+id: scylladb
+title: ScyllaDb
+---
 
-A ScyllaDB storage driver using [gocql/gocql]("https://github.com/gocql/gocql").
+# ScyllaDb
+
+A ScyllaDb storage engine for [Fiber](github.com/gofiber/fiber) using [gocql](github.com/gocql/gocql).
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -13,14 +18,15 @@ A ScyllaDB storage driver using [gocql/gocql]("https://github.com/gocql/gocql").
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) Set(key string, value []byte, expire time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *gocql.Session
 ```
+
 ### Installation
-ScyllaDB is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+ScyllaDb is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
@@ -42,69 +48,89 @@ store := scylladb.New()
 
 // Initialize custom config
 store := scylladb.New(scylladb.Config{
-        Hosts:             []string{"127.0.0.1"},
-        Keyspace:          "fiber_keyspace",
-        Consistency:       "ONE",
-        Table:             "fiber_table",
+    Keyspace:    "fiber",
+    Hosts:       []string{"127.0.0.1"},
+    Port:        9042,
+    Table:       "fiber_storage",
+    Consistency: "ONE",
+    Reset:           false,
 })
 
+// Initialize custom config using scylladb connection
+cluster, _ := gocql.NewCluster("127.0.0.1")
+cluster.Keyspace = "fiber"
+cluster.Port = 9042
 
+session, _ := cluster.CreateSession()
+store := scylladb.New(scylladb.Config{
+    Session:         session,
+    Keyspace:        "fiber",
+    Table:           "fiber_storage",
+    Reset:           false,
+})
 ```
 
 ### Config
 ```go
 type Config struct {
-	// Hosts name where the DB is hosted
+    // Session Will override Keyspace and all other authentication values if used
+	//
+    // Optional. Default is nil
+    Session *gocql.Session
+
+    // Keyspace name
+	//
+    // Optional. Default is "fiber"
+    Keyspace string
+
+	// Host name where the ScyllaDb cluster is hosted
 	//
 	// Optional. Default is "127.0.0.1"
 	Hosts []string
 
-	// Server username
+    // Port where the ScyllaDb cluster is listening on
 	//
-	// Optional. Default is ""
-	Username string
+    // Optional. Default is 9042
+    Port int
 
-	// Server password
+    // Username for ScyllaDb cluster
 	//
-	// Optional. Default is ""
-	Password string
+    // Optional. Default is ""
+    Username string
 
-	// Keyspace name
+    // Password for ScyllaDb cluster
 	//
-	// Optional. Default is "scylladb_db"
-	Keyspace string
+    // Optional. Default is ""
+    Password string
 
-    // Level of the consistency
-    //
-    // Optional. Default is "LOCAL_ONE"
-    Consistency string
-
-	// Number of replication
+    // Table name
 	//
-	// Optional. Default 1
-	ReplicationFactor int
+    // Optional. Default is "fiber_storage"
+    Table string
 
-	// Database to be operated on in the cluster.
-	// 
-	// Optional. Default is "".
-	Table string
-
-	// Reset clears any existing keys in existing Table
+	// Level of the consistency
 	//
-	// Optional. Default is false
-	Reset bool
+	// Optional. Default is "LOCAL_ONE"
+	Consistency string
+
+    // Reset clears any existing keys in existing Table
+	//
+    // Optional. Default is false
+    Reset bool
 }
 ```
 
 ### Default Config
 ```go
 var ConfigDefault = Config{
-        Hosts:             []string{"172.0.0.1"},
-        Username:          "",
-        Password:          "",
-        Table:             "scylla_table",
-        Keyspace:          "scylla_db",
-        Consistency:       "LOCAL_ONE",
-        ReplicationFactor: 1,
+    Session:     nil,
+    Keyspace:    "fiber",
+    Hosts:       []string{"127.0.0.1"},
+    Username:    "",
+    Password:    "",
+    Port:        9042,
+    Table:       "fiber_storage",
+    Consistency: "ONE",
+    Reset:       false,
 }
 ```

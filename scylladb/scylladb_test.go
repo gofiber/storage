@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var testStore = New(Config{})
+var testStore = New(Config{Reset: true})
 
 func Test_Scylla_Set(t *testing.T) {
 	// Create a new instance of the Storage
