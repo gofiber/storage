@@ -1,0 +1,43 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'scylladb/**'
+  pull_request:
+    paths:
+      - 'scylladb/**'
+
+name: "Tests ScyllaDb"
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version:
+          - 1.19.x
+          - 1.20.x
+
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v3
+
+      - name: Run ScyllaDb
+        run: |
+          docker run --name scylladb -p 9042:9042 -d scylladb/scylla:latest --listen-address 0.0.0.0
+          sleep 30 # Wait for ScyllaDb to initialize
+
+      - name: Create Default Keyspace
+        run: |
+          docker exec -it scylladb cqlsh -e "CREATE KEYSPACE IF NOT EXISTS scylla_db WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '${{ matrix.go-version }}'
+
+      - name: Run Test
+        run: cd ./scylladb && go test ./... -v -race
