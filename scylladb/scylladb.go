@@ -44,6 +44,7 @@ func New(config ...Config) *Storage {
 		// Create a cassandra cluster
 		cluster := gocql.NewCluster(cfg.Hosts...)
 		cluster.Consistency = gocql.ParseConsistency(cfg.Consistency)
+		cluster.Port = cfg.Port
 
 		// Set credentials if provided
 		if cfg.Username != "" && cfg.Password != "" {

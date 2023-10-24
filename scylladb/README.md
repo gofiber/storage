@@ -48,12 +48,12 @@ store := scylladb.New()
 
 // Initialize custom config
 store := scylladb.New(scylladb.Config{
-    Keyspace:    "fiber",
-    Hosts:       []string{"127.0.0.1"},
-    Port:        9042,
-    Table:       "fiber_storage",
-    Consistency: "ONE",
-    Reset:           false,
+    Keyspace:       "fiber",
+    Hosts:          []string{"127.0.0.1"},
+    Port:           9042,
+    Table:          "fiber_storage",
+    Consistency:    "ONE",
+    Reset:          false,
 })
 
 // Initialize custom config using scylladb connection
@@ -74,47 +74,47 @@ store := scylladb.New(scylladb.Config{
 ```go
 type Config struct {
     // Session Will override Keyspace and all other authentication values if used
-	//
+    //
     // Optional. Default is nil
     Session *gocql.Session
 
     // Keyspace name
-	//
+    //
     // Optional. Default is "fiber"
     Keyspace string
 
-	// Host name where the ScyllaDb cluster is hosted
-	//
-	// Optional. Default is "127.0.0.1"
-	Hosts []string
+    // Host name where the ScyllaDb cluster is hosted
+    //
+    // Optional. Default is "127.0.0.1"
+    Hosts []string
 
     // Port where the ScyllaDb cluster is listening on
-	//
+    //
     // Optional. Default is 9042
     Port int
 
     // Username for ScyllaDb cluster
-	//
+    //
     // Optional. Default is ""
     Username string
 
     // Password for ScyllaDb cluster
-	//
+    //
     // Optional. Default is ""
     Password string
 
     // Table name
-	//
+    //
     // Optional. Default is "fiber_storage"
     Table string
 
-	// Level of the consistency
-	//
-	// Optional. Default is "LOCAL_ONE"
-	Consistency string
+    // Level of the consistency
+    //
+    // Optional. Default is "LOCAL_ONE"
+    Consistency string
 
     // Reset clears any existing keys in existing Table
-	//
+    //
     // Optional. Default is false
     Reset bool
 }
