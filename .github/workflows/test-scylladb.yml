@@ -27,7 +27,7 @@ jobs:
 
       - name: Run ScyllaDb
         run: |
-          docker run --name scylladb -p 9042:9042 -d scylladb/scylla:latest --listen-address 0.0.0.0
+          docker run --name scylladb -p 9042:9042 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
           sleep 30 # Wait for ScyllaDb to initialize
 
       - name: Create Default Keyspace
