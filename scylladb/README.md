@@ -42,11 +42,10 @@ store := scylladb.New()
 
 // Initialize custom config
 store := scylladb.New(scylladb.Config{
-	Host:       "127.0.0.1",
-	Port:       9042,
-	Database:   "fiber",
-	Collection: "fiber_storage",
-	Reset:      false,
+        Hosts:             []string{"127.0.0.1"},
+        Keyspace:          "fiber_keyspace",
+        Consistency:       "ONE",
+        Table:             "fiber_table",
 })
 
 
@@ -55,15 +54,10 @@ store := scylladb.New(scylladb.Config{
 ### Config
 ```go
 type Config struct {
-	// Host name where the DB is hosted
+	// Hosts name where the DB is hosted
 	//
 	// Optional. Default is "127.0.0.1"
-	Host string
-
-	// Port where the DB is listening on
-	//
-	// Optional. Default is 9042
-	Port int
+	Hosts []string
 
 	// Server username
 	//
@@ -79,6 +73,11 @@ type Config struct {
 	//
 	// Optional. Default is "scylladb_db"
 	Keyspace string
+
+    // Level of the consistency
+    //
+    // Optional. Default is "LOCAL_ONE"
+    Consistency string
 
 	// Number of replication
 	//
@@ -100,12 +99,12 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Host:              "127.0.0.1",
-	Port:              9042,
-	Username:          "",
-	Password:          "",
-	Table:             "scylladb_table",
-	Keyspace:          "scylladb_db",
-	ReplicationFactor: 1,
+        Hosts:             []string{"172.0.0.1"},
+        Username:          "",
+        Password:          "",
+        Table:             "scylla_table",
+        Keyspace:          "scylla_db",
+        Consistency:       "LOCAL_ONE",
+        ReplicationFactor: 1,
 }
 ```

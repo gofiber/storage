@@ -43,7 +43,7 @@ type Config struct {
 }
 
 var ConfigDefault = Config{
-	Hosts:             []string{"172.19.0.10"},
+	Hosts:             []string{"172.0.0.1"},
 	Username:          "",
 	Password:          "",
 	Table:             "scylla_table",

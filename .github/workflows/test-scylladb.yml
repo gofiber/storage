@@ -32,7 +32,7 @@ jobs:
 
       - name: Create Default Keyspace
         run: |
-          docker exec -it scylladb cqlsh -e "CREATE KEYSPACE IF NOT EXISTS scylla_db WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+          docker exec --tty scylladb cqlsh -e "CREATE KEYSPACE IF NOT EXISTS scylla_db WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 
       - name: Install Go
         uses: actions/setup-go@v4
