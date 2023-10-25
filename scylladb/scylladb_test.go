@@ -115,12 +115,9 @@ func Benchmark_Scylla_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var (
-		val = []byte("doe")
-		err error
-	)
+	var err error
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", val, 0)
+		err = testStore.Set("john", []byte("doe"), 0)
 	}
 
 	require.NoError(b, err)
@@ -144,12 +141,9 @@ func Benchmark_Scylla_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var (
-		val = []byte("doe")
-		err error
-	)
+	var err error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", val, 0)
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
 	}
 
