@@ -1,6 +1,8 @@
 package scylladb
 
-import "github.com/gocql/gocql"
+import (
+	"github.com/gocql/gocql"
+)
 
 type Config struct {
 	// Session is provided by the user to use an existing ScyllaDb session
@@ -13,7 +15,8 @@ type Config struct {
 	// Optional. Default is "fiber"
 	Keyspace string
 
-	// Host name where the ScyllaDb cluster is hosted
+	// Hosts are an array of network addresses for establishing initial connections.
+	// You have the flexibility to specify one or multiple addresses as needed.
 	//
 	// Optional. Default is "127.0.0.1"
 	Hosts []string
@@ -43,6 +46,11 @@ type Config struct {
 	// Optional. Default is "LOCAL_ONE"
 	Consistency string
 
+	// SslOpts configures TLS use.
+	//
+	// Optional. Default is nil
+	SslOpts *gocql.SslOptions
+
 	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
@@ -59,6 +67,7 @@ var ConfigDefault = Config{
 	Port:        9042,
 	Table:       "fiber_storage",
 	Consistency: "LOCAL_ONE",
+	SslOpts:     nil,
 	Reset:       false,
 }
 

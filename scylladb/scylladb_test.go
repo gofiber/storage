@@ -83,9 +83,7 @@ func Test_Scylla_Delete(t *testing.T) {
 }
 
 func Test_Scylla_Reset(t *testing.T) {
-	var (
-		val = []byte("doe")
-	)
+	var val = []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -111,4 +109,49 @@ func Test_Scylla_Close(t *testing.T) {
 
 func Test_Scylla_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Benchmark_Scylla_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var (
+		val = []byte("doe")
+		err error
+	)
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", val, 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Scylla_Get(b *testing.B) {
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Scylla_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var (
+		val = []byte("doe")
+		err error
+	)
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", val, 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

@@ -41,7 +41,7 @@ func New(config ...Config) *Storage {
 	}
 
 	if cfg.Session == nil {
-		// Create a cassandra cluster
+		// Create a new cluster
 		cluster := gocql.NewCluster(cfg.Hosts...)
 		cluster.Consistency = gocql.ParseConsistency(cfg.Consistency)
 		cluster.Port = cfg.Port
@@ -52,6 +52,11 @@ func New(config ...Config) *Storage {
 				Username: cfg.Username,
 				Password: cfg.Password,
 			}
+		}
+
+		// Set cfg.SslOpts if provided.
+		if cfg.SslOpts != nil {
+			cluster.SslOpts = cfg.SslOpts
 		}
 
 		// Create session
