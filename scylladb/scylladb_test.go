@@ -1,7 +1,7 @@
 package scylladb
 
 import (
-	"github.com/gofiber/utils"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -15,7 +15,7 @@ func Test_Scylla_Set(t *testing.T) {
 		value = []byte("doe")
 	)
 	err := testStore.Set(key, value, time.Minute)
-	utils.AssertEqual(t, nil, err, "Failed to set the value")
+	require.NoError(t, err)
 }
 
 func Test_Scylla_Set_Override(t *testing.T) {
@@ -25,10 +25,10 @@ func Test_Scylla_Set_Override(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 }
 
 func Test_Scylla_Get(t *testing.T) {
@@ -38,11 +38,11 @@ func Test_Scylla_Get(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, val, result)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Scylla_Set_Expiration(t *testing.T) {
@@ -53,7 +53,7 @@ func Test_Scylla_Set_Expiration(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, exp)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
 }
@@ -61,8 +61,8 @@ func Test_Scylla_Set_Expiration(t *testing.T) {
 func Test_Scylla_Get_NotExist(t *testing.T) {
 
 	result, err := testStore.Get("not-exist")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Scylla_Delete(t *testing.T) {
@@ -72,14 +72,14 @@ func Test_Scylla_Delete(t *testing.T) {
 	)
 
 	err := testStore.Set(key, val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Delete(key)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Scylla_Reset(t *testing.T) {
@@ -88,27 +88,27 @@ func Test_Scylla_Reset(t *testing.T) {
 	)
 
 	err := testStore.Set("john1", val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	err = testStore.Reset()
-	utils.AssertEqual(t, nil, err)
+	require.NoError(t, err)
 
 	result, err := testStore.Get("john1")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 
 	result, err = testStore.Get("john2")
-	utils.AssertEqual(t, nil, err)
-	utils.AssertEqual(t, true, len(result) == 0)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Scylla_Close(t *testing.T) {
-	utils.AssertEqual(t, nil, testStore.Close())
+	require.Nil(t, testStore.Close())
 }
 
 func Test_Scylla_Conn(t *testing.T) {
-	utils.AssertEqual(t, true, testStore.Conn() != nil)
+	require.True(t, testStore.Conn() != nil)
 }
