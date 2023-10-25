@@ -112,7 +112,7 @@ store := scylladb.New(scylladb.Config{
 ```go
 type Config struct {
     // Session is provided by the user to use an existing ScyllaDb session
-	// Session Will override Keyspace and all other authentication values if used
+    // Session Will override Keyspace and all other authentication values if used
     //
     // Optional. Default is nil
     Session *gocql.Session
@@ -181,52 +181,3 @@ var ConfigDefault = Config{
     Reset:       false,
 }
 ```
-
-### Default Config
-```go
-
-// Create an SslOptions struct
-sslOptions := &gocql.SslOptions{
-Config: &tls.Config{
-InsecureSkipVerify: false, // Set this too false to enable certificate verification
-},
-CertPath:               "/path/to/client_cert.pem", // Path to the client certificate
-KeyPath:                "/path/to/client_key.pem",  // Path to the client certificate's private key
-CaPath:                 "/path/to/ca_cert.pem",     // Path to the CA certificate
-EnableHostVerification: true,                       // Enable hostname verification
-}
-
-
-
-// SslOptions configures TLS use.
-//
-// Warning: Due to historical reasons, the SslOptions is insecure by default, so you need to set EnableHostVerification
-// to true if no Config is set. Most users should set SslOptions.Config to a *tls.Config.
-// SslOptions and Config.InsecureSkipVerify interact as follows:
-//
-//	Config.InsecureSkipVerify | EnableHostVerification | Result
-//	Config is nil             | false                  | do not verify host
-//	Config is nil             | true                   | verify host
-//	false                     | false                  | verify host
-//	true                      | false                  | do not verify host
-//	false                     | true                   | verify host
-//	true                      | true                   | verify host
-type SslOptions struct {
-*tls.Config
-
-// CertPath and KeyPath are optional depending on server
-// config, but both fields must be omitted to avoid using a
-// client certificate
-CertPath string
-KeyPath  string
-CaPath   string //optional depending on server config
-// If you want to verify the hostname and server cert (like a wildcard for cass cluster) then you should turn this
-// on.
-// This option is basically the inverse of tls.Config.InsecureSkipVerify.
-// See InsecureSkipVerify in http://golang.org/pkg/crypto/tls/ for more info.
-//
-// See SslOptions documentation to see how EnableHostVerification interacts with the provided tls.Config.
-EnableHostVerification bool
-}
-```
-
