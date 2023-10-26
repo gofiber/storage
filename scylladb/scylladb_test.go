@@ -45,7 +45,7 @@ func Test_Scylla_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_Scylla_Set_Expiration(t *testing.T) {
+func Test_Scylla_SetGet_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -55,7 +55,7 @@ func Test_Scylla_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(1100 * time.Millisecond)
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)

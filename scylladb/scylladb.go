@@ -137,7 +137,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		}
 		return nil, err
 	}
-	if expiration > 0 && time.Now().Unix() > expiration {
+	// If the expiration time has already passed, then return nil
+	if expiration != 0 && expiration <= time.Now().Unix() {
 		return nil, nil
 	}
 	return value, nil
