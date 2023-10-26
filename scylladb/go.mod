@@ -2,6 +2,8 @@ module github.com/gofiber/storage/scylladb
 
 go 1.20
 
+replace github.com/gocql/gocql => github.com/scylladb/gocql v1.11.1
+
 require (
 	github.com/gocql/gocql v1.6.0
 	github.com/stretchr/testify v1.3.0
@@ -14,5 +16,3 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )
-
-replace github.com/gocql/gocql => github.com/scylladb/gocql v1.11.1

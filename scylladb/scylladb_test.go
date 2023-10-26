@@ -55,7 +55,11 @@ func Test_Scylla_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	time.Sleep(1500 * time.Millisecond)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Empty(t, result)
 }
 
 func Test_Scylla_Get_NotExist(t *testing.T) {
