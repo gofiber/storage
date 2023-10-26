@@ -19,12 +19,12 @@ type Storage struct {
 }
 
 var (
-	checkSchemaMsg = "the `data` row has an incorrect data type. " +
+	checkSchemaMsg = "the `value` row has an incorrect data type. " +
 		"The message should be BLOB, but it is instead %s. This could lead to encoding-related issues if the database is not migrated (refer to https://github.com/gofiber/storage/blob/main/MIGRATE.md)"
 	createKeyspaceQuery = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 	dropQuery           = `DROP TABLE IF EXISTS %s.%s;`
-	createTableQuery    = `CREATE TABLE IF NOT EXISTS %s.%s (id TEXT PRIMARY KEY, data BLOB, value BIGINT)`
-	checkSchemaQuery    = `SELECT type FROM system_schema.columns WHERE keyspace_name = '%s' AND table_name = '%s' AND column_name = 'data';`
+	createTableQuery    = `CREATE TABLE IF NOT EXISTS %s.%s (key TEXT PRIMARY KEY, value BLOB)`
+	checkSchemaQuery    = `SELECT type FROM system_schema.columns WHERE keyspace_name = '%s' AND table_name = '%s' AND column_name = 'value';`
 	keyspaceMsg         = `Keyspace cannot be empty.`
 )
 
@@ -87,9 +87,9 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		session:     session,
 		tableName:   cfg.Table,
-		selectQuery: fmt.Sprintf("SELECT data, value FROM %s.%s WHERE id = ?", cfg.Keyspace, cfg.Table),
-		insertQuery: fmt.Sprintf("INSERT INTO %s.%s (id, data, value) VALUES (?, ?, ?)", cfg.Keyspace, cfg.Table),
-		deleteQuery: fmt.Sprintf("DELETE FROM %s.%s WHERE id = ?", cfg.Keyspace, cfg.Table),
+		selectQuery: fmt.Sprintf("SELECT value FROM %s.%s WHERE key = ?", cfg.Keyspace, cfg.Table),
+		insertQuery: fmt.Sprintf("INSERT INTO %s.%s (key, value) VALUES (?, ?) USING TTL ?", cfg.Keyspace, cfg.Table),
+		deleteQuery: fmt.Sprintf("DELETE FROM %s.%s WHERE key = ?", cfg.Keyspace, cfg.Table),
 		resetQuery:  fmt.Sprintf("TRUNCATE %s.%s", cfg.Keyspace, cfg.Table),
 	}
 
@@ -115,7 +115,7 @@ func (s *Storage) createTableIfNotExists(keyspace string) error {
 }
 
 func (s *Storage) checkSchema(keyspace string) {
-	// Check schema for data column type (should be blob)
+	// Check schema for value column type (should be blob)
 	var dataType string
 	query := fmt.Sprintf(checkSchemaQuery, keyspace, s.tableName)
 	if err := s.session.Query(query).Scan(&dataType); err != nil {
@@ -130,25 +130,20 @@ func (s *Storage) checkSchema(keyspace string) {
 // Get retrieves a value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	var value []byte
-	var expiration int64
-	if err := s.session.Query(s.selectQuery, key).Scan(&value, &expiration); err != nil {
+	if err := s.session.Query(s.selectQuery, key).Scan(&value); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err
-	}
-	// If the expiration time has already passed, then return nil
-	if expiration != 0 && expiration <= time.Now().Unix() {
-		return nil, nil
 	}
 	return value, nil
 }
 
 // Set sets a value by key
 func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
-	var expiration int64
+	var expiration int
 	if expire != 0 {
-		expiration = time.Now().Add(expire).Unix()
+		expiration = int(expire.Round(time.Second).Seconds())
 	}
 	return s.session.Query(s.insertQuery, key, value, expiration).Exec()
 }
