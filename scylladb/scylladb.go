@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gocql/gocql"
+	"strings"
 	"time"
 )
 
@@ -19,13 +20,17 @@ type Storage struct {
 }
 
 var (
-	checkSchemaMsg = "the `value` row has an incorrect data type. " +
-		"The message should be BLOB, but it is instead %s. This could lead to encoding-related issues if the database is not migrated (refer to https://github.com/gofiber/storage/blob/main/MIGRATE.md)"
-	createKeyspaceQuery = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+	checkSchemaErrorMsg = errors.New("the `value` row has an incorrect data type. " +
+		"The message should be BLOB, but it is instead %s. This could lead to encoding-related issues if the database is not migrated (refer to https://github.com/gofiber/storage/blob/main/MIGRATE.md)")
+	keyspaceErrorMsg    = errors.New(`keyspace cannot be empty`)
+	createKeyspaceQuery = `CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};`
 	dropQuery           = `DROP TABLE IF EXISTS %s.%s;`
 	createTableQuery    = `CREATE TABLE IF NOT EXISTS %s.%s (key TEXT PRIMARY KEY, value BLOB)`
 	checkSchemaQuery    = `SELECT type FROM system_schema.columns WHERE keyspace_name = '%s' AND table_name = '%s' AND column_name = 'value';`
-	keyspaceMsg         = `Keyspace cannot be empty.`
+	selectQuery         = `SELECT value FROM %s.%s WHERE key = ?`
+	insertQuery         = `INSERT INTO %s.%s (key, value) VALUES (?, ?) USING TTL ?`
+	deleteQuery         = `DELETE FROM %s.%s WHERE key = ?`
+	resetQuery          = `TRUNCATE %s.%s`
 )
 
 // New creates a new storage
@@ -36,8 +41,8 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	if cfg.Keyspace == "" {
-		panic(keyspaceMsg)
+	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
+		panic(keyspaceErrorMsg)
 	}
 
 	if cfg.Session == nil {
@@ -47,7 +52,7 @@ func New(config ...Config) *Storage {
 		cluster.Port = cfg.Port
 
 		// Set credentials if provided
-		if cfg.Username != "" && cfg.Password != "" {
+		if len(strings.TrimSpace(cfg.Username)) > 0 && len(strings.TrimSpace(cfg.Password)) > 0 {
 			cluster.Authenticator = gocql.PasswordAuthenticator{
 				Username: cfg.Username,
 				Password: cfg.Password,
@@ -87,10 +92,10 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		session:     session,
 		tableName:   cfg.Table,
-		selectQuery: fmt.Sprintf("SELECT value FROM %s.%s WHERE key = ?", cfg.Keyspace, cfg.Table),
-		insertQuery: fmt.Sprintf("INSERT INTO %s.%s (key, value) VALUES (?, ?) USING TTL ?", cfg.Keyspace, cfg.Table),
-		deleteQuery: fmt.Sprintf("DELETE FROM %s.%s WHERE key = ?", cfg.Keyspace, cfg.Table),
-		resetQuery:  fmt.Sprintf("TRUNCATE %s.%s", cfg.Keyspace, cfg.Table),
+		selectQuery: fmt.Sprintf(selectQuery, cfg.Keyspace, cfg.Table),
+		insertQuery: fmt.Sprintf(insertQuery, cfg.Keyspace, cfg.Table),
+		deleteQuery: fmt.Sprintf(deleteQuery, cfg.Keyspace, cfg.Table),
+		resetQuery:  fmt.Sprintf(resetQuery, cfg.Keyspace, cfg.Table),
 	}
 
 	// Create table if not exists
@@ -123,7 +128,7 @@ func (s *Storage) checkSchema(keyspace string) {
 	}
 
 	if dataType != "blob" {
-		panic(fmt.Errorf(checkSchemaMsg, dataType))
+		panic(fmt.Errorf(checkSchemaErrorMsg.Error(), dataType))
 	}
 }
 

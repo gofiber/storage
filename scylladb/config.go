@@ -2,6 +2,7 @@ package scylladb
 
 import (
 	"github.com/gocql/gocql"
+	"strings"
 )
 
 type Config struct {
@@ -88,13 +89,13 @@ func configDefault(config ...Config) Config {
 	if cfg.Port <= 0 {
 		cfg.Port = ConfigDefault.Port
 	}
-	if cfg.Table == "" {
+	if len(strings.TrimSpace(cfg.Table)) == 0 {
 		cfg.Table = ConfigDefault.Table
 	}
-	if cfg.Keyspace == "" {
+	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
 		cfg.Keyspace = ConfigDefault.Keyspace
 	}
-	if cfg.Consistency == "" {
+	if len(strings.TrimSpace(cfg.Consistency)) == 0 {
 		cfg.Consistency = ConfigDefault.Consistency
 	}
 	return cfg
