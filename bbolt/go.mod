@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/gofiber/utils/v2 v2.0.0-beta.3
 	github.com/stretchr/testify v1.8.4
-	go.etcd.io/bbolt v1.3.7
+	go.etcd.io/bbolt v1.3.8
 )
 
 require (
