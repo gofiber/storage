@@ -84,7 +84,7 @@ func Test_Redis_Expiration(t *testing.T) {
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Get_NotExist(t *testing.T) {
@@ -117,7 +117,7 @@ func Test_Redis_Delete(t *testing.T) {
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Reset(t *testing.T) {
@@ -149,7 +149,7 @@ func Test_Redis_Reset(t *testing.T) {
 
 	keys, err = testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Close(t *testing.T) {
@@ -229,7 +229,7 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 
 	keys, err := testStoreUrl.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUrl.Close())
 }
@@ -275,7 +275,7 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 
 	keys, err := testStoreUrl.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUrl.Close())
 }
@@ -302,7 +302,7 @@ func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
 
 	keys, err := testStoreUrl.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUrl.Close())
 }
@@ -330,7 +330,7 @@ func Test_Redis_Universal_Addrs(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -360,7 +360,7 @@ func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -390,7 +390,7 @@ func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -421,7 +421,7 @@ func Test_Redis_Universal_With_HostPort(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -453,7 +453,7 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -487,7 +487,7 @@ func Test_Redis_Cluster(t *testing.T) {
 
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
