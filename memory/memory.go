@@ -141,3 +141,20 @@ func (s *Storage) Conn() map[string]entry {
 	defer s.mux.RUnlock()
 	return s.db
 }
+
+// Return all the keys
+func (s *Storage) Keys() ([][]byte, error) {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+
+	if len(s.db) == 0 {
+		return nil, nil
+	}
+
+	keys := make([][]byte, 0, len(s.db))
+	for key := range s.db {
+		keys = append(keys, []byte(key))
+	}
+
+	return keys, nil
+}

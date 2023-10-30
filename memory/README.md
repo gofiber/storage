@@ -31,6 +31,7 @@ func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() map[string]entry
+func (s *Storage) Keys() ([][]byte, error)
 ```
 
 ### Installation
