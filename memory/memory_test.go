@@ -78,7 +78,7 @@ func Test_Storage_Memory_Set_Expiration(t *testing.T) {
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Storage_Memory_Get_NotExist(t *testing.T) {
@@ -89,7 +89,7 @@ func Test_Storage_Memory_Get_NotExist(t *testing.T) {
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Storage_Memory_Delete(t *testing.T) {
@@ -115,7 +115,7 @@ func Test_Storage_Memory_Delete(t *testing.T) {
 
 	keys, err = testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Storage_Memory_Reset(t *testing.T) {
@@ -145,7 +145,7 @@ func Test_Storage_Memory_Reset(t *testing.T) {
 
 	keys, err = testStore.Keys()
 	require.NoError(t, err)
-	require.Zero(t, keys)
+	require.Nil(t, keys)
 }
 
 func Test_Storage_Memory_Close(t *testing.T) {
