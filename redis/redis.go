@@ -121,12 +121,12 @@ func (s *Storage) Conn() redis.UniversalClient {
 func (s *Storage) Keys() ([][]byte, error) {
 	var keys [][]byte
 	var cursor uint64
+	var err error
 
 	for {
 		var batch []string
-		var err error
-		batch, cursor, err = s.db.Scan(context.Background(), cursor, "*", 10).Result()
-		if err != nil {
+
+		if batch, cursor, err = s.db.Scan(context.Background(), cursor, "*", 10).Result(); err != nil {
 			return nil, err
 		}
 
