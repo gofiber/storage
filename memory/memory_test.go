@@ -81,6 +81,37 @@ func Test_Storage_Memory_Set_Expiration(t *testing.T) {
 	require.Nil(t, keys)
 }
 
+func Test_Storage_Memory_Set_Long_Expiration_with_Keys(t *testing.T) {
+	var (
+		testStore = New()
+		key       = "john"
+		val       = []byte("doe")
+		exp       = 5 * time.Second
+	)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
+	err = testStore.Set(key, val, exp)
+	require.NoError(t, err)
+
+	time.Sleep(1100 * time.Millisecond)
+
+	keys, err = testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+
+	time.Sleep(4000 * time.Millisecond)
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+
+	keys, err = testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+}
+
 func Test_Storage_Memory_Get_NotExist(t *testing.T) {
 	testStore := New()
 	result, err := testStore.Get("notexist")

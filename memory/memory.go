@@ -151,9 +151,18 @@ func (s *Storage) Keys() ([][]byte, error) {
 		return nil, nil
 	}
 
+	ts := atomic.LoadUint32(&internal.Timestamp)
 	keys := make([][]byte, 0, len(s.db))
-	for key := range s.db {
-		keys = append(keys, []byte(key))
+	for key, v := range s.db {
+		// Filter out the expired keys
+		if v.expiry == 0 || v.expiry > ts {
+			keys = append(keys, []byte(key))
+		}
+	}
+
+	// Double check if no valid keys were found
+	if len(keys) == 0 {
+		return nil, nil
 	}
 
 	return keys, nil
