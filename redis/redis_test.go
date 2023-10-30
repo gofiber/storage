@@ -34,6 +34,10 @@ func Test_Redis_Set_Override(t *testing.T) {
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
 }
 
 func Test_Redis_Get(t *testing.T) {
@@ -48,9 +52,13 @@ func Test_Redis_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
 }
 
-func Test_Redis_Set_Expiration(t *testing.T) {
+func Test_Redis_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -61,14 +69,14 @@ func Test_Redis_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
-}
-
-func Test_Redis_Get_Expired(t *testing.T) {
-	key := "john"
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 }
 
 func Test_Redis_Get_NotExist(t *testing.T) {
@@ -92,6 +100,10 @@ func Test_Redis_Delete(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 }
 
 func Test_Redis_Reset(t *testing.T) {
@@ -103,6 +115,10 @@ func Test_Redis_Reset(t *testing.T) {
 	err = testStore.Set("john2", val, 0)
 	require.NoError(t, err)
 
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+
 	err = testStore.Reset()
 	require.NoError(t, err)
 
@@ -113,6 +129,10 @@ func Test_Redis_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err = testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 }
 
 func Test_Redis_Close(t *testing.T) {
@@ -184,6 +204,10 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
+
 	require.Nil(t, testStoreUrl.Close())
 }
 
@@ -226,6 +250,10 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
+
 	require.Nil(t, testStoreUrl.Close())
 }
 
@@ -248,6 +276,10 @@ func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
 
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 
 	require.Nil(t, testStoreUrl.Close())
 }
@@ -272,6 +304,10 @@ func Test_Redis_Universal_Addrs(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -299,6 +335,10 @@ func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
+
 	require.Nil(t, testStoreUniversal.Close())
 }
 
@@ -324,6 +364,10 @@ func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -352,6 +396,10 @@ func Test_Redis_Universal_With_HostPort(t *testing.T) {
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
+
 	require.Nil(t, testStoreUniversal.Close())
 }
 
@@ -379,6 +427,10 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -409,6 +461,10 @@ func Test_Redis_Cluster(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Zero(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }

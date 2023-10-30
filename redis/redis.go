@@ -74,8 +74,6 @@ func New(config ...Config) *Storage {
 	}
 }
 
-// ...
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
@@ -117,4 +115,33 @@ func (s *Storage) Close() error {
 // Return database client
 func (s *Storage) Conn() redis.UniversalClient {
 	return s.db
+}
+
+// Return all the keys
+func (s *Storage) Keys() ([][]byte, error) {
+	var keys [][]byte
+	var cursor uint64
+
+	for {
+		var batch []string
+		var err error
+		batch, cursor, err = s.db.Scan(context.Background(), cursor, "*", 10).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, key := range batch {
+			keys = append(keys, []byte(key))
+		}
+
+		if cursor == 0 {
+			break
+		}
+	}
+
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	return keys, nil
 }
