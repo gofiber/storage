@@ -1,5 +1,5 @@
-github.com/arangodb/go-driver v1.6.0 h1:NFWj/idqXZxhFVueihMSI2R9NotNIsgvNfM/xmpekb4=
-github.com/arangodb/go-driver v1.6.0/go.mod h1:HQmdGkvNMVBTE3SIPSQ8T/ZddC6iwNsfMR+dDJQxIsI=
+github.com/arangodb/go-driver v1.6.1 h1:bnhrpbA4U1NU13JOWs5sWWYMtQwdjKT0+jkl8dSndyY=
+github.com/arangodb/go-driver v1.6.1/go.mod h1:ywucwwi34GBxxXFWw/ym+7/66//L4K9abxk/sFJro2k=
 github.com/arangodb/go-velocypack v0.0.0-20200318135517-5af53c29c67e h1:Xg+hGrY2LcQBbxd0ZFdbGSyRKTYMZCfBbw/pMJFOk1g=
 github.com/arangodb/go-velocypack v0.0.0-20200318135517-5af53c29c67e/go.mod h1:mq7Shfa/CaixoDxiyAAc5jZ6CVBAyPaNQCGS7mkj4Ho=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
