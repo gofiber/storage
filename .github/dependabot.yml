@@ -140,3 +140,9 @@ updates:
             - "🤖 Dependencies"
         schedule:
             interval: "daily"
+    - package-ecosystem: "gomod"
+      directory: "/scylladb/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"

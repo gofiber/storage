@@ -1,0 +1,39 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'scylladb/**'
+  pull_request:
+    paths:
+      - 'scylladb/**'
+
+name: "Tests ScyllaDb"
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version:
+          - 1.20.x
+          - 1.21.x
+
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v3
+
+      - name: Run ScyllaDb
+        run: |
+          docker run --name scylladb -p 9042:9042 -p 19042:19042 -p 9160:9160 -p 10000:10000 -p 7000:7000 -p 7001:7001 -p 7199:7199 -p 9180:9180 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
+          sleep 30 # Wait for ScyllaDb to initialize
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '${{ matrix.go-version }}'
+
+      - name: Run Test
+        run: cd ./scylladb && go test ./... -v -race

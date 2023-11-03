@@ -124,3 +124,7 @@ jobs:
         working-directory: ./rueidis
         run: gosec ./...
         # -----
+      - name: Run Gosec (scylladb)
+        working-directory: ./scylladb
+        run: gosec ./...
+        # -----
