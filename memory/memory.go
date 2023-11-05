@@ -141,3 +141,29 @@ func (s *Storage) Conn() map[string]entry {
 	defer s.mux.RUnlock()
 	return s.db
 }
+
+// Return all the keys
+func (s *Storage) Keys() ([][]byte, error) {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+
+	if len(s.db) == 0 {
+		return nil, nil
+	}
+
+	ts := atomic.LoadUint32(&internal.Timestamp)
+	keys := make([][]byte, 0, len(s.db))
+	for key, v := range s.db {
+		// Filter out the expired keys
+		if v.expiry == 0 || v.expiry > ts {
+			keys = append(keys, []byte(key))
+		}
+	}
+
+	// Double check if no valid keys were found
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	return keys, nil
+}
