@@ -66,6 +66,9 @@ jobs:
                     slave3-port: 7005
                     sleep-duration: 10
 
+            -   name: Wait for Redis to Start
+                run: sleep 15
+
             -   name: Install Go
                 uses: actions/setup-go@v4
                 with:

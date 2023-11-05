@@ -9,12 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(Config{
-	Reset: true,
-})
-
 func Test_Redis_Set(t *testing.T) {
 	var (
+		testStore = New(Config{
+			Reset: true,
+		})
 		key = "john"
 		val = []byte("doe")
 	)
@@ -25,6 +24,9 @@ func Test_Redis_Set(t *testing.T) {
 
 func Test_Redis_Set_Override(t *testing.T) {
 	var (
+		testStore = New(Config{
+			Reset: true,
+		})
 		key = "john"
 		val = []byte("doe")
 	)
@@ -34,10 +36,17 @@ func Test_Redis_Set_Override(t *testing.T) {
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
 }
 
 func Test_Redis_Get(t *testing.T) {
 	var (
+		testStore = New(Config{
+			Reset: true,
+		})
 		key = "john"
 		val = []byte("doe")
 	)
@@ -48,10 +57,17 @@ func Test_Redis_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
 }
 
-func Test_Redis_Set_Expiration(t *testing.T) {
+func Test_Redis_Expiration(t *testing.T) {
 	var (
+		testStore = New(Config{
+			Reset: true,
+		})
 		key = "john"
 		val = []byte("doe")
 		exp = 1 * time.Second
@@ -61,17 +77,20 @@ func Test_Redis_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
-}
-
-func Test_Redis_Get_Expired(t *testing.T) {
-	key := "john"
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Get_NotExist(t *testing.T) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
@@ -79,6 +98,9 @@ func Test_Redis_Get_NotExist(t *testing.T) {
 
 func Test_Redis_Delete(t *testing.T) {
 	var (
+		testStore = New(Config{
+			Reset: true,
+		})
 		key = "john"
 		val = []byte("doe")
 	)
@@ -92,9 +114,16 @@ func Test_Redis_Delete(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Reset(t *testing.T) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
@@ -102,6 +131,10 @@ func Test_Redis_Reset(t *testing.T) {
 
 	err = testStore.Set("john2", val, 0)
 	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
 
 	err = testStore.Reset()
 	require.NoError(t, err)
@@ -113,13 +146,23 @@ func Test_Redis_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+
+	keys, err = testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Close(t *testing.T) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	require.Nil(t, testStore.Close())
 }
 
 func Test_Redis_Conn(t *testing.T) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	require.True(t, testStore.Conn() != nil)
 }
 
@@ -184,6 +227,10 @@ func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStoreUrl.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
 	require.Nil(t, testStoreUrl.Close())
 }
 
@@ -226,6 +273,10 @@ func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStoreUrl.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
 	require.Nil(t, testStoreUrl.Close())
 }
 
@@ -248,6 +299,10 @@ func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
 
 	err = testStoreUrl.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStoreUrl.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUrl.Close())
 }
@@ -272,6 +327,10 @@ func Test_Redis_Universal_Addrs(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -299,6 +358,10 @@ func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
 	require.Nil(t, testStoreUniversal.Close())
 }
 
@@ -324,6 +387,10 @@ func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -352,6 +419,10 @@ func Test_Redis_Universal_With_HostPort(t *testing.T) {
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
 	require.Nil(t, testStoreUniversal.Close())
 }
 
@@ -379,6 +450,10 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
+
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 
 	require.Nil(t, testStoreUniversal.Close())
 }
@@ -410,10 +485,17 @@ func Test_Redis_Cluster(t *testing.T) {
 	err = testStoreUniversal.Delete(key)
 	require.NoError(t, err)
 
+	keys, err := testStoreUniversal.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
 	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Benchmark_Redis_Set(b *testing.B) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -426,6 +508,9 @@ func Benchmark_Redis_Set(b *testing.B) {
 }
 
 func Benchmark_Redis_Get(b *testing.B) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -440,6 +525,9 @@ func Benchmark_Redis_Get(b *testing.B) {
 }
 
 func Benchmark_Redis_SetAndDelete(b *testing.B) {
+	testStore := New(Config{
+		Reset: true,
+	})
 	b.ReportAllocs()
 	b.ResetTimer()
 
