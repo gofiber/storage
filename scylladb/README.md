@@ -11,7 +11,7 @@ title: ScyllaDb
 
 # ScyllaDb
 
-A ScyllaDb storage engine for [Fiber](github.com/gofiber/fiber) using [gocql](github.com/scylladb/gocql).
+A ScyllaDb storage engine for [Fiber](https://github.com/gofiber/fiber) using [gocql](https://github.com/scylladb/gocql).
 
 ### Table of Contents
 - [Signatures](#signatures)
