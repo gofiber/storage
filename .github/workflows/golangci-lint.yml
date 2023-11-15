@@ -29,8 +29,8 @@ jobs:
         uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          # Get all directories, skip hidden
-          echo "matrix=$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_ENV
+          DIRECTORIES=$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=${DIRECTORIES}" >> $GITHUB_OUTPUT
 
   golangci-lint:
     needs: generate-matrix
