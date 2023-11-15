@@ -44,7 +44,7 @@ jobs:
       - name: Run golangci-lint
         uses: reviewdog/action-golangci-lint@v2
         with:
-          golangci_lint_flags: "--tests=false --verbose --timeout=5m --enable-all"
+          golangci_lint_flags: "--tests=false --timeout=5m --enable-all"
           workdir: ${{ matrix.modules }}
           fail_on_error: true
           cache: false
