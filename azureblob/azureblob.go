@@ -2,7 +2,6 @@ package azureblob
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
