@@ -105,8 +105,6 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-var noRows = "sql: no rows in result set"
-
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
@@ -136,7 +134,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
-// Set key with value
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
