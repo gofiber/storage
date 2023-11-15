@@ -30,7 +30,7 @@ jobs:
       - id: set-matrix
         run: |
           # Get all directories, skip hidden
-          echo "$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
+          echo "matrix=$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_ENV
 
   golangci-lint:
     needs: generate-matrix
