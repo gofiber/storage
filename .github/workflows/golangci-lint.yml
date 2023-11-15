@@ -47,4 +47,5 @@ jobs:
           golangci_lint_flags: "--tests=false --timeout=5m --enable-all"
           workdir: ${{ matrix.modules }}
           fail_on_error: true
+          filter_mode: nofilter
           cache: false
