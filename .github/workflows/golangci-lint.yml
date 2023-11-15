@@ -20,7 +20,7 @@ on:
       - ".github/dependabot.yml"
 
 jobs:
-  prepare-matrix:
+  generate-matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -29,14 +29,15 @@ jobs:
         uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          echo "::set-output name=matrix::$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')"
+          # Get all directories, skip hidden
+          echo "$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_OUTPUT
 
   golangci-lint:
-    needs: prepare-matrix
+    needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        directory: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
+        modules: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
@@ -44,4 +45,6 @@ jobs:
         uses: reviewdog/action-golangci-lint@v2
         with:
           golangci_lint_flags: "--tests=false"
-          working-directory: ${{ matrix.directory }}
+          workdir: ${{ matrix.modules }}
+          fail_on_error: true
+          cache: false
