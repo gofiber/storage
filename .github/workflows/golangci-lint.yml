@@ -29,8 +29,17 @@ jobs:
         uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          DIRECTORIES=$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')
-          echo "matrix=${DIRECTORIES}" >> $GITHUB_OUTPUT
+          # Get list of changed files
+          if [[ ${{ github.event_name }} == 'pull_request' ]]; then
+            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
+          fi
+
+          # Extract directories from changed files, convert to JSON and export
+          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
+          JSON_ARRAY=$(echo "$DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
   lint:
     needs: generate-matrix
