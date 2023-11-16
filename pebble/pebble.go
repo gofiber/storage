@@ -130,11 +130,6 @@ func isValid(fp string) bool {
 		return false
 	}
 
-	err = os.Remove(fp) // And delete it
-
-	if err != nil {
-		return false
-	}
-
-	return true
+	err = os.Remove(fp)
+	return err == nil
 }
