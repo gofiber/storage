@@ -40,10 +40,11 @@ jobs:
             HEAD_SHA="${{ github.event.after }}"
           fi
 
-          # Extract directories from changed files, exclude hidden directories, convert to JSON and export
-          FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
-          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | grep -vE '^\./\.' | sort -u)
-          JSON_ARRAY=$(echo "$DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
+          # Find changed directories that contain go.mod, convert to JSON and export
+          GO_MOD_DIRECTORIES=$(find . -name 'go.mod' | xargs -L1 dirname | sort -u)
+          CHANGED_DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
+          MATCHED_DIRECTORIES=$(echo "${GO_MOD_DIRECTORIES}" "${CHANGED_DIRECTORIES}" | tr ' ' '\n' | sort | uniq -d)
+          JSON_ARRAY=$(echo "$MATCHED_DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
   lint:
