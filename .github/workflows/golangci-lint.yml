@@ -27,13 +27,19 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - id: set-matrix
         run: |
           # Get list of changed files
           if [[ ${{ github.event_name }} == 'pull_request' ]]; then
-            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+            BASE_SHA=${{ github.event.pull_request.base.sha }}
+            HEAD_SHA=${{ github.event.pull_request.head.sha }}
+            FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
           else
-            FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
+            BEFORE_SHA=${{ github.event.before }}
+            AFTER_SHA=${{ github.event.after }}
+            FILES=$(git diff --name-only $BEFORE_SHA $AFTER_SHA)
           fi
 
           # Extract directories from changed files, convert to JSON and export
@@ -57,4 +63,3 @@ jobs:
           workdir: ${{ matrix.modules }}
           fail_on_error: true
           filter_mode: nofilter
-          cache: false
