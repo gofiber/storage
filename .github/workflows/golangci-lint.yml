@@ -42,7 +42,7 @@ jobs:
 
           # Extract directories from changed files, exclude hidden directories, convert to JSON and export
           FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
-          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | grep -vE '^\./\.' | sort -u | grep -vE '^\./')
+          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | grep -vE '^\./\.' | sort -u)
           JSON_ARRAY=$(echo "$DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
