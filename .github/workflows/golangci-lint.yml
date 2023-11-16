@@ -1,4 +1,4 @@
-name: Golangci Lint Check
+name: Golangci-Lint Check
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
           DIRECTORIES=$(find . -type d -not -path '*/\.*' | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${DIRECTORIES}" >> $GITHUB_OUTPUT
 
-  golangci-lint:
+  lint:
     needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
