@@ -41,6 +41,7 @@ jobs:
           fi
 
           # Find changed directories that contain go.mod, convert to JSON and export
+          FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
           GO_MOD_DIRECTORIES=$(find . -name 'go.mod' | xargs -L1 dirname | sort -u)
           CHANGED_DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
           MATCHED_DIRECTORIES=$(echo "${GO_MOD_DIRECTORIES}" "${CHANGED_DIRECTORIES}" | tr ' ' '\n' | sort | uniq -d)
