@@ -64,12 +64,6 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 20*time.Second)
-	defer cancel()
-	if err = client.Connect(ctx); err != nil {
-		panic(err)
-	}
-
 	// verify that the client can connect
 	if err = client.Ping(context.Background(), nil); err != nil {
 		panic(err)
