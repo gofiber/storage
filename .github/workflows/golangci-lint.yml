@@ -31,19 +31,18 @@ jobs:
           fetch-depth: 0
       - id: set-matrix
         run: |
-          # Get list of changed files
+          # Determine the base and head commits for diff based on the event type
           if [[ ${{ github.event_name }} == 'pull_request' ]]; then
-            BASE_SHA=${{ github.event.pull_request.base.sha }}
-            HEAD_SHA=${{ github.event.pull_request.head.sha }}
-            FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           else
-            BEFORE_SHA=${{ github.event.before }}
-            AFTER_SHA=${{ github.event.after }}
-            FILES=$(git diff --name-only $BEFORE_SHA $AFTER_SHA)
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.event.after }}"
           fi
 
-          # Extract directories from changed files, convert to JSON and export
-          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
+          # Extract directories from changed files, exclude hidden directories, convert to JSON and export
+          FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
+          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u | grep -vE '/\.')
           JSON_ARRAY=$(echo "$DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
