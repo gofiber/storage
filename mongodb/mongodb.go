@@ -53,18 +53,14 @@ func New(config ...Config) *Storage {
 	}
 
 	// Set mongo options
-	opt := options.Client()
-	opt.ApplyURI(dsn)
+	opt := options.Client().ApplyURI(dsn)
 
-	// Create mongo client
-	client, err := mongo.NewClient(opt)
-	if err != nil {
-		panic(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 20*time.Second)
+	// Create and connect the mongo client in one step
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	if err = client.Connect(ctx); err != nil {
+
+	client, err := mongo.Connect(ctx, opt)
+	if err != nil {
 		panic(err)
 	}
 

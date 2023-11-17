@@ -22,8 +22,6 @@ type Storage struct {
 }
 
 var (
-	checkSchemaMsg = "The `v` row has an incorrect data type. " +
-		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = `DROP TABLE IF EXISTS %s;`
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s (

@@ -2,7 +2,6 @@ package azureblob
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -108,7 +107,7 @@ func (s *Storage) Reset() error {
 		}
 	}
 	if errCounter > 0 {
-		return errors.New(fmt.Sprintf("%d errors occured while resetting", errCounter))
+		return fmt.Errorf("%d errors occured while resetting", errCounter)
 	}
 	return nil
 }
