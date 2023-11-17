@@ -32,15 +32,23 @@ jobs:
       - id: set-matrix
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Get the changed directories for the entire pull request
-            changed_dirs=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | awk -F'/' '{print $1}' | sort -u | tr '\n' ' ')
+            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+            go_mod_dirs=""
+
+            for file in $changed_files; do
+              dir=$(dirname $file)
+              if [[ -f "$dir/go.mod" ]]; then
+                go_mod_dirs+="$dir "
+              fi
+            done
+            go_mod_dirs=$(echo $go_mod_dirs | tr ' ' '\n' | sort -u | tr '\n' ' ')
           else
-            # For master branch, process all directories with go.mod
-            changed_dirs=$(find . -name go.mod -exec dirname {} \; | tr '\n' ' ')
+            # Process all directories with go.mod
+            go_mod_dirs=$(find . -name go.mod -exec dirname {} \; | sort -u | tr '\n' ' ')
           fi
 
           # Export the JSON array
-          JSON_ARRAY=$(printf '%s\n' "$changed_dirs" | jq -R -s -c 'split("\n")[:-1]')
+          JSON_ARRAY=$(printf '%s\n' "$go_mod_dirs" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
   gosec-scan:
