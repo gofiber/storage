@@ -52,6 +52,7 @@ jobs:
 
   gosec-scan:
     runs-on: ubuntu-latest
+    needs: generate-matrix
     env:
       GO111MODULE: on
     steps:
