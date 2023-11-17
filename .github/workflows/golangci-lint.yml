@@ -40,12 +40,20 @@ jobs:
             HEAD_SHA="${{ github.event.after }}"
           fi
 
-          # Find changed directories that contain go.mod, convert to JSON and export
+          # Extract directories from changed files
           FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
-          GO_MOD_DIRECTORIES=$(find . -name 'go.mod' | xargs -L1 dirname | sort -u)
-          CHANGED_DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
-          MATCHED_DIRECTORIES=$(echo "${GO_MOD_DIRECTORIES}" "${CHANGED_DIRECTORIES}" | tr ' ' '\n' | sort | uniq -d)
-          JSON_ARRAY=$(echo "$MATCHED_DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
+          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u | grep -vE '/\.')
+
+          # Check each directory for a go.mod file and prepare JSON array
+          GO_MOD_DIRECTORIES=()
+          for dir in $DIRECTORIES; do
+            if [[ -f "$dir/go.mod" ]]; then
+              GO_MOD_DIRECTORIES+=("$dir")
+            fi
+          done
+          JSON_ARRAY=$(printf '%s\n' "${GO_MOD_DIRECTORIES[@]}" | jq -R -s -c 'split("\n")[:-1]')
+          
+          # Export the JSON array
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
   lint:
