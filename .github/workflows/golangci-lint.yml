@@ -32,28 +32,14 @@ jobs:
       - id: set-matrix
         run: |
           # Determine the base and head commits for diff based on the event type
-          if [[ ${{ github.event_name }} == 'pull_request' ]]; then
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE_SHA="${{ github.event.before }}"
-            HEAD_SHA="${{ github.event.after }}"
-          fi
+          BASE_SHA="${{ github.event.pull_request.base.sha || github.event.before }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha || github.event.after }}"
 
-          # Extract directories from changed files
-          FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA)
-          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u | grep -vE '/\.')
+          # Extract changed directories that contain a go.mod file
+          GO_MOD_DIRECTORIES=$(git diff --name-only $BASE_SHA $HEAD_SHA | grep '/go.mod$' | xargs -L1 dirname | sort -u)
 
-          # Check each directory for a go.mod file and prepare JSON array
-          GO_MOD_DIRECTORIES=()
-          for dir in $DIRECTORIES; do
-            if [[ -f "$dir/go.mod" ]]; then
-              GO_MOD_DIRECTORIES+=("$dir")
-            fi
-          done
-          JSON_ARRAY=$(printf '%s\n' "${GO_MOD_DIRECTORIES[@]}" | jq -R -s -c 'split("\n")[:-1]')
-          
-          # Export the JSON array
+          # Convert to JSON and export
+          JSON_ARRAY=$(echo "$GO_MOD_DIRECTORIES" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
 
   lint:
