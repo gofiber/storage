@@ -55,6 +55,9 @@ jobs:
     needs: generate-matrix
     env:
       GO111MODULE: on
+    strategy:
+      matrix:
+        modules: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
