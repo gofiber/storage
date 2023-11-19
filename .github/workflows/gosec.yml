@@ -35,12 +35,14 @@ jobs:
           json: true
           files_ignore: |
             .github/*
-            **/gitignore
             **.md
           dir_names: true
           dir_names_exclude_current_dir: true
-      - id: set-matrix
-        run: echo "matrix={\"files\":${{ steps.changed-files.outputs.all_changed_files }}}" >> "$GITHUB_OUTPUT"
+      - name: List all changed directories
+        run: echo '${{ steps.changed-files.outputs.all_changed_files }}'
+      - name: Output list of changed directories
+        id: set-matrix
+        run: echo "matrix={\"directories\":${{ steps.changed-files.outputs.all_changed_files }}}" >> "$GITHUB_OUTPUT"
 
   gosec-scan:
     runs-on: ubuntu-latest
