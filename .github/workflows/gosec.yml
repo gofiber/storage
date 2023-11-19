@@ -20,43 +20,27 @@ on:
       - ".github/dependabot.yml"
 
 jobs:
-  generate-matrix:
+  detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      changed: ${{ steps.detect.outputs.changed }}
     steps:
-      - name: Fetch Repository
+      - name: Checkout
         uses: actions/checkout@v4
+      - name: Detect Directory Changes
+        id: detect
+        uses: tchupp/actions-detect-directory-changes@v1
         with:
-          fetch-depth: 0
-      - id: set-matrix
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-            go_mod_dirs=""
-            for file in $changed_files; do
-              dir=$(dirname "$file")
-              if [[ -f "$dir/go.mod" ]]; then
-                go_mod_dirs+="$dir "
-              fi
-            done
-            go_mod_dirs=$(echo "$go_mod_dirs" | tr ' ' '\n' | sort -u | awk 'NF' | tr '\n' ' ')
-          else
-            go_mod_dirs=$(find . -name go.mod -exec dirname {} \; | sort -u | awk 'NF' | tr '\n' ' ')
-          fi
-
-          # Export the JSON array
-          JSON_ARRAY=$(printf '%s\n' "$go_mod_dirs" | jq -R -s -c 'split("\n")[:-1]')
-          echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+          included-paths: "!./.github/**"
 
   gosec-scan:
     runs-on: ubuntu-latest
-    needs: generate-matrix
+    needs: detect-changes
     env:
       GO111MODULE: on
     strategy:
       matrix:
-        modules: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+        modules: ${{fromJSON(needs.detect-changes.outputs.changed)}}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
