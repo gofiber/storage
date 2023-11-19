@@ -46,7 +46,7 @@ jobs:
       GO111MODULE: on
     strategy:
       matrix:
-        modules: ${{ needs.detect-changes.outputs.matrix }}
+        modules: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
