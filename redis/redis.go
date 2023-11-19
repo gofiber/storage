@@ -43,6 +43,7 @@ func New(config ...Config) *Storage {
 		cfg.Addrs = []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)}
 	}
 
+	// Create Universal Client
 	db = redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:            cfg.Addrs,
 		MasterName:       cfg.MasterName,
