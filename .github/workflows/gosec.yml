@@ -34,7 +34,7 @@ jobs:
         with:
           json: true
           files_ignore: |
-            .github/*
+            .github/**
             **.md
           dir_names: true
           dir_names_exclude_current_dir: true
@@ -51,7 +51,7 @@ jobs:
       GO111MODULE: on
     strategy:
       matrix:
-        modules: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+        modules: ${{ fromJSON(needs.detect-changes.outputs.matrix.directories) }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
