@@ -32,8 +32,8 @@ jobs:
       - name: Detect Directory Changes
         id: detect
         uses: tchupp/actions-detect-directory-changes@v1
-        with:
-          included-paths: "!./.github/**"
+#        with:
+#          included-paths: "!./.github/**"
 
   gosec-scan:
     runs-on: ubuntu-latest
