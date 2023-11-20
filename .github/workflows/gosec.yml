@@ -20,10 +20,34 @@ on:
       - ".github/dependabot.yml"
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.changed-files.outputs.all_changed_files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Changed Files
+        uses: tj-actions/changed-files@v40
+        id: changed-files
+        with:
+          files_ignore: |
+            .github/**
+            **.md
+          json: true
+          escape_json: false
+          dir_names: true
+          dir_names_exclude_current_dir: true
+
   gosec-scan:
     runs-on: ubuntu-latest
+    needs: detect-changes
     env:
       GO111MODULE: on
+    strategy:
+      matrix:
+        modules: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
@@ -33,98 +57,8 @@ jobs:
           go-version: '^1.19.x'
           check-latest: true
           cache: false
-      - name: Install Gosec
+      - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
-      - name: Run Gosec (root)
-        working-directory: .
-        run: |
-          gosec .
-        # -----
-      - name: Run Gosec (arangodb)
-        working-directory: ./arangodb
+      - name: Run gosec
+        working-directory: ${{ matrix.modules }}
         run: gosec ./...
-        # -----
-      - name: Run Gosec (badger)
-        working-directory: ./badger
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (couchbase)
-        working-directory: ./couchbase
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (coherence)
-        working-directory: ./coherence
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (dynamodb)
-        working-directory: ./dynamodb
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (etcd)
-        working-directory: ./etcd
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (memcache)
-        working-directory: ./memcache
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (memory)
-        working-directory: ./memory
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (minio)
-        working-directory: ./minio
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (mongodb)
-        working-directory: ./mongodb
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (mysql)
-        working-directory: ./mysql
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (postgres)
-        working-directory: ./postgres
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (redis)
-        working-directory: ./redis
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (sqlite3)
-        working-directory: ./sqlite3
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (s3)
-        working-directory: ./s3
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (ristretto)
-        working-directory: ./ristretto
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (bbolt)
-        working-directory: ./bbolt
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (azureblob)
-        working-directory: ./azureblob
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (mssql)
-        working-directory: ./mssql
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (pebble)
-        working-directory: ./pebble
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (rueidis)
-        working-directory: ./rueidis
-        run: gosec ./...
-        # -----
-      - name: Run Gosec (scylladb)
-        working-directory: ./scylladb
-        run: gosec ./...
-        # -----
