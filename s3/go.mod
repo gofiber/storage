@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.23.5
 	github.com/aws/aws-sdk-go-v2/config v1.25.11
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.9
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.15.3
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.15.4
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.2
 	github.com/stretchr/testify v1.8.4
 )
