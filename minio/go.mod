@@ -3,7 +3,7 @@ module github.com/gofiber/storage/minio
 go 1.19
 
 require (
-	github.com/minio/minio-go/v7 v7.0.64
+	github.com/minio/minio-go/v7 v7.0.65
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/bytebufferpool v1.0.0
 )
