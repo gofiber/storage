@@ -29,7 +29,7 @@ jobs:
           sleep 10
           docker exec --tty couchbase couchbase-cli bucket-create -c localhost:8091 --username admin --password 123456 --bucket fiber_storage --bucket-type couchbase --bucket-ramsize 100 --enable-flush 1
       -   name: Install Go
-          uses: actions/setup-go@v4
+          uses: actions/setup-go@v5
           with:
             go-version: '${{ matrix.go-version }}'
       -   name: Run Test
