@@ -26,7 +26,7 @@ jobs:
           docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
           sleep 30
       -   name: Install Go
-          uses: actions/setup-go@v4
+          uses: actions/setup-go@v5
           with:
             go-version: '${{ matrix.go-version }}'
       -   name: Run Test
