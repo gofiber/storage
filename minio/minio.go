@@ -96,10 +96,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// set content type
 	s.mu.Lock()
 	s.cfg.PutObjectOptions.ContentType = http.DetectContentType(val)
-	s.mu.Unlock()
 
 	// put object
 	_, err := s.minio.PutObject(s.ctx, s.cfg.Bucket, key, file, file.Size(), s.cfg.PutObjectOptions)
+	s.mu.Unlock()
 
 	return err
 }
