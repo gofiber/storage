@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -18,6 +19,7 @@ type Storage struct {
 	minio *minio.Client
 	cfg   Config
 	ctx   context.Context
+	mu    sync.Mutex
 }
 
 // New creates a new storage
@@ -92,10 +94,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	file := bytes.NewReader(val)
 
 	// set content type
+	s.mu.Lock()
 	s.cfg.PutObjectOptions.ContentType = http.DetectContentType(val)
 
 	// put object
 	_, err := s.minio.PutObject(s.ctx, s.cfg.Bucket, key, file, file.Size(), s.cfg.PutObjectOptions)
+	s.mu.Unlock()
 
 	return err
 }

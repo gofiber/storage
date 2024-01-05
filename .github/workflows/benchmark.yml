@@ -165,7 +165,7 @@ jobs:
         with:
           tool: "go"
           output-file-path: output.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.BENCHMARK_TOKEN }}
           benchmark-data-dir-path: "benchmarks"
           alert-threshold: "300%"
           fail-on-alert: true
