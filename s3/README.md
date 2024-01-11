@@ -33,7 +33,7 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *s3.Client
 
 // Additional useful methods.
-func (s *Storage) CreateBucker(bucket string) error
+func (s *Storage) CreateBucket(bucket string) error
 func (s *Storage) DeleteBucket(bucket string) error
 func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.ChecksumAlgorithm][]byte) error
 ```
