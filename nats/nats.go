@@ -169,7 +169,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// TODO improve this crude way to wait for the connection to be established
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(nats.DefaultReconnectWait)
 
 	return storage
 }
