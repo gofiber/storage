@@ -135,7 +135,7 @@ jobs:
 
       - name: Run NATS
         run: |
-          docker run -d --name nats-jetstream -p 4222:4222 nats:latest -- --jetstream
+          docker run -d --name nats-jetstream -p 4222:4222 nats:latest --jetstream
           sleep 2
           docker logs nats-jetstream
           nc -zv localhost 4222 || true

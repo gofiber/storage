@@ -25,7 +25,7 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run NATS
                 run: |
-                    docker run -d --name nats-jetstream -p 4222:4222 nats:latest -- --jetstream
-                    sleep 10
+                    docker run -d --name nats-jetstream -p 4222:4222 nats:latest --jetstream
+                    sleep 2
             -   name: Test Nats
                 run: cd ./nats && go test ./... -v -race
