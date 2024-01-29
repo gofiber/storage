@@ -133,7 +133,7 @@ jobs:
         run: |
           redis-server --port 6379 &
 
-      - name: Install NATS
+      - name: Run NATS
         run: |
           docker run -d --name nats-jetstream -p 4222:4222 nats:latest -- --jetstream
           sleep 2
