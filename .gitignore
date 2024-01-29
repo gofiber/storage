@@ -28,3 +28,6 @@
 vendor/
 vendor
 /Godeps/
+
+# Go specific
+go.work*
