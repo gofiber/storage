@@ -77,12 +77,6 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 10s --health-timeout 5s
           --health-retries 5
-      jetstream:
-        image: nats:latest
-        ports:
-          - '4222:4222'
-        options: >-
-          --jetstream
 
     steps:
       - name: Fetch Repository
@@ -138,6 +132,11 @@ jobs:
       - name: Run Redis
         run: |
           redis-server --port 6379 &
+
+      - name: Install NATS
+        run: |
+          docker run -d --name nats-jetstream -p 4222:4222 nats:latest -- --jetstream
+          sleep 2
 
       - name: Run Benchmarks
         run: |
