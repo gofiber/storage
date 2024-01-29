@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/nats
 
-go 1.20
+go 1.21
 
 require (
 	github.com/nats-io/nats.go v1.32.0

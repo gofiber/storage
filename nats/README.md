@@ -12,7 +12,7 @@ title: Nats
 
 An NATS storage driver.
 
-**Note: Requires Go 1.20 and above**
+**Note: Requires Go 1.21 and above because of slog**
 
 ### Table of Contents
 
