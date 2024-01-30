@@ -10,7 +10,7 @@ title: Nats
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
-An NATS Key/Value storage driver.
+A NATS Key/Value storage driver.
 
 **Note: Requires Go 1.20 and above**
 
@@ -37,7 +37,7 @@ func (s *Storage) Keys() ([]string, error)
 
 ### Installation
 
-[NATS KV](https://docs.nats.io/nats-concepts/jetstream/key-value-store) driver is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+[NATS Key/Value Store](https://docs.nats.io/nats-concepts/jetstream/key-value-store) driver is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
 ```bash
 go mod init github.com/<user>/<repo>
