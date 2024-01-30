@@ -10,9 +10,9 @@ title: Nats
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
-An NATS storage driver.
+An NATS Key/Value storage driver.
 
-**Note: Requires Go 1.21 and above because of slog**
+**Note: Requires Go 1.20 and above**
 
 ### Table of Contents
 
@@ -85,17 +85,16 @@ type Config struct {
  ClientName string
  // Nats retry on failed connect: https://docs.nats.io/using-nats/developer/connecting/reconnect
  RetryOnFailedConnect bool
- // Nats max reconnects: https://docs.nats.io/using-nats/developer/connecting/reconnect
- MaxReconnects int
+ // Nats max reconnect attempts: https://docs.nats.io/using-nats/developer/connecting/reconnect
+ MaxReconnect int
  // Nats context
  Context context.Context
  // Nats key value config
  KeyValueConfig jetstream.KeyValueConfig
- Logger         *slog.Logger
- // Applicable only if Logger is nil.
- // Until go 1.22, it is weird to set log level.
- // See https://github.com/golang/go/issues/62418
- LogLevel slog.Level
+ // Logger. Using Fiber provides the AllLogger interface for adapting the various log libraries.
+ Logger log.AllLogger
+ // Use the Logger for nats events, default: false
+ UseLogger bool
 }
 ```
 
@@ -103,20 +102,11 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
- URL: nats.DefaultURL,
- // RetryOnFailedConnect: true,
- Context: context.Background(),
+ URL:          nats.DefaultURL,
+ Context:      context.Background(),
+ MaxReconnect: nats.DefaultMaxReconnect,
  KeyValueConfig: jetstream.KeyValueConfig{
   Bucket: "fiber_storage",
  },
- Logger: slog.New(
-  slog.NewTextHandler(
-   os.Stdout,
-   &slog.HandlerOptions{
-    Level: slog.LevelError,
-   },
-  ),
- ),
- LogLevel: slog.LevelError,
 }
 ```

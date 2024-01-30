@@ -33,14 +33,28 @@ func init() {
 	gob.Register(entry{})
 }
 
+// logErrorw is a helper function to log error messages
+func (s *Storage) logErrorw(msg string, keysAndValues ...interface{}) {
+	if s.cfg.UseLogger && s.cfg.Logger != nil {
+		s.cfg.Logger.Errorw(msg, keysAndValues...)
+	}
+}
+
+// logInfow is a helper function to log error messages
+func (s *Storage) logInfow(msg string, keysAndValues ...interface{}) {
+	if s.cfg.UseLogger && s.cfg.Logger != nil {
+		s.cfg.Logger.Infow(msg, keysAndValues...)
+	}
+}
+
 // connectHandler is a helper function to set the initial connect handler
 func (s *Storage) connectHandler(nc *nats.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cfg.Logger.
-		With("url", nc.ConnectedUrlRedacted()).
-		With("mod", "nats").
-		Info("connected")
+	s.logInfow("connected",
+		"diver", "nats",
+		"url", nc.ConnectedUrlRedacted(),
+	)
 
 	var err error
 	s.kv, err = newNatsKV(
@@ -49,10 +63,10 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
-		s.cfg.Logger.
-			With("err", err).
-			With("mod", "nats").
-			Error("kv not initialized")
+		s.logErrorw("kv not initialized",
+			"diver", "nats",
+			"error", err.Error(),
+		)
 		s.err = append(s.err, err)
 	}
 }
@@ -62,14 +76,14 @@ func (s *Storage) disconnectErrHandler(nc *nats.Conn, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
-		s.cfg.Logger.
-			With("err", err).
-			With("mod", "nats").
-			Error("disconnected")
+		s.logErrorw("disconnected",
+			"diver", "nats",
+			"error", err.Error(),
+		)
 	} else {
-		s.cfg.Logger.
-			With("mod", "nats").
-			Info("disconnected")
+		s.logInfow("disconnected",
+			"diver", "nats",
+		)
 	}
 	nc.Opts.RetryOnFailedConnect = true
 	if err != nil {
@@ -86,11 +100,11 @@ func (s *Storage) reconnectHandler(nc *nats.Conn) {
 func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cfg.Logger.
-		With("err", err).
-		With("sub", sub.Subject).
-		With("mod", "nats").
-		Error("error")
+	s.logErrorw("error handler",
+		"diver", "nats",
+		"sub", sub.Subject,
+		"error", err.Error(),
+	)
 	if err != nil {
 		s.err = append(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
 	}
@@ -100,9 +114,9 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 func (s *Storage) closedHandler(nc *nats.Conn) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	s.cfg.Logger.
-		With("mod", "nats").
-		Info("closed")
+	s.logInfow("closed",
+		"diver", "nats",
+	)
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
@@ -152,7 +166,7 @@ func New(config ...Config) *Storage {
 		optionalUserInfo,
 		optionalUserCreds,
 		nats.RetryOnFailedConnect(cfg.RetryOnFailedConnect),
-		nats.MaxReconnects(cfg.MaxReconnects),
+		nats.MaxReconnects(cfg.MaxReconnect),
 		nats.ConnectHandler(storage.connectHandler),
 		nats.DisconnectErrHandler(storage.disconnectErrHandler),
 		nats.ReconnectHandler(storage.reconnectHandler),
@@ -314,6 +328,10 @@ func (s *Storage) Keys() ([]string, error) {
 	s.mu.RLock()
 	kv := s.kv
 	s.mu.RUnlock()
+	if kv == nil {
+		return nil, fmt.Errorf("kv not initialized: %v", s.err)
+	}
+
 	keyLister, err := kv.ListKeys(s.ctx)
 
 	if err != nil {

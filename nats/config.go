@@ -2,9 +2,8 @@ package nats
 
 import (
 	"context"
-	"log/slog"
-	"os"
 
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -23,36 +22,26 @@ type Config struct {
 	ClientName string
 	// Nats retry on failed connect: https://docs.nats.io/using-nats/developer/connecting/reconnect
 	RetryOnFailedConnect bool
-	// Nats max reconnects: https://docs.nats.io/using-nats/developer/connecting/reconnect
-	MaxReconnects int
+	// Nats max reconnect attempts: https://docs.nats.io/using-nats/developer/connecting/reconnect
+	MaxReconnect int
 	// Nats context
 	Context context.Context
 	// Nats key value config
 	KeyValueConfig jetstream.KeyValueConfig
-	Logger         *slog.Logger
-	// Applicable only if Logger is nil.
-	// Until go 1.22, it is weird to set log level.
-	// See https://github.com/golang/go/issues/62418
-	LogLevel slog.Level
+	// Logger. Using Fiber provides the AllLogger interface for adapting the various log libraries.
+	Logger log.AllLogger
+	// Use the Logger for nats events, default: false
+	UseLogger bool
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	URL: nats.DefaultURL,
-	// RetryOnFailedConnect: true,
-	Context: context.Background(),
+	URL:          nats.DefaultURL,
+	Context:      context.Background(),
+	MaxReconnect: nats.DefaultMaxReconnect,
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket: "fiber_storage",
 	},
-	Logger: slog.New(
-		slog.NewTextHandler(
-			os.Stdout,
-			&slog.HandlerOptions{
-				Level: slog.LevelError,
-			},
-		),
-	),
-	LogLevel: slog.LevelError,
 }
 
 // Helper function to set default values
@@ -75,23 +64,13 @@ func configDefault(config ...Config) Config {
 	if len(cfg.KeyValueConfig.Bucket) == 0 {
 		cfg.KeyValueConfig.Bucket = ConfigDefault.KeyValueConfig.Bucket
 	}
-	if cfg.Logger == nil {
-		if cfg.LogLevel != ConfigDefault.LogLevel {
-			cfg.Logger = slog.New(
-				slog.NewTextHandler(
-					os.Stdout,
-					&slog.HandlerOptions{
-						Level: cfg.LogLevel,
-					},
-				),
-			)
-		} else {
-			cfg.Logger = ConfigDefault.Logger
+	if cfg.UseLogger {
+		if cfg.Logger == nil {
+			cfg.Logger = log.DefaultLogger()
 		}
+	} else {
+		cfg.Logger = nil
 	}
-	// if !cfg.RetryOnFailedConnect {
-	// 	cfg.RetryOnFailedConnect = ConfigDefault.RetryOnFailedConnect
-	// }
 
 	return cfg
 }

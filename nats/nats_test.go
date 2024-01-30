@@ -1,7 +1,6 @@
 package nats
 
 import (
-	"log/slog"
 	"testing"
 	"time"
 
@@ -10,8 +9,7 @@ import (
 )
 
 var config = Config{
-	MaxReconnects: 1,
-	LogLevel:      slog.LevelError,
+	MaxReconnect: 1,
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket:  "test",
 		Storage: jetstream.MemoryStorage,
