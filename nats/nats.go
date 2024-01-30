@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -139,6 +140,21 @@ func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyV
 	return jskv, nil
 }
 
+// Process the url string argument to Connect.
+// Return an array of urls, even if only one.
+func processUrlString(url string) []string {
+	urls := strings.Split(url, ",")
+	var j int
+	for _, s := range urls {
+		u := strings.TrimSpace(s)
+		if len(u) > 0 {
+			urls[j] = u
+			j++
+		}
+	}
+	return urls[:j]
+}
+
 // New creates a new nats kv storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -149,32 +165,31 @@ func New(config ...Config) *Storage {
 		cfg: cfg,
 	}
 
-	var optionalUserCreds nats.Option
-	if len(cfg.CredentialsFile) > 0 {
-		optionalUserCreds = nats.UserCredentials(cfg.CredentialsFile)
-	}
-	var optionalUserInfo nats.Option
-	if len(cfg.Username) > 0 {
-		optionalUserInfo = nats.UserInfo(cfg.Username, cfg.Password)
-	}
-
-	// Connect to NATS with minimal options
-	var err error
-	storage.nc, err = nats.Connect(
-		cfg.URL,
-		nats.Name(cfg.ClientName),
-		optionalUserInfo,
-		optionalUserCreds,
-		nats.RetryOnFailedConnect(cfg.RetryOnFailedConnect),
-		nats.MaxReconnects(cfg.MaxReconnect),
-		nats.ConnectHandler(storage.connectHandler),
-		nats.DisconnectErrHandler(storage.disconnectErrHandler),
-		nats.ReconnectHandler(storage.reconnectHandler),
-		nats.ErrorHandler(storage.errorHandler),
-		nats.ClosedHandler(storage.closedHandler),
+	// Set the nats options with default custom handlers
+	cfg.NatsOptions = append(
+		[]nats.Option{
+			nats.ConnectHandler(storage.connectHandler),
+			nats.DisconnectErrHandler(storage.disconnectErrHandler),
+			nats.ReconnectHandler(storage.reconnectHandler),
+			nats.ErrorHandler(storage.errorHandler),
+			nats.ClosedHandler(storage.closedHandler),
+		},
+		cfg.NatsOptions...,
 	)
+	natsOpts := nats.GetDefaultOptions()
+	natsOpts.Servers = processUrlString(cfg.URLs)
+	for _, opt := range cfg.NatsOptions {
+		if opt != nil {
+			if err := opt(&natsOpts); err != nil {
+				panic(err)
+			}
+		}
+	}
+	// Connect to NATS
+	var err error
+	storage.nc, err = natsOpts.Connect()
 
-	if opErr, ok := err.(*net.OpError); ok && cfg.RetryOnFailedConnect {
+	if opErr, ok := err.(*net.OpError); ok && natsOpts.RetryOnFailedConnect {
 		if opErr.Op != "dial" {
 			panic(err)
 		}
@@ -293,12 +308,12 @@ func (s *Storage) Reset() error {
 
 	// Create the bucket
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.kv, err = newNatsKV(
 		s.nc,
 		s.ctx,
 		s.cfg.KeyValueConfig,
 	)
-	s.mu.Unlock()
 	if err != nil {
 		s.err = []error{err}
 		return err

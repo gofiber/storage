@@ -10,20 +10,12 @@ import (
 
 // Config defines the config for storage.
 type Config struct {
-	// Nats URL, default "nats://127.0.0.1:4222"
-	URL string
-	// Nats username
-	Username string
-	// Nats password
-	Password string
-	// Nats credentials file: https://docs.nats.io/using-nats/developer/connecting/creds
-	CredentialsFile string
-	// Nats client name
+	// Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
+	URLs string
+	// Nats connection options. See nats_test.go for an example of how to use this.
+	NatsOptions []nats.Option
+	// Nats connection name
 	ClientName string
-	// Nats retry on failed connect: https://docs.nats.io/using-nats/developer/connecting/reconnect
-	RetryOnFailedConnect bool
-	// Nats max reconnect attempts: https://docs.nats.io/using-nats/developer/connecting/reconnect
-	MaxReconnect int
 	// Nats context
 	Context context.Context
 	// Nats key value config
@@ -36,9 +28,9 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	URL:          nats.DefaultURL,
-	Context:      context.Background(),
-	MaxReconnect: nats.DefaultMaxReconnect,
+	URLs:       nats.DefaultURL,
+	Context:    context.Background(),
+	ClientName: "fiber_storage",
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket: "fiber_storage",
 	},
@@ -55,8 +47,8 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 
 	// Set default values
-	if cfg.URL == "" {
-		cfg.URL = ConfigDefault.URL
+	if cfg.URLs == "" {
+		cfg.URLs = ConfigDefault.URLs
 	}
 	if cfg.Context == nil {
 		cfg.Context = ConfigDefault.Context
@@ -70,6 +62,9 @@ func configDefault(config ...Config) Config {
 		}
 	} else {
 		cfg.Logger = nil
+	}
+	if cfg.ClientName == "" {
+		cfg.ClientName = ConfigDefault.ClientName
 	}
 
 	return cfg
