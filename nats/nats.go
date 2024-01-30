@@ -50,14 +50,14 @@ func (s *Storage) logInfow(msg string, keysAndValues ...interface{}) {
 
 // connectHandler is a helper function to set the initial connect handler
 func (s *Storage) connectHandler(nc *nats.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.logInfow("connected",
 		"diver", "nats",
 		"url", nc.ConnectedUrlRedacted(),
 	)
 
 	var err error
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.kv, err = newNatsKV(
 		nc,
 		s.ctx,
@@ -74,8 +74,6 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 
 // disconnectErrHandler is a helper function to set the disconnect error handler
 func (s *Storage) disconnectErrHandler(nc *nats.Conn, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if err != nil {
 		s.logErrorw("disconnected",
 			"diver", "nats",
@@ -86,6 +84,8 @@ func (s *Storage) disconnectErrHandler(nc *nats.Conn, err error) {
 			"diver", "nats",
 		)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	nc.Opts.RetryOnFailedConnect = true
 	if err != nil {
 		s.err = append(s.err, err)
@@ -99,13 +99,13 @@ func (s *Storage) reconnectHandler(nc *nats.Conn) {
 
 // errorHandler is a helper function to set the error handler
 func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.logErrorw("error handler",
 		"diver", "nats",
 		"sub", sub.Subject,
 		"error", err.Error(),
 	)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err != nil {
 		s.err = append(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
 	}
@@ -113,8 +113,6 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 
 // closedHandler is a helper function to set the closed handler
 func (s *Storage) closedHandler(nc *nats.Conn) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	s.logInfow("closed",
 		"diver", "nats",
 	)
