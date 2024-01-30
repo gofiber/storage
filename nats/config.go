@@ -2,6 +2,7 @@ package nats
 
 import (
 	"context"
+	"time"
 
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/nats-io/nats.go"
@@ -24,6 +25,8 @@ type Config struct {
 	Logger log.AllLogger
 	// Use the Logger for nats events, default: false
 	Verbose bool
+	// Wait for connection to be established, default: 100ms
+	WaitForConnection time.Duration
 }
 
 // ConfigDefault is the default config
@@ -34,6 +37,7 @@ var ConfigDefault = Config{
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket: "fiber_storage",
 	},
+	WaitForConnection: 100 * time.Millisecond,
 }
 
 // Helper function to set default values
@@ -65,6 +69,9 @@ func configDefault(config ...Config) Config {
 	}
 	if cfg.ClientName == "" {
 		cfg.ClientName = ConfigDefault.ClientName
+	}
+	if cfg.WaitForConnection == 0 {
+		cfg.WaitForConnection = ConfigDefault.WaitForConnection
 	}
 
 	return cfg

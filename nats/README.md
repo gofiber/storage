@@ -96,6 +96,8 @@ type Config struct {
  Logger log.AllLogger
  // Use the Logger for nats events, default: false
  Verbose bool
+ // Wait for connection to be established, default: 100ms
+ WaitForConnection time.Duration
 }
 ```
 
@@ -109,5 +111,6 @@ var ConfigDefault = Config{
  KeyValueConfig: jetstream.KeyValueConfig{
   Bucket: "fiber_storage",
  },
+ WaitForConnection: 100 * time.Millisecond,
 }
 ```
