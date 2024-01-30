@@ -92,7 +92,7 @@ type Config struct {
  Context context.Context
  // Nats key value config
  KeyValueConfig jetstream.KeyValueConfig
- // Logger. Using Fiber provides the AllLogger interface for adapting the various log libraries.
+ // Logger. Using Fiber AllLogger interface for adapting the various log libraries.
  Logger log.AllLogger
  // Use the Logger for nats events, default: false
  Verbose bool
