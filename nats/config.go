@@ -23,7 +23,7 @@ type Config struct {
 	// Logger. Using Fiber provides the AllLogger interface for adapting the various log libraries.
 	Logger log.AllLogger
 	// Use the Logger for nats events, default: false
-	UseLogger bool
+	Verbose bool
 }
 
 // ConfigDefault is the default config
@@ -56,7 +56,7 @@ func configDefault(config ...Config) Config {
 	if len(cfg.KeyValueConfig.Bucket) == 0 {
 		cfg.KeyValueConfig.Bucket = ConfigDefault.KeyValueConfig.Bucket
 	}
-	if cfg.UseLogger {
+	if cfg.Verbose {
 		if cfg.Logger == nil {
 			cfg.Logger = log.DefaultLogger()
 		}

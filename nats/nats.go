@@ -36,14 +36,14 @@ func init() {
 
 // logErrorw is a helper function to log error messages
 func (s *Storage) logErrorw(msg string, keysAndValues ...interface{}) {
-	if s.cfg.Logger != nil {
+	if s.cfg.Verbose {
 		s.cfg.Logger.Errorw(msg, keysAndValues...)
 	}
 }
 
 // logInfow is a helper function to log error messages
 func (s *Storage) logInfow(msg string, keysAndValues ...interface{}) {
-	if s.cfg.Logger != nil {
+	if s.cfg.Verbose {
 		s.cfg.Logger.Infow(msg, keysAndValues...)
 	}
 }

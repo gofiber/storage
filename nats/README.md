@@ -95,7 +95,7 @@ type Config struct {
  // Logger. Using Fiber provides the AllLogger interface for adapting the various log libraries.
  Logger log.AllLogger
  // Use the Logger for nats events, default: false
- UseLogger bool
+ Verbose bool
 }
 ```
 
