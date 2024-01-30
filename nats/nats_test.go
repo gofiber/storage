@@ -4,12 +4,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 )
 
 var config = Config{
-	MaxReconnect: 1,
+	URLs: "nats://127.0.0.1:4443",
+	NatsOptions: []nats.Option{
+		nats.MaxReconnects(2),
+		// Enable TLS by specifying RootCAs
+		nats.RootCAs("./testdata/certs/ca.pem"),
+	},
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket:  "test",
 		Storage: jetstream.MemoryStorage,

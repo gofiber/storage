@@ -31,8 +31,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() map[string]entry
-func (s *Storage) Keys() ([][]byte, error)
+func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue)
+func (s *Storage) Keys() ([]string, error)
 ```
 
 ### Installation
@@ -64,8 +64,17 @@ You can use the following possibilities to create a storage:
 store := nats.New()
 
 // Initialize custom config
-store := nats.New(nats.Config{
- GCInterval: 10 * time.Second,
+store := nats.New(Config{
+ URLs: "nats://127.0.0.1:4443",
+ NatsOptions: []nats.Option{
+  nats.MaxReconnects(2),
+  // Enable TLS by specifying RootCAs
+  nats.RootCAs("./testdata/certs/ca.pem"),
+ },
+ KeyValueConfig: jetstream.KeyValueConfig{
+  Bucket:  "test",
+  Storage: jetstream.MemoryStorage,
+ },
 })
 ```
 
@@ -73,20 +82,12 @@ store := nats.New(nats.Config{
 
 ```go
 type Config struct {
- // Nats URL, default "nats://127.0.0.1:4222"
- URL string
- // Nats username
- Username string
- // Nats password
- Password string
- // Nats credentials file: https://docs.nats.io/using-nats/developer/connecting/creds
- CredentialsFile string
- // Nats client name
+ // Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
+ URLs string
+ // Nats connection options. See nats_test.go for an example of how to use this.
+ NatsOptions []nats.Option
+ // Nats connection name
  ClientName string
- // Nats retry on failed connect: https://docs.nats.io/using-nats/developer/connecting/reconnect
- RetryOnFailedConnect bool
- // Nats max reconnect attempts: https://docs.nats.io/using-nats/developer/connecting/reconnect
- MaxReconnect int
  // Nats context
  Context context.Context
  // Nats key value config
@@ -102,9 +103,9 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
- URL:          nats.DefaultURL,
- Context:      context.Background(),
- MaxReconnect: nats.DefaultMaxReconnect,
+ URLs:       nats.DefaultURL,
+ Context:    context.Background(),
+ ClientName: "fiber_storage",
  KeyValueConfig: jetstream.KeyValueConfig{
   Bucket: "fiber_storage",
  },
