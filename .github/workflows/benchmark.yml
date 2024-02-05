@@ -135,7 +135,8 @@ jobs:
 
       - name: Run NATS
         run: |
-          docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata nats:latest --jetstream -c /testdata/nats-tls.conf
+          ./.github/scripts/gen-test-certs.sh
+          docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
           sleep 2
 
       - name: Run Benchmarks

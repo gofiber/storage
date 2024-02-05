@@ -24,9 +24,11 @@ jobs:
                 uses: actions/setup-go@v5
                 with:
                     go-version: '${{ matrix.go-version }}'
+            -   name: Generate config
+                run: ./.github/scripts/gen-test-certs.sh
             -   name: Run NATS
                 run: |
-                    docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata nats:latest --jetstream -c /testdata/nats-tls.conf
+                    docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
                     sleep 2
             -   name: Test Nats
                 run: cd ./nats && go test ./... -v -race
