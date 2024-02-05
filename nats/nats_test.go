@@ -10,7 +10,7 @@ import (
 )
 
 var config = Config{
-	URLs: "nats://127.0.0.1:4443",
+	URLs: "nats://localhost:4443",
 	NatsOptions: []nats.Option{
 		nats.MaxReconnects(2),
 		// Enable TLS by specifying RootCAs
