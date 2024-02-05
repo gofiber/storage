@@ -19,7 +19,7 @@ import (
 type Storage struct {
 	nc  *nats.Conn
 	kv  jetstream.KeyValue
-	err []error
+	err error
 	ctx context.Context
 	cfg Config
 	mu  sync.RWMutex
@@ -68,7 +68,7 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 			"diver", "nats",
 			"error", err.Error(),
 		)
-		s.err = append(s.err, err)
+		s.err = errors.Join(s.err, err)
 	}
 }
 
@@ -88,7 +88,7 @@ func (s *Storage) disconnectErrHandler(nc *nats.Conn, err error) {
 	defer s.mu.Unlock()
 	nc.Opts.RetryOnFailedConnect = true
 	if err != nil {
-		s.err = append(s.err, err)
+		s.err = errors.Join(s.err, err)
 	}
 }
 
@@ -107,7 +107,7 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
-		s.err = append(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
+		s.err = errors.Join(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
 	}
 }
 
@@ -313,7 +313,7 @@ func (s *Storage) Reset() error {
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
-		s.err = []error{err}
+		s.err = errors.Join(err)
 		return err
 	}
 
