@@ -71,4 +71,4 @@ type Storage interface {
 - [S3](./s3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+S3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-s3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [ScyllaDB](./scylladb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+scylladb%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-scylladb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [SQLite3](./sqlite3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Sqlite3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-sqlite3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
-
+- [NATS Key/Value Store](./nats/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests%20Nats%20Driver%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-nats.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
