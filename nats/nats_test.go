@@ -14,7 +14,7 @@ var config = Config{
 	NatsOptions: []nats.Option{
 		nats.MaxReconnects(2),
 		// Enable TLS by specifying RootCAs
-		nats.RootCAs("./tls/ca.crt"),
+		nats.RootCAs("../tls/ca.crt"),
 	},
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket:  "test",
