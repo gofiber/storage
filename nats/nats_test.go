@@ -13,7 +13,8 @@ var config = Config{
 	URLs: "nats://localhost:4443",
 	NatsOptions: []nats.Option{
 		nats.MaxReconnects(2),
-		// Enable TLS by specifying RootCAs
+		// Enable TLS with client certificate authentication
+		nats.ClientCert("../tls/client.crt", "../tls/client.key"),
 		nats.RootCAs("../tls/ca.crt"),
 	},
 	KeyValueConfig: jetstream.KeyValueConfig{
