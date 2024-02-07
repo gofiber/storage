@@ -1,0 +1,34 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'nats/**'
+    pull_request:
+        paths:
+            - 'nats/**'
+name: "Tests Nats Driver"
+jobs:
+    Tests:
+        strategy:
+            matrix:
+                go-version:
+                    - 1.20.x
+                    - 1.21.x
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Generate config
+                run: ./.github/scripts/gen-test-certs.sh
+            -   name: Run NATS
+                run: |
+                    docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
+                    sleep 2
+            -   name: Test Nats
+                run: cd ./nats && go test ./... -v -race

@@ -77,6 +77,7 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 10s --health-timeout 5s
           --health-retries 5
+
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
@@ -131,6 +132,12 @@ jobs:
       - name: Run Redis
         run: |
           redis-server --port 6379 &
+
+      - name: Run NATS
+        run: |
+          ./.github/scripts/gen-test-certs.sh
+          docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
+          sleep 2
 
       - name: Run Benchmarks
         run: |
