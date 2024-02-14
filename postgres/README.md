@@ -53,7 +53,7 @@ store := postgres.New()
 
 // Initialize custom config
 store := postgres.New(postgres.Config{
-	Db:              dbPool,
+	DB:              dbPool,
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
