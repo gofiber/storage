@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/gofiber/utils/v2 v2.0.0-beta.3
 	github.com/redis/rueidis v1.0.31
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
