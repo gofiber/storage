@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/gocql/gocql v1.6.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
