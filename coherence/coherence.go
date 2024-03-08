@@ -166,7 +166,7 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) Reset() error {
-	return s.namedCache.Clear(s.ctx)
+	return s.namedCache.Truncate(s.ctx)
 }
 
 func (s *Storage) Close() error {

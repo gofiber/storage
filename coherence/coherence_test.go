@@ -4,6 +4,7 @@ package coherence
  * Copyright © 2023, 2024 Oracle and/or its affiliates.
  */
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -22,7 +23,8 @@ var testStore *Storage
 
 func TestMain(m *testing.M) {
 	testStore, _ = New(Config{
-		Reset: true,
+		Reset:            true,
+		NearCacheTimeout: time.Duration(4) * time.Second,
 	})
 
 	code := m.Run()
@@ -34,9 +36,8 @@ func TestMain(m *testing.M) {
 // newTestStore returns a new Coherence Store and ensures it is reset.
 func newTestStore(t testing.TB, config ...Config) (*Storage, error) {
 	t.Helper()
-	var err error
 
-	testStore, err = New(config...)
+	testStore, err := New(config...)
 	require.NoError(t, err)
 
 	err = testStore.Reset()
@@ -98,7 +99,7 @@ func Test_Coherence_Set_With_Expiry(t *testing.T) {
 	// set with an expiry of 5 seconds
 	err := testStore.Set(key1, value1, time.Duration(5)*time.Second)
 	require.NoError(t, err)
-	time.Sleep(time.Duration(10) * time.Second)
+	time.Sleep(time.Duration(6) * time.Second)
 
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
@@ -137,6 +138,7 @@ func Test_Coherence_Reset(t *testing.T) {
 	// check the keys have expired
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
+	fmt.Println("val=", string(val))
 	require.True(t, len(val) == 0)
 
 	val, err = testStore.Get(key2)
