@@ -1,11 +1,12 @@
 package coherence
 
 /*
- * Copyright © 2023, Oracle and/or its affiliates.
+ * Copyright © 2023, 2024 Oracle and/or its affiliates.
  */
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	coh "github.com/oracle/coherence-go-client/coherence"
 	"time"
 )
@@ -39,6 +40,11 @@ type Config struct {
 
 	// TLSConfig specifies tls.Config to use when connecting, if nil then plain text is used
 	TLSConfig *tls.Config
+
+	// NearCacheTimeout defines the timeout for a near cache. Is this is set, then a near cache
+	// with the timeout is created. Note: this must be less than the session timeout or any timeout you specify
+	// when using Set().
+	NearCacheTimeout time.Duration
 }
 
 // DefaultConfig defines default options.
@@ -51,9 +57,10 @@ var DefaultConfig = Config{
 
 // New returns a new [Storage] given a [Config].
 func New(config ...Config) (*Storage, error) {
-	cfg := setupConfig(config...)
-
-	options := make([]func(session *coh.SessionOptions), 0)
+	var (
+		cfg     = setupConfig(config...)
+		options = make([]func(session *coh.SessionOptions), 0)
+	)
 
 	// apply any config values as Coherence options
 	options = append(options, coh.WithAddress(cfg.Address))
@@ -66,13 +73,21 @@ func New(config ...Config) (*Storage, error) {
 
 	options = append(options, coh.WithRequestTimeout(cfg.Timeout))
 
+	// validate near cache options
+	if cfg.NearCacheTimeout != 0 {
+		if cfg.NearCacheTimeout > cfg.Timeout {
+			return nil, fmt.Errorf("you cannot set the near cache timeout (%v) to less than session timeout (%v)",
+				cfg.NearCacheTimeout, cfg.Timeout)
+		}
+	}
+
 	// create the Coherence session
 	session, err := coh.NewSession(context.Background(), options...)
 	if err != nil {
 		return nil, err
 	}
 
-	store, err := newCoherenceStorage(session, cfg.ScopeName)
+	store, err := newCoherenceStorage(session, cfg.ScopeName, cfg.NearCacheTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +124,16 @@ func setupConfig(config ...Config) Config {
 }
 
 // newCoherenceStorage returns a new Coherence [Storage].
-func newCoherenceStorage(session *coh.Session, cacheName string) (*Storage, error) {
-	nc, err := coh.GetNamedCache[string, []byte](session, "fiber$"+cacheName)
+func newCoherenceStorage(session *coh.Session, cacheName string, nearCacheTimeout time.Duration) (*Storage, error) {
+	cacheOptions := make([]func(cache *coh.CacheOptions), 0)
+
+	// configure a near cache if the nearCacheTimeout is set
+	if nearCacheTimeout != 0 {
+		nearCacheOptions := coh.NearCacheOptions{TTL: nearCacheTimeout}
+		cacheOptions = append(cacheOptions, coh.WithNearCache(&nearCacheOptions))
+	}
+
+	nc, err := coh.GetNamedCache[string, []byte](session, "fiber$"+cacheName, cacheOptions...)
 	if err != nil {
 		return nil, err
 	}
