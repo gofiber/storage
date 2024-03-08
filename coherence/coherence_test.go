@@ -4,7 +4,6 @@ package coherence
  * Copyright © 2023, 2024 Oracle and/or its affiliates.
  */
 import (
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -138,7 +137,6 @@ func Test_Coherence_Reset(t *testing.T) {
 	// check the keys have expired
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
-	fmt.Println("val=", string(val))
 	require.True(t, len(val) == 0)
 
 	val, err = testStore.Get(key2)
