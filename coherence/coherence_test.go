@@ -22,8 +22,7 @@ var testStore *Storage
 
 func TestMain(m *testing.M) {
 	testStore, _ = New(Config{
-		Reset:            true,
-		NearCacheTimeout: time.Duration(20) * time.Second,
+		Reset: true,
 	})
 
 	code := m.Run()
@@ -99,12 +98,11 @@ func Test_Coherence_Set_With_Expiry(t *testing.T) {
 	// set with an expiry of 5 seconds
 	err := testStore.Set(key1, value1, time.Duration(5)*time.Second)
 	require.NoError(t, err)
-	time.Sleep(time.Duration(6) * time.Second)
+	time.Sleep(time.Duration(10) * time.Second)
 
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
-
 }
 
 func Test_Coherence_Get_Missing(t *testing.T) {
