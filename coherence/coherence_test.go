@@ -1,7 +1,7 @@
 package coherence
 
 /*
- * Copyright © 2023, Oracle and/or its affiliates.
+ * Copyright © 2023, 2024 Oracle and/or its affiliates.
  */
 import (
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,8 @@ var testStore *Storage
 
 func TestMain(m *testing.M) {
 	testStore, _ = New(Config{
-		Reset: true,
+		Reset:            true,
+		NearCacheTimeout: time.Duration(4) * time.Second,
 	})
 
 	code := m.Run()
@@ -102,7 +103,6 @@ func Test_Coherence_Set_With_Expiry(t *testing.T) {
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
-
 }
 
 func Test_Coherence_Get_Missing(t *testing.T) {

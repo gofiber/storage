@@ -35,7 +35,7 @@ necessary for the client to operate correctly.
 To start a Coherence cluster using Docker, issue the following:
 
 ```bash
-docker run -d -p 1408:1408 ghcr.io/oracle/coherence-ce:22.06.5
+docker run -d -p 1408:1408 ghcr.io/oracle/coherence-ce:22.06.7
 ```
 
 See the documentation [here](https://pkg.go.dev/github.com/oracle/coherence-go-client/coherence#hdr-Obtaining_a_Session) on connection options
@@ -52,9 +52,10 @@ You can use the following possibilities to create a storage:
 // Initialize default config, to connect to localhost:1408 using plain text
 store, err := coherence.New()
 
-// Initialize custom config to connect to a different host/port and use plaint ext.
+// Initialize custom config to connect to a different host/port and use plain text and expiry of 5 minutes.
 store, err := coherence.New(coherence.Config{
     Address: "my-host:myport",
+    Expiration: time.Duration(300) * time.Second, // 5 minutes
 })
 
 // Initialize to connect with TLS enabled with your own tls.Config
@@ -66,12 +67,37 @@ store, err := coherence.New(coherence.Config{
 })
 ```
 
-> Note: If you create two stores using `coherence.New()` they will effectivity be idential.
+> Note: If you create two stores using `coherence.New()` they will effectivity be identical.
 > If you wish to have two separate stores, then you can use:
 > ```go
 > store1, err := coherence.New(Config{ScopeName: "scope1"})
 > store2, err := coherence.New(Config{ScopeName: "scope2"})
 > ```
+
+**Near Caches**
+
+The latest version of the Coherence Go client introduces near cache support
+to cache frequently accessed data in the Go client to avoid sending requests across the network.
+
+This is particularly useful if you are using sticky sessions via a LBR as this will cache
+the session in the Go process and the `Get()` operations will be much quicker.
+
+When the session is expired on the server it will automatically be removed from the near cache.
+
+To enable this for you session, you can set the `NearCacheTimeout` to a duration less than the expiry.
+
+```go
+// Initialize default config, to connect to localhost:1408 using plain text
+store, err := coherence.New()
+
+// Use plain text with default expiry of 5 minutes, and a near cache expiry of 2 minutes
+store, err := coherence.New(coherence.Config{
+    Address: "my-host:myport",
+    Expiration: time.Duration(300) * time.Second,       // 5 minutes
+    NearCacheTimeout: time.Duration(120) * time.Second, // 2 minutes
+})
+```
+> Note: You must ensure your near cache timeout is less that the session timeout.
 
 ### Config
 
@@ -92,6 +118,11 @@ type Config struct {
 
     // TLSConfig specifies tls.Config to use when connecting, if nil then plain text is used 
     TLSConfig *tls.Config
+
+    // NearCacheTimeout defines the timeout for a near cache. Is this is set, then a near cache
+    // with the timeout is created. Note: this must be less than the session timeout or any timeout you specify 
+    // when using Set().
+    NearCacheTimeout time.Duration
 }
 ```
 
@@ -99,8 +130,9 @@ type Config struct {
 ```go
 var DefaultConfig = Config{
     Address:   "localhost:1408",
-    Timeout:   time.Duration(30) * time.Millisecond,
+    Timeout:   time.Duration(120) * time.Seconds,
     ScopeName: defaultScopeName,
     Reset:     false,
+    NearCacheTimeout: time.Duration(60) * time.Seconds,
 }
 ```

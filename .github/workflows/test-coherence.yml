@@ -18,16 +18,17 @@ jobs:
           - 1.19.x
           - 1.20.x
           - 1.21.x
+          - 1.22.x
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
       - name: Startup Coherence
         run: |
-          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
+          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:23.09.2
           sleep 30
       -   name: Install Go
           uses: actions/setup-go@v5
           with:
             go-version: '${{ matrix.go-version }}'
       -   name: Run Test
-          run: cd ./coherence && go clean -testcache && go test ./... -v
+          run: cd ./coherence && COHERENCE_SESSION_DEBUG=true go clean -testcache && go test ./... -v -race
