@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/cloudflare/cloudflare-go v0.90.0
-	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.9.0
 )
 
