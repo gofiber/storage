@@ -75,7 +75,10 @@ func (s *Storage) Delete(key string) error {
 
 func (s *Storage) Reset() error {
 
-	var cursor string
+	var (
+		cursor string
+		keys   []string
+	)
 
 	for {
 		resp, err := s.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
@@ -88,7 +91,7 @@ func (s *Storage) Reset() error {
 			return err
 		}
 
-		keys := []string{}
+		keys = make([]string, len(resp.Result))
 
 		for _, element := range resp.Result {
 			name := element.Name
