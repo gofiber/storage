@@ -9,7 +9,7 @@ title: Cloudflare KV
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
-A kv storage driver using [cloudflare/cloudflare-go](https://github.com/cloudflare/cloudflare-go).
+A Cloudflare KV storage driver using [cloudflare/cloudflare-go](https://github.com/cloudflare/cloudflare-go).
 
 **Note: Requires Go 1.19 and above**
 
