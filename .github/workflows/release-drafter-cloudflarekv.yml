@@ -8,7 +8,7 @@ on:
     paths:
       - "cloudflarekv/**"
 jobs:
-  draft_release_dynamodb:
+  draft_release_cloudflarekv:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
