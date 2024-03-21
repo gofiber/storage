@@ -43,7 +43,7 @@ go mod init github.com/<user>/<repo>
 And then install the Cloudflare KV implementation:
 
 ```bash
-go get github.com/gofiber/storage/cloudflarekv/v2
+go get github.com/gofiber/storage/cloudflarekv
 ```
 
 ### Examples
@@ -51,7 +51,7 @@ go get github.com/gofiber/storage/cloudflarekv/v2
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/cloudflarekv/v2"
+import "github.com/gofiber/storage/cloudflarekv"
 ```
 
 You can use the following possibilities to create a storage.
