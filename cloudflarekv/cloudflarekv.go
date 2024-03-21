@@ -40,7 +40,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	if err != nil {
 		log.Println("Error occur in GetWorkersKV")
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return resp, nil
@@ -56,7 +56,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	if err != nil {
 		log.Println("Error occur in WriteWorkersKVEntry")
-		log.Fatal(err)
+		return err
 	}
 
 	return nil
@@ -70,7 +70,7 @@ func (s *Storage) Delete(key string) error {
 
 	if err != nil {
 		log.Println("Error occur in WriteWorkersKVEntry")
-		log.Fatal(err)
+		return err
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func (s *Storage) Reset() error {
 
 		if err != nil {
 			log.Println("Error occur in ListWorkersKVKeys")
-			log.Fatal(err)
+			return err
 		}
 
 		keys := []string{}
@@ -105,7 +105,7 @@ func (s *Storage) Reset() error {
 
 		if err != nil {
 			log.Println("Error occur in DeleteWorker")
-			log.Fatal(err)
+			return err
 		}
 
 		if len(resp.Cursor) == 0 {
