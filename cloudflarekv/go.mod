@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/kv/v2
+module github.com/gofiber/storage/cloudflarekv/v2
 
 go 1.20
 

@@ -1,8 +1,8 @@
-name-template: "KV - v$RESOLVED_VERSION"
-tag-template: "kv/v$RESOLVED_VERSION"
-tag-prefix: kv/v
+name-template: "CloudflareKV - v$RESOLVED_VERSION"
+tag-template: "cloudflarekv/v$RESOLVED_VERSION"
+tag-prefix: cloudflarekv/v
 include-paths:
-  - kv
+  - cloudflarekv
 categories:
   - title: "🚀 New"
     labels:
@@ -40,5 +40,5 @@ version-resolver:
   default: patch
 template: |
   $CHANGES
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...kv/v$RESOLVED_VERSION
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...cloudflarekv/v$RESOLVED_VERSION
   Thank you $CONTRIBUTORS for making this update possible.

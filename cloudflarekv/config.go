@@ -1,4 +1,4 @@
-package kv
+package cloudflarekv
 
 // Config defines the config for storage.
 type Config struct {

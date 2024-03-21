@@ -1,11 +1,11 @@
 ---
-id: kv
-title: CloudflareKV
+id: cloudflarekv
+title: Cloudflare KV
 ---
 
-![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=kv*)
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=cloudflarekv*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
-![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-kv.yml?label=Tests)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cloudflarekv.yml?label=Tests)
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
@@ -34,16 +34,16 @@ func (s *Storage) Close() error
 
 ### Installation
 
-KV is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Cloudflare KV is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
 ```bash
 go mod init github.com/<user>/<repo>
 ```
 
-And then install the KV implementation:
+And then install the Cloudflare KV implementation:
 
 ```bash
-go get github.com/gofiber/storage/kv/v2
+go get github.com/gofiber/storage/cloudflarekv/v2
 ```
 
 ### Examples
@@ -51,7 +51,7 @@ go get github.com/gofiber/storage/kv/v2
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/kv/v2"
+import "github.com/gofiber/storage/cloudflarekv/v2"
 ```
 
 You can use the following possibilities to create a storage.
@@ -62,9 +62,9 @@ Check [Create API Token](https://developers.cloudflare.com/fundamentals/api/get-
 
 ```go
 // Initialize default config
-store := kv.New()
+store := cloudflarekv.New()
 
-store := kv.New(kv.Config{
+store := cloudflarekv.New(cloudflarekv.Config{
 	Key: "",
     Email: "",
     AccountID: "fiber",

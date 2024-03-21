@@ -4,11 +4,11 @@ on:
       - master
       - main
     paths:
-      - "kv/**"
+      - "cloudflarekv/**"
   pull_request:
     paths:
-      - "kv/**"
-name: "Tests KV"
+      - "cloudflarekv/**"
+name: "Tests Cloudflare KV"
 jobs:
   Tests:
     runs-on: ubuntu-latest
@@ -26,4 +26,4 @@ jobs:
         with:
           go-version: "${{ matrix.go-version }}"
       - name: Run Test
-        run: cd ./kv && go test ./... -v -race
+        run: cd ./cloudflarekv && go test ./... -v -race

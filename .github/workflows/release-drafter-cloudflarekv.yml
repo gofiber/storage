@@ -1,4 +1,4 @@
-name: Release Drafter KV
+name: Release Drafter Cloudflare KV
 on:
   push:
     # branches to consider in the event; optional, defaults to all
@@ -6,7 +6,7 @@ on:
       - master
       - main
     paths:
-      - "kv/**"
+      - "cloudflarekv/**"
 jobs:
   draft_release_dynamodb:
     runs-on: ubuntu-latest
@@ -14,6 +14,6 @@ jobs:
     steps:
       - uses: release-drafter/release-drafter@v6
         with:
-          config-name: release-drafter-kv.yml
+          config-name: release-drafter-cloudflarekv.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

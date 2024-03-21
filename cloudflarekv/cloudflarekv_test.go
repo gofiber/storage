@@ -1,4 +1,4 @@
-package kv
+package cloudflarekv
 
 import (
 	"bytes"
