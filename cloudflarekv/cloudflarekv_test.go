@@ -2,21 +2,15 @@ package cloudflarekv
 
 import (
 	"bytes"
-	"log"
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
 )
 
 var testStore *Storage
 
 func TestMain(m *testing.M) {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal(".env loading failed")
-	}
-
 	testStore = New(Config{
 		Key:         os.Getenv("CF_AUTH_TOKEN"),
 		AccountID:   os.Getenv("CF_ACCOUNT_ID"),
