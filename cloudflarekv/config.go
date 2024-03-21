@@ -48,5 +48,19 @@ func configDefault(config ...Config) Config {
 	// Override default config
 	cfg := config[0]
 
+	// Set default values
+	if cfg.Key == "" {
+		cfg.Key = ConfigDefault.Key
+	}
+	if cfg.Email == "" {
+		cfg.Email = ConfigDefault.Email
+	}
+	if cfg.AccountID == "" {
+		cfg.AccountID = ConfigDefault.AccountID
+	}
+	if cfg.NamespaceID == "" {
+		cfg.NamespaceID = ConfigDefault.NamespaceID
+	}
+
 	return cfg
 }
