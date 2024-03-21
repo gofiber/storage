@@ -2,159 +2,159 @@
 
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: daily
-    labels:
-      - "🤖 Dependencies"
-  - package-ecosystem: "gomod"
-    directory: "/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/arangodb/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/badger/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/couchbase/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/coherence/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/etcd/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/pebble/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/dynamodb/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "gomod"
-    directory: "/kv/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "gomod"
-    directory: "/memcache/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/memory/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/minio/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/mongodb/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/mysql/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/postgres/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/redis/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/sqlite3/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/ristretto/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/s3/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "gomod"
-    directory: "/bbolt/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/azureblob/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/mssql/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/rueidis/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/scylladb/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
-  - package-ecosystem: "gomod"
-    directory: "/nats/" # Location of package manifests
-    labels:
-      - "🤖 Dependencies"
-    schedule:
-      interval: "daily"
+    -   package-ecosystem: "github-actions"
+        directory: "/"
+        schedule:
+            interval: daily
+        labels:
+            - "🤖 Dependencies"
+    -   package-ecosystem: "gomod"
+        directory: "/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/arangodb/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/badger/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/couchbase/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/coherence/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/etcd/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/pebble/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/dynamodb/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "weekly"
+    -   package-ecosystem: "gomod"
+        directory: "/kv/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "weekly"
+    -   package-ecosystem: "gomod"
+        directory: "/memcache/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/memory/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    - package-ecosystem: "gomod"
+      directory: "/minio/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/mongodb/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/mysql/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/postgres/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/redis/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/sqlite3/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/ristretto/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/s3/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "weekly"
+    -   package-ecosystem: "gomod"
+        directory: "/bbolt/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/azureblob/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/mssql/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    -   package-ecosystem: "gomod"
+        directory: "/rueidis/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "daily"
+    - package-ecosystem: "gomod"
+      directory: "/scylladb/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+    - package-ecosystem: "gomod"
+      directory: "/nats/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
