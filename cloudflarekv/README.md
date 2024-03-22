@@ -11,7 +11,7 @@ title: Cloudflare KV
 
 A Cloudflare KV storage driver using [cloudflare/cloudflare-go](https://github.com/cloudflare/cloudflare-go).
 
-**Note: Requires Go 1.19 and above**
+**Note: Requires Go 1.21 and above**
 
 ### Table of Contents
 
@@ -33,8 +33,6 @@ func (s *Storage) Close() error
 ```
 
 ### Installation
-
-Cloudflare KV is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
 ```bash
 go mod init github.com/<user>/<repo>
