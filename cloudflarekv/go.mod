@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/cloudflarekv
 
-go 1.20
+go 1.21
 
 require (
 	github.com/cloudflare/cloudflare-go v0.90.0
