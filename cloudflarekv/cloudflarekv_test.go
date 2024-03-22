@@ -71,7 +71,7 @@ func Test_CloudflareKV_Close(t *testing.T) {
 }
 
 func Test_CloudflareKV_Conn(t *testing.T) {
-	require.True(t, testStore.Conn() != nil)
+	require.NotNil(t, testStore.Conn())
 }
 
 func Benchmark_CloudflareKV_Set(b *testing.B) {
