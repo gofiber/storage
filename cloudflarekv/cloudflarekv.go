@@ -122,3 +122,7 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	return nil
 }
+
+func (s *Storage) Conn() *cloudflare.API {
+	return s.api
+}

@@ -70,6 +70,10 @@ func Test_CloudflareKV_Close(t *testing.T) {
 	require.Nil(t, testStore.Close())
 }
 
+func Test_CloudflareKV_Conn(t *testing.T) {
+	require.True(t, testStore.Conn() != nil)
+}
+
 func Benchmark_CloudflareKV_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
