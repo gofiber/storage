@@ -45,9 +45,7 @@ jobs:
         run: |
           chmod +x .github/scripts/initialize-wrangler.sh
           .github/scripts/initialize-wrangler.sh
-          npx wrangler dev
-
-
+          npx wrangler dev &
 
       - name: Go to cloudflarekv directory
         run: cd cloudflarekv
