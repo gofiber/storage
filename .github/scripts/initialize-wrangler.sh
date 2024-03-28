@@ -6,6 +6,10 @@ export default { async fetch(Request, env) {
 
   const namespace = env.TEST_NAMESPACE1;
 
+  if (Request.url === "http://localhost:8787/health") {
+    return new Response("Success");
+  } 
+
   if (Request.url === "http://localhost:8787/writeworkerskvkeyvaluepair") {
     const res = await Request.json();
     const { key, val } = res;

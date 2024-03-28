@@ -1,4 +1,4 @@
-name: Run CloudflareKV Tests
+name: Tests CloudflareKV
 
 on:
   push:
@@ -9,18 +9,22 @@ on:
       - main
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  Tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+          go-version:
+              - 1.21.x
+              - 1.22.x
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: ${{ matrix.go-version }} 
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -30,10 +34,12 @@ jobs:
       - uses: JarvusInnovations/background-action@v1
         name: Bootstrap System Under Test (SUT)
         with:
-          run: .github/scripts/initialize-wrangler.sh
+          run: |
+            .github/scripts/initialize-wrangler.sh
+            npx wrangler dev
 
           wait-on: |
-            http://localhost:8787            
+            http://localhost:8787/health           
 
       - name: Go to cloudflarekv directory
         run: cd cloudflarekv
