@@ -8,15 +8,39 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 )
 
+type APIInterface interface {
+	DeleteWorkersKVEntries(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.DeleteWorkersKVEntriesParams) (cloudflare.Response, error)
+	DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.DeleteWorkersKVEntryParams) (cloudflare.Response, error)
+	GetWorkersKV(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.GetWorkersKVParams) ([]byte, error)
+	ListWorkersKVKeys(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.ListWorkersKVsParams) (cloudflare.ListStorageKeysResponse, error)
+	WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.WriteWorkersKVEntryParams) (cloudflare.Response, error)
+}
+
 type Storage struct {
-	api         *cloudflare.API
+	api         APIInterface
 	email       string
 	accountID   string
 	namespaceID string
 }
 
 func New(config ...Config) *Storage {
+
 	cfg := configDefault(config...)
+	if cfg.Key == "test" {
+		api := &TestModule{
+			baseUrl: "http://localhost:8787",
+		}
+
+		storage := &Storage{
+			api:         api,
+			email:       "example@cloudflare.org",
+			accountID:   "dummy-ID",
+			namespaceID: "dummy-ID",
+		}
+
+		return storage
+	}
+
 	api, err := cloudflare.NewWithAPIToken(cfg.Key)
 	if err != nil {
 		log.Println("Error with cloudflare api initialization")
@@ -33,6 +57,7 @@ func New(config ...Config) *Storage {
 }
 
 func (s *Storage) Get(key string) ([]byte, error) {
+
 	resp, err := s.api.GetWorkersKV(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
 
 	if err != nil {
@@ -60,6 +85,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) Delete(key string) error {
+
 	_, err := s.api.DeleteWorkersKVEntry(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
 		NamespaceID: s.namespaceID,
 		Key:         key,
@@ -123,6 +149,6 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-func (s *Storage) Conn() *cloudflare.API {
+func (s *Storage) Conn() APIInterface {
 	return s.api
 }

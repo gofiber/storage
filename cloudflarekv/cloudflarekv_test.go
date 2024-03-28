@@ -12,10 +12,10 @@ var testStore *Storage
 
 func TestMain(m *testing.M) {
 	testStore = New(Config{
-		Key:         os.Getenv("CF_AUTH_TOKEN"),
-		AccountID:   os.Getenv("CF_ACCOUNT_ID"),
-		NamespaceID: os.Getenv("CF_KV_NAMESPACE"),
-		Email:       os.Getenv("CF_EMAIL"),
+		Key:         "test",
+		AccountID:   "",
+		NamespaceID: "",
+		Email:       "",
 		Reset:       true,
 	})
 
@@ -41,6 +41,10 @@ func Test_CloudflareKV_Get(t *testing.T) {
 		key = "john"
 		val = "doe"
 	)
+
+	err := testStore.Set(key, []byte("doe"), 0)
+
+	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
 
