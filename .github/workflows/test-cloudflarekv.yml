@@ -31,15 +31,23 @@ jobs:
         with:
           node-version: '18'
 
-      - uses: JarvusInnovations/background-action@v1
-        name: Bootstrap System Under Test (SUT)
-        with:
-          run: |
-            .github/scripts/initialize-wrangler.sh
-            npx wrangler dev
+      # - uses: JarvusInnovations/background-action@v1.0.5
+      #   name: Bootstrap System Under Test (SUT)
+      #   with:
+      #     run: |
+      #       .github/scripts/initialize-wrangler.sh
+      #       npx wrangler dev
 
-          wait-on: |
-            http://localhost:8787/health           
+      #     wait-on: |
+      #       http://localhost:8787/health           
+
+      - name: Write code
+        run: |
+          chmod +x .github/scripts/initialize-wrangler.sh
+          .github/scripts/initialize-wrangler.sh
+          npx wrangler dev
+
+
 
       - name: Go to cloudflarekv directory
         run: cd cloudflarekv
