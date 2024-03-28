@@ -1,28 +1,42 @@
+name: Run CloudflareKV Tests
+
 on:
   push:
     branches:
-      - master
       - main
-    paths:
-      - "cloudflarekv/**"
   pull_request:
-    paths:
-      - "cloudflarekv/**"
-name: "Tests Cloudflare KV"
+    branches:
+      - main
+
 jobs:
-  Tests:
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version:
-          - 1.21.x
-          - 1.22.x
+
     steps:
-      - name: Fetch Repository
-        uses: actions/checkout@v4
-      - name: Install Go
-        uses: actions/setup-go@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
         with:
-          go-version: "${{ matrix.go-version }}"
-      - name: Run Test
-        run: cd ./cloudflarekv && go test ./... -v -race
+          go-version: 1.22.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - uses: JarvusInnovations/background-action@v1
+        name: Bootstrap System Under Test (SUT)
+        with:
+          run: .github/scripts/initialize-wrangler.sh
+
+          wait-on: |
+            http://localhost:8787            
+
+      - name: Go to cloudflarekv directory
+        run: cd cloudflarekv
+
+      - name: Run Go Tests
+        run: go test
