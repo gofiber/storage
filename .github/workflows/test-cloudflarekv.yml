@@ -30,17 +30,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-
-      # - uses: JarvusInnovations/background-action@v1.0.5
-      #   name: Bootstrap System Under Test (SUT)
-      #   with:
-      #     run: |
-      #       .github/scripts/initialize-wrangler.sh
-      #       npx wrangler dev
-
-      #     wait-on: |
-      #       http://localhost:8787/health           
-
+      
       - name: Write code
         run: |
           chmod +x .github/scripts/initialize-wrangler.sh
