@@ -27,6 +27,12 @@ updates:
         schedule:
             interval: "daily"
     -   package-ecosystem: "gomod"
+        directory: "/cloudflarekv/" # Location of package manifests
+        labels:
+            - "🤖 Dependencies"
+        schedule:
+            interval: "weekly"
+    -   package-ecosystem: "gomod"
         directory: "/couchbase/" # Location of package manifests
         labels:
             - "🤖 Dependencies"
