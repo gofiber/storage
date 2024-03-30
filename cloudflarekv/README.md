@@ -53,11 +53,7 @@ Import the storage package.
 import "github.com/gofiber/storage/cloudflarekv"
 ```
 
-You can use the following possibilities to create a storage.
-
-Key must be an API Token generated with at least `Account.Workers KV Storage` permission.
-
-Check [Create API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) docs to generate.
+You can use the following methods to create storage. The Key must be an API Token generated with at least `Account.Workers KV Storage` permission. Check the [Create API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) documentation to generate one.
 
 ```go
 // Initialize default config
