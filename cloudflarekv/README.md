@@ -60,7 +60,7 @@ You can use the following methods to create storage. The Key must be an API Toke
 store := cloudflarekv.New()
 
 store := cloudflarekv.New(cloudflarekv.Config{
-	Key: "",
+    Key: "",
     Email: "",
     AccountID: "fiber",
     NamespaceID: "fiber",
