@@ -40,7 +40,6 @@ type TestModule struct {
 }
 
 func (t *TestModule) GetWorkersKV(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.GetWorkersKVParams) ([]byte, error) {
-	log.Println(ctx, rc)
 
 	client := &http.Client{}
 
@@ -81,7 +80,6 @@ func (t *TestModule) GetWorkersKV(ctx context.Context, rc *cloudflare.ResourceCo
 }
 
 func (t *TestModule) WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.WriteWorkersKVEntryParams) (cloudflare.Response, error) {
-	log.Println(ctx, rc)
 
 	client := &http.Client{}
 
@@ -122,7 +120,6 @@ func (t *TestModule) WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.Res
 }
 
 func (t *TestModule) DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.DeleteWorkersKVEntryParams) (cloudflare.Response, error) {
-	log.Println(ctx, rc)
 
 	client := &http.Client{}
 
@@ -160,7 +157,6 @@ func (t *TestModule) DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.Re
 }
 
 func (t *TestModule) ListWorkersKVKeys(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.ListWorkersKVsParams) (cloudflare.ListStorageKeysResponse, error) {
-	log.Println(ctx, rc)
 
 	client := &http.Client{}
 
@@ -215,7 +211,6 @@ func (t *TestModule) ListWorkersKVKeys(ctx context.Context, rc *cloudflare.Resou
 }
 
 func (t *TestModule) DeleteWorkersKVEntries(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.DeleteWorkersKVEntriesParams) (cloudflare.Response, error) {
-	log.Println(ctx, rc)
 
 	client := &http.Client{}
 
