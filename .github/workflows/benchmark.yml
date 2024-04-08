@@ -157,6 +157,7 @@ jobs:
             [[ $d == "tls/" ]] && continue
 
             cd "$d"
+            echo "Bench dir: $d"
             go test ./... -benchmem -run=^$ -bench . | tee -a ../output.txt
             cd ..
           done
