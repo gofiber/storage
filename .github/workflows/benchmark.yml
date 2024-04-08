@@ -156,8 +156,10 @@ jobs:
           set -o pipefail
           for d in */ ; do
             [[ $d == "tls/" ]] && continue
+            [[ $d == "node_modules/" ]] && continue
 
             cd "$d"
+            echo "Bench dir: $d"
             go test ./... -benchmem -run=^$ -bench . | tee -a ../output.txt
             cd ..
           done
