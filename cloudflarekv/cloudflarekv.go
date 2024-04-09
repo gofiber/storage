@@ -56,7 +56,6 @@ func New(config ...Config) *Storage {
 }
 
 func (s *Storage) Get(key string) ([]byte, error) {
-
 	resp, err := s.api.GetWorkersKV(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
 
 	if err != nil {
@@ -68,7 +67,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-
 	_, err := s.api.WriteWorkersKVEntry(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
 		NamespaceID: s.namespaceID,
 		Key:         key,
@@ -76,7 +74,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	})
 
 	if err != nil {
-		log.Println("Error occur in WriteWorkersKVEntry")
+		log.Printf("Error occur in WriteWorkersKVEntry: %v", err)
 		return err
 	}
 
@@ -84,14 +82,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) Delete(key string) error {
-
 	_, err := s.api.DeleteWorkersKVEntry(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
 		NamespaceID: s.namespaceID,
 		Key:         key,
 	})
 
 	if err != nil {
-		log.Println("Error occur in WriteWorkersKVEntry")
+		log.Printf("Error occur in DeleteWorkersKVEntry: %v", err)
 		return err
 	}
 
@@ -99,7 +96,6 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) Reset() error {
-
 	var (
 		cursor string
 		keys   []string
@@ -112,7 +108,7 @@ func (s *Storage) Reset() error {
 		})
 
 		if err != nil {
-			log.Println("Error occur in ListWorkersKVKeys")
+			log.Printf("Error occur in ListWorkersKVKeys: %v", err)
 			return err
 		}
 
@@ -129,7 +125,7 @@ func (s *Storage) Reset() error {
 		})
 
 		if err != nil {
-			log.Println("Error occur in DeleteWorker")
+			log.Printf("Error occur in DeleteWorker: %v", err)
 			return err
 		}
 
