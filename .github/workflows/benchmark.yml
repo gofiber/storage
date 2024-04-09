@@ -100,7 +100,8 @@ jobs:
       - name: Install Cloudflare Worker
         run : |
           .github/scripts/initialize-wrangler.sh
-          npx wrangler dev &
+          cd cloudflarekv && npx wrangler dev &
+          npx wait-on tcp:8787
 
       - name: Install Coherence
         run: |

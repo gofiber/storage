@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# generate index.ts
-cat <<EOF > index.ts
+# generate cloudflarekv/index.ts
+cat <<EOF > cloudflarekv/index.ts
 export default { async fetch(Request, env) {
 
   const namespace = env.TEST_NAMESPACE1;
 
   if (Request.url === "http://localhost:8787/health") {
     return new Response("Success");
-  } 
+  }
 
   if (Request.url === "http://localhost:8787/writeworkerskvkeyvaluepair") {
     const res = await Request.json();
@@ -27,14 +27,14 @@ export default { async fetch(Request, env) {
   else if (Request.url === "http://localhost:8787/deleteworkerskvpairbykey") {
     const res = await Request.json();
     const { key } = res;
-    await DeleteWorkersKVPairByKey(namespace, key);  
+    await DeleteWorkersKVPairByKey(namespace, key);
 
     return new Response(key)
   }
 
   else if (Request.url === "http://localhost:8787/getworkerskvvaluebykey") {
     const key = (await Request.json()).key;
-    const res = await GetWorkersKVValueByKey(namespace, key); 
+    const res = await GetWorkersKVValueByKey(namespace, key);
 
     return new Response(res);
   }
@@ -44,10 +44,10 @@ export default { async fetch(Request, env) {
     const { keys } = res;
     const newKeys = keys.filter(x => x.length > 0);
     await DeleteWorkersKVEntries(namespace, newKeys);
-    
+
     return new Response("Success")
   }
-}  
+}
 }
 
 const GetWorkersKVValueByKey = async (NAMESPACE, key) => {
@@ -64,7 +64,7 @@ const WriteWorkersKVKeyValuePair = async (NAMESPACE, key, val) => {
 
 const DeleteWorkersKVPairByKey = async (NAMESPACE, key) => {
   await NAMESPACE.delete(key);
-  
+
   return "Delete Successfully"
 }
 
@@ -77,7 +77,7 @@ const ListWorkersKVKeys = async (NAMESPACE, limit, prefix, cursor) => {
 const DeleteWorkersKVEntries = async (NAMESPACE, keys) => {
   for (let key of keys) {
     await NAMESPACE.delete(key);
-  } 
+  }
 
   return "Delete Successfully"
 }
@@ -85,10 +85,10 @@ const DeleteWorkersKVEntries = async (NAMESPACE, keys) => {
 
 EOF
 
-echo "wrangler.toml generated"
+echo "index.ts generated"
 
-# generate wrangler.toml
-cat <<EOF > wrangler.toml
+# generate cloudflarekv/wrangler.toml
+cat <<EOF > cloudflarekv/wrangler.toml
 main = "index.ts"
 
 kv_namespaces = [
