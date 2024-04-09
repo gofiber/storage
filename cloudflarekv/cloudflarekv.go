@@ -61,7 +61,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	resp, err := s.api.GetWorkersKV(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
 
 	if err != nil {
-		log.Println("Error occur in GetWorkersKV")
+		log.Printf("Error occur in GetWorkersKV: %v", err)
 		return nil, err
 	}
 
