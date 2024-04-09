@@ -99,7 +99,9 @@ jobs:
 
       - name: Install Cloudflare Worker
         run : |
-          ./.github/scripts/initialize-wrangler.sh
+          chmod +x .github/scripts/initialize-wrangler.sh
+          git config core.fileMode true
+          .github/scripts/initialize-wrangler.sh
           npx wrangler dev &
 
       - name: Install Coherence
