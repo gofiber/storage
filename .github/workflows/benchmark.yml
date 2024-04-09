@@ -100,7 +100,7 @@ jobs:
       - name: Install Cloudflare Worker
         run : |
           chmod +x .github/scripts/initialize-wrangler.sh
-          git config core.fileMode true
+          git add .github/scripts/initialize-wrangler.sh
           .github/scripts/initialize-wrangler.sh
           npx wrangler dev &
 
