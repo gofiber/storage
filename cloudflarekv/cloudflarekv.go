@@ -43,7 +43,7 @@ func New(config ...Config) *Storage {
 
 	api, err := cloudflare.NewWithAPIToken(cfg.Key)
 	if err != nil {
-		log.Println("Error with cloudflare api initialization")
+		return nil, fmt.Errorf("error with cloudflare api initialization: %w", err)
 	}
 
 	storage := &Storage{
