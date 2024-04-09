@@ -24,7 +24,6 @@ type Storage struct {
 }
 
 func New(config ...Config) *Storage {
-
 	cfg := configDefault(config...)
 	if cfg.Key == "test" {
 		api := &TestModule{
@@ -43,7 +42,7 @@ func New(config ...Config) *Storage {
 
 	api, err := cloudflare.NewWithAPIToken(cfg.Key)
 	if err != nil {
-		return nil, fmt.Errorf("error with cloudflare api initialization: %w", err)
+		log.Panicf("error with cloudflare api initialization: %w", err)
 	}
 
 	storage := &Storage{
