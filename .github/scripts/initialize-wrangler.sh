@@ -99,7 +99,9 @@ workers_dev = true
 
 compatibility_date = "2024-03-20"
 
+[dev]
 port = 8787
+local_protocol = "http"
 EOF
 
 echo "wrangler.toml generated"
