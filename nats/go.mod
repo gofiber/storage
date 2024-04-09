@@ -3,9 +3,9 @@ module github.com/gofiber/storage/nats
 go 1.20
 
 require (
-	github.com/gofiber/fiber/v2 v2.52.1
-	github.com/nats-io/nats.go v1.33.1
-	github.com/stretchr/testify v1.8.4
+	github.com/gofiber/fiber/v2 v2.52.4
+	github.com/nats-io/nats.go v1.34.1
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
