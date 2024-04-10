@@ -48,7 +48,7 @@ func New(configuration Config) (*Storage, error) {
 	}, conn.Ping(ctx)
 }
 
-func (s *Storage) Set(key string, value string, expiration time.Duration) error {
+func (s *Storage) Set(key string, value []byte, expiration time.Duration) error {
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -60,7 +60,7 @@ func (s *Storage) Set(key string, value string, expiration time.Duration) error 
 
 	ctx := driver.Context(s.context, driver.WithParameters(driver.Parameters{
 		"key":        key,
-		"value":      value,
+		"value":      string(value),
 		"expiration": exp.Format("2006-01-02 15:04:05"),
 		"table":      s.table,
 	}))

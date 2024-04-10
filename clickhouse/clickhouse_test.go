@@ -8,7 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getTestConnection(t *testing.T) (*Storage, error) {
+type TestOrBench interface {
+	Helper()
+}
+
+func getTestConnection(t TestOrBench) (*Storage, error) {
 	t.Helper()
 
 	client, err := New(Config{
@@ -33,7 +37,7 @@ func TestSet(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekey", "somevalue", 0)
+	err = client.Set("somekey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 }
 
@@ -42,7 +46,7 @@ func TestSetWithExp(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("setsomekeywithexp", "somevalue", time.Second*1)
+	err = client.Set("setsomekeywithexp", []byte("somevalue"), time.Second*1)
 	require.NoError(t, err)
 }
 
@@ -51,7 +55,7 @@ func TestGet(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekey", "somevalue", 0)
+	err = client.Set("somekey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	value, err := client.Get("somekey")
@@ -66,7 +70,7 @@ func TestGetWithExp(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("getsomekeywithexp", "somevalue", time.Second*5)
+	err = client.Set("getsomekeywithexp", []byte("somevalue"), time.Second*5)
 	require.NoError(t, err)
 
 	value, err := client.Get("getsomekeywithexp")
@@ -88,7 +92,7 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekeytodelete", "somevalue", time.Second*5)
+	err = client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
 	require.NoError(t, err)
 
 	err = client.Delete("somekeytodelete")
@@ -101,10 +105,27 @@ func TestReset(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("testkey", "somevalue", 0)
+	err = client.Set("testkey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	err = client.Reset()
 
 	require.NoError(t, err)
+}
+
+func BenchmarkClickhouse(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	client, err := getTestConnection(b)
+
+	require.NoError(b, err)
+	defer client.Close()
+
+	for i := 0; i < b.N; i++ {
+		_ = client.Set("john", []byte("doe"), 0)
+		err = client.Delete("john")
+	}
+
+	require.NoError(b, err)
 }
