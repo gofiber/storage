@@ -13,7 +13,7 @@ func TestMain(m *testing.M) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	code := m.Run()
@@ -28,7 +28,7 @@ func Test_CloudflareKV_Set(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	var (
@@ -49,7 +49,7 @@ func Test_CloudflareKV_Get(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	var (
@@ -75,7 +75,7 @@ func Test_CloudflareKV_Delete(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	var (
@@ -98,7 +98,7 @@ func Test_CloudflareKV_Reset(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	err := testStore.Reset()
@@ -113,7 +113,7 @@ func Test_CloudflareKV_Close(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	require.Nil(t, testStore.Close())
@@ -127,7 +127,7 @@ func Test_CloudflareKV_Conn(t *testing.T) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	require.NotNil(t, testStore.Conn())
@@ -140,7 +140,7 @@ func Benchmark_CloudflareKV_Set(b *testing.B) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	b.ReportAllocs()
@@ -161,7 +161,7 @@ func Benchmark_CloudflareKV_Get(b *testing.B) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	err := testStore.Set("john", []byte("doe"), 0)
@@ -184,7 +184,7 @@ func Benchmark_CloudflareKV_SetAndDelete(b *testing.B) {
 	var testStore *Storage
 
 	testStore = New(Config{
-		Reset: true,
+		Key: "test",
 	})
 
 	b.ReportAllocs()
