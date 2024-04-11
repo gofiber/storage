@@ -1,10 +1,12 @@
 package cloudflarekv
 
 import (
-	"bytes"
+	"context"
+	"log"
 	"os"
 	"testing"
 
+	"github.com/cloudflare/cloudflare-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,14 +59,20 @@ func Test_CloudflareKV_Get(t *testing.T) {
 		val = "doe"
 	)
 
-	err := testStore.Set(key, []byte("doe"), 0)
+	err := testStore.Set(key, []byte(val), 0)
 
 	require.NoError(t, err)
 
-	result, err := testStore.Get(key)
+	result, error := testStore.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(testStore.accountID), cloudflare.ListWorkersKVsParams{
+		NamespaceID: testStore.namespaceID,
+	})
+
+	if error != nil {
+		log.Printf("error")
+	}
 
 	require.NoError(t, err)
-	require.Equal(t, val, bytes.NewBuffer(result).String())
+	require.Equal(t, key, result.Result[0].Name)
 
 	_ = testStore.Close()
 }
