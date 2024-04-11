@@ -31,7 +31,7 @@ updates:
         labels:
             - "🤖 Dependencies"
         schedule:
-            interval: "weekly"
+            interval: "daily"
     -   package-ecosystem: "gomod"
         directory: "/couchbase/" # Location of package manifests
         labels:
