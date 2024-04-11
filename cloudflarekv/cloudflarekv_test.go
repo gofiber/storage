@@ -58,16 +58,20 @@ func Test_CloudflareKV_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 1000)
+	t.Run("Set key value pair", func(t *testing.T) {
+		err := testStore.Set(key, val, 0)
 
-	require.NoError(t, err)
-
-	result, err := testStore.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(testStore.accountID), cloudflare.ListWorkersKVsParams{
-		NamespaceID: testStore.namespaceID,
+		require.NoError(t, err)
 	})
 
-	require.NoError(t, err)
-	require.Equal(t, key, result.Result[0].Name)
+	t.Run("Get key value pair", func(t *testing.T) {
+		result, err := testStore.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(testStore.accountID), cloudflare.ListWorkersKVsParams{
+			NamespaceID: testStore.namespaceID,
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, key, result.Result[0].Name)
+	})
 
 	_ = testStore.Close()
 }
