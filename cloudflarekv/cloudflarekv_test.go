@@ -40,7 +40,7 @@ func Test_CloudflareKV_Get(t *testing.T) {
 
 	result, err := testStore.Get(key)
 
-	for {
+	for i := 0; i < 2; i++ {
 		result, err = testStore.Get(key)
 		if bytes.NewBuffer(result).String() == "" {
 			_ = testStore.Set(key, val, 0)
