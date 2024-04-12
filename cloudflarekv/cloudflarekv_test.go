@@ -1,11 +1,10 @@
 package cloudflarekv
 
 import (
-	"context"
+	"bytes"
 	"os"
 	"testing"
 
-	"github.com/cloudflare/cloudflare-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,6 +20,39 @@ func TestMain(m *testing.M) {
 
 	_ = testStore.Close()
 	os.Exit(code)
+}
+
+func Test_CloudflareKV_Get(t *testing.T) {
+	t.Parallel()
+
+	var testStore *Storage
+
+	testStore = New(Config{
+		Key: "test",
+	})
+
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	_ = testStore.Set(key, val, 0)
+
+	result, err := testStore.Get(key)
+
+	for {
+		result, err = testStore.Get(key)
+		if bytes.NewBuffer(result).String() == "" {
+			_ = testStore.Set(key, val, 0)
+		} else {
+			break
+		}
+	}
+
+	require.NoError(t, err)
+	require.Equal(t, bytes.NewBuffer(val).String(), bytes.NewBuffer(result).String())
+
+	_ = testStore.Close()
 }
 
 func Test_CloudflareKV_Set(t *testing.T) {
@@ -40,38 +72,6 @@ func Test_CloudflareKV_Set(t *testing.T) {
 	err := testStore.Set(key, val, 0)
 
 	require.NoError(t, err)
-
-	_ = testStore.Close()
-}
-
-func Test_CloudflareKV_Get(t *testing.T) {
-	t.Parallel()
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
-
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	t.Run("Set key value pair", func(t *testing.T) {
-		err := testStore.Set(key, val, 0)
-
-		require.NoError(t, err)
-	})
-
-	t.Run("Get key value pair", func(t *testing.T) {
-		result, err := testStore.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(testStore.accountID), cloudflare.ListWorkersKVsParams{
-			NamespaceID: testStore.namespaceID,
-		})
-
-		require.NoError(t, err)
-		require.Equal(t, key, result.Result[0].Name)
-	})
 
 	_ = testStore.Close()
 }
