@@ -36,6 +36,32 @@ func (s *Storage) DeleteBucket(bucket string) error {
 	return err
 }
 
+// DeleteMany entries by keys.
+func (s *Storage) DeleteMany(keys ...string) error {
+	if len(keys) <= 0 {
+		return nil
+	}
+
+	var objects []types.ObjectIdentifier
+	for _, k := range keys {
+		objects = append(objects, types.ObjectIdentifier{
+			Key: aws.String(k),
+		})
+	}
+
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	_, err := s.svc.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+		Bucket: &s.bucket,
+		Delete: &types.Delete{
+			Objects: objects,
+		},
+	})
+
+	return err
+}
+
 // SetWithChecksum sets key with value and checksum.
 //
 // Currently 4 algorithms are supported:

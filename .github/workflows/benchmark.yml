@@ -88,9 +88,20 @@ jobs:
           # NOTE: Keep this in sync with the version from go.mod
           go-version: "1.20.x"
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
       - name: Install Azurite
         run: |
           docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
+
+      - name: Install Cloudflare Worker
+        run : |
+          .github/scripts/initialize-wrangler.sh
+          cd cloudflarekv && npx wrangler dev &
+          npx wait-on tcp:8787
 
       - name: Install Coherence
         run: |
@@ -144,8 +155,10 @@ jobs:
           set -o pipefail
           for d in */ ; do
             [[ $d == "tls/" ]] && continue
+            [[ $d == "node_modules/" ]] && continue
 
             cd "$d"
+            echo "Bench dir: $d"
             go test ./... -benchmem -run=^$ -bench . | tee -a ../output.txt
             cd ..
           done
