@@ -28,6 +28,7 @@
 vendor/
 vendor
 /Godeps/
+node_modules/
 
 # Go specific
 go.work*
