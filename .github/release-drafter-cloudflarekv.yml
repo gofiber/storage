@@ -40,5 +40,7 @@ version-resolver:
   default: patch
 template: |
   $CHANGES
+  
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...cloudflarekv/v$RESOLVED_VERSION
+  
   Thank you $CONTRIBUTORS for making this update possible.
