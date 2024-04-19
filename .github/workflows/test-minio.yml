@@ -30,6 +30,4 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
-                env:
-                    GOTOOLCHAIN: "local"
                 run: cd ./minio && go test ./... -v -race
