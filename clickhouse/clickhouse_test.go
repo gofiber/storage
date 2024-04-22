@@ -17,7 +17,7 @@ func getTestConnection(t TestOrBench) (*Storage, error) {
 
 	client, err := New(Config{
 		Host:   "127.0.0.1",
-		Port:   9000,
+		Port:   9001,
 		Engine: "Memory",
 		Table:  "test_table",
 		Clean:  true,

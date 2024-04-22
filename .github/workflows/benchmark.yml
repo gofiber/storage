@@ -136,7 +136,7 @@ jobs:
 
       - name: Startup Clickhouse
         run: |
-            docker run -d -p 9000:9000 --name some-clickhouse-server --ulimit nofile=262144:262144 clickhouse/clickhouse-server
+            docker run -d -p 9001:9000 --name clickhouse --ulimit nofile=262144:262144 clickhouse/clickhouse-server
             sleep 10 # Wait for Clickhouse to initialize
 
       - name: Setup Redis
