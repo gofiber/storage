@@ -84,12 +84,17 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}))
 	err := s.session.Select(ctx, &resultSlice, selectDataString)
 	if err != nil {
-		return nil, err
+		return []byte{}, err
 	}
+
+	if len(resultSlice) == 0 {
+		return []byte{}, nil
+	}
+
 	result := resultSlice[0]
 
 	if !result.Expiration.IsZero() && result.Expiration.UTC().Unix() <= time.Now().UTC().Unix() {
-		return nil, nil
+		return []byte{}, nil
 	}
 
 	return []byte(result.Value), err

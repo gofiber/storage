@@ -17,7 +17,7 @@ func getTestConnection(t TestOrBench) (*Storage, error) {
 
 	client, err := New(Config{
 		Host:   "127.0.0.1",
-		Port:   9001,
+		Port:   9000,
 		Engine: "Memory",
 		Table:  "test_table",
 		Clean:  true,
@@ -26,13 +26,13 @@ func getTestConnection(t TestOrBench) (*Storage, error) {
 	return client, err
 }
 
-func TestConnection(t *testing.T) {
+func Test_Connection(t *testing.T) {
 	_, err := getTestConnection(t)
 
 	require.NoError(t, err)
 }
 
-func TestSet(t *testing.T) {
+func Test_Set(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -41,7 +41,7 @@ func TestSet(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSetWithExp(t *testing.T) {
+func Test_SetWithExp(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -50,7 +50,7 @@ func TestSetWithExp(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGet(t *testing.T) {
+func Test_Get(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -65,7 +65,7 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, "somevalue", string(value))
 }
 
-func TestGetWithExp(t *testing.T) {
+func Test_GetWithExp(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -84,10 +84,10 @@ func TestGetWithExp(t *testing.T) {
 	value, err = client.Get("getsomekeywithexp")
 
 	require.NoError(t, err)
-	assert.Nil(t, value)
+	assert.Equal(t, []byte{}, value)
 }
 
-func TestDelete(t *testing.T) {
+func Test_Delete(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -98,9 +98,14 @@ func TestDelete(t *testing.T) {
 	err = client.Delete("somekeytodelete")
 
 	require.NoError(t, err)
+
+	value, err := client.Get("somekeytodelete")
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, value)
 }
 
-func TestReset(t *testing.T) {
+func Test_Reset(t *testing.T) {
 	client, err := getTestConnection(t)
 	require.NoError(t, err)
 	defer client.Close()
@@ -111,9 +116,48 @@ func TestReset(t *testing.T) {
 	err = client.Reset()
 
 	require.NoError(t, err)
+
+	value, err := client.Get("testkey")
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, value)
 }
 
-func BenchmarkClickhouse(b *testing.B) {
+func Benchmark_Clickhouse_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	client, err := getTestConnection(b)
+	require.NoError(b, err)
+
+	defer client.Close()
+
+	for i := 0; i < b.N; i++ {
+		err = client.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Clickhouse_Get(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	client, err := getTestConnection(b)
+	require.NoError(b, err)
+
+	defer client.Close()
+
+	err = client.Set("john", []byte("doe"), 0)
+
+	for i := 0; i < b.N; i++ {
+		_, err = client.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
