@@ -23,7 +23,7 @@ func New(configuration Config) (*Storage, error) {
 
 	conn, err := driver.Open(&cfg)
 	if err != nil {
-		return &Storage{}, err
+		return nil, err
 	}
 
 	ctx := driver.Context(context.Background(), driver.WithParameters(driver.Parameters{
