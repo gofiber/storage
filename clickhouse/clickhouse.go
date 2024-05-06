@@ -93,7 +93,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	result := resultSlice[0]
 
-	if !result.Expiration.IsZero() && result.Expiration.UTC().Unix() <= time.Now().UTC().Unix() {
+	if !result.Expiration.IsZero() && result.Expiration.Before(time.Now().UTC()) {
 		return []byte{}, nil
 	}
 
