@@ -18,7 +18,7 @@ type Storage struct {
 func New(configuration Config) (*Storage, error) {
 	cfg, engine, err := defaultConfig(configuration)
 	if err != nil {
-		return &Storage{}, err
+		return nil, err
 	}
 
 	conn, err := driver.Open(&cfg)
