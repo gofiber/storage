@@ -41,11 +41,16 @@ func New(configuration Config) (*Storage, error) {
 		}
 	}
 
+	err = conn.Ping(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Storage{
 		session: conn,
 		context: ctx,
 		table:   configuration.Table,
-	}, conn.Ping(ctx)
+	}, nil
 }
 
 func (s *Storage) Set(key string, value []byte, expiration time.Duration) error {
