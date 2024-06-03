@@ -1,6 +1,6 @@
 ---
-id: memory
-title: Memory
+id: mockstorage
+title: MockStorage
 ---
 
 
@@ -37,7 +37,7 @@ func SetCustomFuncs(custom *CustomFuncs)
 ```
 
 ### Installation
-Mockstorage is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+MockStorage is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
