@@ -36,6 +36,10 @@ type Entry struct {
     Exp   time.Time
 }
 
+type Config struct {
+    CustomFuncs *CustomFuncs
+}
+
 type CustomFuncs struct {
     GetFunc    func(key string) ([]byte, error)
     SetFunc    func(key string, val []byte, exp time.Duration) error
