@@ -14,6 +14,6 @@ jobs:
         steps:
             -   uses: release-drafter/release-drafter@v6
                 with:
-                    config-name: release-drafter-memory.yml
+                    config-name: release-drafter-mockstorage.yml
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
