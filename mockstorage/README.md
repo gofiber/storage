@@ -23,6 +23,31 @@ A mock storage implementation for Fiber. This storage is not persistent and is o
 
 
 ### Signatures
+
+#### Structs
+
+```go
+type Storage struct {
+    // contains filtered or unexported fields
+}
+
+type Entry struct {
+    Value []byte
+    Exp   time.Time
+}
+
+type CustomFuncs struct {
+    GetFunc    func(key string) ([]byte, error)
+    SetFunc    func(key string, val []byte, exp time.Duration) error
+    DeleteFunc func(key string) error
+    ResetFunc  func() error
+    CloseFunc  func() error
+    ConnFunc   func() map[string]Entry
+    KeysFunc   func() ([][]byte, error)
+}
+```
+
+#### Functions
 ```go
 // New creates a new Storage instance. You can optionally pass a Config.
 func New(config ...Config) *Storage
@@ -43,7 +68,7 @@ func (s *Storage) Reset() error
 func (s *Storage) Close() error
 
 // Conn returns a copy of the current state of the storage.
-func (s *Storage) Conn() map[string]entry
+func (s *Storage) Conn() map[string]Entry
 
 // Keys returns a list of all keys in the storage.
 func (s *Storage) Keys() ([][]byte, error)

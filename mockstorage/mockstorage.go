@@ -14,14 +14,14 @@ type Config struct {
 // Storage is the mock storage adapter.
 type Storage struct {
 	mu     sync.RWMutex
-	data   map[string]entry
+	data   map[string]Entry
 	custom *CustomFuncs
 }
 
-// entry struct to hold value and expiration time.
-type entry struct {
-	value []byte
-	exp   time.Time
+// Entry struct to hold value and expiration time.
+type Entry struct {
+	Value []byte
+	Exp   time.Time
 }
 
 // CustomFuncs allows injecting custom behaviors for testing.
@@ -31,14 +31,14 @@ type CustomFuncs struct {
 	DeleteFunc func(key string) error
 	ResetFunc  func() error
 	CloseFunc  func() error
-	ConnFunc   func() map[string]entry
+	ConnFunc   func() map[string]Entry
 	KeysFunc   func() ([][]byte, error)
 }
 
 // New creates a new mock storage with optional configuration.
 func New(config ...Config) *Storage {
 	s := &Storage{
-		data: make(map[string]entry),
+		data: make(map[string]Entry),
 		custom: &CustomFuncs{
 			GetFunc:    nil,
 			SetFunc:    nil,
@@ -71,11 +71,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("key not found")
 	}
-	if !e.exp.IsZero() && time.Now().After(e.exp) {
+	if !e.Exp.IsZero() && time.Now().After(e.Exp) {
 		delete(s.data, key)
 		return nil, errors.New("key expired")
 	}
-	return e.value, nil
+	return e.Value, nil
 }
 
 // Set sets the value for a given key with an expiration time.
@@ -92,7 +92,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expTime = time.Now().Add(exp)
 	}
 
-	s.data[key] = entry{value: val, exp: expTime}
+	s.data[key] = Entry{Value: val, Exp: expTime}
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (s *Storage) Reset() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.data = make(map[string]entry)
+	s.data = make(map[string]Entry)
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (s *Storage) Close() error {
 }
 
 // Conn returns the internal data map (for testing purposes).
-func (s *Storage) Conn() map[string]entry {
+func (s *Storage) Conn() map[string]Entry {
 	if s.custom.ConnFunc != nil {
 		return s.custom.ConnFunc()
 	}
@@ -141,9 +141,9 @@ func (s *Storage) Conn() map[string]entry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	copyData := make(map[string]entry)
+	copyData := make(map[string]Entry)
 	for k, v := range s.data {
-		copyData[k] = v
+		copyData[k] = Entry{Value: v.Value, Exp: v.Exp}
 	}
 	return copyData
 }

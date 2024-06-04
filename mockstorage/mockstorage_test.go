@@ -68,10 +68,10 @@ func TestStorageConnFunc(t *testing.T) {
 	store := New()
 
 	customFuncs := &CustomFuncs{
-		ConnFunc: func() map[string]entry {
-			return map[string]entry{
-				"customKey1": {value: []byte("customValue1"), exp: time.Time{}},
-				"customKey2": {value: []byte("customValue2"), exp: time.Now().Add(1 * time.Hour)},
+		ConnFunc: func() map[string]Entry {
+			return map[string]Entry{
+				"customKey1": {Value: []byte("customValue1"), Exp: time.Time{}},
+				"customKey2": {Value: []byte("customValue2"), Exp: time.Now().Add(1 * time.Hour)},
 			}
 		},
 	}
@@ -80,13 +80,13 @@ func TestStorageConnFunc(t *testing.T) {
 
 	// Test custom Conn
 	conn := store.Conn()
-	expectedConn := map[string]entry{
-		"customKey1": {value: []byte("customValue1"), exp: time.Time{}},
-		"customKey2": {value: []byte("customValue2"), exp: time.Now().Add(1 * time.Hour)},
+	expectedConn := map[string]Entry{
+		"customKey1": {Value: []byte("customValue1"), Exp: time.Time{}},
+		"customKey2": {Value: []byte("customValue2"), Exp: time.Now().Add(1 * time.Hour)},
 	}
 
 	for k, v := range expectedConn {
-		if val, ok := conn[k]; !ok || !bytes.Equal(val.value, v.value) {
+		if val, ok := conn[k]; !ok || !bytes.Equal(val.Value, v.Value) {
 			t.Errorf("Conn() = %v, want %v", conn, expectedConn)
 		}
 	}
@@ -174,10 +174,10 @@ func TestStorageCustomBehavior(t *testing.T) {
 			}
 			return nil
 		},
-		ConnFunc: func() map[string]entry {
-			return map[string]entry{
-				"customKey1": {value: []byte("customValue1"), exp: time.Time{}},
-				"customKey2": {value: []byte("customValue2"), exp: time.Now().Add(1 * time.Hour)},
+		ConnFunc: func() map[string]Entry {
+			return map[string]Entry{
+				"customKey1": {Value: []byte("customValue1"), Exp: time.Time{}},
+				"customKey2": {Value: []byte("customValue2"), Exp: time.Now().Add(1 * time.Hour)},
 			}
 		},
 		KeysFunc: func() ([][]byte, error) {
@@ -225,13 +225,13 @@ func TestStorageCustomBehavior(t *testing.T) {
 
 	// Test custom Conn
 	conn := store.Conn()
-	expectedConn := map[string]entry{
-		"customKey1": {value: []byte("customValue1"), exp: time.Time{}},
-		"customKey2": {value: []byte("customValue2"), exp: time.Now().Add(1 * time.Hour)},
+	expectedConn := map[string]Entry{
+		"customKey1": {Value: []byte("customValue1"), Exp: time.Time{}},
+		"customKey2": {Value: []byte("customValue2"), Exp: time.Now().Add(1 * time.Hour)},
 	}
 
 	for k, v := range expectedConn {
-		if val, ok := conn[k]; !ok || !bytes.Equal(val.value, v.value) {
+		if val, ok := conn[k]; !ok || !bytes.Equal(val.Value, v.Value) {
 			t.Errorf("Conn() = %v, want %v", conn, expectedConn)
 		}
 	}
@@ -261,8 +261,8 @@ func TestStorageConnAndKeys(t *testing.T) {
 		t.Fatalf("Set() error = %v, wantErr %v", err, nil)
 	}
 	conn := store.Conn()
-	if val, ok := conn["key1"]; !ok || !bytes.Equal(val.value, []byte("value1")) {
-		t.Errorf("Conn() = %v, want %v", conn, map[string]entry{"key1": {value: []byte("value1"), exp: time.Time{}}})
+	if val, ok := conn["key1"]; !ok || !bytes.Equal(val.Value, []byte("value1")) {
+		t.Errorf("Conn() = %v, want %v", conn, map[string]Entry{"key1": {Value: []byte("value1"), Exp: time.Time{}}})
 	}
 
 	// Test Keys
