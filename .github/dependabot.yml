@@ -81,11 +81,11 @@ updates:
       schedule:
           interval: "daily"
     - package-ecosystem: "gomod"
-        directory: "/mockstorage/" # Location of package manifests
-        labels:
-            - "🤖 Dependencies"
-        schedule:
-            interval: "daily"
+      directory: "/mockstorage/" # Location of package manifests
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
     -   package-ecosystem: "gomod"
         directory: "/mongodb/" # Location of package manifests
         labels:
