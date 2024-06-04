@@ -14,7 +14,7 @@ A mock storage implementation for Fiber. This storage is not persistent and is o
 
 **Note: Requires Go 1.21 and above**
 
-### Table of Contents
+## Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -22,9 +22,9 @@ A mock storage implementation for Fiber. This storage is not persistent and is o
 - [Default Config](#default-config)
 
 
-### Signatures
+## Signatures
 
-#### Structs
+### Structs
 
 ```go
 type Storage struct {
@@ -51,7 +51,7 @@ type CustomFuncs struct {
 }
 ```
 
-#### Functions
+### Functions
 ```go
 // New creates a new Storage instance. You can optionally pass a Config.
 func New(config ...Config) *Storage
@@ -81,7 +81,7 @@ func (s *Storage) Keys() ([][]byte, error)
 func (s *Storage) SetCustomFuncs(custom *CustomFuncs)
 ```
 
-### Installation
+## Installation
 MockStorage is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
@@ -91,7 +91,7 @@ And then install the mockstorage implementation:
 go get github.com/gofiber/storage/mockstorage
 ```
 
-### Examples
+## Examples
 Import the storage package.
 ```go
 import "github.com/gofiber/storage/mockstorage"
@@ -148,14 +148,14 @@ func TestMyFunction(t *testing.T) {
 
 > **Note:** In the `mockstorage` package, expiration of data is not handled automatically in the background. The data is only marked as expired and removed when you attempt to `Get()` it after its expiration time. If you're using a custom `Get()` function or accessing the data directly using the `Conn()` function, expired data will not be removed. Keep this in mind when writing your tests.
 
-### Config
+## Config
 ```go
 type Config struct {
 	CustomFuncs *CustomFuncs
 }
 ```
 
-### Default Config
+## Default Config
 ```go
 var ConfigDefault = Config{
 	CustomFuncs: &CustomFuncs{
