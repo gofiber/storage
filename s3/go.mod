@@ -3,7 +3,7 @@ module github.com/gofiber/storage/s3/v2
 go 1.19
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.27.1
+	github.com/aws/aws-sdk-go-v2 v1.27.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.17
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.16.23
