@@ -106,8 +106,8 @@ const insertDataString = `
 
 const createTableString = `
   CREATE TABLE IF NOT EXISTS {table:Identifier} (
-  	  key String
-  	, value String
-  	, expiration Datetime
+  	  key String CODEC(ZSTD(1))
+  	, value String CODEC(ZSTD(1))
+  	, expiration Datetime CODEC(ZSTD(1))
   ) ENGINE=%s
 `
