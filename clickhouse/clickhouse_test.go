@@ -12,28 +12,34 @@ type TestOrBench interface {
 	Helper()
 }
 
-func getTestConnection(t TestOrBench) (*Storage, error) {
+func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 	t.Helper()
 
-	client, err := New(Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
-		Engine: "Memory",
-		Table:  "test_table",
-		Clean:  true,
-	})
+	client, err := New(cfg)
 
 	return client, err
 }
 
 func Test_Connection(t *testing.T) {
-	_, err := getTestConnection(t)
+	_, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 
 	require.NoError(t, err)
 }
 
 func Test_Set(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -42,7 +48,13 @@ func Test_Set(t *testing.T) {
 }
 
 func Test_SetWithExp(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -51,7 +63,13 @@ func Test_SetWithExp(t *testing.T) {
 }
 
 func Test_Get(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -66,7 +84,13 @@ func Test_Get(t *testing.T) {
 }
 
 func Test_GetWithExp(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -88,7 +112,13 @@ func Test_GetWithExp(t *testing.T) {
 }
 
 func Test_Delete(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -106,7 +136,13 @@ func Test_Delete(t *testing.T) {
 }
 
 func Test_Reset(t *testing.T) {
-	client, err := getTestConnection(t)
+	client, err := getTestConnection(t, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -127,7 +163,13 @@ func Benchmark_Clickhouse_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	client, err := getTestConnection(b)
+	client, err := getTestConnection(b, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(b, err)
 
 	defer client.Close()
@@ -143,7 +185,13 @@ func Benchmark_Clickhouse_Get(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	client, err := getTestConnection(b)
+	client, err := getTestConnection(b, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 	require.NoError(b, err)
 
 	defer client.Close()
@@ -161,7 +209,13 @@ func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	client, err := getTestConnection(b)
+	client, err := getTestConnection(b, Config{
+		Host:   "127.0.0.1",
+		Port:   9001,
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
 
 	require.NoError(b, err)
 	defer client.Close()

@@ -9,17 +9,19 @@ import (
 	driver "github.com/ClickHouse/clickhouse-go/v2"
 )
 
+type ClickhouseEngine string
+
 type schema struct {
 	Value      string    `ch:"value"`
 	Expiration time.Time `ch:"expiration"`
 }
 
 const (
-	Memory    = "Memory"
-	MergeTree = "MergeTree"
-	StripeLog = "StripeLog"
-	TinyLog   = "TinyLog"
-	Log       = "Log"
+	Memory    ClickhouseEngine = "Memory"
+	MergeTree ClickhouseEngine = "MergeTree"
+	StripeLog ClickhouseEngine = "StripeLog"
+	TinyLog   ClickhouseEngine = "TinyLog"
+	Log       ClickhouseEngine = "Log"
 )
 
 // Config defines configuration options for Clickhouse connection.
@@ -37,7 +39,7 @@ type Config struct {
 	// The name of the table that will store the data
 	Table string
 	// The engine that should be used in the table
-	Engine string
+	Engine ClickhouseEngine
 	// Should start a clean table, default false
 	Clean bool
 	// TLS configuration, default nil
@@ -48,7 +50,7 @@ type Config struct {
 	Debugf func(format string, v ...any)
 }
 
-func defaultConfig(configuration Config) (driver.Options, string, error) {
+func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, error) {
 	if configuration.Table == "" {
 		return driver.Options{}, "", errors.New("table name not provided")
 	}
