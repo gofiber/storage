@@ -20,7 +20,7 @@ func (s *Storage) Conn() *Session
 ```
 
 ### Installation
-Clickhouse is supported on Go versions 1.19 and above:
+Clickhouse is supported on the latest two versions of Go:
 
 Install the clickhouse implementation:
 ```bash
