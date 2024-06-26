@@ -78,28 +78,28 @@ store, err := clickhouse.New(coherence.Config{
 ```go
 // Config defines configuration options for Clickhouse connection.
 type Config struct {
-	// The host of the database. Ex: 127.0.0.1
-	Host string
-	// The port where the database is supposed to listen to. Ex: 9000
-	Port int
-	// The database that the connection should authenticate from
-	Database string
-	// The username to be used in the authentication
-	Username string
-	// The password to be used in the authentication
-	Password string
-	// The name of the table that will store the data
-	Table string
-	// The engine that should be used in the table
-	Engine string
-	// Should start a clean table, default false
-	Clean bool
-	// TLS configuration, default nil
-	TLSConfig *tls.Config
-	// Should the connection be in debug mode, default false
-	Debug bool
-	// The function to use with the debug config, default print function. It only works when debug is true
-	Debugf func(format string, v ...any)
+    // The host of the database. Ex: 127.0.0.1
+    Host string
+    // The port where the database is supposed to listen to. Ex: 9000
+    Port int
+    // The database that the connection should authenticate from
+    Database string
+    // The username to be used in the authentication
+    Username string
+    // The password to be used in the authentication
+    Password string
+    // The name of the table that will store the data
+    Table string
+    // The engine that should be used in the table
+    Engine string
+    // Should start a clean table, default false
+    Clean bool
+    // TLS configuration, default nil
+    TLSConfig *tls.Config
+    // Should the connection be in debug mode, default false
+    Debug bool
+    // The function to use with the debug config, default print function. It only works when debug is true
+    Debugf func(format string, v ...any)
 }
 ```
 
