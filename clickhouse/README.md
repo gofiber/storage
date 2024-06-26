@@ -1,7 +1,9 @@
 # Clickhouse
+
 A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](https://github.com/ClickHouse/clickhouse-go).
 
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -9,6 +11,7 @@ A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](
 - [Default Config](#default-config)
 
 ### Signatures
+
 ```go
 func New(config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
@@ -20,6 +23,7 @@ func (s *Storage) Conn() *Session
 ```
 
 ### Installation
+
 Clickhouse is supported on the latest two versions of Go:
 
 Install the clickhouse implementation:
@@ -104,6 +108,7 @@ type Config struct {
 ```
 
 ### Default Config
+
 ```go
 var DefaultConfig = Config{
     Host:      "localhost",
