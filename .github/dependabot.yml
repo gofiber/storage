@@ -16,10 +16,3 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
-    - package-ecosystem: "npm"
-      directories:
-          - "**/*"
-      labels:
-          - "🤖 Dependencies"
-      schedule:
-          interval: "daily"
