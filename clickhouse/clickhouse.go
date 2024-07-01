@@ -32,17 +32,16 @@ func New(configuration Config) (*Storage, error) {
 
 	queryWithEngine := fmt.Sprintf(createTableString, engine)
 	if err := conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table)); err != nil {
-		return &Storage{}, err
+		return nil, err
 	}
 
 	if configuration.Clean {
 		if err := conn.Exec(ctx, resetDataString, driver.Named("table", configuration.Table)); err != nil {
-			return &Storage{}, err
+			return nil, err
 		}
 	}
 
-	err = conn.Ping(ctx)
-	if err != nil {
+	if err := conn.Ping(ctx); err != nil {
 		return nil, err
 	}
 
