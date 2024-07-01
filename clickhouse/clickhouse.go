@@ -2,6 +2,8 @@ package clickhouse
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,17 +28,15 @@ func New(configuration Config) (*Storage, error) {
 		return nil, err
 	}
 
-	ctx := driver.Context(context.Background(), driver.WithParameters(driver.Parameters{
-		"table": configuration.Table,
-	}))
+	ctx := context.Background()
+
+	queryWithEngine := fmt.Sprintf(createTableString, engine)
+	if err := conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table)); err != nil {
+		return &Storage{}, err
+	}
 
 	if configuration.Clean {
-		queryWithEngine := fmt.Sprintf(createTableString, engine)
-		if err := conn.Exec(ctx, queryWithEngine); err != nil {
-			return &Storage{}, err
-		}
-
-		if err := conn.Exec(ctx, resetDataString); err != nil {
+		if err := conn.Exec(ctx, resetDataString, driver.Named("table", configuration.Table)); err != nil {
 			return &Storage{}, err
 		}
 	}
@@ -63,59 +63,63 @@ func (s *Storage) Set(key string, value []byte, expiration time.Duration) error 
 		exp = time.Now().Add(expiration).UTC()
 	}
 
-	ctx := driver.Context(s.context, driver.WithParameters(driver.Parameters{
-		"key":        key,
-		"value":      string(value),
-		"expiration": exp.Format("2006-01-02 15:04:05"),
-		"table":      s.table,
-	}))
-
-	err := s.
+	return s.
 		session.
 		Exec(
-			ctx,
+			s.context,
 			insertDataString,
+			driver.Named("table", s.table),
+			driver.Named("key", key),
+			driver.Named("value", string(value)),
+			driver.Named("expiration", exp.Format("2006-01-02 15:04:05")),
 		)
-
-	return err
 }
 
 func (s *Storage) Get(key string) ([]byte, error) {
-	var resultSlice []schema
+	if len(key) == 0 {
+		return []byte{}, nil
+	}
 
-	ctx := driver.Context(s.context, driver.WithParameters(driver.Parameters{
-		"key":   key,
-		"table": s.table,
-	}))
-	err := s.session.Select(ctx, &resultSlice, selectDataString)
-	if err != nil {
+	var result schema
+
+	row := s.session.QueryRow(
+		s.context,
+		selectDataString,
+		driver.Named("table", s.table),
+		driver.Named("key", key),
+	)
+	if row.Err() != nil {
+		return []byte{}, row.Err()
+	}
+
+	if err := row.ScanStruct(&result); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []byte{}, nil
+		}
+
 		return []byte{}, err
 	}
 
-	if len(resultSlice) == 0 {
+	// The result.Expiration.IsZero() was returning a false value even when the time was
+	// set to be the zero value of the time.Time struct (Jan 1st 1970, 00:00:00 UTC)
+	// so we had to change the comparision
+	if !time.Unix(0, 0).Equal(result.Expiration) && result.Expiration.Before(time.Now().UTC()) {
 		return []byte{}, nil
 	}
 
-	result := resultSlice[0]
-
-	if !result.Expiration.IsZero() && result.Expiration.Before(time.Now().UTC()) {
-		return []byte{}, nil
-	}
-
-	return []byte(result.Value), err
+	return []byte(result.Value), nil
 }
 
 func (s *Storage) Delete(key string) error {
-	ctx := driver.Context(s.context, driver.WithParameters(driver.Parameters{
-		"table": s.table,
-		"key":   key,
-	}))
+	if len(key) == 0 {
+		return nil
+	}
 
-	return s.session.Exec(ctx, deleteDataString)
+	return s.session.Exec(s.context, deleteDataString, driver.Named("table", s.table), driver.Named("key", key))
 }
 
 func (s *Storage) Reset() error {
-	return s.session.Exec(s.context, resetDataString)
+	return s.session.Exec(s.context, resetDataString, driver.Named("table", s.table))
 }
 
 func (s *Storage) Close() error {

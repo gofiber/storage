@@ -47,7 +47,7 @@ func Test_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_SetWithExp(t *testing.T) {
+func Test_Set_With_Exp(t *testing.T) {
 	client, err := getTestConnection(t, Config{
 		Host:   "127.0.0.1",
 		Port:   9001,
@@ -83,7 +83,7 @@ func Test_Get(t *testing.T) {
 	assert.Equal(t, "somevalue", string(value))
 }
 
-func Test_GetWithExp(t *testing.T) {
+func Test_Get_With_Exp(t *testing.T) {
 	client, err := getTestConnection(t, Config{
 		Host:   "127.0.0.1",
 		Port:   9001,
@@ -94,7 +94,7 @@ func Test_GetWithExp(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("getsomekeywithexp", []byte("somevalue"), time.Second*5)
+	err = client.Set("getsomekeywithexp", []byte("somevalue"), time.Second*2)
 	require.NoError(t, err)
 
 	value, err := client.Get("getsomekeywithexp")
@@ -103,7 +103,7 @@ func Test_GetWithExp(t *testing.T) {
 	assert.NotNil(t, value)
 	assert.Equal(t, "somevalue", string(value))
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 
 	value, err = client.Get("getsomekeywithexp")
 

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
@@ -64,7 +65,7 @@ func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, erro
 	}
 
 	if configuration.Engine == "" {
-		configuration.Engine = "Memory"
+		configuration.Engine = Memory
 	}
 
 	config := driver.Options{
@@ -84,7 +85,7 @@ func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, erro
 	}
 
 	if configuration.Debug && config.Debugf == nil {
-		config.Debugf = func(format string, v ...any) { fmt.Printf(format, v...) }
+		config.Debugf = log.Printf
 	}
 
 	return config, configuration.Engine, nil
