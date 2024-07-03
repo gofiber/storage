@@ -29,4 +29,4 @@ jobs:
         with:
           go-version: '${{ matrix.go-version }}'
       - name: Run Test
-        run: cd ./clickhouse && go clean -testcache && go test ./... -v
+        run: cd ./clickhouse && go clean -testcache && go test ./... -v -race
