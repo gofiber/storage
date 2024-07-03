@@ -134,6 +134,11 @@ jobs:
           docker run --name scylladb -p 9042:9042 -p 19042:19042 -p 9160:9160 -p 7000:7000 -p 7001:7001 -p 7199:7199 -p 9180:9180 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
           sleep 15 # Wait for ScyllaDb to initialize
 
+      - name: Startup Clickhouse
+        run: |
+            docker run -d -p 9001:9000 --name clickhouse --ulimit nofile=262144:262144 clickhouse/clickhouse-server
+            sleep 10 # Wait for Clickhouse to initialize
+
       - name: Setup Redis
         uses: shogo82148/actions-setup-redis@v1
         with:
