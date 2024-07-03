@@ -101,7 +101,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	// The result.Expiration.IsZero() was returning a false value even when the time was
 	// set to be the zero value of the time.Time struct (Jan 1st 1970, 00:00:00 UTC)
-	// so we had to change the comparision
+	// so we had to change the comparison
 	if !time.Unix(0, 0).Equal(result.Expiration) && result.Expiration.Before(time.Now().UTC()) {
 		return []byte{}, nil
 	}
