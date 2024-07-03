@@ -44,13 +44,11 @@ docker run -d -p 9000:9000 --name some-clickhouse-server --ulimit nofile=262144:
 After running this command you're ready to start using the storage and connecting to the database.
 
 ### Examples
-Import the storage package.
-```go
-import "github.com/gofiber/storage/coherence"
-```
 
-You can use the following possibilities to create a storage:
+You can use the following options to create a clickhouse storage driver:
 ```go
+import "github.com/gofiber/storage/clickhouse"
+
 // Initialize default config, to connect to localhost:9000 using the memory engine and with a clean table.
 store, err := clickhouse.New(clickhouse.Config{
     Host: "localhost",
@@ -69,7 +67,7 @@ store, err := clickhouse.New(clickhouse.Config{
 // Initialize to connect with TLS enabled with your own tls.Config and with clean table.
 tlsConfig := config := &tls.Config{...}
 
-store, err := clickhouse.New(coherence.Config{
+store, err := clickhouse.New(clickhouse.Config{
     Host: "some-ip-address",
     Port: 9000,
     Clean: true,
