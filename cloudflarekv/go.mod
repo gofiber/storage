@@ -3,7 +3,7 @@ module github.com/gofiber/storage/cloudflarekv
 go 1.21
 
 require (
-	github.com/cloudflare/cloudflare-go v0.98.0
+	github.com/cloudflare/cloudflare-go v0.99.0
 	github.com/stretchr/testify v1.9.0
 )
 
