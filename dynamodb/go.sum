@@ -1,7 +1,7 @@
 github.com/aws/aws-sdk-go-v2 v1.30.1 h1:4y/5Dvfrhd1MxRDD77SrfsDaj8kUkkljU7XE83NPV+o=
 github.com/aws/aws-sdk-go-v2 v1.30.1/go.mod h1:nIQjQVp5sfpQcTc9mPSr1B0PaWK5ByX9MOoDadSN4lc=
-github.com/aws/aws-sdk-go-v2/config v1.27.23 h1:Cr/gJEa9NAS7CDAjbnB7tHYb3aLZI2gVggfmSAasDac=
-github.com/aws/aws-sdk-go-v2/config v1.27.23/go.mod h1:WMMYHqLCFu5LH05mFOF5tsq1PGEMfKbu083VKqLCd0o=
+github.com/aws/aws-sdk-go-v2/config v1.27.24 h1:NM9XicZ5o1CBU/MZaHwFtimRpWx9ohAUAqkG6AqSqPo=
+github.com/aws/aws-sdk-go-v2/config v1.27.24/go.mod h1:aXzi6QJTuQRVVusAO8/NxpdTeTyr/wRcybdDtfUwJSs=
 github.com/aws/aws-sdk-go-v2/credentials v1.17.24 h1:YclAsrnb1/GTQNt2nzv+756Iw4mF8AOzcDfweWwwm/M=
 github.com/aws/aws-sdk-go-v2/credentials v1.17.24/go.mod h1:Hld7tmnAkoBQdTMNYZGzztzKRdA4fCdn9L83LOoigac=
 github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.14.7 h1:pPhmvNKbgb9l5VHcPmMx9g+FHtRbY+ba2J6GefXQGEI=
