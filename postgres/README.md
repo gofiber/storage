@@ -11,7 +11,7 @@ title: Postgres
 
 A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 
-**Note: Requires Go 1.19 and above**
+**Note: Requires Go 1.20 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
