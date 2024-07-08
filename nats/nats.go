@@ -34,58 +34,27 @@ func init() {
 	gob.Register(entry{})
 }
 
-// logErrorw is a helper function to log error messages
-func (s *Storage) logErrorw(msg string, keysAndValues ...interface{}) {
-	if s.cfg.Verbose {
-		s.cfg.Logger.Errorw(msg, keysAndValues...)
-	}
-}
-
-// logInfow is a helper function to log error messages
-func (s *Storage) logInfow(msg string, keysAndValues ...interface{}) {
-	if s.cfg.Verbose {
-		s.cfg.Logger.Infow(msg, keysAndValues...)
-	}
-}
-
 // connectHandler is a helper function to set the initial connect handler
 func (s *Storage) connectHandler(nc *nats.Conn) {
-	s.logInfow("connected",
-		"diver", "nats",
-		"url", nc.ConnectedUrlRedacted(),
-	)
-
-	var err error
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	var err error
 	s.kv, err = newNatsKV(
 		nc,
 		s.ctx,
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
-		s.logErrorw("kv not initialized",
-			"diver", "nats",
-			"error", err.Error(),
-		)
 		s.err = errors.Join(s.err, err)
 	}
 }
 
 // disconnectErrHandler is a helper function to set the disconnect error handler
 func (s *Storage) disconnectErrHandler(nc *nats.Conn, err error) {
-	if err != nil {
-		s.logErrorw("disconnected",
-			"diver", "nats",
-			"error", err.Error(),
-		)
-	} else {
-		s.logInfow("disconnected",
-			"diver", "nats",
-		)
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	nc.Opts.RetryOnFailedConnect = true
 	if err != nil {
 		s.err = errors.Join(s.err, err)
@@ -99,23 +68,12 @@ func (s *Storage) reconnectHandler(nc *nats.Conn) {
 
 // errorHandler is a helper function to set the error handler
 func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error) {
-	s.logErrorw("error handler",
-		"diver", "nats",
-		"sub", sub.Subject,
-		"error", err.Error(),
-	)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if err != nil {
 		s.err = errors.Join(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
 	}
-}
-
-// closedHandler is a helper function to set the closed handler
-func (s *Storage) closedHandler(nc *nats.Conn) {
-	s.logInfow("closed",
-		"diver", "nats",
-	)
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
@@ -123,6 +81,7 @@ func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyV
 	if err != nil {
 		return nil, fmt.Errorf("get jetstream: %w", err)
 	}
+
 	jskv, err := js.KeyValue(ctx, keyValueConfig.Bucket)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrBucketNotFound) {
@@ -170,7 +129,6 @@ func New(config ...Config) *Storage {
 			nats.DisconnectErrHandler(storage.disconnectErrHandler),
 			nats.ReconnectHandler(storage.reconnectHandler),
 			nats.ErrorHandler(storage.errorHandler),
-			nats.ClosedHandler(storage.closedHandler),
 		},
 		cfg.NatsOptions...,
 	)

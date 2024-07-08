@@ -12,7 +12,7 @@ title: Nats
 
 A NATS Key/Value storage driver.
 
-**Note: Requires Go 1.20 and above**
+## Note: Requires Go 1.20 and above
 
 ### Table of Contents
 
@@ -57,7 +57,7 @@ Import the storage package.
 import "github.com/gofiber/storage/nats"
 ```
 
-You can use the following possibilities to create a storage:
+You can use the following options to create a storage driver:
 
 ```go
 // Initialize default config
@@ -65,16 +65,16 @@ store := nats.New()
 
 // Initialize custom config
 store := nats.New(Config{
- URLs: "nats://127.0.0.1:4443",
- NatsOptions: []nats.Option{
-  nats.MaxReconnects(2),
-  // Enable TLS by specifying RootCAs
-  nats.RootCAs("./testdata/certs/ca.pem"),
- },
- KeyValueConfig: jetstream.KeyValueConfig{
-  Bucket:  "test",
-  Storage: jetstream.MemoryStorage,
- },
+    URLs: "nats://127.0.0.1:4443",
+    NatsOptions: []nats.Option{
+        nats.MaxReconnects(2),
+        // Enable TLS by specifying RootCAs
+        nats.RootCAs("./testdata/certs/ca.pem"),
+    },
+    KeyValueConfig: jetstream.KeyValueConfig{
+        Bucket:  "test",
+        Storage: jetstream.MemoryStorage,
+    },
 })
 ```
 
@@ -82,22 +82,18 @@ store := nats.New(Config{
 
 ```go
 type Config struct {
- // Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
- URLs string
- // Nats connection options. See nats_test.go for an example of how to use this.
- NatsOptions []nats.Option
- // Nats connection name
- ClientName string
- // Nats context
- Context context.Context
- // Nats key value config
- KeyValueConfig jetstream.KeyValueConfig
- // Logger. Using Fiber AllLogger interface for adapting the various log libraries.
- Logger log.AllLogger
- // Use the Logger for nats events, default: false
- Verbose bool
- // Wait for connection to be established, default: 100ms
- WaitForConnection time.Duration
+    // Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
+    URLs string
+    // Nats connection options. See nats_test.go for an example of how to use this.
+    NatsOptions []nats.Option
+    // Nats connection name
+    ClientName string
+    // Nats context
+    Context context.Context
+    // Nats key value config
+    KeyValueConfig jetstream.KeyValueConfig
+    // Wait for connection to be established, default: 100ms
+    WaitForConnection time.Duration
 }
 ```
 
@@ -105,12 +101,12 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
- URLs:       nats.DefaultURL,
- Context:    context.Background(),
- ClientName: "fiber_storage",
- KeyValueConfig: jetstream.KeyValueConfig{
-  Bucket: "fiber_storage",
- },
- WaitForConnection: 100 * time.Millisecond,
+    URLs:       nats.DefaultURL,
+    Context:    context.Background(),
+    ClientName: "fiber_storage",
+    KeyValueConfig: jetstream.KeyValueConfig{
+    Bucket: "fiber_storage",
+    },
+    WaitForConnection: 100 * time.Millisecond,
 }
 ```

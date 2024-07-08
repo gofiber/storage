@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -21,11 +20,7 @@ type Config struct {
 	Context context.Context
 	// Nats key value config
 	KeyValueConfig jetstream.KeyValueConfig
-	// Logger. Using Fiber AllLogger interface for adapting the various log libraries.
-	Logger log.AllLogger
-	// Use the Logger for nats events, default: false
-	Verbose bool
-	// Wait for connection to be established, default: 100ms
+	// Wait for connection to be established, default: 250ms
 	WaitForConnection time.Duration
 }
 
@@ -37,7 +32,7 @@ var ConfigDefault = Config{
 	KeyValueConfig: jetstream.KeyValueConfig{
 		Bucket: "fiber_storage",
 	},
-	WaitForConnection: 100 * time.Millisecond,
+	WaitForConnection: 250 * time.Millisecond,
 }
 
 // Helper function to set default values
@@ -54,22 +49,19 @@ func configDefault(config ...Config) Config {
 	if cfg.URLs == "" {
 		cfg.URLs = ConfigDefault.URLs
 	}
+
 	if cfg.Context == nil {
 		cfg.Context = ConfigDefault.Context
 	}
+
 	if len(cfg.KeyValueConfig.Bucket) == 0 {
 		cfg.KeyValueConfig.Bucket = ConfigDefault.KeyValueConfig.Bucket
 	}
-	if cfg.Verbose {
-		if cfg.Logger == nil {
-			cfg.Logger = log.DefaultLogger()
-		}
-	} else {
-		cfg.Logger = nil
-	}
+
 	if cfg.ClientName == "" {
 		cfg.ClientName = ConfigDefault.ClientName
 	}
+
 	if cfg.WaitForConnection == 0 {
 		cfg.WaitForConnection = ConfigDefault.WaitForConnection
 	}
