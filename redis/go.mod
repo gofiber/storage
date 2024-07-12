@@ -3,7 +3,7 @@ module github.com/gofiber/storage/redis/v3
 go 1.19
 
 require (
-	github.com/redis/go-redis/v9 v9.5.3
+	github.com/redis/go-redis/v9 v9.5.4
 	github.com/stretchr/testify v1.9.0
 )
 
