@@ -33,7 +33,7 @@ go get github.com/gofiber/storage/clickhouse
 
 ### Running the tests
 
-This module uses Testcontainers for Go to run integration tests, which will start a local instance of Clickhouse as a Docker container under the hood. To run the tests, you must have Docker installed on your machine.
+This module uses [Testcontainers for Go](https://github.com/testcontainers/testcontainers-go/) to run integration tests, which will start a local instance of Clickhouse as a Docker container under the hood. To run the tests, you must have Docker (or another container runtime 100% compatible with the Docker APIs) installed on your machine.
 
 ### Local development
 
