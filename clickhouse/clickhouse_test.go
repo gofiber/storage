@@ -37,14 +37,20 @@ func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),
 	)
-	require.NoError(tt, err)
+	if err != nil {
+		return nil, err
+	}
 
 	hostPort, err := c.ConnectionHost(ctx)
-	require.NoError(tt, err)
+	if err != nil {
+		return nil, err
+	}
 
 	pair := strings.Split(hostPort, ":")
 	port, err := strconv.Atoi(pair[1])
-	require.NoError(tt, err)
+	if err != nil {
+		return nil, err
+	}
 
 	// configure the client for the testcontainers clickhouse instance
 	cfg.Host = pair[0]
