@@ -20,10 +20,6 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
-      - name: Startup Clickhouse
-        run: |
-          docker run -d -p 9001:9000 --name clickhouse --ulimit nofile=262144:262144 clickhouse/clickhouse-server
-          sleep 30
       - name: Install Go
         uses: actions/setup-go@v5
         with:
