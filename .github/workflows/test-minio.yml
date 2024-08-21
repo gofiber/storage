@@ -19,10 +19,6 @@ jobs:
                     - 1.20.x
                     - 1.21.x
         steps:
-            -   name: Install MinIO
-                run: |
-                    docker run -d --restart always -p 9000:9000 --name storage-minio -e MINIO_ROOT_USER='minio-user' -e MINIO_ROOT_PASSWORD='minio-password' minio/minio server /data
-
             -   name: Fetch Repository
                 uses: actions/checkout@v4
             -   name: Install Go
@@ -30,4 +26,6 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
+                env:
+                    TEST_MINIO_IMAGE: docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z
                 run: cd ./minio && go test ./... -v -race

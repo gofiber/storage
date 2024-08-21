@@ -1,33 +1,59 @@
 package minio
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
-var testStore *Storage
+const (
+	// minioImage is the default image used for running minio in tests.
+	minioImage              = "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
+	minioImageEnvVar string = "TEST_MINIO_IMAGE"
+	minioUser        string = "minio-user"
+	minioPass        string = "minio-password"
+)
 
-func TestMain(m *testing.M) {
-	testStore = New(
+func newTestStore(t testing.TB) (*Storage, error) {
+	t.Helper()
+
+	img := minioImage
+	if imgFromEnv := os.Getenv(minioImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	ctx := context.Background()
+
+	c, err := minio.Run(ctx,
+		img,
+		minio.WithUsername(minioUser),
+		minio.WithPassword(minioPass),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := c.ConnectionString(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(
 		Config{
 			Bucket:   "fiber-bucket",
-			Endpoint: "localhost:9000",
+			Endpoint: conn,
 			Credentials: Credentials{
-				AccessKeyID:     "minio-user",
-				SecretAccessKey: "minio-password",
+				AccessKeyID:     c.Username,
+				SecretAccessKey: c.Password,
 			},
 			Reset: true,
 		},
-	)
-
-	code := m.Run()
-
-	_ = testStore.Close()
-	os.Exit(code)
+	), nil
 }
 
 func Test_Get(t *testing.T) {
@@ -36,7 +62,10 @@ func Test_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -53,10 +82,12 @@ func Test_Get_Empty_Key(t *testing.T) {
 		key = ""
 	)
 
-	_, err := testStore.Get(key)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	_, err = testStore.Get(key)
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
-
 }
 
 func Test_Get_Not_Exists_Key(t *testing.T) {
@@ -64,16 +95,21 @@ func Test_Get_Not_Exists_Key(t *testing.T) {
 		key = "not-exists"
 	)
 
-	_, err := testStore.Get(key)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	_, err = testStore.Get(key)
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified key does not exist.")
-
 }
 
 func Test_Get_Not_Exists_Bucket(t *testing.T) {
 	var (
 		key = "john"
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
@@ -82,9 +118,6 @@ func Test_Get_Not_Exists_Bucket(t *testing.T) {
 	require.Error(t, err)
 	require.Zero(t, len(result))
 	require.EqualError(t, err, "The specified bucket does not exist")
-
-	testStore.cfg.Bucket = "fiber-bucket"
-
 }
 
 func Test_Set(t *testing.T) {
@@ -93,7 +126,10 @@ func Test_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
 
@@ -103,7 +139,10 @@ func Test_Set_Empty_Key(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	err = testStore.Set(key, val, 0)
 
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
@@ -116,14 +155,15 @@ func Test_Set_Not_Exists_Bucket(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	err := testStore.Set(key, val, 0)
+	err = testStore.Set(key, val, 0)
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified bucket does not exist")
-
-	testStore.cfg.Bucket = "fiber-bucket"
 }
 
 func Test_Delete(t *testing.T) {
@@ -132,12 +172,14 @@ func Test_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
 	require.NoError(t, err)
-
 }
 
 func Test_Delete_Empty_Key(t *testing.T) {
@@ -146,11 +188,12 @@ func Test_Delete_Empty_Key(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 
+	err = testStore.Set(key, val, 0)
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
-
 }
 
 func Test_Delete_Not_Exists_Bucket(t *testing.T) {
@@ -158,16 +201,16 @@ func Test_Delete_Not_Exists_Bucket(t *testing.T) {
 		key = "john"
 	)
 
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	err := testStore.Delete(key)
+	err = testStore.Delete(key)
 
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified bucket does not exist")
-
-	testStore.cfg.Bucket = "fiber-bucket"
-
 }
 
 func Test_Reset(t *testing.T) {
@@ -175,7 +218,10 @@ func Test_Reset(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set("john1", val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -187,10 +233,12 @@ func Test_Reset(t *testing.T) {
 	result, err := testStore.Get("john1")
 	require.Error(t, err)
 	require.Zero(t, len(result))
-
 }
 
 func Test_Close(t *testing.T) {
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
 	require.NoError(t, testStore.Close())
 }
 
@@ -198,7 +246,9 @@ func Benchmark_Minio_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var err error
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
+
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -207,7 +257,10 @@ func Benchmark_Minio_Set(b *testing.B) {
 }
 
 func Benchmark_Minio_Get(b *testing.B) {
-	err := testStore.Set("john", []byte("doe"), 0)
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
+
+	err = testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -221,10 +274,12 @@ func Benchmark_Minio_Get(b *testing.B) {
 }
 
 func Benchmark_Minio_SetAndDelete(b *testing.B) {
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
