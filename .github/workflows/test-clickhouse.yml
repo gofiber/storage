@@ -20,13 +20,11 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
-      - name: Startup Clickhouse
-        run: |
-          docker run -d -p 9001:9000 --name clickhouse --ulimit nofile=262144:262144 clickhouse/clickhouse-server
-          sleep 30
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: '${{ matrix.go-version }}'
       - name: Run Test
+        env:
+          TEST_CLICKHOUSE_IMAGE: clickhouse/clickhouse-server:23-alpine
         run: cd ./clickhouse && go clean -testcache && go test ./... -v -race

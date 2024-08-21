@@ -31,7 +31,13 @@ Install the clickhouse implementation:
 go get github.com/gofiber/storage/clickhouse
 ```
 
-Before running or testing this implementation, you must ensure a Clickhouse cluster is available.
+### Running the tests
+
+This module uses [Testcontainers for Go](https://github.com/testcontainers/testcontainers-go/) to run integration tests, which will start a local instance of Clickhouse as a Docker container under the hood. To run the tests, you must have Docker (or another container runtime 100% compatible with the Docker APIs) installed on your machine.
+
+### Local development
+
+Before running this implementation, you must ensure a Clickhouse cluster is available.
 For local development, we recommend using the Clickhouse Docker image; it contains everything
 necessary for the client to operate correctly.
 

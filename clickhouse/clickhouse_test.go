@@ -1,11 +1,26 @@
 package clickhouse
 
 import (
+	"context"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
+)
+
+const (
+	// clickhouseImage is the default image used for running clickhouse in tests.
+	clickhouseImage              = "clickhouse/clickhouse-server:23-alpine"
+	clickhouseImageEnvVar string = "TEST_CLICKHOUSE_IMAGE"
+	clickhouseUser        string = "default"
+	clickhousePass        string = "password"
+	clickhouseDB          string = "fiber"
 )
 
 type TestOrBench interface {
@@ -15,6 +30,41 @@ type TestOrBench interface {
 func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 	t.Helper()
 
+	img := clickhouseImage
+	if imgFromEnv := os.Getenv("TEST_CLICKHOUSE_IMAGE"); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	ctx := context.Background()
+
+	c, err := clickhouse.Run(ctx,
+		img,
+		clickhouse.WithUsername(clickhouseUser),
+		clickhouse.WithPassword(clickhousePass),
+		clickhouse.WithDatabase(clickhouseDB),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	hostPort, err := c.ConnectionHost(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pair := strings.Split(hostPort, ":")
+	port, err := strconv.Atoi(pair[1])
+	if err != nil {
+		return nil, err
+	}
+
+	// configure the client for the testcontainers clickhouse instance
+	cfg.Host = pair[0]
+	cfg.Port = port
+	cfg.Username = clickhouseUser
+	cfg.Password = clickhousePass
+	cfg.Database = clickhouseDB
+
 	client, err := New(cfg)
 
 	return client, err
@@ -22,8 +72,6 @@ func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 
 func Test_Connection(t *testing.T) {
 	_, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -34,8 +82,6 @@ func Test_Connection(t *testing.T) {
 
 func Test_Set(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -49,8 +95,6 @@ func Test_Set(t *testing.T) {
 
 func Test_Set_With_Exp(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -64,8 +108,6 @@ func Test_Set_With_Exp(t *testing.T) {
 
 func Test_Get(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -85,8 +127,6 @@ func Test_Get(t *testing.T) {
 
 func Test_Get_With_Exp(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -113,8 +153,6 @@ func Test_Get_With_Exp(t *testing.T) {
 
 func Test_Delete(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -137,8 +175,6 @@ func Test_Delete(t *testing.T) {
 
 func Test_Reset(t *testing.T) {
 	client, err := getTestConnection(t, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -164,8 +200,6 @@ func Benchmark_Clickhouse_Set(b *testing.B) {
 	b.ResetTimer()
 
 	client, err := getTestConnection(b, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -186,8 +220,6 @@ func Benchmark_Clickhouse_Get(b *testing.B) {
 	b.ResetTimer()
 
 	client, err := getTestConnection(b, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
@@ -210,8 +242,6 @@ func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
 	b.ResetTimer()
 
 	client, err := getTestConnection(b, Config{
-		Host:   "127.0.0.1",
-		Port:   9001,
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
