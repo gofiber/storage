@@ -23,11 +23,7 @@ const (
 	clickhouseDB          string = "fiber"
 )
 
-type TestOrBench interface {
-	Helper()
-}
-
-func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
+func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 	t.Helper()
 
 	img := clickhouseImage
