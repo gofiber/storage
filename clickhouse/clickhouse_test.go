@@ -31,7 +31,7 @@ func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 	t.Helper()
 
 	img := clickhouseImage
-	if imgFromEnv := os.Getenv("TEST_CLICKHOUSE_IMAGE"); imgFromEnv != "" {
+	if imgFromEnv := os.Getenv(clickhouseImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
 
