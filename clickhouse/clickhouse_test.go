@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,10 +15,12 @@ import (
 )
 
 const (
-	clickhouseImage        = "clickhouse/clickhouse-server:23.3.8.21-alpine"
-	clickhouseUser  string = "default"
-	clickhousePass  string = "password"
-	clickhouseDB    string = "fiber"
+	// clickhouseImage is the default image used for running clickhouse in tests.
+	clickhouseImage              = "clickhouse/clickhouse-server:23-alpine"
+	clickhouseImageEnvVar string = "TEST_CLICKHOUSE_IMAGE"
+	clickhouseUser        string = "default"
+	clickhousePass        string = "password"
+	clickhouseDB          string = "fiber"
 )
 
 type TestOrBench interface {
@@ -27,12 +30,15 @@ type TestOrBench interface {
 func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
 	t.Helper()
 
-	tt := t.(*testing.T)
+	img := clickhouseImage
+	if imgFromEnv := os.Getenv("TEST_CLICKHOUSE_IMAGE"); imgFromEnv != "" {
+		img = imgFromEnv
+	}
 
 	ctx := context.Background()
 
 	c, err := clickhouse.Run(ctx,
-		clickhouseImage,
+		img,
 		clickhouse.WithUsername(clickhouseUser),
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),

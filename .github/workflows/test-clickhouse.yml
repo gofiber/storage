@@ -25,4 +25,6 @@ jobs:
         with:
           go-version: '${{ matrix.go-version }}'
       - name: Run Test
+        env:
+          TEST_CLICKHOUSE_IMAGE: clickhouse/clickhouse-server:23-alpine
         run: cd ./clickhouse && go clean -testcache && go test ./... -v -race
