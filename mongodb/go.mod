@@ -2,8 +2,6 @@ module github.com/gofiber/storage/mongodb/v2
 
 go 1.21
 
-toolchain go1.22.1
-
 require (
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go/modules/mongodb v0.33.0
