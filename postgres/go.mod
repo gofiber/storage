@@ -2,8 +2,6 @@ module github.com/gofiber/storage/postgres/v3
 
 go 1.21
 
-toolchain go1.22.4
-
 require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/stretchr/testify v1.9.0
