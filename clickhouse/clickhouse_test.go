@@ -23,15 +23,11 @@ const (
 	clickhouseDB          string = "fiber"
 )
 
-type TestOrBench interface {
-	Helper()
-}
-
-func getTestConnection(t TestOrBench, cfg Config) (*Storage, error) {
+func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 	t.Helper()
 
 	img := clickhouseImage
-	if imgFromEnv := os.Getenv("TEST_CLICKHOUSE_IMAGE"); imgFromEnv != "" {
+	if imgFromEnv := os.Getenv(clickhouseImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
 
