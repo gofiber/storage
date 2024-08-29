@@ -27,6 +27,6 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
                 env:
-                    TEST_MONGODB_IMAGE: docker.io/mongodb:7
+                    TEST_MONGODB_IMAGE: docker.io/mongo:7
                 run: cd ./mongodb && go test ./... -v -race
 
