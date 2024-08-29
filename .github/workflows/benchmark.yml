@@ -34,18 +34,6 @@ jobs:
         image: 'memcached:latest'
         ports:
           - '11211:11211'
-      mysql:
-        image: 'mysql:latest'
-        env:
-          MYSQL_DATABASE: fiber
-          MYSQL_USER: username
-          MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: password
-        ports:
-          - '3306:3306'
-        options: >-
-          --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout
-          5s --health-retries 5
       postgres:
         image: 'postgres:latest'
         ports:
@@ -132,9 +120,6 @@ jobs:
           done
         shell: bash
         env:
-          MYSQL_USERNAME: username
-          MYSQL_PASSWORD: password
-          MYSQL_DATABASE: fiber
           POSTGRES_DATABASE: fiber
           POSTGRES_USERNAME: username
           POSTGRES_PASSWORD: "pass#w%rd"
@@ -143,6 +128,7 @@ jobs:
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-RTM-GDR1-ubuntu-20.04"
+          TEST_MYSQL_IMAGE: "docker.io/mysql:9"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
