@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/mssql/v2
 
-go 1.21
+go 1.20
 
 require (
 	github.com/microsoft/go-mssqldb v1.7.2

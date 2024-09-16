@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/mongodb/v2
 
-go 1.21
+go 1.20
 
 require (
 	github.com/stretchr/testify v1.9.0
