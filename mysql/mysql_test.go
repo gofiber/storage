@@ -52,6 +52,11 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 		mysql.WithDatabase(mysqlDatabase),
 	)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if c != nil {
+			require.NoError(t, c.Terminate(ctx))
+		}
+	})
 
 	return c
 }

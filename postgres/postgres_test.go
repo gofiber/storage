@@ -43,6 +43,11 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		),
 	)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if c != nil {
+			require.NoError(t, c.Terminate(ctx))
+		}
+	})
 
 	conn, err := c.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {

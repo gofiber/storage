@@ -42,6 +42,11 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.Cleanup(func() {
+		if c != nil {
+			require.NoError(t, c.Terminate(ctx))
+		}
+	})
 
 	hostPort, err := c.ConnectionHost(ctx)
 	if err != nil {

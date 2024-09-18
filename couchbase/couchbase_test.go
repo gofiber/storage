@@ -39,6 +39,11 @@ func newTestStore(t testing.TB) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.Cleanup(func() {
+		if c != nil {
+			require.NoError(t, c.Terminate(ctx))
+		}
+	})
 
 	conn, err := c.ConnectionString(ctx)
 	if err != nil {
