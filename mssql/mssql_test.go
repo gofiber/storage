@@ -58,6 +58,7 @@ func Test_MSSQL_Set(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -71,6 +72,7 @@ func Test_MSSQL_Set_Override(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -87,6 +89,7 @@ func Test_MSSQL_Get(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -105,6 +108,7 @@ func Test_MSSQL_Set_Expiration(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, exp)
 	require.NoError(t, err)
@@ -117,6 +121,7 @@ func Test_MSSQL_Get_Expired(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
@@ -126,6 +131,7 @@ func Test_MSSQL_Get_Expired(t *testing.T) {
 func Test_MSSQL_Get_NotExist(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
@@ -140,6 +146,7 @@ func Test_MSSQL_Delete(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -157,6 +164,7 @@ func Test_MSSQL_Reset(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -181,6 +189,7 @@ func Test_MSSQL_GC(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	// This key should expire
 	err = testStore.Set("john", testVal, time.Nanosecond)
@@ -206,6 +215,7 @@ func Test_MSSQL_Non_UTF8(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("0xF6", val, 0)
 	require.NoError(t, err)
@@ -233,6 +243,7 @@ func Test_SslRequiredMode(t *testing.T) {
 func Test_MSSQL_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.Nil(t, testStore.Close())
 }
@@ -240,6 +251,7 @@ func Test_MSSQL_Close(t *testing.T) {
 func Test_MSSQL_Conn(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
@@ -247,6 +259,7 @@ func Test_MSSQL_Conn(t *testing.T) {
 func Benchmark_MSSQL_Set(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -261,6 +274,7 @@ func Benchmark_MSSQL_Set(b *testing.B) {
 func Benchmark_MSSQL_Get(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -278,6 +292,7 @@ func Benchmark_MSSQL_Get(b *testing.B) {
 func Benchmark_MSSQL_SetAndDelete(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()

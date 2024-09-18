@@ -59,6 +59,7 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 func Test_MYSQL_New(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.True(t, testStore.db != nil)
 	require.NoError(t, testStore.Close())
@@ -86,6 +87,7 @@ func Test_MYSQL_Set(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -99,6 +101,7 @@ func Test_MYSQL_Set_Override(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -115,6 +118,7 @@ func Test_MYSQL_Get(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -133,6 +137,7 @@ func Test_MYSQL_Set_Expiration(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, exp)
 	require.NoError(t, err)
@@ -145,6 +150,7 @@ func Test_MYSQL_Get_Expired(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
@@ -154,6 +160,7 @@ func Test_MYSQL_Get_Expired(t *testing.T) {
 func Test_MYSQL_Get_NotExist(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
@@ -168,6 +175,7 @@ func Test_MYSQL_Delete(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -185,6 +193,7 @@ func Test_MYSQL_Reset(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -210,6 +219,7 @@ func Test_MYSQL_GC(t *testing.T) {
 	// This key should expire
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
@@ -234,6 +244,7 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("0xF6", val, 0)
 	require.NoError(t, err)
@@ -246,6 +257,7 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 func Test_MYSQL_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.Nil(t, testStore.Close())
 }
@@ -253,6 +265,7 @@ func Test_MYSQL_Close(t *testing.T) {
 func Test_MYSQL_Conn(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
@@ -260,6 +273,7 @@ func Test_MYSQL_Conn(t *testing.T) {
 func Benchmark_MYSQL_Set(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -274,6 +288,7 @@ func Benchmark_MYSQL_Set(b *testing.B) {
 func Benchmark_MYSQL_Get(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -291,6 +306,7 @@ func Benchmark_MYSQL_Get(b *testing.B) {
 func Benchmark_MYSQL_SetAndDelete(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
