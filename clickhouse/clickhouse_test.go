@@ -67,11 +67,12 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 }
 
 func Test_Connection(t *testing.T) {
-	_, err := getTestConnection(t, Config{
+	client, err := getTestConnection(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
+	defer client.Close()
 
 	require.NoError(t, err)
 }

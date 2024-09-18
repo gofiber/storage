@@ -64,6 +64,7 @@ func Test_Get(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -84,6 +85,7 @@ func Test_Get_Empty_Key(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	_, err = testStore.Get(key)
 	require.Error(t, err)
@@ -97,6 +99,7 @@ func Test_Get_Not_Exists_Key(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	_, err = testStore.Get(key)
 	require.Error(t, err)
@@ -110,6 +113,7 @@ func Test_Get_Not_Exists_Bucket(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
@@ -128,6 +132,7 @@ func Test_Set(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -141,6 +146,7 @@ func Test_Set_Empty_Key(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 
@@ -157,6 +163,7 @@ func Test_Set_Not_Exists_Bucket(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
@@ -174,6 +181,7 @@ func Test_Delete(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -190,6 +198,7 @@ func Test_Delete_Empty_Key(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set(key, val, 0)
 	require.Error(t, err)
@@ -203,6 +212,7 @@ func Test_Delete_Not_Exists_Bucket(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
@@ -220,6 +230,7 @@ func Test_Reset(t *testing.T) {
 
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -238,6 +249,7 @@ func Test_Reset(t *testing.T) {
 func Test_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
+	defer testStore.Close()
 
 	require.NoError(t, testStore.Close())
 }
@@ -248,6 +260,7 @@ func Benchmark_Minio_Set(b *testing.B) {
 
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
@@ -259,6 +272,7 @@ func Benchmark_Minio_Set(b *testing.B) {
 func Benchmark_Minio_Get(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	err = testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -276,6 +290,7 @@ func Benchmark_Minio_Get(b *testing.B) {
 func Benchmark_Minio_SetAndDelete(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)
+	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
