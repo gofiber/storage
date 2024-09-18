@@ -27,5 +27,5 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
                 env:
-                    TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-RTM-GDR1-ubuntu-20.04"
+                    TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU10-ubuntu-22.04"
                 run: cd ./mssql && go test ./... -v -race
