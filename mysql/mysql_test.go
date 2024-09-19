@@ -15,8 +15,8 @@ const (
 	// mysqlImage is the default image used for running MySQL in tests.
 	mysqlImage              = "docker.io/mysql:9"
 	mysqlImageEnvVar string = "TEST_MYSQL_IMAGE"
-	mysqlUser        string = "password"
-	mysqlPass        string = "username"
+	mysqlUser        string = "username"
+	mysqlPass        string = "password"
 	mysqlDatabase    string = "fiber"
 )
 
