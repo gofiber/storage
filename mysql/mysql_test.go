@@ -69,9 +69,6 @@ func Test_MYSQL_New(t *testing.T) {
 	require.NoError(t, testStore.Close())
 
 	c := mustStartMySQL(t)
-	t.Cleanup(func() {
-		require.NoError(t, c.Terminate(context.Background()))
-	})
 
 	dsn, err := c.ConnectionString(context.Background())
 	require.NoError(t, err)
