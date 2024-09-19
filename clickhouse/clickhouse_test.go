@@ -77,9 +77,9 @@ func Test_Connection(t *testing.T) {
 		Table:  "test_table",
 		Clean:  true,
 	})
-	defer client.Close()
-
 	require.NoError(t, err)
+
+	defer client.Close()
 }
 
 func Test_Set(t *testing.T) {
@@ -195,6 +195,17 @@ func Test_Reset(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, value)
+}
+
+func TestClose_ShouldReturn_NoError(t *testing.T) {
+	client, err := getTestConnection(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, client.Close())
 }
 
 func Benchmark_Clickhouse_Set(b *testing.B) {
