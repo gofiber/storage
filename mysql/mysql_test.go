@@ -64,7 +64,6 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 func Test_MYSQL_New(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
-	defer testStore.Close()
 
 	require.True(t, testStore.db != nil)
 	require.NoError(t, testStore.Close())
@@ -81,7 +80,7 @@ func Test_MYSQL_New(t *testing.T) {
 	})
 
 	require.True(t, newConfigStore.db != nil)
-	newConfigStore.Close()
+	// no need to close the newConfigStore since the testStore is called in the defer
 }
 
 func Test_MYSQL_Set(t *testing.T) {
