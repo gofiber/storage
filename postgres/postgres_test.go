@@ -257,7 +257,6 @@ func Test_Postgres_Conn(t *testing.T) {
 func Test_Postgres_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
-	defer testStore.Close()
 
 	require.Nil(t, testStore.Close())
 }

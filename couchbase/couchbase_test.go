@@ -142,10 +142,8 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
-	defer testStore.Close()
 
-	err = testStore.Close()
-	require.NoError(t, err)
+	require.NoError(t, testStore.Close())
 }
 
 func TestGetConn_ReturnsNotNil(t *testing.T) {

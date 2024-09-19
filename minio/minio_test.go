@@ -254,7 +254,6 @@ func Test_Reset(t *testing.T) {
 func Test_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
-	defer testStore.Close()
 
 	require.NoError(t, testStore.Close())
 }

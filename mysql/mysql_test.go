@@ -262,7 +262,6 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 func Test_MYSQL_Close(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
-	defer testStore.Close()
 
 	require.Nil(t, testStore.Close())
 }
