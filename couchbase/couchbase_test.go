@@ -12,7 +12,7 @@ import (
 
 const (
 	// couchbaseImage is the default image used for running couchbase in tests.
-	couchbaseImage              = "couchbase:enterprise-7.1.1"
+	couchbaseImage              = "couchbase:enterprise-7.6.3"
 	couchbaseImageEnvVar string = "TEST_COUCHBASE_IMAGE"
 	couchbaseUser        string = "default"
 	couchbasePass        string = "password"

@@ -110,7 +110,7 @@ jobs:
         shell: bash
         env:
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
-          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.1.1"
+          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.3"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04"
