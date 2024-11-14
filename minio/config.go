@@ -89,5 +89,9 @@ func configDefault(config ...Config) Config {
 		cfg.Bucket = ConfigDefault.Bucket
 	}
 
+	if cfg.MaxRetry < 1 {
+		cfg.MaxRetry = ConfigDefault.MaxRetry
+	}
+
 	return cfg
 }
