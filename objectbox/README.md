@@ -32,6 +32,11 @@ func (s *Storage) Close() error
 ```
 
 ### Installation
+[Install ojectbox](https://golang.objectbox.io/install)
+```
+bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
+```
+Init your module
 ```sh
 go mod init github.com/<user>/<repo>
 ```
