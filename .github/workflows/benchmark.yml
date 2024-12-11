@@ -98,8 +98,9 @@ jobs:
       - name: Tune the environment
         run: |
           cat /proc/sys/fs/aio-max-nr
-          echo "fs.aio-max-nr = 1048576" >> /etc/sysctl.conf
+          sudo echo "fs.aio-max-nr = 1048576" >> /etc/sysctl.conf
           sudo sysctl -p /etc/sysctl.conf
+          cat /proc/sys/fs/aio-max-nr
 
       - name: Run Benchmarks
         run: |
