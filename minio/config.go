@@ -29,6 +29,10 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// The maximum number of times requests that encounter retryable failures should be attempted.
+	// Optional. Default is 10, same as the MinIO client.
+	MaxRetry int
+
 	// Credentials Minio access key and Minio secret key.
 	// Need to be defined
 	Credentials Credentials
@@ -62,6 +66,7 @@ var ConfigDefault = Config{
 	Token:               "",
 	Secure:              false,
 	Reset:               false,
+	MaxRetry:            minio.MaxRetry,
 	Credentials:         Credentials{},
 	GetObjectOptions:    minio.GetObjectOptions{},
 	PutObjectOptions:    minio.PutObjectOptions{},
@@ -82,6 +87,10 @@ func configDefault(config ...Config) Config {
 	// Set default values
 	if cfg.Bucket == "" {
 		cfg.Bucket = ConfigDefault.Bucket
+	}
+
+	if cfg.MaxRetry < 1 {
+		cfg.MaxRetry = ConfigDefault.MaxRetry
 	}
 
 	return cfg
