@@ -95,6 +95,12 @@ jobs:
           docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
           sleep 2
 
+      - name: Tune the environment
+        run: |
+          cat /proc/sys/fs/aio-max-nr
+          echo "fs.aio-max-nr = 1048576" >> /etc/sysctl.conf
+          sudo sysctl -p /etc/sysctl.conf
+
       - name: Run Benchmarks
         run: |
           set -o pipefail
