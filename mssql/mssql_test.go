@@ -13,7 +13,7 @@ import (
 
 const (
 	// mssqlImage is the default image used for running MSSQL in tests.
-	mssqlImage              = "mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04"
+	mssqlImage              = "mcr.microsoft.com/mssql/server:2022-CU16-ubuntu-22.04"
 	mssqlImageEnvVar string = "TEST_MSSQL_IMAGE"
 	mssqlUser        string = "sa"
 	mssqlPass        string = "MsSql!1234"
