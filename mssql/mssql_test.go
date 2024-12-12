@@ -7,9 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mssql"
 )
 
@@ -36,15 +34,6 @@ func newTestStore(t testing.TB) (*Storage, error) {
 	c, err := mssql.Run(ctx, img,
 		mssql.WithPassword(mssqlPass),
 		mssql.WithAcceptEULA(),
-		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				HostConfigModifier: func(hc *container.HostConfig) {
-					hc.Sysctls = map[string]string{
-						"fs.aio-max-nr": "1048576",
-					}
-				},
-			},
-		}),
 	)
 	if err != nil {
 		return nil, err
