@@ -231,18 +231,15 @@ func Test_MSSQL_Non_UTF8(t *testing.T) {
 }
 
 func Test_SslRequiredMode(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			require.Equalf(t, true, nil, "Connection was established with a `require`")
-		}
-	}()
-	_ = New(Config{
-		Database: "fiber",
-		Username: "username",
-		Password: "password",
-		Reset:    true,
-		SslMode:  "require",
-	})
+	require.Panics(t, func() {
+		_ = New(Config{
+			Database: "fiber",
+			Username: "username",
+			Password: "password",
+			Reset:    true,
+			SslMode:  "require",
+		})
+	}, "Expected panic when connecting to MSSQL with SSL mode set to require")
 }
 
 func Test_MSSQL_Close(t *testing.T) {

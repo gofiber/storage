@@ -236,14 +236,11 @@ func Test_Postgres_Non_UTF8(t *testing.T) {
 }
 
 func Test_SslRequiredMode(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			require.Equalf(t, true, nil, "Connection was established with a `require`")
-		}
-	}()
-	_ = New(Config{
-		Reset: true,
-	})
+	require.Panics(t, func() {
+		_ = New(Config{
+			Reset: true,
+		})
+	}, "Expected panic when connecting to Postgres with SSL mode set to require")
 }
 
 func Test_Postgres_Conn(t *testing.T) {
