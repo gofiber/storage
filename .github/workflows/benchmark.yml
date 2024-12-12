@@ -18,8 +18,7 @@ permissions:
 name: Benchmark
 jobs:
   Compare:
-    # Using 22.04 until latest receive the changes in https://github.com/actions/runner-images/issues/10649
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     services:
       arangodb:
         image: 'arangodb:latest'
