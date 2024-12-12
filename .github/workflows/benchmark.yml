@@ -120,7 +120,7 @@ jobs:
 
             cd "$d"
             echo "Bench dir: $d"
-            go test ./... -v -benchmem -run=^$ -bench . | tee -a ../output.txt
+            go test ./... -timeout 120s -v -benchmem -run=^$ -bench . | tee -a ../output.txt
             cd ..
           done
         shell: bash
