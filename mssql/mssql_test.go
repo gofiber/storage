@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mssql"
 )
 
@@ -35,14 +36,10 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		mssql.WithPassword(mssqlPass),
 		mssql.WithAcceptEULA(),
 	)
+	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, err
 	}
-	t.Cleanup(func() {
-		if c != nil {
-			require.NoError(t, c.Terminate(ctx))
-		}
-	})
 
 	conn, err := c.ConnectionString(ctx)
 	if err != nil {

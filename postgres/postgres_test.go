@@ -42,12 +42,8 @@ func newTestStore(t testing.TB) (*Storage, error) {
 			wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
 		),
 	)
+	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if c != nil {
-			require.NoError(t, c.Terminate(ctx))
-		}
-	})
 
 	conn, err := c.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
@@ -51,12 +52,8 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 		mysql.WithUsername(mysqlUser),
 		mysql.WithDatabase(mysqlDatabase),
 	)
+	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if c != nil {
-			require.NoError(t, c.Terminate(ctx))
-		}
-	})
 
 	return c
 }

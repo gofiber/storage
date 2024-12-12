@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
 )
 
@@ -39,14 +40,10 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),
 	)
+	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, err
 	}
-	t.Cleanup(func() {
-		if c != nil {
-			require.NoError(t, c.Terminate(ctx))
-		}
-	})
 
 	hostPort, err := c.ConnectionHost(ctx)
 	if err != nil {
