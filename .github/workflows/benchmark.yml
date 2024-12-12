@@ -19,6 +19,7 @@ name: Benchmark
 jobs:
   Compare:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     services:
       arangodb:
         image: 'arangodb:latest'
