@@ -20,7 +20,8 @@ readonly ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 modules=()
 
 # Find all go.mod files in the repository, building a list of all the available modules.
-for modFile in $(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/**/testdata/*"); do
+# Do not include the root go.mod file.
+for modFile in $(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/go.mod" -not -path "${ROOT_DIR}/**/testdata/*"); do
     modules+=("\"$(basename "$(dirname "${modFile}")")\"")
 done
 
