@@ -210,7 +210,7 @@ jobs:
           tool: "go"
           output-file-path: ${{ matrix.module }}/output.txt
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
-          benchmark-data-dir-path: "benchmarks"
+          benchmark-data-dir-path: "benchmarks/${{ matrix.module }}"
           alert-threshold: "300%"
           fail-on-alert: true
           comment-on-alert: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
