@@ -51,7 +51,7 @@ jobs:
     strategy:
       matrix:
         module: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
-      fail-fast: true
+      fail-fast: false
     runs-on: ubuntu-latest
     services:
       arangodb:
