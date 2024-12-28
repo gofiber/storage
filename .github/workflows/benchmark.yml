@@ -53,64 +53,6 @@ jobs:
         module: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
       fail-fast: false
     runs-on: ubuntu-latest
-    services:
-      arangodb:
-        image: 'arangodb:latest'
-        env:
-          ARANGO_NO_AUTH: 1
-        ports:
-          - '8529:8529'
-      dynamodb:
-        image: 'amazon/dynamodb-local:latest'
-        ports:
-          - '8000:8000'
-      memcached:
-        image: 'memcached:latest'
-        ports:
-          - '11211:11211'
-      mongo:
-        image: 'mongo:latest'
-        ports:
-          - '27017:27017'
-      mssql:
-        image: 'mcmoe/mssqldocker:latest'
-        ports:
-          - '1433:1433'
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: MsSql!1234
-          MSSQL_DB: master
-          MSSQL_USER: sa
-          MSSQL_PASSWORD: MsSql!1234
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
-          --health-interval 1s
-          --health-timeout 30s
-          --health-start-period 10s
-          --health-retries 20
-      mysql:
-        image: 'mysql:latest'
-        env:
-          MYSQL_DATABASE: fiber
-          MYSQL_USER: username
-          MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: password
-        ports:
-          - '3306:3306'
-        options: >-
-          --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout
-          5s --health-retries 5
-      postgres:
-        image: 'postgres:latest'
-        ports:
-          - '5432:5432'
-        env:
-          POSTGRES_DB: fiber
-          POSTGRES_USER: username
-          POSTGRES_PASSWORD: "pass#w%rd"
-        options: >-
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Fetch Repository
@@ -126,6 +68,61 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Install ArangoDB
+        if: ${{ matrix.module == 'arangodb' }}
+        run: |
+          docker run -d -p 8529:8529 -e "ARANGO_NO_AUTH=1" arangodb:latest
+
+      - name: Install DynamoDB
+        if: ${{ matrix.module == 'dynamodb' }}
+        run: |
+          docker run -d -p 8000:8000 amazon/dynamodb-local:latest
+
+      - name: Install Memcached
+        if: ${{ matrix.module == 'memcached' }}
+        run: |
+          docker run -d -p 11211:11211 memcached:latest
+
+      - name: Install MongoDB
+        if: ${{ matrix.module == 'mongodb' }}
+        run: |
+          docker run -d -p 27017:27017 mongo:latest
+
+      - name: Install MSSQL
+        if: ${{ matrix.module == 'mssql' }}
+        run: |
+          docker run -d -p 1433:1433 \
+            -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=MsSql!1234" \
+            -e "MSSQL_DB=master" -e "MSSQL_USER=sa" \
+            -e "MSSQL_PASSWORD=MsSql!1234" \
+            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null" \
+            --health-interval 1s \
+            --health-timeout 30s \
+            --health-start-period 10s \
+            --health-retries 20 \
+            mcmoe/mssqldocker:latest
+
+      - name: Install MySQL
+        if: ${{ matrix.module == 'mysql' }}
+        run: |
+          docker run -d -p 3306:3306 \
+            -e "MYSQL_DATABASE=fiber" \
+            -e "MYSQL_USER=username" \
+            -e "MYSQL_PASSWORD=password" \
+            -e "MYSQL_ROOT_PASSWORD=password" \
+            --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout 5s --health-retries 5 \
+            mysql:latest
+
+      - name: Install Postgres
+        if: ${{ matrix.module == 'postgres' }}
+        run: |
+          docker run -d -p 5432:5432 \
+            -e "POSTGRES_DB=fiber" \
+            -e "POSTGRES_USER=username" \
+            -e "POSTGRES_PASSWORD=pass#w%rd" \
+            --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 \
+            postgres:latest
 
       - name: Install Azurite
         if: ${{ matrix.module == 'azureblob' }}
