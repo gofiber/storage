@@ -185,7 +185,7 @@ jobs:
         run: |
           set -o pipefail
           echo "Bench dir: ${{ matrix.module }}"
-          go test ./... -benchmem -run=^$ -bench . | tee -a ../${{ matrix.module }}-output.txt
+          go test ./... -benchmem -run=^$ -bench . | tee -a output.txt
         shell: bash
         env:
           MSSQL_DATABASE: master
@@ -211,7 +211,7 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1.20.4
         with:
           tool: "go"
-          output-file-path: ${{ matrix.module }}-output.txt
+          output-file-path: ${{ matrix.module }}/output.txt
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
           benchmark-data-dir-path: "benchmarks"
           alert-threshold: "300%"
