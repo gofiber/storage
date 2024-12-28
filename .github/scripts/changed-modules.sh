@@ -16,12 +16,28 @@
 # ROOT_DIR is the root directory of the repository.
 readonly ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
+# define an array of modules that won't be included in the list
+readonly excluded_modules=("mockstorage")
+
 # modules is an array that will store the paths of all the modules in the repository.
 modules=()
+
+function is_excluded() {
+    for excluded_module in "${excluded_modules[@]}"; do
+        if [[ $1 == $excluded_module ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 # Find all go.mod files in the repository, building a list of all the available modules.
 # Do not include the root go.mod file.
 for modFile in $(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/go.mod" -not -path "${ROOT_DIR}/**/testdata/*"); do
+    # do not include the excluded modules
+    if is_excluded "$(basename "$(dirname "${modFile}")")"; then
+        continue
+    fi
     modules+=("\"$(basename "$(dirname "${modFile}")")\"")
 done
 
@@ -54,6 +70,9 @@ for file in $modified_files; do
 
     module_name=$(echo $file | cut -d'/' -f1)
     if [[ ! " ${modified_modules[@]} " =~ " ${module_name} " ]]; then
+        if is_excluded "$module_name"; then
+            continue
+        fi
         modified_modules+=("\"$module_name\"")
     fi
 done
