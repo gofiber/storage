@@ -17,7 +17,41 @@ permissions:
 
 name: Benchmark
 jobs:
+  detect-modules:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.set-modified-modules.outputs.modules }}
+      modules_count: ${{ steps.set-modified-modules-count.outputs.modules_count }}
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+      - id: changed-files
+        name: Get changed files
+        uses: tj-actions/changed-files@4edd678ac3f81e2dc578756871e4d00c19191daf # v45.0.4
+
+      - id: set-modified-modules
+        name: Set all modified modules
+        env:
+          ALL_CHANGED_FILES: "${{ steps.changed-files.outputs.all_changed_files }}"
+        run: echo "modules=$(./.github/scripts/changed-modules.sh)" >> $GITHUB_OUTPUT
+
+      - id: set-modified-modules-count
+        name: Set all modified modules count
+        run: echo "modules_count=$(echo ${{ toJSON(steps.set-modified-modules.outputs.modules) }} | jq '. | length')" >> $GITHUB_OUTPUT
+
+      - name: Print out the modules to be used
+        run: |
+          echo "${{ steps.set-modified-modules-count.outputs.modules_count }} modules in the build"
+          echo "${{ steps.set-modified-modules.outputs.modules }}"
+
   Compare:
+    needs:
+      - detect-modules
+    strategy:
+      matrix:
+        module: ${{ fromJSON(needs.detect-modules.outputs.modules) }}
+      fail-fast: true
     runs-on: ubuntu-latest
     services:
       arangodb:
@@ -94,21 +128,25 @@ jobs:
           node-version: '18'
 
       - name: Install Azurite
+        if: ${{ matrix.module == 'azureblob' }}
         run: |
           docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
 
       - name: Install Cloudflare Worker
+        if: ${{ matrix.module == 'cloudflarekv' }}
         run : |
           .github/scripts/initialize-wrangler.sh
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
 
       - name: Install Coherence
+        if: ${{ matrix.module == 'coherence' }}
         run: |
           docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
           sleep 30
 
       - name: Install etcd
+        if: ${{ matrix.module == 'etcd' }}
         run: |
           docker run -d --name Etcd-server \
             --publish 2379:2379 \
@@ -118,38 +156,36 @@ jobs:
             bitnami/etcd:latest
 
       - name: Install ScyllaDb
+        if: ${{ matrix.module == 'scylladb' }}
         run: |
           docker run --name scylladb -p 9042:9042 -p 19042:19042 -p 9160:9160 -p 7000:7000 -p 7001:7001 -p 7199:7199 -p 9180:9180 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
           sleep 15 # Wait for ScyllaDb to initialize
 
       - name: Setup Redis
+        if: ${{ matrix.module == 'redis' }}
         uses: shogo82148/actions-setup-redis@v1
         with:
           redis-version: '7.x'
           auto-start: 'false'
 
       - name: Run Redis
+        if: ${{ matrix.module == 'redis' }}
         run: |
           redis-server --port 6379 &
 
       - name: Run NATS
+        if: ${{ matrix.module == 'nats' }}
         run: |
           ./.github/scripts/gen-test-certs.sh
           docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
           sleep 2
 
       - name: Run Benchmarks
+        working-directory: ${{ matrix.module }}
         run: |
           set -o pipefail
-          for d in */ ; do
-            [[ $d == "tls/" ]] && continue
-            [[ $d == "node_modules/" ]] && continue
-
-            cd "$d"
-            echo "Bench dir: $d"
-            go test ./... -benchmem -run=^$ -bench . | tee -a ../output.txt
-            cd ..
-          done
+          echo "Bench dir: ${{ matrix.module }}"
+          go test ./... -benchmem -run=^$ -bench . | tee -a ../${{ matrix.module }}-output.txt
         shell: bash
         env:
           MSSQL_DATABASE: master
@@ -169,13 +205,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./cache
-          key: ${{ runner.os }}-benchmark
+          key: ${{ runner.os }}-benchmark-${{ matrix.module }}
 
       - name: Save Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1.20.4
         with:
           tool: "go"
-          output-file-path: output.txt
+          output-file-path: ${{ matrix.module }}-output.txt
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
           benchmark-data-dir-path: "benchmarks"
           alert-threshold: "300%"
