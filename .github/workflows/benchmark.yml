@@ -169,7 +169,7 @@ jobs:
           auto-start: 'false'
 
       - name: Run Redis
-        if: ${{ matrix.module == 'redis' }}
+        if: ${{ matrix.module == 'redis' || matrix.module == 'rueidis' }}
         run: |
           redis-server --port 6379 &
 
