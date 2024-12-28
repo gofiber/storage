@@ -80,7 +80,7 @@ jobs:
           docker run -d -p 8000:8000 amazon/dynamodb-local:latest
 
       - name: Install Memcached
-        if: ${{ matrix.module == 'memcached' }}
+        if: ${{ matrix.module == 'memcache' }}
         run: |
           docker run -d -p 11211:11211 memcached:latest
 
@@ -159,7 +159,7 @@ jobs:
           sleep 15 # Wait for ScyllaDb to initialize
 
       - name: Setup Redis
-        if: ${{ matrix.module == 'redis' }}
+        if: ${{ matrix.module == 'redis' || matrix.module == 'rueidis' }}
         uses: shogo82148/actions-setup-redis@v1
         with:
           redis-version: '7.x'
