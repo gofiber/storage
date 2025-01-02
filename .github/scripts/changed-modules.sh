@@ -33,13 +33,12 @@ function is_excluded() {
 
 # Find all go.mod files in the repository, building a list of all the available modules.
 # Do not include the root go.mod file.
-for modFile in $(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/go.mod" -not -path "${ROOT_DIR}/**/testdata/*"); do
-    # do not include the excluded modules
-    if is_excluded "$(basename "$(dirname "${modFile}")")"; then
-        continue
+while IFS= read -r modFile; do
+    module_dir=$(basename "$(dirname "${modFile}")") || continue
+    if ! is_excluded "$module_dir"; then
+        modules+=("\"$module_dir\"")
     fi
-    modules+=("\"$(basename "$(dirname "${modFile}")")\"")
-done
+done < <(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/go.mod" -not -path "${ROOT_DIR}/**/testdata/*")
 
 # sort modules array
 mapfile -t modules < <(printf '%s\n' "${modules[@]}" | sort)
