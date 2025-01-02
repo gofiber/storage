@@ -78,4 +78,4 @@ done
 # each module will be enclosed in double quotes
 # each module will be separated by a comma
 # the entire list will be enclosed in square brackets
-echo "["$(IFS=,; echo "${modified_modules[*]}" | sed 's/ /,/g')"]"
+printf '[%s]\n' "$(IFS=,; echo "${modified_modules[*]}")"
