@@ -24,7 +24,7 @@ modules=()
 
 function is_excluded() {
     for excluded_module in "${excluded_modules[@]}"; do
-        if [[ $1 == $excluded_module ]]; then
+        if [[ "$1" == "$excluded_module" ]]; then
             return 0
         fi
     done
