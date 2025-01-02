@@ -64,7 +64,7 @@ modified_modules=()
 # - if the modified files contain any other file, include all modules in the list
 for file in $modified_files; do
     if [[ $file == .github/* ]]; then
-        modified_modules=${allModules[@]}
+        modified_modules=("${allModules[@]}")
         break
     fi
 
