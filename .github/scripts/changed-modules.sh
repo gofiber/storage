@@ -67,7 +67,7 @@ for file in $modified_files; do
     fi
 
     module_name=$(echo $file | cut -d'/' -f1)
-    if [[ ! " ${modified_modules[@]} " =~ " ${module_name} " ]]; then
+    if [[ ! ${modified_modules[@]} =~ ${module_name} ]]; then
         if is_excluded "$module_name"; then
             continue
         fi
