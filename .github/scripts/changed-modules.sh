@@ -42,15 +42,13 @@ for modFile in $(find "${ROOT_DIR}" -name "go.mod" -not -path "${ROOT_DIR}/go.mo
 done
 
 # sort modules array
-IFS=$'\n' modules=($(sort <<<"${modules[*]}"))
-unset IFS
+mapfile -t modules < <(printf '%s\n' "${modules[@]}" | sort)
 
 # merge all modules and examples into a single array
 allModules=("${modules[@]}")
 
 # sort allModules array
-IFS=$'\n' allModules=($(sort <<<"${allModules[*]}"))
-unset IFS
+mapfile -t allModules < <(printf '%s\n' "${allModules[@]}" | sort)
 
 # Get the list of modified files, retrieved from the environment variable ALL_CHANGED_FILES.
 # On CI, this value will come from a Github Action retrieving the list of modified files from the pull request.
