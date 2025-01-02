@@ -52,7 +52,7 @@ mapfile -t allModules < <(printf '%s\n' "${allModules[@]}" | sort)
 
 # Get the list of modified files, retrieved from the environment variable ALL_CHANGED_FILES.
 # On CI, this value will come from a Github Action retrieving the list of modified files from the pull request.
-readonly modified_files=${ALL_CHANGED_FILES[@]}
+readonly modified_files=("${ALL_CHANGED_FILES[@]}")
 
 # Initialize variables
 modified_modules=()
