@@ -9,7 +9,7 @@ title: Valkey
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
-A fast Redis Storage that does auto pipelining and supports client side caching. [redis/valkey](https://github.com/redis/valkey).
+A fast Valkey Storage that does auto pipelining and supports client side caching. [valkey-io/valkey](https://github.com/valkey-io/valkey).
 
 **Note: Requires Go 1.20 and above**
 
@@ -61,12 +61,12 @@ store := valkey.New(valkey.Config{
     TLSConfig:      nil,
 })
 
-// Initialize using Rueidis URL
+// Initialize using Redis-style URL
 store := valkey.New(valkey.Config{
     URL:    "redis://localhost:6379",
 })
 
-// Initialize Rueidis Cluster Client
+// Initialize Valkey Cluster Client
 store := valkey.New(valkey.Config{
     InitAddress:    []string{":6379", ":6380"},
 })
@@ -110,7 +110,7 @@ type Config struct {
 	// Optional. Default is ""
 	ClientName string
 
-	// URL standard format Redis URL. If this is set all other config options, InitAddress, Username, Password, ClientName, and SelectDB have no effect.
+	// URL standard format Redis-style URL. If this is set all other config options, InitAddress, Username, Password, ClientName, and SelectDB have no effect.
 	//
 	// Example: redis://<user>:<pass>@localhost:6379/<db>
 	// Optional. Default is ""
@@ -131,7 +131,7 @@ type Config struct {
 	// Optional. Default is nil
 	TLSConfig *tls.Config
 
-	// CacheSizeEachConn is redis client side cache size that bind to each TCP connection to a single redis instance.
+	// CacheSizeEachConn is valkey client side cache size that bind to each TCP connection to a single valkey instance.
 	//
 	// Optional. The default is DefaultCacheBytes: 128 * (1 << 20)
 	CacheSizeEachConn int
@@ -156,7 +156,7 @@ type Config struct {
 	// Optional. The default is DefaultPoolSize: 1000
 	BlockingPoolSize int
 
-	// PipelineMultiplex determines how many tcp connections used to pipeline commands to one redis instance.
+	// PipelineMultiplex determines how many tcp connections used to pipeline commands to one valkey instance.
 	//
 	// Optional. The default for single and sentinel clients is 2, which means 4 connections (2^2).
 	PipelineMultiplex int
@@ -171,7 +171,7 @@ type Config struct {
 	// Optional. The default is false
 	DisableCache bool
 
-	// AlwaysPipelining makes valkey.Client always pipeline redis commands even if they are not issued concurrently.
+	// AlwaysPipelining makes valkey.Client always pipeline valkey commands even if they are not issued concurrently.
 	//
 	// Optional. The default is true
 	AlwaysPipelining bool
