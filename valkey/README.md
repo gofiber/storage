@@ -11,7 +11,7 @@ title: Valkey
 
 A fast Valkey Storage that does auto pipelining and supports client side caching. [valkey-io/valkey](https://github.com/valkey-io/valkey).
 
-**Note: Requires Go 1.20 and above**
+**Note: Requires Go 1.23 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -31,7 +31,7 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() valkey.Client
 ```
 ### Installation
-Rueidis is tested on the latest [Go version](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Valkey is tested on the latest [Go version](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
@@ -46,7 +46,7 @@ Import the storage package.
 import "github.com/gofiber/storage/valkey"
 ```
 
-You can use the one of the following options to create a Rueidis Storage:
+You can use the one of the following options to create a Valkey Storage:
 ```go
 // Initialize default config (localhost:6379)
 store := valkey.New()
