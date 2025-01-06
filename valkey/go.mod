@@ -2,8 +2,6 @@ module github.com/gofiber/storage/valkey
 
 go 1.23
 
-toolchain go1.23.4
-
 require (
 	github.com/gofiber/utils/v2 v2.0.0-beta.4
 	github.com/stretchr/testify v1.9.0
