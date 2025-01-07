@@ -8,6 +8,7 @@ on:
     pull_request:
         paths:
             - 'valkey/**'
+            - '.github/workflows/test-valkey.yml'
 name: "Tests Valkey"
 jobs:
     Tests:
