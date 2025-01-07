@@ -9,11 +9,10 @@ title: Valkey
 ![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
 ![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
-A fast Valkey Storage that does auto pipelining and supports client side caching. [valkey-io/valkey](https://github.com/valkey-io/valkey).
-
-**Note: Requires Go 1.23 and above**
+A fast Valkey Storage that does auto pipelining and supports client side caching. Implementation is based on [valkey-io/valkey](https://github.com/valkey-io/valkey-go).
 
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -21,6 +20,7 @@ A fast Valkey Storage that does auto pipelining and supports client side caching
 - [Default Config](#default-config)
 
 ### Signatures
+
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
@@ -30,23 +30,31 @@ func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() valkey.Client
 ```
+
 ### Installation
-Valkey is tested on the latest [Go version](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+
+The valkey driver is tested on the latest two [Go version](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+
 ```bash
 go mod init github.com/<user>/<repo>
 ```
+
 And then install the valkey implementation:
+
 ```bash
 go get github.com/gofiber/storage/valkey
 ```
 
 ### Examples
+
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/valkey"
 ```
 
 You can use the one of the following options to create a Valkey Storage:
+
 ```go
 // Initialize default config (localhost:6379)
 store := valkey.New()
@@ -93,6 +101,7 @@ store = valkey.New(valkey.Config{
 ```
 
 ### Config
+
 ```go
 type Config struct {
 	// Server username
@@ -189,6 +198,7 @@ type Config struct {
 ```
 
 ### Default Config
+
 ```go
 var ConfigDefault = Config{
 	Username:            "",
