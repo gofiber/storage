@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/objectbox/v2
 
-go 1.23.3
+go 1.23
 
 require github.com/objectbox/objectbox-go v1.8.1
 

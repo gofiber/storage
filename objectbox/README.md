@@ -1,4 +1,3 @@
-
 ---
 id: objectbox
 title: ObjectBox
@@ -12,9 +11,8 @@ title: ObjectBox
 
 An ObjectBox storage driver using [objectbox/objectbox-go](https://github.com/objectbox/objectbox-go).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -22,6 +20,7 @@ An ObjectBox storage driver using [objectbox/objectbox-go](https://github.com/ob
 - [Default Config](#default-config)
 
 ### Signatures
+
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
@@ -32,26 +31,34 @@ func (s *Storage) Close() error
 ```
 
 ### Installation
+
 [Install ojectbox](https://golang.objectbox.io/install)
-```
+
+```bash
 bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
 ```
 Init your module
-```sh
+
+```bash
 go mod init github.com/<user>/<repo>
 ```
+
 And then install the objectbox implementation:
-```sh
+
+```bash
 go get github.com/gofiber/storage/objectbox/v2
 ```
 
 ### Examples
+
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/objectbox/v2"
 ```
 
 You can use the following possibilities to create a storage:
+
 ```go
 // Initialize default config
 store := objectbox.New()
@@ -67,6 +74,7 @@ store := objectbox.New(objectbox.Config{
 ```
 
 ### Config
+
 ```go
 type Config struct {
     // Directory is the path where the database is stored.
@@ -97,6 +105,7 @@ type Config struct {
 ```
 
 ### Default Config
+
 ```go
 var DefaultConfig = Config{
     Directory:       "objectbox_db",

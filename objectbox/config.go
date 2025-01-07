@@ -27,7 +27,7 @@ type Config struct {
 
 var DefaultConfig = Config{
 	Directory:       "objectbox_db",
-	MaxSizeInKb:     1024 * 1024, // 1GByte
+	MaxSizeInKb:     1024 * 1024, // 1GB
 	MaxReaders:      126,
 	Reset:           false,
 	CleanerInterval: 60 * time.Second,
@@ -59,5 +59,4 @@ func getConfig(config ...Config) Config {
 	}
 
 	return cfg
-
 }

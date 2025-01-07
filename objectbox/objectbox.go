@@ -20,12 +20,16 @@ func New(config ...Config) *Storage {
 
 	ob, err := objectbox.NewBuilder().Model(ObjectBoxModel()).MaxSizeInKb(cfg.MaxSizeInKb).MaxReaders(cfg.MaxReaders).Directory(cfg.Directory).Build()
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	if cfg.Reset {
 		box := BoxForCache(ob)
-		box.RemoveAll()
+		err = box.RemoveAll()
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	storage := &Storage{
@@ -62,7 +66,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	return caches[0].Value, nil
-
 }
 
 // Set stores a value in cache with the specified key and expiration.
@@ -123,7 +126,6 @@ func (s *Storage) Delete(key string) error {
 	}
 
 	return nil
-
 }
 
 // Reset removes all entries from the cache.
@@ -139,10 +141,9 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// cleaneStorage removes all expired cache entries.
-func (s *Storage) cleaneStorage() {
-	s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove()
-
+// cleanStorage removes all expired cache entries.
+func (s *Storage) cleanStorage() {
+	s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove() //nolint:errcheck // It is fine to ignore the error
 }
 
 // cleanerTicker runs periodic cleanup of expired entries.
@@ -153,7 +154,7 @@ func (s *Storage) cleanerTicker(interval time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-			s.cleaneStorage()
+			s.cleanStorage()
 		case <-s.done:
 			return
 		}

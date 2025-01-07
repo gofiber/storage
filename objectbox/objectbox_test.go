@@ -193,7 +193,7 @@ func Test_ObjectBox_Cleaner(t *testing.T) {
 	}
 
 	// Run cleanup
-	store.cleaneStorage()
+	store.cleanStorage()
 
 	// Verify expired items are removed and valid ones remain
 	for _, tt := range tests {
@@ -240,6 +240,7 @@ func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
 	b.ResetTimer()
 
 	var err error
+
 	for i := 0; i < b.N; i++ {
 		_ = store.Set("bench_key", []byte("bench_value"), 0)
 		err = store.Delete("bench_key")
@@ -248,7 +249,6 @@ func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
 }
 
 func Benchmark_ObjectBox_Cleaner(b *testing.B) {
-
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("expired-key-%d", i)
 		store.Set(key, []byte("benchmark-value"), -1*time.Second)
@@ -257,6 +257,6 @@ func Benchmark_ObjectBox_Cleaner(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.cleaneStorage()
+		store.cleanStorage()
 	}
 }
