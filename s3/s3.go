@@ -40,7 +40,10 @@ func New(config ...Config) *Storage {
 		panic(fmt.Sprintf("unable to load SDK config, %v", err))
 	}
 
-	sess := s3.NewFromConfig(awscfg)
+	sess := s3.NewFromConfig(awscfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(cfg.Endpoint)
+	})
+
 	storage := &Storage{
 		svc:            sess,
 		downloader:     manager.NewDownloader(sess),
@@ -173,23 +176,10 @@ func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
 }
 
 func returnAWSConfig(cfg Config) (aws.Config, error) {
-	endpoint := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		if cfg.Endpoint != "" {
-			return aws.Endpoint{
-				PartitionID:       "aws",
-				URL:               cfg.Endpoint,
-				SigningRegion:     cfg.Region,
-				HostnameImmutable: true,
-			}, nil
-		}
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-	})
-
 	if cfg.Credentials != (Credentials{}) {
 		creds := credentials.NewStaticCredentialsProvider(cfg.Credentials.AccessKey, cfg.Credentials.SecretAccessKey, "")
 		return awsconfig.LoadDefaultConfig(context.TODO(),
 			awsconfig.WithRegion(cfg.Region),
-			awsconfig.WithEndpointResolverWithOptions(endpoint),
 			awsconfig.WithCredentialsProvider(creds),
 			awsconfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
@@ -199,7 +189,6 @@ func returnAWSConfig(cfg Config) (aws.Config, error) {
 
 	return awsconfig.LoadDefaultConfig(context.TODO(),
 		awsconfig.WithRegion(cfg.Region),
-		awsconfig.WithEndpointResolverWithOptions(endpoint),
 		awsconfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
 		}),
