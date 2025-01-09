@@ -1,13 +1,13 @@
 package coherence
 
 /*
- * Copyright © 2023, 2024 Oracle and/or its affiliates.
+ * Copyright © 2023, 2025 Oracle and/or its affiliates.
  */
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	coh "github.com/oracle/coherence-go-client/coherence"
+	coh "github.com/oracle/coherence-go-client/v2/coherence"
 	"time"
 )
 
