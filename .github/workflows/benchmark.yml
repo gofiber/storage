@@ -24,11 +24,11 @@ jobs:
       modules_count: ${{ steps.set-modified-modules-count.outputs.modules_count }}
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@v4
 
       - id: changed-files
         name: Get changed files
-        uses: tj-actions/changed-files@4edd678ac3f81e2dc578756871e4d00c19191daf # v45.0.4
+        uses: tj-actions/changed-files@v45
 
       - id: set-modified-modules
         name: Set all modified modules
