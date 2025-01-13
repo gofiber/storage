@@ -53,7 +53,7 @@ func New(config ...Config) *Storage {
 		panic(fmt.Sprintf("unable to load SDK config, %v", err))
 	}
 
-	// reference: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/#with-both
+	// reference: https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-endpoints.html#with-both
 	sess := s3.NewFromConfig(awscfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
 		o.EndpointResolverV2 = &resolverV2{}
