@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 )
 
 // Storage interface that is implemented by storage providers
@@ -23,6 +24,18 @@ type Storage struct {
 	uploader       *manager.Uploader
 	requestTimeout time.Duration
 	bucket         string
+}
+
+// resolverV2 is a custom endpoint resolver for S3
+type resolverV2 struct{}
+
+// ResolveEndpoint is a custom endpoint resolver for S3.
+// It is used to set the endpoint to the S3 bucket.
+func (*resolverV2) ResolveEndpoint(ctx context.Context, params s3.EndpointParameters) (
+	smithyendpoints.Endpoint, error,
+) {
+	// delegate back to the default v2 resolver otherwise
+	return s3.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, params)
 }
 
 // New creates a new storage
@@ -40,8 +53,11 @@ func New(config ...Config) *Storage {
 		panic(fmt.Sprintf("unable to load SDK config, %v", err))
 	}
 
+	// reference: https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/#with-both
 	sess := s3.NewFromConfig(awscfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
+		o.EndpointResolverV2 = &resolverV2{}
+		o.UsePathStyle = true
 	})
 
 	storage := &Storage{
