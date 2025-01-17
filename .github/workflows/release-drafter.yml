@@ -56,12 +56,12 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       matrix:
-        subfolder: ${{ fromJSON(needs.changes.outputs.packages) }}
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run Release Drafter
         uses: release-drafter/release-drafter@v6
         with:
-          # E.g. if subfolder == 'arangodb', config-name = release-drafter-arangodb.yml
-          config-name: release-drafter-${{ matrix.subfolder }}.yml
+          # E.g. if package == 'arangodb', config-name = release-drafter-arangodb.yml
+          config-name: release-drafter-${{ matrix.package }}.yml
