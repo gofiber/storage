@@ -7,232 +7,61 @@ on:
       - main
 
 jobs:
-  release-drafter:
+  changes:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Detect changed subfolders
-        id: changes
+        uses: actions/checkout@v4
+      - name: Filter changes
+        id: filter
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            arangodb:
-              - 'arangodb/**'
-            azureblob:
-              - 'azureblob/**'
-            badger:
-              - 'badger/**'
-            bbolt:
-              - 'bbolt/**'
-            clickhouse:
-              - 'clickhouse/**'
-            cloudflarekv:
-              - 'cloudflarekv/**'
-            coherence:
-              - 'coherence/**'
-            couchbase:
-              - 'couchbase/**'
-            dynamodb:
-              - 'dynamodb/**'
-            etcd:
-              - 'etcd/**'
-            memcache:
-              - 'memcache/**'
-            memory:
-              - 'memory/**'
-            minio:
-              - 'minio/**'
-            mockstorage:
-              - 'mockstorage/**'
-            mongodb:
-              - 'mongodb/**'
-            mssql:
-              - 'mssql/**'
-            mysql:
-              - 'mysql/**'
-            nats:
-              - 'nats/**'
-            pebble:
-              - 'pebble/**'
-            postgres:
-              - 'postgres/**'
-            redis:
-              - 'redis/**'
-            ristretto:
-              - 'ristretto/**'
-            rueidis:
-              - 'rueidis/**'
-            s3:
-              - 's3/**'
-            scylladb:
-              - 'scylladb/**'
-            sqlite3:
-              - 'sqlite3/**'
-            valkey:
-              - 'valkey/**'
+            arangodb: 'arangodb/**'
+            azureblob: 'azureblob/**'
+            badger: 'badger/**'
+            bbolt: 'bbolt/**'
+            clickhouse: 'clickhouse/**'
+            cloudflarekv: 'cloudflarekv/**'
+            coherence: 'coherence/**'
+            couchbase: 'couchbase/**'
+            dynamodb: 'dynamodb/**'
+            etcd: 'etcd/**'
+            memcache: 'memcache/**'
+            memory: 'memory/**'
+            minio: 'minio/**'
+            mockstorage: 'mockstorage/**'
+            mongodb: 'mongodb/**'
+            mssql: 'mssql/**'
+            mysql: 'mysql/**'
+            nats: 'nats/**'
+            pebble: 'pebble/**'
+            postgres: 'postgres/**'
+            redis: 'redis/**'
+            ristretto: 'ristretto/**'
+            rueidis: 'rueidis/**'
+            s3: 's3/**'
+            scylladb: 'scylladb/**'
+            sqlite3: 'sqlite3/**'
+            valkey: 'valkey/**'
+    outputs:
+      packages: ${{ steps.filter.outputs.changes }}
 
-      - name: Release Drafter Arangodb
-        if: steps.changes.outputs.arangodb == 'true'
+  release-drafter:
+    needs: changes
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      matrix:
+        subfolder: ${{ fromJSON(needs.changes.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Release Drafter
         uses: release-drafter/release-drafter@v6
         with:
-          config-name: release-drafter-arangodb.yml
-
-      - name: Release Drafter Azureblob
-        if: steps.changes.outputs.azureblob == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-azureblob.yml
-
-      - name: Release Drafter Badger
-        if: steps.changes.outputs.badger == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-badger.yml
-
-      - name: Release Drafter Bbolt
-        if: steps.changes.outputs.bbolt == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-bbolt.yml
-
-      - name: Release Drafter Clickhouse
-        if: steps.changes.outputs.clickhouse == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-clickhouse.yml
-
-      - name: Release Drafter Cloudflare KV
-        if: steps.changes.outputs.cloudflarekv == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-cloudflarekv.yml
-
-      - name: Release Drafter Coherence
-        if: steps.changes.outputs.coherence == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-coherence.yml
-
-      - name: Release Drafter Couchbase
-        if: steps.changes.outputs.couchbase == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-couchbase.yml
-
-      - name: Release Drafter Dynamodb
-        if: steps.changes.outputs.dynamodb == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-dynamodb.yml
-
-      - name: Release Drafter Etcd
-        if: steps.changes.outputs.etcd == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-etcd.yml
-
-      - name: Release Drafter Memcache
-        if: steps.changes.outputs.memcache == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-memcache.yml
-
-      - name: Release Drafter Memory
-        if: steps.changes.outputs.memory == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-memory.yml
-
-      - name: Release Drafter Minio
-        if: steps.changes.outputs.minio == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-minio.yml
-
-      - name: Release Drafter MockStorage
-        if: steps.changes.outputs.mockstorage == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-mockstorage.yml
-
-      - name: Release Drafter Mongodb
-        if: steps.changes.outputs.mongodb == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-mongodb.yml
-
-      - name: Release Drafter Mssql
-        if: steps.changes.outputs.mssql == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-mssql.yml
-
-      - name: Release Drafter Mysql
-        if: steps.changes.outputs.mysql == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-mysql.yml
-
-      - name: Release Drafter Nats
-        if: steps.changes.outputs.nats == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-nats.yml
-
-      - name: Release Drafter Pebble
-        if: steps.changes.outputs.pebble == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-pebble.yml
-
-      - name: Release Drafter Postgres
-        if: steps.changes.outputs.postgres == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-postgres.yml
-
-      - name: Release Drafter Redis
-        if: steps.changes.outputs.redis == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-redis.yml
-
-      - name: Release Drafter Ristretto
-        if: steps.changes.outputs.ristretto == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-ristretto.yml
-
-      - name: Release Drafter Rueidis
-        if: steps.changes.outputs.rueidis == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-rueidis.yml
-
-      - name: Release Drafter S3
-        if: steps.changes.outputs.s3 == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-s3.yml
-
-      - name: Release Drafter ScyllaDb
-        if: steps.changes.outputs.scylladb == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-scylladb.yml
-
-      - name: Release Drafter Sqlite3
-        if: steps.changes.outputs.sqlite3 == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-sqlite3.yml
-
-      - name: Release Drafter Valkey
-        if: steps.changes.outputs.valkey == 'true'
-        uses: release-drafter/release-drafter@v6
-        with:
-          config-name: release-drafter-valkey.yml
+          # E.g. if subfolder == 'arangodb', config-name = release-drafter-arangodb.yml
+          config-name: release-drafter-${{ matrix.subfolder }}.yml
