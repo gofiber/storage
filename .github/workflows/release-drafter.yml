@@ -1,68 +1,54 @@
 name: Release Drafter (All)
 
 on:
-  push:
-    branches:
-      - master
-      - main
+    push:
+        branches:
+            - master
+            - main
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Filter changes
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            arangodb: 'arangodb/**'
-            azureblob: 'azureblob/**'
-            badger: 'badger/**'
-            bbolt: 'bbolt/**'
-            clickhouse: 'clickhouse/**'
-            cloudflarekv: 'cloudflarekv/**'
-            coherence: 'coherence/**'
-            couchbase: 'couchbase/**'
-            dynamodb: 'dynamodb/**'
-            etcd: 'etcd/**'
-            memcache: 'memcache/**'
-            memory: 'memory/**'
-            minio: 'minio/**'
-            mockstorage: 'mockstorage/**'
-            mongodb: 'mongodb/**'
-            mssql: 'mssql/**'
-            mysql: 'mysql/**'
-            nats: 'nats/**'
-            pebble: 'pebble/**'
-            postgres: 'postgres/**'
-            redis: 'redis/**'
-            ristretto: 'ristretto/**'
-            rueidis: 'rueidis/**'
-            s3: 's3/**'
-            scylladb: 'scylladb/**'
-            sqlite3: 'sqlite3/**'
-            valkey: 'valkey/**'
-    outputs:
-      packages: ${{ steps.filter.outputs.changes }}
+    changes:
+        runs-on: ubuntu-latest
+        permissions:
+            pull-requests: read
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-  release-drafter:
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.changes.outputs.packages) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Run Release Drafter
-        uses: release-drafter/release-drafter@v6
-        with:
-          # E.g. if package == 'arangodb', config-name = release-drafter-arangodb.yml
-          config-name: release-drafter-${{ matrix.package }}.yml
+            - name: Generate filters
+              id: filter-setup
+              run: |
+                  echo "filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . | sed 's|./||' | awk '{printf "%s: \047%s/**\047\n", $1, $1}')" >> $GITHUB_OUTPUT
+              shell: bash
+
+            - name: Filter changes
+              id: filter
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: ${{ steps.filter-setup.outputs.filters }}
+
+        outputs:
+            packages: ${{ steps.filter.outputs.changes }}
+
+    release-drafter:
+        needs: changes
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        strategy:
+            matrix:
+                package: ${{ fromJSON(needs.changes.outputs.packages) }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Generate dynamic config from template
+              run: |
+                  folder="${{ matrix.package }}"
+                  sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
+
+            - name: Use dynamic release-drafter configuration
+              uses: release-drafter/release-drafter@v6
+              with:
+                  config-name: release-drafter-${{ matrix.package }}.yml
