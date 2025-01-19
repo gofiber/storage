@@ -3,7 +3,7 @@ module github.com/gofiber/storage/rueidis
 go 1.20
 
 require (
-	github.com/redis/rueidis v1.0.49
+	github.com/redis/rueidis v1.0.44
 	github.com/stretchr/testify v1.10.0
 )
 
