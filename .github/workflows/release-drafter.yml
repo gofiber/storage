@@ -48,13 +48,11 @@ jobs:
 
             - name: Generate dynamic config from template
               run: |
-                  folder="${{ matrix.package }}"
-                  sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
-            - name: List .github directory
-              run: ls -l .github
-            - name: Validate Generated Config
-              run: cat .github/release-drafter-${{ matrix.package }}.yml
+                folder="${{ matrix.package }}"
+                sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
+                echo "config=$(cat .github/release-drafter-$folder.yml)" >> $GITHUB_OUTPUT
+
             - name: Use dynamic release-drafter configuration
-              uses: release-drafter/release-drafter@v6
+              uses: release-drafter/release-drafter@6dec4ceb1fb86b6514f11a2e7a39e1dedce709d0
               with:
-                  config-name: release-drafter-${{ matrix.package }}.yml
+                  config: ${{ steps.generate-config.outputs.config }}
