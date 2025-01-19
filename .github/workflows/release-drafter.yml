@@ -18,9 +18,9 @@ jobs:
             - name: Generate filters
               id: filter-setup
               run: |
-                  echo "filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . | sed 's|./||' | awk '{printf "%s: \047%s/**\047\n", $1, $1}')" >> $GITHUB_OUTPUT
+                  filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "%s=%s/**\n", $1, $1}')
+                  echo "filters=$(echo \"$filters\")" >> $GITHUB_OUTPUT
               shell: bash
-
             - name: Filter changes
               id: filter
               uses: dorny/paths-filter@v3
@@ -47,6 +47,8 @@ jobs:
               run: |
                   folder="${{ matrix.package }}"
                   sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
+                  echo "Generated config for folder: $folder"
+                  cat .github/release-drafter-$folder.yml
 
             - name: Use dynamic release-drafter configuration
               uses: release-drafter/release-drafter@v6
