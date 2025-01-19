@@ -30,7 +30,7 @@ jobs:
                   filters: ${{ steps.filter-setup.outputs.filters }}
 
         outputs:
-            packages: ${{ steps.filter.outputs.changes || '["valkey","rueidis"]' }}
+            packages: '["valkey","rueidis"]'
 
     release-drafter:
         needs: changes
