@@ -47,6 +47,7 @@ jobs:
               uses: actions/checkout@v4
 
             - name: Generate dynamic config from template
+              id: generate-config
               run: |
                 folder="${{ matrix.package }}"
                 sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
