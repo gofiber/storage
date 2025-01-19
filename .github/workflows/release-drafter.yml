@@ -18,13 +18,14 @@ jobs:
             - name: Generate filters
               id: filter-setup
               run: |
-                filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "  %s: \"%s/**\"\n", $1, $1}')
-                echo "filters:" > filters.yml
-                echo "$filters" >> filters.yml
-                # Output the filters as a YAML object
-                echo "filters<<EOF" >> $GITHUB_OUTPUT
-                cat filters.yml >> $GITHUB_OUTPUT
-                echo "EOF" >> $GITHUB_OUTPUT
+                  # Generate filters in YAML-compatible format
+                  filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "  %s: \"%s/**\"\n", $1, $1}')
+                  echo "Generated Filters:"
+                  echo "$filters"
+                  # Output the filters directly
+                  echo "filters<<EOF" >> $GITHUB_OUTPUT
+                  echo "$filters" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
               shell: bash
             - name: Filter changes
               id: filter
@@ -43,7 +44,7 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         strategy:
             matrix:
-                package: ${{ fromJSON(needs.changes.outputs.packages) }}
+                package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
