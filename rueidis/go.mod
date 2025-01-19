@@ -8,6 +8,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
+replace github.com/gofiber/utils/v2 => github.com/gofiber/utils/v2 v2.0.0-beta.4
+
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
