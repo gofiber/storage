@@ -18,11 +18,11 @@ jobs:
             - name: Generate filters
               id: filter-setup
               run: |
-                  # Generate filters in YAML-compatible format
-                  filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "  %s: \"%s/**\"\n", $1, $1}')
+                  # Generate filters without incorrect indentation
+                  filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
                   echo "Generated Filters:"
                   echo "$filters"
-                  # Output the filters directly
+                  # Set the filters directly without extra indentation
                   echo "filters<<EOF" >> $GITHUB_OUTPUT
                   echo "$filters" >> $GITHUB_OUTPUT
                   echo "EOF" >> $GITHUB_OUTPUT
