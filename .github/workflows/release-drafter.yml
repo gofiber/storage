@@ -50,7 +50,9 @@ jobs:
               run: |
                 folder="${{ matrix.package }}"
                 sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
-                echo "config=$(cat .github/release-drafter-$folder.yml)" >> $GITHUB_OUTPUT
+                echo "config<<EOF" >> $GITHUB_OUTPUT
+                cat .github/release-drafter-$folder.yml >> $GITHUB_OUTPUT
+                echo "EOF" >> $GITHUB_OUTPUT
 
             - name: Use dynamic release-drafter configuration
               uses: release-drafter/release-drafter@6dec4ceb1fb86b6514f11a2e7a39e1dedce709d0
