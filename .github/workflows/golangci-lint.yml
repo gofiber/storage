@@ -59,16 +59,6 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
-      - name: Debug Matrix
-        run: echo "${{ toJson(matrix.modules) }}"
-
-      - name: Validate go.mod
-        run: go mod tidy
-        working-directory: ${{ matrix.modules }}
-
-      - name: Check Workdir
-        run: ls -la ${{ matrix.modules }}
-
       - name: Run golangci-lint
         uses: reviewdog/action-golangci-lint@v2
         with:
