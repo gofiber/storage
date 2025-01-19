@@ -3,8 +3,8 @@ module github.com/gofiber/storage/valkey
 go 1.23
 
 require (
-	github.com/stretchr/testify v1.9.0
-	github.com/valkey-io/valkey-go v1.0.52
+	github.com/stretchr/testify v1.10.0
+	github.com/valkey-io/valkey-go v1.0.53
 )
 
 require (

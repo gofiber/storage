@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/redis/rueidis v1.0.53
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
