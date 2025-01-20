@@ -1,7 +1,6 @@
 module github.com/gofiber/storage/s3/v2
 
 go 1.19
-toolchain go1.22.5
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.33.0
@@ -9,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.54
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.10
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
