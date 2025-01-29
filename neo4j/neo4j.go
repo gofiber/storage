@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gofiber/utils/v2"
@@ -40,7 +41,7 @@ func New(config ...Config) *Storage {
 	if db == nil {
 		db, err = neo4j.NewDriverWithContext(cfg.TargetBoltURI, cfg.Auth, cfg.Configurers...)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		}
 	}
 
@@ -52,10 +53,16 @@ func New(config ...Config) *Storage {
 
 	// truncate node if reset set to true
 	if cfg.Reset {
-		if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("MATCH (n:%s) DELETE n", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
+		if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
 			db.Close(ctx)
 			panic(err)
 		}
+	}
+
+	// create index on key
+	if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("CREATE INDEX neo4jstore_key_idx IF NOT EXISTS FOR (n:%s) ON (n.k)", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
+		db.Close(ctx)
+		panic(err)
 	}
 
 	store := &Storage{
@@ -64,10 +71,10 @@ func New(config ...Config) *Storage {
 		done:       make(chan struct{}),
 
 		cypherMatch:  fmt.Sprintf("OPTIONAL MATCH (n:%s{ k: $key }) RETURN n { .* } AS data", cfg.Node),
-		cypherMerge:  fmt.Sprintf("MERGE (n:%s{ k: $key }) SET n.v = $val, n.e = $exp", cfg.Node),
-		cypherDelete: fmt.Sprintf("MATCH (n:%s{ k: $key }) DELETE n", cfg.Node),
-		cypherReset:  fmt.Sprintf("MATCH (n:%s) DELETE n", cfg.Node),
-		cypherGC:     fmt.Sprintf("MATCH (n:%s) WHERE n.e <= $exp AND n.e != 0 DELETE n", cfg.Node),
+		cypherMerge:  fmt.Sprintf("MERGE (n:%s{ k: $key }) SET n.v = $val, n.e = $exp FINISH", cfg.Node),
+		cypherDelete: fmt.Sprintf("MATCH (n:%s{ k: $key }) DELETE n FINISH", cfg.Node),
+		cypherReset:  fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node),
+		cypherGC:     fmt.Sprintf("MATCH (n:%s) WHERE n.e <= $exp AND n.e != 0 DELETE n FINISH", cfg.Node),
 	}
 
 	go store.gcTicker()
@@ -82,7 +89,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	ctx := context.Background()
 
-	res, err := neo4j.ExecuteQuery(ctx, s.db, s.cypherMatch, map[string]any{"key": key}, neo4j.EagerResultTransformer)
+	res, err := neo4j.ExecuteQuery(
+		ctx, s.db, s.cypherMatch,
+		map[string]any{"key": key},
+		neo4j.EagerResultTransformer,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +114,64 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	return utils.UnsafeBytes(model.Val), nil
+}
+
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if len(key) <= 0 || len(val) <= 0 {
+		return nil
+	}
+	var expireAt int64
+	if exp != 0 {
+		expireAt = time.Now().Add(exp).Unix()
+	}
+
+	valStr := utils.UnsafeString(val)
+
+	// create the structure for the storage
+	data := model{
+		Key: key,
+		Val: valStr,
+		Exp: expireAt,
+	}
+
+	ctx := context.Background()
+
+	_, err := neo4j.ExecuteQuery(
+		ctx, s.db, s.cypherMerge,
+		map[string]any{"key": data.Key, "val": data.Val, "exp": data.Exp},
+		neo4j.EagerResultTransformer,
+	)
+
+	return err
+}
+
+// Delete value by key
+func (s *Storage) Delete(key string) error {
+	if len(key) <= 0 {
+		return nil
+	}
+
+	_, err := neo4j.ExecuteQuery(context.Background(), s.db, s.cypherDelete, map[string]any{"key": key}, neo4j.EagerResultTransformer)
+	return err
+}
+
+// Reset all keys. Remove all nodes
+func (s *Storage) Reset() error {
+	_, err := neo4j.ExecuteQuery(
+		context.Background(), s.db, s.cypherReset,
+		nil,
+		neo4j.EagerResultTransformer,
+	)
+
+	return err
+}
+
+// Close the database
+func (s *Storage) Close() error {
+	s.done <- struct{}{}
+
+	return s.db.Close(context.Background())
 }
 
 // Return database client
