@@ -23,12 +23,14 @@ type Config struct {
 
 	// Authentication method
 	//
-	// Optional. Default is nil
+	// Optional. Default is nil.
+	//
+	// Mandatory, if `Username` and `Password` fields are not provided and auth is enabled on server.
 	//
 	// If not provided and both `Username` and `Password` fields are provided, basicAuth will be used, like below:
 	//   neo4j.BasicAuth(Username, Password, "")
 	//
-	// If not provided and one of `Username` and `Password` fields is not provided, you must ensure that authtentication is disabled for your server, otherwise an unauthorized error will panic.
+	// If not provided and both `Username` and `Password` fields are not provided, you must ensure that auth is disabled for your server, otherwise an unauthorized error will panic.
 	//
 	// If provided, `Username` and `Password` fields are not considered.
 	Auth auth.TokenManager
@@ -42,14 +44,14 @@ type Config struct {
 	//
 	// Optional. Default is ""
 	//
-	// Mandatory if `Auth` is nil and auth is enabled on server
+	// Mandatory, if `Auth` is nil and auth is enabled on server
 	Username string
 
 	// Server password
 	//
 	// Optional. Default is ""
 	//
-	// Mandatory if `Auth` is nil and auth is enabled on server
+	// Mandatory, if `Auth` is nil and auth is enabled on server
 	Password string
 
 	// Node name
