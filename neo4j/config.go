@@ -1,11 +1,11 @@
-package neo4j
+package neo4jstore
 
 import (
 	"time"
 
-	driver "github.com/neo4j/neo4j-go-driver/v5/neo4j"
-	driverauth "github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
-	driverconfig "github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 )
 
 type Config struct {
@@ -14,7 +14,7 @@ type Config struct {
 
 		If provided, it overrides the following connection parameters
 	*/
-	Driver driver.DriverWithContext
+	DB neo4j.DriverWithContext
 
 	// Optional. Default is "neo4j://localhost"
 	TargetBoltURI string
@@ -26,23 +26,16 @@ type Config struct {
 
 		If provided, it overrides Username and Password
 	*/
-	Auth driverauth.TokenManager
+	Auth auth.TokenManager
 
 	// Optional. Default is nil
-	Configurers []func(*driverconfig.Config)
+	Configurers []func(*config.Config)
 
 	// Optional. Default is ""
 	Username string
 
 	// Optional. Default is ""
 	Password string
-
-	/*
-		Optional. Default is "fiber"
-
-		If you lack the administrative privilege, "neo4j" will be used
-	*/
-	Database string
 
 	// Optional. Default is "fiber_storage"
 	Node string
@@ -56,8 +49,7 @@ type Config struct {
 
 var ConfigDefault = Config{
 	TargetBoltURI: "neo4j://localhost",
-	Auth:          driver.NoAuth(),
-	Database:      "fiber",
+	Auth:          neo4j.NoAuth(),
 	Node:          "fiber_storage",
 	Reset:         false,
 	GCInterval:    10 * time.Second,
@@ -83,12 +75,8 @@ func configDefault(config ...Config) Config {
 		if cfg.Username == "" || cfg.Password == "" {
 			cfg.Auth = ConfigDefault.Auth
 		} else {
-			cfg.Auth = driver.BasicAuth(cfg.Username, cfg.Password, "")
+			cfg.Auth = neo4j.BasicAuth(cfg.Username, cfg.Password, "")
 		}
-	}
-
-	if cfg.Database == "" {
-		cfg.Database = ConfigDefault.Database
 	}
 
 	if cfg.Node == "" {
