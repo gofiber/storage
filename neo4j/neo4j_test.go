@@ -1,7 +1,6 @@
 package neo4jstore
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -9,9 +8,9 @@ import (
 )
 
 var testStore = New(Config{
-	Reset:    true,
-	Username: os.Getenv("NEO4J_USER"),
-	Password: os.Getenv("NEO4J_PASS"),
+	Reset: true,
+	// Username: os.Getenv("NEO4J_USER"),
+	// Password: os.Getenv("NEO4J_PASS"),
 })
 
 func Test_Neo4jStore_Set(t *testing.T) {
