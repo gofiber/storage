@@ -42,7 +42,7 @@ jobs:
     outputs:
       packages: ${{ steps.filter.outputs.changes || '[]' }}
 
-  Compare:
+  compare:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
