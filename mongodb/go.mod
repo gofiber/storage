@@ -4,8 +4,8 @@ go 1.22
 
 require (
 	github.com/stretchr/testify v1.9.0
-	github.com/testcontainers/testcontainers-go v0.34.0
-	github.com/testcontainers/testcontainers-go/modules/mongodb v0.34.0
+	github.com/testcontainers/testcontainers-go v0.35.0
+	github.com/testcontainers/testcontainers-go/modules/mongodb v0.35.0
 	go.mongodb.org/mongo-driver v1.16.1
 )
 
