@@ -46,7 +46,7 @@ go get github.com/gofiber/storage/neo4j/v1
 Import the storage package.
 
 ```go
-import neo4jstore "github.com/gofiber/storage/neo4j"
+import neo4jstore "github.com/gofiber/storage/neo4j/v1"
 ```
 
 You can use the following possibilities to create a storage:
