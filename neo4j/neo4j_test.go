@@ -12,9 +12,9 @@ import (
 )
 
 var testStore *Storage
-var teardown func()
 
-func setupTestNeo4j() (*Storage, func()) {
+// TestMain sets up and tears down the test container
+func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	// Start a Neo4j test container
@@ -40,18 +40,13 @@ func setupTestNeo4j() (*Storage, func()) {
 		Password: "pass#w*#d",
 	})
 
-	// Teardown function to clean up
-	return store, func() {
-		_ = store.Close()
-		_ = neo4jContainer.Terminate(ctx)
-	}
-}
+	testStore = store
 
-// TestMain sets up and tears down the test container
-func TestMain(m *testing.M) {
-	testStore, teardown = setupTestNeo4j()
+	defer testStore.Close()
+	defer neo4jContainer.Terminate(ctx)
+
 	code := m.Run()
-	teardown()
+
 	os.Exit(code)
 }
 
