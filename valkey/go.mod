@@ -1,10 +1,10 @@
-module github.com/gofiber/storage/rueidis
+module github.com/gofiber/storage/valkey
 
-go 1.20
+go 1.23
 
 require (
-	github.com/redis/rueidis v1.0.44
 	github.com/stretchr/testify v1.10.0
+	github.com/valkey-io/valkey-go v1.0.53
 )
 
 require (

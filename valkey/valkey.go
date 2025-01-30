@@ -1,32 +1,32 @@
-package rueidis
+package valkey
 
 import (
 	"context"
 	"time"
 
-	"github.com/redis/rueidis"
+	"github.com/valkey-io/valkey-go"
 )
 
 var cacheTTL = time.Second
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db rueidis.Client
+	db valkey.Client
 }
 
-// New creates a new rueidis storage
+// New creates a new valkey storage
 func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Create new rueidis client
-	var db rueidis.Client
+	// Create new valkey client
+	var db valkey.Client
 	cacheTTL = cfg.CacheTTL
 
 	// Parse the URL and update config values accordingly
 	if cfg.URL != "" {
 		// This will panic if parsing URL fails
-		options := rueidis.MustParseURL(cfg.URL)
+		options := valkey.MustParseURL(cfg.URL)
 
 		// Update the config values with the parsed URL values
 		cfg.InitAddress = options.InitAddress
@@ -46,7 +46,7 @@ func New(config ...Config) *Storage {
 	}
 
 	// Update config values accordingly and start new Client
-	db, err := rueidis.NewClient(rueidis.ClientOption{
+	db, err := valkey.NewClient(valkey.ClientOption{
 		Username:            cfg.Username,
 		Password:            cfg.Password,
 		ClientName:          cfg.ClientName,
@@ -91,7 +91,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 	val, err := s.db.DoCache(context.Background(), s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
-	if err != nil && rueidis.IsRedisNil(err) {
+	if err != nil && valkey.IsValkeyNil(err) {
 		return nil, nil
 	}
 	return val, err
@@ -129,6 +129,6 @@ func (s *Storage) Close() error {
 }
 
 // Return database client
-func (s *Storage) Conn() rueidis.Client {
+func (s *Storage) Conn() valkey.Client {
 	return s.db
 }

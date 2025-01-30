@@ -1,0 +1,61 @@
+name: Release Drafter (All)
+
+on:
+    push:
+        branches:
+            - master
+            - main
+
+jobs:
+    changes:
+        runs-on: ubuntu-latest
+        permissions:
+            pull-requests: read
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Generate filters
+              id: filter-setup
+              run: |
+                  filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+                  echo "filters<<EOF" >> $GITHUB_OUTPUT
+                  echo "$filters" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+              shell: bash
+            - name: Filter changes
+              id: filter
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: ${{ steps.filter-setup.outputs.filters }}
+
+        outputs:
+            packages: ${{ steps.filter.outputs.changes || '[]' }}
+
+    release-drafter:
+        needs: changes
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        if: needs.changes.outputs.packages != '[]' # Ensure job runs only if there are changes
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        strategy:
+            matrix:
+                package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Generate dynamic config from template
+              id: generate-config
+              run: |
+                folder="${{ matrix.package }}"
+                sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
+                echo "config<<EOF" >> $GITHUB_OUTPUT
+                cat .github/release-drafter-$folder.yml >> $GITHUB_OUTPUT
+                echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Use dynamic release-drafter configuration
+              uses: ReneWerner87/release-drafter@6dec4ceb1fb86b6514f11a2e7a39e1dedce709d0
+              with:
+                  config: ${{ steps.generate-config.outputs.config }}

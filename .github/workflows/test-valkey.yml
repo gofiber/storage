@@ -1,0 +1,63 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'valkey/**'
+    pull_request:
+        paths:
+            - 'valkey/**'
+            - '.github/workflows/test-valkey.yml'
+name: "Tests Valkey"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.23.x
+                valkey:
+                    - '7.x'
+                    - '8.x'
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+
+            -   name: Generate TLS certs
+                run: ./.github/scripts/gen-test-certs.sh
+
+            -   name: Setup Valkey
+                uses: shogo82148/actions-setup-redis@v1
+                with:
+                    distribution: 'valkey'
+                    redis-version: ${{ matrix.valkey }}
+                    auto-start: 'false'
+                    redis-port: '6379'
+                    redis-tls-port: '6380'
+
+            -   name: Run Valkey
+                run: |
+                    valkey-server --tls-port 6380 --port 6379 \
+                    --tls-cert-file /home/runner/work/storage/storage/tls/valkey.crt \
+                    --tls-key-file /home/runner/work/storage/storage/tls/valkey.key \
+                    --tls-ca-cert-file /home/runner/work/storage/storage/tls/ca.crt &
+
+            -   name: Setup Valkey Cluster
+                uses: vishnudxb/redis-cluster@1.0.9
+                with:
+                    master1-port: 7000
+                    master2-port: 7001
+                    master3-port: 7002
+                    slave1-port: 7003
+                    slave2-port: 7004
+                    slave3-port: 7005
+                    sleep-duration: 10
+
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+
+            -   name: Run Test
+                run: cd ./valkey && go test ./... -v -race
