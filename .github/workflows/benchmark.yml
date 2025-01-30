@@ -81,20 +81,6 @@ jobs:
         run: |
           docker run -d -p 11211:11211 memcached:latest
 
-      - name: Install MSSQL
-        if: ${{ matrix.package == 'mssql' }}
-        run: |
-          docker run -d -p 1433:1433 \
-            -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=MsSql!1234" \
-            -e "MSSQL_DB=master" -e "MSSQL_USER=sa" \
-            -e "MSSQL_PASSWORD=MsSql!1234" \
-            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null" \
-            --health-interval 1s \
-            --health-timeout 30s \
-            --health-start-period 10s \
-            --health-retries 20 \
-            mcmoe/mssqldocker:latest
-
       - name: Install Azurite
         if: ${{ matrix.package == 'azureblob' }}
         run: |
