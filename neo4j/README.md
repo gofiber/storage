@@ -35,7 +35,7 @@ Neo4j is tested on the 2 last [Go versions](https://golang.org/dl/) with support
 go mod init github.com/<user>/<repo>
 ```
 
-And then install the noe4j implementation:
+And then install the neo4j implementation:
 
 ```bash
 go get github.com/gofiber/storage/neo4j/v1
