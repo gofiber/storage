@@ -138,7 +138,7 @@ Used only for optional fields
 
 ```go
 var ConfigDefault = Config{
- TargetBoltURI: "neo4j://localhost",
+ URI: "neo4j://localhost",
  Node:          "fiber_storage",
  Reset:         false,
  GCInterval:    10 * time.Second,
