@@ -130,7 +130,7 @@ If auth is enabled on your server, then authentication must be provided in one o
 
 Otherwise, your neo4j driver will panic with authorization error.
 
-In contrast, if authentication is disabled on your server, there's no need to provide any authentication parameter.
+In contrast, if auth is disabled on your server, there's no need to provide any authentication parameter.
 
 ### Default Config
 
