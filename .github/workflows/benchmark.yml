@@ -95,17 +95,6 @@ jobs:
             --health-retries 20 \
             mcmoe/mssqldocker:latest
 
-      - name: Install MySQL
-        if: ${{ matrix.package == 'mysql' }}
-        run: |
-          docker run -d -p 3306:3306 \
-            -e "MYSQL_DATABASE=fiber" \
-            -e "MYSQL_USER=username" \
-            -e "MYSQL_PASSWORD=password" \
-            -e "MYSQL_ROOT_PASSWORD=password" \
-            --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout 5s --health-retries 5 \
-            mysql:latest
-
       - name: Install Postgres
         if: ${{ matrix.package == 'postgres' }}
         run: |
