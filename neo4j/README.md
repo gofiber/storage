@@ -29,7 +29,7 @@ func (s *Storage) Conn() neo4j.DriverWithContext
 
 ### Installation
 
-Neo4j is tested on the latest [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Neo4j is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
 ```bash
 go mod init github.com/<user>/<repo>
@@ -38,7 +38,7 @@ go mod init github.com/<user>/<repo>
 And then install the noe4j implementation:
 
 ```bash
-go get github.com/gofiber/storage/neo4j
+go get github.com/gofiber/storage/neo4j/v1
 ```
 
 ### Examples
@@ -55,24 +55,92 @@ You can use the following possibilities to create a storage:
 // Initialize default config
 store := neo4jstore.New()
 
-// However, the above assumes that auth is disabled on your neo4j server. If auth is enabled (which is mostly the case), authentication fields must be set. Either set the Auth field or Username and Password fields.
-// Example using Username and Password
-store := neo4jstore.New(neo4jstore.Config{
-  Username: os.GetEnv("NEO4J_USER"),
-  Password: os.GetEnv("NEO4J_PASS"),
-})
-
-// Example using Auth field
-// Warning: Do not use neo4j.NoAuth() unless auth is disabled on the server
-store := neo4jstore.New(neo4jstore.Config{
-  Auth: neo4j.BasicAuth(os.GetEnv("NEO4J_USER"), os.GetEnv("NEO4J_PASS"), ""),
-})
-
 // Initialize custom config
-store := postgres.New(postgres.Config{
- DB:              neo4jDriver,
+store := neo4jstore.New(neo4jstore.Config{
+ DB:              driver,
  Node:           "fiber_storage",
  Reset:           false,
  GCInterval:      10 * time.Second,
 })
+```
+
+### Config
+
+```go
+// Config defines the config for storage.
+type Config struct {
+ // Connection pool
+ //
+ // DB neo4j.DriverWithContext object will override connection uri and other connection fields.
+ //
+ // Optional. Default is nil.
+ DB neo4j.DriverWithContext
+
+ // Target Server
+ //
+ // Optional. Default is "neo4j://localhost"
+ TargetBoltURI string
+
+ // Connection authentication
+ //
+ // Auth auth.TokenManager will override Username and Password fields
+ //
+ // Optional. Default is nil.
+ Auth auth.TokenManager
+
+ // Connection configurations
+ //
+ // Optional. Default is nil
+ Configurers []func(*config.Config)
+
+ // Server username
+ //
+ // Optional. Default is ""
+ Username string
+
+ // Server password
+ //
+ // Optional. Default is ""
+ Password string
+
+ // Node name
+ //
+ // Optional. Default is "fiber_storage"
+ Node string
+
+ // Reset clears any existing keys in existing Table
+ //
+ // Optional. Default is false
+ Reset bool
+
+ // Time before deleting expired keys
+ //
+ // Optional. Default is 10 * time.Second
+ GCInterval time.Duration
+}
+```
+
+#### A note on Authentication
+
+If auth is enabled on your server, then authentication must be provided in one of the three ways (the previous overrides the next):
+
+- Via the connection pool, `neo4j.DriverWithContext`, provided on the `DB` field.
+- Via the `Auth` field: it must be an `auth.TokenManager` whose value is any one but `neo4j.NoAuth()`.
+- By setting both `Username` and `Password` fields: This will cause the this storage driver to use Basic Auth.
+
+Otherwise, your neo4j driver will panic with authorization error.
+
+In contrast, if authentication is disabled on your server, there's no need to provide any authentication parameter.
+
+### Default Config
+
+Used only for optional fields
+
+```go
+var ConfigDefault = Config{
+ TargetBoltURI: "neo4j://localhost",
+ Node:          "fiber_storage",
+ Reset:         false,
+ GCInterval:    10 * time.Second,
+}
 ```

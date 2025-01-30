@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	// Connection pool
+	// Connection pool.
+	//
+	// DB neo4j.DriverWithContext object will override connection uri and other connection fields.
 	//
 	// Optional. Default is nil.
-	//
-	// If provided, it overrides the following connection parameters
 	DB neo4j.DriverWithContext
 
 	// Target Server
@@ -21,18 +21,11 @@ type Config struct {
 	// Optional. Default is "neo4j://localhost"
 	TargetBoltURI string
 
-	// Authentication method
+	// Connection authentication.
+	//
+	// Auth auth.TokenManager will override Username and Password fields.
 	//
 	// Optional. Default is nil.
-	//
-	// Mandatory, if `Username` and `Password` fields are not provided and auth is enabled on server.
-	//
-	// If not provided and both `Username` and `Password` fields are provided, basicAuth will be used, like below:
-	//   neo4j.BasicAuth(Username, Password, "")
-	//
-	// If not provided and both `Username` and `Password` fields are not provided, you must ensure that auth is disabled for your server, otherwise an unauthorized error will panic.
-	//
-	// If provided, `Username` and `Password` fields are not considered.
 	Auth auth.TokenManager
 
 	// Connection configurations
@@ -43,15 +36,11 @@ type Config struct {
 	// Server username
 	//
 	// Optional. Default is ""
-	//
-	// Mandatory, if `Auth` is nil and auth is enabled on server
 	Username string
 
 	// Server password
 	//
 	// Optional. Default is ""
-	//
-	// Mandatory, if `Auth` is nil and auth is enabled on server
 	Password string
 
 	// Node name
