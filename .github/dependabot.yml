@@ -16,9 +16,3 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
-    - package-ecosystem: "gomod"
-      directory: "/clickhouse/" # Location of package manifests
-      labels:
-          - "🤖 Dependencies"
-      schedule:
-          interval: "daily"
