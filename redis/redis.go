@@ -13,7 +13,11 @@ type Storage struct {
 	db redis.UniversalClient
 }
 
-// New creates a new redis storage
+// New creates a new Redis storage instance.
+//
+// DragonflyDB is fully compatible with the Redis API, meaning it can be used as a drop-in replacement for Redis.
+//
+// Because of this compatibility, DragonflyDB can also be initialized through this function.
 func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
