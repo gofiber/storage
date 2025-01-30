@@ -19,7 +19,7 @@ type Config struct {
 	// Target Server
 	//
 	// Optional. Default is "neo4j://localhost"
-	TargetBoltURI string
+	URI string
 
 	// Connection authentication.
 	//
@@ -31,7 +31,7 @@ type Config struct {
 	// Connection configurations
 	//
 	// Optional. Default is nil
-	Configurers []func(*config.Config)
+	Configurations []func(*config.Config)
 
 	// Server username
 	//
@@ -60,10 +60,10 @@ type Config struct {
 }
 
 var ConfigDefault = Config{
-	TargetBoltURI: "neo4j://localhost",
-	Node:          "fiber_storage",
-	Reset:         false,
-	GCInterval:    10 * time.Second,
+	URI:        "neo4j://localhost",
+	Node:       "fiber_storage",
+	Reset:      false,
+	GCInterval: 10 * time.Second,
 }
 
 // Helper function to set default values
@@ -78,8 +78,8 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 
 	// Set default values
-	if cfg.TargetBoltURI == "" {
-		cfg.TargetBoltURI = ConfigDefault.TargetBoltURI
+	if cfg.URI == "" {
+		cfg.URI = ConfigDefault.URI
 	}
 
 	if cfg.Auth == nil {

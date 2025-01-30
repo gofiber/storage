@@ -9,6 +9,8 @@ import (
 
 	"github.com/gofiber/utils/v2"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 )
 
 // Storage interface that is implemented by storage providers
@@ -30,6 +32,16 @@ type model struct {
 	Exp int64  `json:"e"`
 }
 
+type neo4jConnConfig struct {
+	URI            string
+	Auth           auth.TokenManager
+	Configurations []func(*config.Config)
+}
+
+func newDriverWithContext(cfg neo4jConnConfig) (neo4j.DriverWithContext, error) {
+	return neo4j.NewDriverWithContext(cfg.URI, cfg.Auth, cfg.Configurations...)
+}
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -39,7 +51,11 @@ func New(config ...Config) *Storage {
 	var err error
 	db := cfg.DB
 	if db == nil {
-		db, err = neo4j.NewDriverWithContext(cfg.TargetBoltURI, cfg.Auth, cfg.Configurers...)
+		db, err = newDriverWithContext(neo4jConnConfig{
+			URI:            cfg.URI,
+			Auth:           cfg.Auth,
+			Configurations: cfg.Configurations,
+		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		}

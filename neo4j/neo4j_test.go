@@ -1,18 +1,59 @@
 package neo4jstore
 
 import (
+	"context"
+	"log"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go/modules/neo4j"
 )
 
-var testStore = New(Config{
-	Reset:    true,
-	Username: os.Getenv("NEO4J_USER"),
-	Password: os.Getenv("NEO4J_PASS"),
-})
+var testStore *Storage
+var teardown func()
+
+func setupTestNeo4j() (*Storage, func()) {
+	ctx := context.Background()
+
+	// Start a Neo4j test container
+	neo4jContainer, err := neo4j.Run(ctx,
+		"neo4j:5.26",
+		neo4j.WithAdminPassword("pass#w*#d"),
+	)
+	if err != nil {
+		log.Fatalf("Failed to start Neo4j container: %v", err)
+	}
+
+	// Get the Bolt URI
+	uri, err := neo4jContainer.BoltUrl(ctx)
+	if err != nil {
+		log.Fatalf("Failed to get connection string: %v", err)
+	}
+
+	// Initialize Neo4j store with test container credentials
+	store := New(Config{
+		Reset:    true,
+		URI:      uri,
+		Username: "neo4j",
+		Password: "pass#w*#d",
+	})
+
+	// Teardown function to clean up
+	return store, func() {
+		_ = store.Close()
+		_ = neo4jContainer.Terminate(ctx)
+	}
+}
+
+// TestMain sets up and tears down the test container
+func TestMain(m *testing.M) {
+	testStore, teardown = setupTestNeo4j()
+	code := m.Run()
+	teardown()
+	os.Exit(code)
+}
 
 func Test_Neo4jStore_Set(t *testing.T) {
 	var (

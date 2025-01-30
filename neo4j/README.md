@@ -5,7 +5,7 @@ title: Neo4j
 
 A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/neo4j-go-driver).
 
-> **Note: Requires Go 1.20 and above**
+> **Note: Requires latest two release of Golang**
 
 ### Table of Contents
 
@@ -38,7 +38,7 @@ go mod init github.com/<user>/<repo>
 And then install the neo4j implementation:
 
 ```bash
-go get github.com/gofiber/storage/neo4j/v1
+go get github.com/gofiber/storage/neo4j
 ```
 
 ### Examples
@@ -46,7 +46,7 @@ go get github.com/gofiber/storage/neo4j/v1
 Import the storage package.
 
 ```go
-import neo4jstore "github.com/gofiber/storage/neo4j/v1"
+import neo4jstore "github.com/gofiber/storage/neo4j"
 ```
 
 You can use the following possibilities to create a storage:
@@ -79,7 +79,7 @@ type Config struct {
  // Target Server
  //
  // Optional. Default is "neo4j://localhost"
- TargetBoltURI string
+ URI string
 
  // Connection authentication
  //
@@ -91,7 +91,7 @@ type Config struct {
  // Connection configurations
  //
  // Optional. Default is nil
- Configurers []func(*config.Config)
+ Configurations []func(*config.Config)
 
  // Server username
  //
