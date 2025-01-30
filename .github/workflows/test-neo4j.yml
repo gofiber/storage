@@ -1,0 +1,40 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'neo4j/**'
+    pull_request:
+        paths:
+            - 'neo4j/**'
+name: "Tests Neo4j"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        services:
+            neo4j:
+                image: 'neo4j:5.26.1'
+                env:
+                    NEO4J_AUTH: 'neo4j/pass_w_rd'
+                ports:
+                    - '7687:7687'
+        strategy:
+            matrix:
+                go-version:
+                    - 1.20.x
+                    - 1.21.x
+                    - 1.22.x
+                    - 1.23.x
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Run Test
+                run: cd ./neo4j && go test ./... -v -race
+                env:
+                    NEO4J_USER: neo4j
+                    NEO4J_PASS: pass_w_rd
