@@ -149,6 +149,7 @@ jobs:
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.3"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
+          TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-RTM-GDR1-ubuntu-20.04"
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
 
