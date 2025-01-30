@@ -43,7 +43,11 @@ func TestMain(m *testing.M) {
 	testStore = store
 
 	defer testStore.Close()
-	defer neo4jContainer.Terminate(ctx)
+	defer func() {
+		if err := neo4jContainer.Terminate(ctx); err != nil {
+			log.Printf("Failed to terminate Neo4j container: %v", err)
+		}
+	}()
 
 	code := m.Run()
 
