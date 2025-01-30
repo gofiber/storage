@@ -11,14 +11,14 @@ title: Dragonfly
 
 A Dragonfly storage driver using [go-redis/redis](https://github.com/go-redis/redis). (Dragonfly is a redis-like database)
 
-**Note: Requires Go 1.19 and above**
+**Note: Requires Go 1.21 and above**
 
 ### Table of Contents
-- [Signatures](../redis/README.md#signatures)
-- [Installation](../redis/README.md#installation)
-- [Examples](../redis/README.md#examples)
-- [Config](../redis/README.md#config)
-- [Default Config](../redis/README.md#default-config)
+- [Signatures](../dragonfly/README.md#signatures)
+- [Installation](../dragonfly/README.md#installation)
+- [Examples](../dragonfly/README.md#examples)
+- [Config](../dragonfly/README.md#config)
+- [Default Config](../dragonfly/README.md#default-config)
 
 ### Signatures
 ```go
