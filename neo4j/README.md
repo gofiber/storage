@@ -126,7 +126,7 @@ If auth is enabled on your server, then authentication must be provided in one o
 
 - Via the connection pool, `neo4j.DriverWithContext`, provided on the `DB` field.
 - Via the `Auth` field: it must be an `auth.TokenManager` whose value is any one but `neo4j.NoAuth()`.
-- By setting both `Username` and `Password` fields: This will cause the this storage driver to use Basic Auth.
+- By setting both `Username` and `Password` fields: This will cause this storage driver to use Basic Auth.
 
 Otherwise, your neo4j driver will panic with authorization error.
 

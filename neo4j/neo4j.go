@@ -201,5 +201,7 @@ func (s *Storage) gc(t time.Time) {
 func mapToStruct(src map[string]any, dest any) {
 	bt, _ := json.Marshal(src)
 
-	json.Unmarshal(bt, dest)
+	if err := json.Unmarshal(bt, dest); err != nil {
+		panic(err)
+	}
 }
