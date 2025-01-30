@@ -81,11 +81,6 @@ jobs:
         run: |
           docker run -d -p 11211:11211 memcached:latest
 
-      - name: Install MongoDB
-        if: ${{ matrix.package == 'mongodb' }}
-        run: |
-          docker run -d -p 27017:27017 mongo:latest
-
       - name: Install MSSQL
         if: ${{ matrix.package == 'mssql' }}
         run: |
