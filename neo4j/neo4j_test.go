@@ -95,13 +95,17 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
-		exp = 1 * time.Second
+		exp = 100 * time.Millisecond
 	)
 
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Neo4jStore_Get_Expired(t *testing.T) {
