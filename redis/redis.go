@@ -13,7 +13,7 @@ type Storage struct {
 	db redis.UniversalClient
 }
 
-// New creates a new redis storage
+// New creates a new Redis storage instance.
 func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
