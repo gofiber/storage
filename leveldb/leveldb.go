@@ -58,7 +58,9 @@ func (s *Storage) Get(key []byte) ([]byte, error) {
 	}
 
 	if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-		s.db.Delete(key, nil)
+		if err := s.Delete(string(key)); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	}
 
@@ -100,21 +102,20 @@ func (s *Storage) Reset() error {
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 
-	batch := new(leveldb.Batch)
 	for iter.Next() {
-		batch.Delete(iter.Key())
+		key := iter.Key()
+		if err := s.db.Delete(key, nil); err != nil {
+			return err
+		}
 	}
 
-	if err := iter.Error(); err != nil {
-		return nil
-	}
-
-	return s.db.Write(batch, nil)
+	return iter.Error()
 }
 
 // Close the memory storage
 func (s *Storage) Close() error {
 	s.done <- struct{}{} // GC stop
+	close(s.done)
 	return s.db.Close()
 }
 

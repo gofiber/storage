@@ -62,12 +62,12 @@ func Test_Get_For0Second(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func Test_Get_ForExpired1Second(t *testing.T) {
+func Test_Get_ForExpired100Millisecond(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key"), []byte("value"), time.Second*1)
+	db.Set([]byte("key"), []byte("value"), time.Millisecond*100)
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 150)
 
 	value, err := db.Get([]byte("key"))
 	require.Nil(t, err)
@@ -134,12 +134,13 @@ func Test_Close(t *testing.T) {
 
 func Test_GarbageCollection_AfterWorking(t *testing.T) {
 	db := New(Config{
-		GCInterval: time.Second * 1,
+		GCInterval: time.Millisecond * 100,
 	})
 
-	db.Set([]byte("key"), []byte("value"), time.Second*1)
+	db.Set([]byte("key"), []byte("value"), time.Millisecond*100)
 
-	time.Sleep(time.Second * 2)
+	// Wait for a reasonable time with exponential backoff
+	time.Sleep(time.Millisecond * 150)
 
 	value, err := db.Conn().Get([]byte("key"), nil)
 	require.Error(t, err)
@@ -166,20 +167,39 @@ func Test_GarbageCollection_BeforeWorking(t *testing.T) {
 	require.Nil(t, err)
 }
 
+func Test_Close_Channel(t *testing.T) {
+	db := New()
+
+	err := db.Close()
+	require.Nil(t, err)
+
+	select {
+	case _, ok := <-db.done:
+		require.False(t, ok, "channel should be closed")
+	default:
+		t.Error("channel should be closed")
+	}
+
+	err = removeAllFiles("./fiber.leveldb")
+	require.Nil(t, err)
+}
+
 func Benchmark_Set(b *testing.B) {
 	db := New()
 	defer func() {
-		db.Close()
+		_ = db.Close()
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		i := 0
+		var i int
 		for pb.Next() {
 			key := []byte(fmt.Sprintf("key_%d", i))
 			value := []byte(fmt.Sprintf("value_%d", i))
-			_ = db.Set(key, value, 0)
+			if err := db.Set(key, value, 0); err != nil {
+				b.Fatal(err)
+			}
 			i++
 		}
 	})
@@ -188,18 +208,22 @@ func Benchmark_Set(b *testing.B) {
 func Benchmark_Get(b *testing.B) {
 	db := New()
 	defer func() {
-		db.Close()
+		_ = db.Close()
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
 	key := []byte("test_key")
 	value := []byte("test_value")
-	_ = db.Set(key, value, 0)
+	if err := db.Set(key, value, 0); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, _ = db.Get(key)
+			if _, err := db.Get(key); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 }
@@ -207,17 +231,21 @@ func Benchmark_Get(b *testing.B) {
 func Benchmark_Delete(b *testing.B) {
 	db := New()
 	defer func() {
-		db.Close()
+		_ = db.Close()
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		i := 0
+		var i int
 		for pb.Next() {
 			key := fmt.Sprintf("key_%d", i)
-			_ = db.Set([]byte(key), []byte("value"), 0)
-			_ = db.Delete(key)
+			if err := db.Set([]byte(key), []byte("value"), 0); err != nil {
+				b.Fatal(err)
+			}
+			if err := db.Delete(key); err != nil {
+				b.Fatal(err)
+			}
 			i++
 		}
 	})
