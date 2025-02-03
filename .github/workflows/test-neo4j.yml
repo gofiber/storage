@@ -1,0 +1,27 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'neo4j/**'
+    pull_request:
+        paths:
+            - 'neo4j/**'
+name: "Tests Neo4j"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.23.x
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Run Test
+                run: cd ./neo4j && go test ./... -v -race

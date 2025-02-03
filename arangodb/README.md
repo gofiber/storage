@@ -35,7 +35,7 @@ ArangoDB is tested on the 2 last (1.14/1.15) [Go versions](https://golang.org/dl
 ```bash
 go mod init github.com/<user>/<repo>
 ```
-And then install the mysql implementation:
+And then install the arangodb implementation:
 ```bash
 go get github.com/gofiber/storage/arangodb/v2
 ```
