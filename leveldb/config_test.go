@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,5 +16,9 @@ func TestConfigConfigMaxOpenFiles(t *testing.T) {
 
 func TestConfigDefaultDarwin(t *testing.T) { // MacOS
 	cfg := configDefault()
-	assert.Equal(t, 200, cfg.MaxOpenFiles)
+	if runtime.GOOS == "darwin" {
+		assert.Equal(t, 200, cfg.MaxOpenFiles)
+	} else {
+		assert.Equal(t, 500, cfg.MaxOpenFiles)
+	}
 }
