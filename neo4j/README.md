@@ -56,7 +56,7 @@ You can use the following possibilities to create a storage:
 store := neo4jstore.New()
 
 // Initialize custom config
-store := neo4j.New(neo4jstore.Config{
+store := neo4jstore.New(neo4jstore.Config{
  DB:              driver,
  Node:            "fiber_storage",
  Reset:           false,
