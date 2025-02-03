@@ -5,7 +5,7 @@ title: Neo4j
 
 A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/neo4j-go-driver).
 
-> **Note: Requires latest two release of Golang**
+> **Note: Requires latest two releases of Golang**
 
 ### Table of Contents
 
@@ -53,10 +53,10 @@ You can use the following possibilities to create a storage:
 
 ```go
 // Initialize default config
-store := neo4j.New()
+store := neo4jstore.New()
 
 // Initialize custom config
-store := neo4j.New(neo4jstore.Config{
+store := neo4jstore.New(neo4jstore.Config{
  DB:              driver,
  Node:            "fiber_storage",
  Reset:           false,
@@ -71,7 +71,7 @@ store := neo4j.New(neo4jstore.Config{
 type Config struct {
  // Connection pool
  //
- // DB neo4j.DriverWithContext object will override connection uri and other connection fields.
+ // DB neo4j.DriverWithContext object will override connection URI and other connection fields.
  //
  // Optional. Default is nil.
  DB neo4j.DriverWithContext
@@ -108,12 +108,12 @@ type Config struct {
  // Optional. Default is "fiber_storage"
  Node string
 
- // Reset clears any existing keys in existing Table
+ // Reset clears any existing keys (Nodes)
  //
  // Optional. Default is false
  Reset bool
 
- // Time before deleting expired keys
+ // Time before deleting expired keys (Nodes)
  //
  // Optional. Default is 10 * time.Second
  GCInterval time.Duration
