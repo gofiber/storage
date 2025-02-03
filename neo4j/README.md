@@ -53,12 +53,12 @@ You can use the following possibilities to create a storage:
 
 ```go
 // Initialize default config
-store := neo4jstore.New()
+store := neo4j.New()
 
 // Initialize custom config
-store := neo4jstore.New(neo4jstore.Config{
+store := neo4j.New(neo4jstore.Config{
  DB:              driver,
- Node:           "fiber_storage",
+ Node:            "fiber_storage",
  Reset:           false,
  GCInterval:      10 * time.Second,
 })
