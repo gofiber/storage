@@ -3,7 +3,6 @@ module github.com/gofiber/storage/neo4j
 go 1.23
 
 require (
-	github.com/gofiber/utils/v2 v2.0.0-beta.7
 	github.com/neo4j/neo4j-go-driver/v5 v5.27.0
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go/modules/neo4j v0.35.0
