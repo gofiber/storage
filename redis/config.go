@@ -6,8 +6,6 @@ import (
 )
 
 // Config defines the config for storage.
-//
-// Dragonfly and Redis share the same config
 type Config struct {
 	// Host name where the DB is hosted
 	//
