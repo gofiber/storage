@@ -1,4 +1,4 @@
-package neo4jstore
+package neo4j
 
 import (
 	"time"
@@ -48,12 +48,12 @@ type Config struct {
 	// Optional. Default is "fiber_storage"
 	Node string
 
-	// Reset clears any existing keys in existing Table
+	// Reset clears any existing keys (Nodes)
 	//
 	// Optional. Default is false
 	Reset bool
 
-	// Time before deleting expired keys
+	// Time before deleting expired keys (Nodes)
 	//
 	// Optional. Default is 10 * time.Second
 	GCInterval time.Duration

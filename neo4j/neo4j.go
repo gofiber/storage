@@ -1,13 +1,12 @@
-package neo4jstore
+package neo4j
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"log"
 	"time"
 
-	"github.com/gofiber/utils/v2"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
@@ -28,7 +27,7 @@ type Storage struct {
 
 type model struct {
 	Key string `json:"k"`
-	Val string `json:"v"`
+	Val []byte `json:"v"`
 	Exp int64  `json:"e"`
 }
 
@@ -57,28 +56,28 @@ func New(config ...Config) *Storage {
 			Configurations: cfg.Configurations,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
+			log.Panicf("Unable to create connection pool: %v\n", err)
 		}
 	}
 
 	ctx := context.Background()
 
 	if err := db.VerifyConnectivity(ctx); err != nil {
-		panic(err)
+		log.Panicf("Unable to verify connection: %v\n", err)
 	}
 
-	// truncate node if reset set to true
+	// delete all nodes if reset set to true
 	if cfg.Reset {
 		if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
 			db.Close(ctx)
-			panic(err)
+			log.Panicf("Unable to reset storage: %v\n", err)
 		}
 	}
 
 	// create index on key
 	if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("CREATE INDEX neo4jstore_key_idx IF NOT EXISTS FOR (n:%s) ON (n.k)", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
 		db.Close(ctx)
-		panic(err)
+		log.Panicf("Unable to create index on key: %v\n", err)
 	}
 
 	store := &Storage{
@@ -122,14 +121,18 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	// result model
 	var model model
-	mapToStruct(data, &model)
+	bt, _ := json.Marshal(data)
+
+	if err := json.Unmarshal(bt, &model); err != nil {
+		return nil, fmt.Errorf("error parsing result data: %v", err)
+	}
 
 	// If the expiration time has already passed, then return nil
 	if model.Exp != 0 && model.Exp <= time.Now().Unix() {
 		return nil, nil
 	}
 
-	return utils.UnsafeBytes(model.Val), nil
+	return model.Val, nil
 }
 
 // Set key with value
@@ -142,12 +145,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expireAt = time.Now().Add(exp).Unix()
 	}
 
-	valStr := utils.UnsafeString(val)
-
 	// create the structure for the storage
 	data := model{
 		Key: key,
-		Val: valStr,
+		Val: val,
 		Exp: expireAt,
 	}
 
@@ -212,12 +213,4 @@ func (s *Storage) gcTicker() {
 // gc deletes all expired entries
 func (s *Storage) gc(t time.Time) {
 	_, _ = neo4j.ExecuteQuery(context.Background(), s.db, s.cypherGC, map[string]any{"exp": t.Unix()}, neo4j.EagerResultTransformer)
-}
-
-func mapToStruct(src map[string]any, dest any) {
-	bt, _ := json.Marshal(src)
-
-	if err := json.Unmarshal(bt, dest); err != nil {
-		panic(err)
-	}
 }
