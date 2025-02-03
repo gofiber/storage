@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -163,4 +164,61 @@ func Test_GarbageCollection_BeforeWorking(t *testing.T) {
 
 	err = removeAllFiles("./fiber.leveldb")
 	require.Nil(t, err)
+}
+
+func Benchmark_Set(b *testing.B) {
+	db := New()
+	defer func() {
+		db.Close()
+		_ = removeAllFiles("./fiber.leveldb")
+	}()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			key := []byte(fmt.Sprintf("key_%d", i))
+			value := []byte(fmt.Sprintf("value_%d", i))
+			_ = db.Set(key, value, 0)
+			i++
+		}
+	})
+}
+
+func Benchmark_Get(b *testing.B) {
+	db := New()
+	defer func() {
+		db.Close()
+		_ = removeAllFiles("./fiber.leveldb")
+	}()
+
+	key := []byte("test_key")
+	value := []byte("test_value")
+	_ = db.Set(key, value, 0)
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, _ = db.Get(key)
+		}
+	})
+}
+
+func Benchmark_Delete(b *testing.B) {
+	db := New()
+	defer func() {
+		db.Close()
+		_ = removeAllFiles("./fiber.leveldb")
+	}()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		i := 0
+		for pb.Next() {
+			key := fmt.Sprintf("key_%d", i)
+			_ = db.Set([]byte(key), []byte("value"), 0)
+			_ = db.Delete(key)
+			i++
+		}
+	})
 }
