@@ -34,7 +34,7 @@ func (s *Storage) Keys() ([][]byte, error)
 ### Installation
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
-> **Note:** You can also use [DragonflyDB](https://dragonflydb.io/) as a Redis replacement.  
+> **Note:** You can also use [DragonflyDB](https://dragonflydb.io/) as a Redis replacement.
 > Since DragonflyDB is fully compatible with the Redis API, you can use it exactly like Redis **without any code changes**.
 > [Example](#example-using-dragonflydb)
 
