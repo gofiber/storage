@@ -65,9 +65,17 @@ func Test_Get_For0Second(t *testing.T) {
 func Test_Get_ForExpired100Millisecond(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key"), []byte("value"), time.Millisecond*100)
+	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond*100))
 
-	time.Sleep(time.Millisecond * 150)
+	// Anahtarın silinmesini bekle
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		value, err := db.Get([]byte("key"))
+		if err == nil && value == nil {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
 
 	value, err := db.Get([]byte("key"))
 	require.Nil(t, err)
@@ -137,10 +145,16 @@ func Test_GarbageCollection_AfterWorking(t *testing.T) {
 		GCInterval: time.Millisecond * 100,
 	})
 
-	db.Set([]byte("key"), []byte("value"), time.Millisecond*100)
+	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond*100))
 
-	// Wait for a reasonable time with exponential backoff
-	time.Sleep(time.Millisecond * 150)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		_, err := db.Conn().Get([]byte("key"), nil)
+		if err != nil {
+			break
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
 
 	value, err := db.Conn().Get([]byte("key"), nil)
 	require.Error(t, err)
@@ -151,20 +165,41 @@ func Test_GarbageCollection_AfterWorking(t *testing.T) {
 }
 
 func Test_GarbageCollection_BeforeWorking(t *testing.T) {
+	t.Cleanup(func() {
+		require.NoError(t, removeAllFiles("./fiber.leveldb"))
+	})
+
 	db := New(Config{
 		GCInterval: time.Second * 1,
 	})
-
-	db.Set([]byte("key"), []byte("value"), time.Second*1)
-
-	//time.Sleep(time.Second * 2)
+	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Second*1))
 
 	value, err := db.Conn().Get([]byte("key"), nil)
 	require.Nil(t, err)
 	require.NotNil(t, value)
+}
 
-	err = removeAllFiles("./fiber.leveldb")
-	require.Nil(t, err)
+func Test_GarbageCollection_Interval(t *testing.T) {
+	t.Cleanup(func() {
+		require.NoError(t, removeAllFiles("./fiber.leveldb"))
+	})
+
+	db := New(Config{
+		GCInterval: time.Hour, // Uzun aralık
+	})
+	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond))
+
+	// GC çalışmadığı için değer hala var olmalı
+	deadline := time.Now().Add(time.Millisecond * 100)
+	for time.Now().Before(deadline) {
+		value, err := db.Conn().Get([]byte("key"), nil)
+		if err == nil && value != nil {
+			return
+		}
+		time.Sleep(time.Millisecond * 10)
+	}
+
+	t.Error("value should still exist as GC hasn't run yet")
 }
 
 func Test_Close_Channel(t *testing.T) {
