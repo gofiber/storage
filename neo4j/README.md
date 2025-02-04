@@ -74,7 +74,7 @@ store := neo4j.New(neo4j.Config{
 
 ### Config
 
-> The `neo4j`, `auth`, and `config` package names belong to the neo4j-go-driver package.
+> The `neo4j`, `auth`, and `config` package names used here belong to the neo4j-go-driver package.
 
 ```go
 // Config defines the config for storage.
