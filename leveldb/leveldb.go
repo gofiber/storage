@@ -42,7 +42,6 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key []byte) ([]byte, error) {
-
 	if len(key) <= 0 {
 		return nil, nil
 	}

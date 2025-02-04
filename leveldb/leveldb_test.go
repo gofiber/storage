@@ -1,7 +1,6 @@
 package leveldb
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -226,16 +225,15 @@ func Benchmark_Set(b *testing.B) {
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
+	key := []byte("test_key")
+	value := []byte("test_value")
+
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
 		for pb.Next() {
-			key := []byte(fmt.Sprintf("key_%d", i))
-			value := []byte(fmt.Sprintf("value_%d", i))
 			if err := db.Set(key, value, 0); err != nil {
 				b.Fatal(err)
 			}
-			i++
 		}
 	})
 }
@@ -270,18 +268,17 @@ func Benchmark_Delete(b *testing.B) {
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
+	key := "test_key"
+	if err := db.Set([]byte(key), []byte("test_value"), 0); err != nil {
+		b.Fatal(err)
+	}
+
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var i int
 		for pb.Next() {
-			key := fmt.Sprintf("key_%d", i)
-			if err := db.Set([]byte(key), []byte("value"), 0); err != nil {
-				b.Fatal(err)
-			}
 			if err := db.Delete(key); err != nil {
 				b.Fatal(err)
 			}
-			i++
 		}
 	})
 }
