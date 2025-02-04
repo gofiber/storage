@@ -109,7 +109,7 @@ func Test_Reset(t *testing.T) {
 	db.Set([]byte("key2"), []byte("value2"), time.Second*1)
 	db.Set([]byte("key3"), []byte("value3"), time.Second*1)
 
-	db.Reset()
+	require.NoError(t, db.Reset())
 
 	value, err := db.Get([]byte("key1"))
 	require.Nil(t, err)
