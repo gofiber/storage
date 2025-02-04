@@ -18,7 +18,7 @@ A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/ne
 ### Signatures
 
 ```go
-func New(config ...Config) Storage
+func New(config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
@@ -46,10 +46,12 @@ go get github.com/gofiber/storage/neo4j
 Import the storage package.
 
 ```go
-import neo4jstore "github.com/gofiber/storage/neo4j"
+import "github.com/gofiber/storage/neo4j"
 ```
 
 You can use the following possibilities to create a storage:
+
+> The `neo4j` package name used in this example is the package name (and default import name) for this storage driver. Feel free import it with a custom name to avoid confusing it with the neo4j-go-driver package which also uses `neo4j` as package name (and default import name).
 
 ```go
 // Initialize default config
@@ -65,6 +67,8 @@ store := neo4j.New(neo4j.Config{
 ```
 
 ### Config
+
+> The `neo4j`, `auth`, and `config` package names belong to the neo4j-go-driver package.
 
 ```go
 // Config defines the config for storage.
