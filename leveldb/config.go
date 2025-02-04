@@ -7,10 +7,10 @@ import (
 
 // Config holds the configuration options for LevelDB database
 type Config struct {
-	// DBPath is the filesystem path for the database
+	// Path is the filesystem path for the database
 	//
 	// Optional. Default is "./fiber.leveldb"
-	DBPath string
+	Path string
 
 	// CacheSize is the size of LevelDB's cache (in MB)
 	//
@@ -85,7 +85,7 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	DBPath:                 "./fiber.leveldb",
+	Path:                   "./fiber.leveldb",
 	CacheSize:              8, // 8 MB
 	BlockSize:              4, // 4 KB
 	WriteBuffer:            4, // 4 MB
@@ -115,8 +115,8 @@ func configDefault(config ...Config) Config {
 
 	cfg := config[0]
 
-	if cfg.DBPath == "" {
-		cfg.DBPath = ConfigDefault.DBPath
+	if cfg.Path == "" {
+		cfg.Path = ConfigDefault.Path
 	}
 
 	if cfg.CacheSize <= 0 {

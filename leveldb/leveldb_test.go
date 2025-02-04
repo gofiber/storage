@@ -25,7 +25,7 @@ func Test_New_EmptyConfig(t *testing.T) {
 
 func Test_New_WithConfig(t *testing.T) {
 	db := New(Config{
-		DBPath: "./testdb",
+		Path: "./testdb",
 	})
 	require.NotNil(t, db)
 	_, err := os.Stat("./testdb")

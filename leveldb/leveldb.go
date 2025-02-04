@@ -24,7 +24,7 @@ type Storage struct {
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	db, err := leveldb.OpenFile(cfg.DBPath, nil)
+	db, err := leveldb.OpenFile(cfg.Path, nil)
 	if err != nil {
 		panic(err)
 	}
