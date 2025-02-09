@@ -1,6 +1,7 @@
 package mssql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -132,13 +133,13 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
 
-	row := s.db.QueryRow(s.sqlSelect, key)
+	row := s.db.QueryRowContext(ctx, s.sqlSelect, key)
 
 	var (
 		data       = []byte{}
@@ -161,8 +162,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext key with value and expiration time with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -172,24 +178,39 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
 
-	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
+	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds)
+	return err
+}
+
+// Set key with value and expiration time
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext entry by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if len(key) <= 0 {
+		return nil
+	}
+
+	_, err := s.db.ExecContext(ctx, s.sqlDelete, key)
 	return err
 }
 
 // Delete entry by key
 func (s *Storage) Delete(key string) error {
-	if len(key) <= 0 {
-		return nil
-	}
+	return s.DeleteWithContext(context.Background(), key)
+}
 
-	_, err := s.db.Exec(s.sqlDelete, key)
+// ResetWithContext all entries, including unexpired with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
 }
 
 // Reset all entries, including unexpired
 func (s *Storage) Reset() error {
-	_, err := s.db.Exec(s.sqlReset)
-	return err
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database
