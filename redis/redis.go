@@ -75,37 +75,57 @@ func New(config ...Config) *Storage {
 	}
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	val, err := s.db.Get(context.Background(), key).Bytes()
+	val, err := s.db.Get(ctx, key).Bytes()
 	if err == redis.Nil {
 		return nil, nil
 	}
 	return val, err
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext key with value with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	return s.db.Set(context.Background(), key, val, exp).Err()
+	return s.db.Set(ctx, key, val, exp).Err()
+}
+
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext key by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if len(key) <= 0 {
+		return nil
+	}
+	return s.db.Del(ctx, key).Err()
 }
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	if len(key) <= 0 {
-		return nil
-	}
-	return s.db.Del(context.Background(), key).Err()
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext all keys with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.db.FlushDB(ctx).Err()
 }
 
 // Reset all keys
 func (s *Storage) Reset() error {
-	return s.db.FlushDB(context.Background()).Err()
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database
