@@ -85,41 +85,61 @@ func New(config ...Config) *Storage {
 	}
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	val, err := s.db.DoCache(context.Background(), s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
+	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
 	if err != nil && valkey.IsValkeyNil(err) {
 		return nil, nil
 	}
 	return val, err
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext sets key with value and expiration with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 	if exp > 0 {
-		return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
+		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
 	} else {
-		return s.db.Do(context.Background(), s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
+		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
 	}
 }
 
-// Delete key by key
-func (s *Storage) Delete(key string) error {
+// Set sets key with value and expiration
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext deletes key by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	return s.db.Do(context.Background(), s.db.B().Del().Key(key).Build()).Error()
+	return s.db.Do(ctx, s.db.B().Del().Key(key).Build()).Error()
 }
 
-// Reset all keys
+// Delete deletes key by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext resets all keys with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
+}
+
+// Reset resets all keys
 func (s *Storage) Reset() error {
-	return s.db.Do(context.Background(), s.db.B().Flushdb().Build()).Error()
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database
