@@ -54,7 +54,7 @@ func (t *TestModule) GetWorkersKV(ctx context.Context, rc *cloudflare.ResourceCo
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, t.baseUrl+"/getworkerskvvaluebykey", bytes.NewReader(marshalledBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.baseUrl+"/getworkerskvvaluebykey", bytes.NewReader(marshalledBody))
 
 	if err != nil {
 		log.Println("Error occur in /getworkerskvvaluebykey > making http call")
@@ -95,7 +95,7 @@ func (t *TestModule) WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.Res
 		return cloudflare.Response{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, t.baseUrl+"/writeworkerskvkeyvaluepair", bytes.NewReader(marshalledBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.baseUrl+"/writeworkerskvkeyvaluepair", bytes.NewReader(marshalledBody))
 
 	if err != nil {
 		log.Println("Error occur in /writeworkerskvkeyvaluepair > making http call")
@@ -134,7 +134,7 @@ func (t *TestModule) DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.Re
 		return cloudflare.Response{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, t.baseUrl+"/deleteworkerskvpairbykey", bytes.NewReader(marshalledBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, t.baseUrl+"/deleteworkerskvpairbykey", bytes.NewReader(marshalledBody))
 
 	if err != nil {
 		log.Println("Error occur in /deleteworkerskvpairbykey > making http call")
@@ -173,7 +173,7 @@ func (t *TestModule) ListWorkersKVKeys(ctx context.Context, rc *cloudflare.Resou
 		return cloudflare.ListStorageKeysResponse{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, t.baseUrl+"/listworkerskvkeys", bytes.NewReader(marshalledBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.baseUrl+"/listworkerskvkeys", bytes.NewReader(marshalledBody))
 
 	if err != nil {
 		log.Println("Error occur in /listworkerskvkeys > making http call")
@@ -225,7 +225,7 @@ func (t *TestModule) DeleteWorkersKVEntries(ctx context.Context, rc *cloudflare.
 		return cloudflare.Response{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, t.baseUrl+"/deleteworkerskventries", bytes.NewReader(marshalledBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, t.baseUrl+"/deleteworkerskventries", bytes.NewReader(marshalledBody))
 
 	if err != nil {
 		log.Println("Error occur in /deleteworkerskventries > making new request")
