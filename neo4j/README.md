@@ -3,9 +3,15 @@ id: neo4j
 title: Neo4j
 ---
 
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=neo4j*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-neo4j.yml?label=Tests)
+![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
+![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
+
 A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/neo4j-go-driver).
 
-> **Note: Requires latest two release of Golang**
+> **Note: Requires latest two releases of Golang**
 
 ### Table of Contents
 
@@ -18,7 +24,7 @@ A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/ne
 ### Signatures
 
 ```go
-func New(config ...Config) Storage
+func New(config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
@@ -46,17 +52,19 @@ go get github.com/gofiber/storage/neo4j
 Import the storage package.
 
 ```go
-import neo4jstore "github.com/gofiber/storage/neo4j"
+import "github.com/gofiber/storage/neo4j"
 ```
 
 You can use the following possibilities to create a storage:
+
+> The `neo4j` package name used in this example is the package name (and default import name) for this storage driver. Feel free import it with a custom name to avoid confusing it with the neo4j-go-driver package which also uses `neo4j` as package name (and default import name).
 
 ```go
 // Initialize default config
 store := neo4j.New()
 
 // Initialize custom config
-store := neo4j.New(neo4jstore.Config{
+store := neo4j.New(neo4j.Config{
  DB:              driver,
  Node:            "fiber_storage",
  Reset:           false,
@@ -66,12 +74,14 @@ store := neo4j.New(neo4jstore.Config{
 
 ### Config
 
+> The `neo4j`, `auth`, and `config` package names used here belong to the neo4j-go-driver package.
+
 ```go
 // Config defines the config for storage.
 type Config struct {
  // Connection pool
  //
- // DB neo4j.DriverWithContext object will override connection uri and other connection fields.
+ // DB neo4j.DriverWithContext object will override connection URI and other connection fields.
  //
  // Optional. Default is nil.
  DB neo4j.DriverWithContext
@@ -108,12 +118,12 @@ type Config struct {
  // Optional. Default is "fiber_storage"
  Node string
 
- // Reset clears any existing keys in existing Table
+ // Reset clears any existing keys (Nodes)
  //
  // Optional. Default is false
  Reset bool
 
- // Time before deleting expired keys
+ // Time before deleting expired keys (Nodes)
  //
  // Optional. Default is 10 * time.Second
  GCInterval time.Duration
