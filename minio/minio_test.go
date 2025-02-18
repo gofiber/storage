@@ -19,6 +19,8 @@ const (
 	minioImageEnvVar string = "TEST_MINIO_IMAGE"
 	minioUser        string = "minio-user"
 	minioPass        string = "minio-password"
+	minioPort               = "9000/tcp"
+	minioHealthPath         = "/minio/health/live"
 )
 
 func newTestStore(t testing.TB) (*Storage, error) {
@@ -36,8 +38,8 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		minio.WithUsername(minioUser),
 		minio.WithPassword(minioPass),
 		testcontainers.WithWaitStrategy(
-			wait.ForListeningPort("9000/tcp"),
-			wait.ForHTTP("/minio/health/live").WithPort("9000"),
+			wait.ForListeningPort(minioPort),
+			wait.ForHTTP(minioHealthPath).WithPort(minioPort),
 		),
 	)
 	testcontainers.CleanupContainer(t, c)

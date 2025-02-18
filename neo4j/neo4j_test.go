@@ -13,6 +13,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+const (
+	neo4jHttpPort = "7474/tcp"
+	neo4jBoltPort = "7687/tcp"
+	neo4jReadyLog = "Bolt enabled on"
+)
+
 var testStore *Storage
 
 // TestMain sets up and tears down the test container
@@ -25,9 +31,9 @@ func TestMain(m *testing.M) {
 		neo4j.WithAdminPassword("pass#w*#d"),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
-				wait.ForListeningPort("7474/tcp"),
-				wait.ForListeningPort("7687/tcp"),
-				wait.ForLog("Bolt enabled on"),
+				wait.ForListeningPort(neo4jHttpPort),
+				wait.ForListeningPort(neo4jBoltPort),
+				wait.ForLog(neo4jReadyLog),
 			),
 		),
 	)

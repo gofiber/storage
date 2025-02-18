@@ -23,6 +23,8 @@ const (
 	clickhouseUser        string = "default"
 	clickhousePass        string = "password"
 	clickhouseDB          string = "fiber"
+	clickhouseHttpPort           = "8123/tcp"
+	clickhouseSuccessCode        = 200
 )
 
 func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
@@ -42,9 +44,9 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 		clickhouse.WithDatabase(clickhouseDB),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
-				wait.ForListeningPort("8123/tcp"),
-				wait.NewHTTPStrategy("/").WithPort("8123/tcp").WithStatusCodeMatcher(func(status int) bool {
-					return status == 200
+				wait.ForListeningPort(clickhouseHttpPort),
+				wait.NewHTTPStrategy("/").WithPort(clickhouseHttpPort).WithStatusCodeMatcher(func(status int) bool {
+					return status == clickhouseSuccessCode
 				}),
 			),
 		),

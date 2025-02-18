@@ -18,6 +18,8 @@ const (
 	mongoDBImageEnvVar string = "TEST_MONGODB_IMAGE"
 	mongoDBUser        string = "mongo-user"
 	mongoDBPass        string = "mongo-password"
+	mongoDBPort               = "27017/tcp"
+	mongoDBReadyLog           = "Waiting for connections"
 )
 
 func newTestStore(t testing.TB) (*Storage, error) {
@@ -34,8 +36,8 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		ctx, img, mongodb.WithUsername(mongoDBUser), mongodb.WithPassword(mongoDBPass),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
-				wait.ForListeningPort("27017/tcp"),
-				wait.ForLog("Waiting for connections"),
+				wait.ForListeningPort(mongoDBPort),
+				wait.ForLog(mongoDBReadyLog),
 			),
 		),
 	)
