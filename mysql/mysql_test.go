@@ -82,7 +82,7 @@ func Test_MYSQL_New(t *testing.T) {
 	})
 
 	require.True(t, newConfigStore.db != nil)
-	// no need to close the newConfigStore since the testStore is called in the defer
+	defer newConfigStore.Close()
 }
 
 func Test_MYSQL_Set(t *testing.T) {
