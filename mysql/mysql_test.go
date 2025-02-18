@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -51,6 +52,10 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 		mysql.WithPassword(mysqlPass),
 		mysql.WithUsername(mysqlUser),
 		mysql.WithDatabase(mysqlDatabase),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("3306/tcp"),
+			wait.ForLog("port: 3306  MySQL Community Server"),
+		),
 	)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)

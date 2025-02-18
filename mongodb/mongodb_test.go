@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -29,7 +30,15 @@ func newTestStore(t testing.TB) (*Storage, error) {
 
 	ctx := context.Background()
 
-	c, err := mongodb.Run(ctx, img, mongodb.WithUsername(mongoDBUser), mongodb.WithPassword(mongoDBPass))
+	c, err := mongodb.Run(
+		ctx, img, mongodb.WithUsername(mongoDBUser), mongodb.WithPassword(mongoDBPass),
+		testcontainers.WithWaitStrategy(
+			wait.ForAll(
+				wait.ForListeningPort("27017/tcp"),
+				wait.ForLog("Waiting for connections"),
+			),
+		),
+	)
 	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, err

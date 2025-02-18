@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/minio"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -34,6 +35,10 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		img,
 		minio.WithUsername(minioUser),
 		minio.WithPassword(minioPass),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("9000/tcp"),
+			wait.ForHTTP("/minio/health/live").WithPort("9000"),
+		),
 	)
 	testcontainers.CleanupContainer(t, c)
 	if err != nil {

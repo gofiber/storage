@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -36,11 +35,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		postgres.WithUsername(postgresUser),
 		postgres.WithPassword(postgresPass),
 		postgres.WithDatabase(postgresDatabase),
-		testcontainers.WithWaitStrategy(
-			// First, we wait for the container to log readiness twice.
-			// This is because it will restart itself after the first startup.
-			wait.ForLog("database system is ready to accept connections").WithOccurrence(2),
-		),
+		postgres.BasicWaitStrategies(),
 	)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)

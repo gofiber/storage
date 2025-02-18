@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/minio"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -35,6 +37,10 @@ func TestMain(m *testing.M) {
 		img,
 		minio.WithUsername(minioUser),
 		minio.WithPassword(minioPass),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("9000/tcp"),
+			wait.ForHTTP("/minio/health/live").WithPort("9000"),
+		),
 	)
 	if err != nil {
 		panic(err)

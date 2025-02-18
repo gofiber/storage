@@ -13,6 +13,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -39,6 +40,14 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 		clickhouse.WithUsername(clickhouseUser),
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),
+		testcontainers.WithWaitStrategy(
+			wait.ForAll(
+				wait.ForListeningPort("8123/tcp"),
+				wait.NewHTTPStrategy("/").WithPort("8123/tcp").WithStatusCodeMatcher(func(status int) bool {
+					return status == 200
+				}),
+			),
+		),
 	)
 	testcontainers.CleanupContainer(t, c)
 	if err != nil {
