@@ -33,6 +33,12 @@ func (s *Storage) Keys() ([][]byte, error)
 ```
 ### Installation
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+
+> **Note:** You can also use [DragonflyDB](https://dragonflydb.io/) as a Redis replacement.
+> Since DragonflyDB is fully compatible with the Redis API, you can use it exactly like Redis **without any code changes**.
+> [Example](#example-using-dragonflydb)
+
+
 ```bash
 go mod init github.com/<user>/<repo>
 ```
@@ -194,3 +200,7 @@ var ConfigDefault = Config{
 	SentinelPassword:      "",
 }
 ```
+
+### Example: Using DragonflyDB
+> **Note:** You can use [DragonflyDB](https://dragonflydb.io/) in the same way as Redis.  
+> Simply start a DragonflyDB server and configure it just like Redis. Then, call `New()` and use it exactly as you would with Redis.

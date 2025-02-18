@@ -133,9 +133,6 @@ func configDefault(config ...Config) Config {
 	if cfg.Table == "" {
 		cfg.Table = ConfigDefault.Table
 	}
-	if cfg.Table == "" {
-		cfg.Table = ConfigDefault.Table
-	}
 	if int(cfg.GCInterval.Seconds()) <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
