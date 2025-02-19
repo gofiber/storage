@@ -149,6 +149,10 @@ func Test_MYSQL_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Zero(t, len(result), "Key should have expired")
 }
 
 func Test_MYSQL_Get_Expired(t *testing.T) {
