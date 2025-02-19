@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/couchbase"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -36,6 +37,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		img,
 		couchbase.WithAdminCredentials(couchbaseUser, couchbasePass),
 		couchbase.WithBuckets(bucket),
+		testcontainers.WithWaitStrategy(wait.ForListeningPort("8091/tcp")),
 	)
 	testcontainers.CleanupContainer(t, c)
 	if err != nil {
