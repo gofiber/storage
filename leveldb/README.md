@@ -60,8 +60,7 @@ store := leveldb.New()
 
 // Initialize custom config
 store := leveldb.New(leveldb.Config{
-	Database:   "./fiber.leveldb",
-	Reset:      false,
+	Path: "./testdb",
 	GCInterval: 10 * time.Second,
 })
 ```
@@ -70,10 +69,10 @@ store := leveldb.New(leveldb.Config{
 
 ```go
 type Config struct {
-	// DBPath is the filesystem path for the database
+	// Path is the filesystem path for the database
 	//
 	// Optional. Default is "./fiber.leveldb"
-	DBPath string
+	Path string
 
 	// CacheSize is the size of LevelDB's cache (in MB)
 	//
