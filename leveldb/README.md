@@ -11,8 +11,6 @@ title: LevelDB
 
 A fast key-value DB using [syndtr/goleveldb](https://github.com/syndtr/goleveldb)
 
-**Note: Requires Go 1.21 or later**
-
 ### Table of Contents
 
 - [Signatures](#signatures)
