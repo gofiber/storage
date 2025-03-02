@@ -15,6 +15,7 @@ jobs:
             matrix:
                 go-version:
                     - 1.23.x
+                    - 1.24.x
         runs-on: ubuntu-latest
         steps:
             -   name: Fetch Repository
