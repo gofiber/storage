@@ -150,7 +150,7 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
-	DBPath:                 "./fiber.leveldb",
+	Path:                 "./fiber.leveldb",
 	CacheSize:              8, // 8 MB
 	BlockSize:              4, // 4 KB
 	WriteBuffer:            4, // 4 MB
