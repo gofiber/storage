@@ -116,13 +116,11 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext value by key with given context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-
-	ctx := context.Background()
 
 	// Check if the document exists
 	// to avoid errors later
@@ -151,8 +149,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return utils.UnsafeBytes(model.Val), nil
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext key with value with given context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -169,7 +172,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		Val: valStr,
 		Exp: expireAt,
 	}
-	ctx := context.Background()
 
 	// Arango does not support documents with the same key
 	// So we need to check if the document exists
@@ -188,20 +190,35 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete value by key
-func (s *Storage) Delete(key string) error {
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext value by key with given context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
-	_, err := s.collection.RemoveDocument(context.Background(), key)
+	_, err := s.collection.RemoveDocument(ctx, key)
 	return err
+}
+
+// Delete value by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext all keys with given context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.collection.Truncate(ctx)
 }
 
 // Reset all keys
 // truncate the collection
 func (s *Storage) Reset() error {
-	return s.collection.Truncate(context.Background())
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database

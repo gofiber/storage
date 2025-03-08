@@ -62,6 +62,18 @@ func TestSetCouchbase_ShouldReturnNoError(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetWithContextCouchbase_ContextCancelled_ShouldReturnError(t *testing.T) {
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Microsecond)
+	defer cancel()
+
+	err = testStore.SetWithContext(ctx, "test", []byte("test"), 0)
+
+	require.Error(t, err)
+}
+
 func TestGetCouchbase_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)

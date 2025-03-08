@@ -1,11 +1,13 @@
 package scylladb
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/gocql/gocql"
 	"strings"
 	"time"
+
+	"github.com/gocql/gocql"
 )
 
 // Storage interface that is implemented by storage providers
@@ -20,9 +22,9 @@ type Storage struct {
 }
 
 var (
-	checkSchemaErrorMsg = errors.New("the `value` row has an incorrect data type. " +
+	errCheckSchemaErrorMsg = errors.New("the `value` row has an incorrect data type. " +
 		"The message should be BLOB, but it is instead %s. This could lead to encoding-related issues if the database is not migrated (refer to https://github.com/gofiber/storage/blob/main/MIGRATE.md)")
-	keyspaceErrorMsg    = errors.New(`keyspace cannot be empty`)
+	errKeyspaceErrorMsg = errors.New(`keyspace cannot be empty`)
 	createKeyspaceQuery = `CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};`
 	dropQuery           = `DROP TABLE IF EXISTS %s.%s;`
 	createTableQuery    = `CREATE TABLE IF NOT EXISTS %s.%s (key TEXT PRIMARY KEY, value BLOB)`
@@ -42,7 +44,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
-		panic(keyspaceErrorMsg)
+		panic(errKeyspaceErrorMsg)
 	}
 
 	if cfg.Session == nil {
@@ -128,14 +130,14 @@ func (s *Storage) checkSchema(keyspace string) {
 	}
 
 	if dataType != "blob" {
-		panic(fmt.Errorf(checkSchemaErrorMsg.Error(), dataType))
+		panic(fmt.Errorf(errCheckSchemaErrorMsg.Error(), dataType))
 	}
 }
 
-// Get retrieves a value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext retrieves a value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	var value []byte
-	if err := s.session.Query(s.selectQuery, key).Scan(&value); err != nil {
+	if err := s.session.Query(s.selectQuery, key).WithContext(ctx).Scan(&value); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, nil
 		}
@@ -144,23 +146,43 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return value, nil
 }
 
-// Set sets a value by key
-func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
+// Get retrieves a value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext sets a value by key with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
 	var expiration int
 	if expire != 0 {
 		expiration = int(expire.Round(time.Second).Seconds())
 	}
-	return s.session.Query(s.insertQuery, key, value, expiration).Exec()
+	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
+}
+
+// Set sets a value by key
+func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
+	return s.SetWithContext(context.Background(), key, value, expire)
+}
+
+// DeleteWithContext removes a value by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.session.Query(s.deleteQuery, key).WithContext(ctx).Exec()
 }
 
 // Delete removes a value by key
 func (s *Storage) Delete(key string) error {
-	return s.session.Query(s.deleteQuery, key).Exec()
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext resets all values with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.session.Query(s.resetQuery).WithContext(ctx).Exec()
 }
 
 // Reset resets all values
 func (s *Storage) Reset() error {
-	return s.session.Query(s.resetQuery).Exec()
+	return s.ResetWithContext(context.Background())
 }
 
 // Close closes the storage

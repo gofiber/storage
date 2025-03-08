@@ -48,13 +48,12 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	ctx, cancel := s.requestContext()
-	defer cancel()
+
 	resp, err := s.client.DownloadStream(ctx, s.container, key, nil)
 	if err != nil {
 		return []byte{}, err
@@ -63,53 +62,79 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, err
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.GetWithContext(ctx, key)
+}
+
+// SetWithContext sets key with value
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	ctx, cancel := s.requestContext()
-	defer cancel()
+
 	_, err := s.client.UploadBuffer(ctx, s.container, key, val, nil)
 	return err
 }
 
-// Delete entry by key
-func (s *Storage) Delete(key string) error {
+// Set sets key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.SetWithContext(ctx, key, val, exp)
+}
+
+// DeleteWithContext deletes entry by key
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
 
-	ctx, cancel := s.requestContext()
-	defer cancel()
 	_, err := s.client.DeleteBlob(ctx, s.container, key, nil)
 	return err
 }
 
-// Reset all entries
-func (s *Storage) Reset() error {
+// Delete deletes entry by key
+func (s *Storage) Delete(key string) error {
 	ctx, cancel := s.requestContext()
 	defer cancel()
+
+	return s.DeleteWithContext(ctx, key)
+}
+
+// ResetWithContext resets all entries
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	//_, err := s.client.DeleteContainer(ctx, s.container, nil)
 	//return err
 	pager := s.client.NewListBlobsFlatPager(s.container, nil)
-	errCounter := 0
+
 	for pager.More() {
 		resp, err := pager.NextPage(ctx)
 		if err != nil {
-			errCounter = errCounter + 1
+			return err
 		}
+
 		for _, v := range resp.Segment.BlobItems {
 			_, err = s.client.DeleteBlob(ctx, s.container, *v.Name, nil)
 			if err != nil {
-				errCounter = errCounter + 1
+				return err
 			}
 		}
 	}
-	if errCounter > 0 {
-		return fmt.Errorf("%d errors occured while resetting", errCounter)
-	}
+
 	return nil
+}
+
+// Reset resets all entries
+func (s *Storage) Reset() error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.ResetWithContext(ctx)
 }
 
 // Conn returns storage client
