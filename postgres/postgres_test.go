@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"math/rand"
 	"os"
 	"strconv"
 	"testing"
@@ -25,7 +24,7 @@ func TestNoCreateUser(t *testing.T) {
 	ctx := context.Background()
 	conn := testStore.Conn()
 
-	username := "testuser" + strconv.Itoa(rand.Intn(1_000_000))
+	username := "testuser" + strconv.Itoa(int(time.Now().UnixNano()))
 	password := "testpassword"
 
 	_, err := conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
@@ -47,7 +46,7 @@ func TestNoCreateUser(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("should panic if limited user tries to create table", func(t *testing.T) {
-		tableThatDoesNotExist := "public.table_does_not_exists_" + strconv.Itoa(rand.Intn(1_000_000))
+		tableThatDoesNotExist := "public.table_does_not_exists_" + strconv.Itoa(int(time.Now().UnixNano()))
 
 		defer func() {
 			r := recover()
@@ -77,10 +76,10 @@ func TestNoCreateUser(t *testing.T) {
 		conn.Exec(ctx, "DROP USER "+username)
 	}()
 
-	t.Run("shoud set", func(t *testing.T) {
+	t.Run("should set", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 		)
 
 		err := limitedStore.Set(key, val, 0)
@@ -88,8 +87,8 @@ func TestNoCreateUser(t *testing.T) {
 	})
 	t.Run("should set override", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 		)
 		err := limitedStore.Set(key, val, 0)
 		require.NoError(t, err)
@@ -98,8 +97,8 @@ func TestNoCreateUser(t *testing.T) {
 	})
 	t.Run("should get", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 		)
 		err := limitedStore.Set(key, val, 0)
 		require.NoError(t, err)
@@ -109,8 +108,8 @@ func TestNoCreateUser(t *testing.T) {
 	})
 	t.Run("should set expiration", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 			exp = 100 * time.Millisecond
 		)
 		err := limitedStore.Set(key, val, exp)
@@ -118,8 +117,8 @@ func TestNoCreateUser(t *testing.T) {
 	})
 	t.Run("should get expired", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 			exp = 100 * time.Millisecond
 		)
 		err := limitedStore.Set(key, val, exp)
@@ -136,8 +135,8 @@ func TestNoCreateUser(t *testing.T) {
 	})
 	t.Run("should delete", func(t *testing.T) {
 		var (
-			key = "john" + strconv.Itoa(rand.Intn(1_000_000))
-			val = []byte("doe" + strconv.Itoa(rand.Intn(1_000_000)))
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
 		)
 		err := limitedStore.Set(key, val, 0)
 		require.NoError(t, err)
