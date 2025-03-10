@@ -27,5 +27,5 @@ jobs:
             go-version: '${{ matrix.go-version }}'
       -   name: Run Test
           env:
-            TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.1.1
+            TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.6.3
           run: cd ./couchbase && go test ./... -v -race
