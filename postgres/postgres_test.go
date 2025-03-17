@@ -53,6 +53,10 @@ func newTestStore(t testing.TB) (*Storage, error) {
 }
 
 func TestNoCreateUser(t *testing.T) {
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
 	// Create a new user
 	// give the use usage permissions to the database (but not create)
 	ctx := context.Background()
@@ -61,10 +65,10 @@ func TestNoCreateUser(t *testing.T) {
 	username := "testuser" + strconv.Itoa(int(time.Now().UnixNano()))
 	password := "testpassword"
 
-	_, err := conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
+	_, err = conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
 	require.NoError(t, err)
 
-	_, err = conn.Exec(ctx, "GRANT CONNECT ON DATABASE "+os.Getenv("POSTGRES_DATABASE")+" TO "+username)
+	_, err = conn.Exec(ctx, "GRANT CONNECT ON DATABASE "+postgresDatabase+" TO "+username)
 	require.NoError(t, err)
 
 	_, err = conn.Exec(ctx, "GRANT USAGE ON SCHEMA public TO "+username)
@@ -183,8 +187,12 @@ func TestNoCreateUser(t *testing.T) {
 
 }
 func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
 	// Create a test table with wrong schema
-	_, err := testStore.Conn().Exec(context.Background(), `
+	_, err = testStore.Conn().Exec(context.Background(), `
 			CREATE TABLE IF NOT EXISTS test_schema_table (
 				k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 				v  BYTEA NOT NULL,
