@@ -93,7 +93,7 @@ func TestNoCreateUser(t *testing.T) {
 
 		// This should panic since the user doesn't have CREATE permissions
 		New(Config{
-			Database: os.Getenv("POSTGRES_DATABASE"),
+			Database: postgresDatabase,
 			Username: username,
 			Password: password,
 			Reset:    true,
