@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -49,6 +50,157 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		ConnectionURI: conn,
 		Reset:         true,
 	}), nil
+}
+
+func TestNoCreateUser(t *testing.T) {
+	// Create a new user
+	// give the use usage permissions to the database (but not create)
+	ctx := context.Background()
+	conn := testStore.Conn()
+
+	username := "testuser" + strconv.Itoa(int(time.Now().UnixNano()))
+	password := "testpassword"
+
+	_, err := conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "GRANT CONNECT ON DATABASE "+os.Getenv("POSTGRES_DATABASE")+" TO "+username)
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "GRANT USAGE ON SCHEMA public TO "+username)
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "+username)
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "+username)
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "REVOKE CREATE ON SCHEMA public FROM "+username)
+	require.NoError(t, err)
+
+	t.Run("should panic if limited user tries to create table", func(t *testing.T) {
+		tableThatDoesNotExist := "public.table_does_not_exists_" + strconv.Itoa(int(time.Now().UnixNano()))
+
+		defer func() {
+			r := recover()
+			require.NotNil(t, r, "Expected a panic when creating a table without permissions")
+		}()
+
+		// This should panic since the user doesn't have CREATE permissions
+		New(Config{
+			Database: os.Getenv("POSTGRES_DATABASE"),
+			Username: username,
+			Password: password,
+			Reset:    true,
+			Table:    tableThatDoesNotExist,
+		})
+	})
+
+	// connect to an existing table using an unprivileged user
+	limitedStore := New(Config{
+		Database: os.Getenv("POSTGRES_DATABASE"),
+		Username: username,
+		Password: password,
+		Reset:    false,
+	})
+
+	defer func() {
+		limitedStore.Close()
+		conn.Exec(ctx, "DROP USER "+username)
+	}()
+
+	t.Run("should set", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+		)
+
+		err := limitedStore.Set(key, val, 0)
+		require.NoError(t, err)
+	})
+	t.Run("should set override", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+		)
+		err := limitedStore.Set(key, val, 0)
+		require.NoError(t, err)
+		err = limitedStore.Set(key, val, 0)
+		require.NoError(t, err)
+	})
+	t.Run("should get", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+		)
+		err := limitedStore.Set(key, val, 0)
+		require.NoError(t, err)
+		result, err := limitedStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, val, result)
+	})
+	t.Run("should set expiration", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+			exp = 100 * time.Millisecond
+		)
+		err := limitedStore.Set(key, val, exp)
+		require.NoError(t, err)
+	})
+	t.Run("should get expired", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+			exp = 100 * time.Millisecond
+		)
+		err := limitedStore.Set(key, val, exp)
+		require.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+		result, err := limitedStore.Get(key)
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	})
+	t.Run("should get not exists", func(t *testing.T) {
+		result, err := limitedStore.Get("nonexistentkey")
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	})
+	t.Run("should delete", func(t *testing.T) {
+		var (
+			key = "john" + strconv.Itoa(int(time.Now().UnixNano()))
+			val = []byte("doe" + strconv.Itoa(int(time.Now().UnixNano())))
+		)
+		err := limitedStore.Set(key, val, 0)
+		require.NoError(t, err)
+		err = limitedStore.Delete(key)
+		require.NoError(t, err)
+		result, err := limitedStore.Get(key)
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	})
+
+}
+func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
+	// Create a test table with wrong schema
+	_, err := testStore.Conn().Exec(context.Background(), `
+			CREATE TABLE IF NOT EXISTS test_schema_table (
+				k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+				v  BYTEA NOT NULL,
+				e  VARCHAR(64) NOT NULL DEFAULT ''  -- Changed e from BIGINT to VARCHAR
+			);
+		`)
+	require.NoError(t, err)
+	defer func() {
+		_, err := testStore.Conn().Exec(context.Background(), "DROP TABLE IF EXISTS test_schema_table;")
+		require.NoError(t, err)
+	}()
+
+	// Call checkSchema with the wrong table
+	require.Panics(t, func() {
+		testStore.checkSchema("test_schema_table")
+	})
 }
 
 func Test_Postgres_Set(t *testing.T) {
