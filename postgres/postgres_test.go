@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ const (
 	postgresDatabase    string = "fiber"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestConfig(t testing.TB) (Config, error) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -41,19 +42,41 @@ func newTestStore(t testing.TB) (*Storage, error) {
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
+	var cfg Config
 	conn, err := c.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		return cfg, err
+	}
+
+	cfg = Config{
+		ConnectionURI: conn,
+		Reset:         true,
+	}
+	return cfg, nil
+}
+
+func newTestStore(t testing.TB) (*Storage, error) {
+	t.Helper()
+
+	cfg, err := newTestConfig(t)
 	if err != nil {
 		return nil, err
 	}
 
-	return New(Config{
-		ConnectionURI: conn,
-		Reset:         true,
-	}), nil
+	return newTestStoreWithConfig(t, cfg)
+}
+
+func newTestStoreWithConfig(t testing.TB, cfg Config) (*Storage, error) {
+	t.Helper()
+
+	return New(cfg), nil
 }
 
 func TestNoCreateUser(t *testing.T) {
-	testStore, err := newTestStore(t)
+	cfg, err := newTestConfig(t)
+	require.NoError(t, err)
+
+	testStore, err := newTestStoreWithConfig(t, cfg)
 	require.NoError(t, err)
 	defer testStore.Close()
 
@@ -83,6 +106,9 @@ func TestNoCreateUser(t *testing.T) {
 	_, err = conn.Exec(ctx, "REVOKE CREATE ON SCHEMA public FROM "+username)
 	require.NoError(t, err)
 
+	// new connection with the user and password without privileges
+	unpriviledgedURI := strings.Replace(cfg.ConnectionURI, postgresUser+":"+postgresPass, username+":"+password, 1)
+
 	t.Run("should panic if limited user tries to create table", func(t *testing.T) {
 		tableThatDoesNotExist := "public.table_does_not_exists_" + strconv.Itoa(int(time.Now().UnixNano()))
 
@@ -91,23 +117,23 @@ func TestNoCreateUser(t *testing.T) {
 			require.NotNil(t, r, "Expected a panic when creating a table without permissions")
 		}()
 
+		panicCfg := Config{
+			ConnectionURI: unpriviledgedURI,
+			Reset:         true,
+			Table:         tableThatDoesNotExist,
+		}
+
 		// This should panic since the user doesn't have CREATE permissions
-		New(Config{
-			Database: postgresDatabase,
-			Username: username,
-			Password: password,
-			Reset:    true,
-			Table:    tableThatDoesNotExist,
-		})
+		New(panicCfg)
 	})
 
+	limitedCfg := Config{
+		ConnectionURI: unpriviledgedURI,
+		Reset:         false,
+	}
+
 	// connect to an existing table using an unprivileged user
-	limitedStore := New(Config{
-		Database: os.Getenv("POSTGRES_DATABASE"),
-		Username: username,
-		Password: password,
-		Reset:    false,
-	})
+	limitedStore := New(limitedCfg)
 
 	defer func() {
 		limitedStore.Close()
