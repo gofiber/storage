@@ -146,7 +146,7 @@ jobs:
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
-          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.3"
+          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
