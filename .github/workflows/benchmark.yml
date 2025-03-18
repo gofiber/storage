@@ -139,7 +139,7 @@ jobs:
         run: |
           set -o pipefail
           echo "Bench dir: ${{ matrix.package }}"
-          go test ./... -timeout 500s -benchmem -run=^$ -bench . | tee -a output.txt
+          go test ./... -timeout 600s -benchmem -run=^$ -bench . | tee -a output.txt
         shell: bash
         env:
           MSSQL_DATABASE: master
