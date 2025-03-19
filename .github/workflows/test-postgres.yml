@@ -12,24 +12,12 @@ name: "Tests Postgres"
 jobs:
     Tests:
         runs-on: ubuntu-latest
-        services:
-            postgres:
-                image: 'postgres:latest'
-                ports:
-                    - '5432:5432'
-                env:
-                    POSTGRES_DB: fiber
-                    POSTGRES_USER: username
-                    POSTGRES_PASSWORD: "pass#w%rd"
-                options: >-
-                    --health-cmd pg_isready --health-interval 10s --health-timeout 5s
-                    --health-retries 5
         strategy:
             matrix:
                 go-version:
-                    - 1.20.x
-                    - 1.21.x
                     - 1.22.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
@@ -38,8 +26,6 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
-                run: cd ./postgres && go test ./... -v -race
                 env:
-                    POSTGRES_DATABASE: fiber
-                    POSTGRES_USERNAME: username
-                    POSTGRES_PASSWORD: "pass#w%rd"
+                    TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+                run: cd ./postgres && go test ./... -v -race

@@ -12,25 +12,12 @@ name: "Tests MySQL"
 jobs:
     Tests:
         runs-on: ubuntu-latest
-        services:
-            mysql:
-                image: 'mysql:latest'
-                env:
-                    MYSQL_DATABASE: fiber
-                    MYSQL_USER: username
-                    MYSQL_PASSWORD: password
-                    MYSQL_ROOT_PASSWORD: password
-                ports:
-                    - '3306:3306'
-                options: >-
-                    --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout
-                    5s --health-retries 5
         strategy:
             matrix:
                 go-version:
-                    - 1.19.x
-                    - 1.20.x
-                    - 1.21.x
+                    - 1.22.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
@@ -39,8 +26,6 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
-                run: cd ./mysql && go test ./... -v -race
                 env:
-                    MYSQL_USERNAME: username
-                    MYSQL_PASSWORD: password
-                    MYSQL_DATABASE: fiber
+                    TEST_MYSQL_IMAGE: docker.io/mysql:9
+                run: cd ./mysql && go test ./... -v -race

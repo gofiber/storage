@@ -81,46 +81,6 @@ jobs:
         run: |
           docker run -d -p 11211:11211 memcached:latest
 
-      - name: Install MongoDB
-        if: ${{ matrix.package == 'mongodb' }}
-        run: |
-          docker run -d -p 27017:27017 mongo:latest
-
-      - name: Install MSSQL
-        if: ${{ matrix.package == 'mssql' }}
-        run: |
-          docker run -d -p 1433:1433 \
-            -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=MsSql!1234" \
-            -e "MSSQL_DB=master" -e "MSSQL_USER=sa" \
-            -e "MSSQL_PASSWORD=MsSql!1234" \
-            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null" \
-            --health-interval 1s \
-            --health-timeout 30s \
-            --health-start-period 10s \
-            --health-retries 20 \
-            mcmoe/mssqldocker:latest
-
-      - name: Install MySQL
-        if: ${{ matrix.package == 'mysql' }}
-        run: |
-          docker run -d -p 3306:3306 \
-            -e "MYSQL_DATABASE=fiber" \
-            -e "MYSQL_USER=username" \
-            -e "MYSQL_PASSWORD=password" \
-            -e "MYSQL_ROOT_PASSWORD=password" \
-            --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout 5s --health-retries 5 \
-            mysql:latest
-
-      - name: Install Postgres
-        if: ${{ matrix.package == 'postgres' }}
-        run: |
-          docker run -d -p 5432:5432 \
-            -e "POSTGRES_DB=fiber" \
-            -e "POSTGRES_USER=username" \
-            -e "POSTGRES_PASSWORD=pass#w%rd" \
-            --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5 \
-            postgres:latest
-
       - name: Install Azurite
         if: ${{ matrix.package == 'azureblob' }}
         run: |
@@ -179,21 +139,18 @@ jobs:
         run: |
           set -o pipefail
           echo "Bench dir: ${{ matrix.package }}"
-          go test ./... -benchmem -run=^$ -bench . | tee -a output.txt
+          go test ./... -timeout 900s -benchmem -run=^$ -bench . | tee -a output.txt
         shell: bash
         env:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
-          MYSQL_USERNAME: username
-          MYSQL_PASSWORD: password
-          MYSQL_DATABASE: fiber
-          POSTGRES_DATABASE: fiber
-          POSTGRES_USERNAME: username
-          POSTGRES_PASSWORD: "pass#w%rd"
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
-          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.1.1"
+          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
+          TEST_MONGODB_IMAGE: "docker.io/mongo:7"
+          TEST_MYSQL_IMAGE: "docker.io/mysql:9"
+          TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
