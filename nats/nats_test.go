@@ -368,8 +368,12 @@ func Benchmark_Nats_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	errs := make([]error, b.N)
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
+		errs[i] = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	for _, err := range errs {
 		require.NoError(b, err)
 	}
 }
@@ -385,8 +389,13 @@ func Benchmark_Nats_Get(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	errs := make([]error, b.N)
 	for i := 0; i < b.N; i++ {
 		_, err = testStore.Get("john")
+		errs[i] = err
+	}
+
+	for _, err := range errs {
 		require.NoError(b, err)
 	}
 }
@@ -399,11 +408,13 @@ func Benchmark_Nats_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	errs := make([]error, b.N)
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
-		require.NoError(b, err)
+		_ = testStore.Set("john", []byte("doe"), 0)
+		errs[i] = testStore.Delete("john")
+	}
 
-		err = testStore.Delete("john")
+	for _, err := range errs {
 		require.NoError(b, err)
 	}
 }
