@@ -1,15 +1,17 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
+	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/mdelapenya/tlscert"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
@@ -25,22 +27,58 @@ const (
 	natsTLSPort     = "4443/tcp"
 )
 
-var (
-	//go:embed testdata/nats-tls.conf
-	natsTLSConfig string
+//go:embed testdata/nats-tls.conf
+var natsTLSConfig string
 
-	//go:embed testdata/tls/ca.crt
-	caCrt string
+// createTLSCerts creates a CA certificate, a client certificate and a nats certificate,
+// storing them in the given temporary directory.
+func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *tlscert.Certificate) {
+	t.Helper()
 
-	//go:embed testdata/tls/redis.crt
-	redisCrt string
+	tmpDir := t.TempDir()
 
-	//go:embed testdata/tls/redis.key
-	redisKey string
-)
+	// ips is the extra list of IPs to include in the certificates.
+	// It's used to allow the client and nats certificates to be used in the same host
+	// when the tests are run using a remote docker daemon.
+	ips := []net.IP{net.ParseIP("127.0.0.1")}
+
+	// Generate CA certificate
+	caCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:        "localhost",
+		IPAddresses: ips,
+		Name:        "ca",
+		IsCA:        true,
+		ParentDir:   tmpDir,
+	})
+	require.NotNil(t, caCert)
+
+	// Generate client certificate
+	clientCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:        "localhost",
+		IPAddresses: ips,
+		Name:        "client",
+		Parent:      caCert,
+		ParentDir:   tmpDir,
+	})
+	require.NotNil(t, clientCert)
+
+	// Generate nats certificate
+	natsCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:        "localhost",
+		IPAddresses: ips,
+		Name:        "nats",
+		Parent:      caCert,
+		ParentDir:   tmpDir,
+	})
+	require.NotNil(t, natsCert)
+
+	return caCert, clientCert, natsCert
+}
 
 func newTestStore(t testing.TB) (*Storage, error) {
 	t.Helper()
+
+	ca, client, natsCert := createTLSCerts(t)
 
 	img := natsImage
 	if imgFromEnv := os.Getenv(natsImageEnvVar); imgFromEnv != "" {
@@ -60,18 +98,18 @@ func newTestStore(t testing.TB) (*Storage, error) {
 				ExposedPorts: []string{natsTLSPort},
 				Files: []testcontainers.ContainerFile{
 					{
-						Reader:            strings.NewReader(caCrt),
+						Reader:            bytes.NewReader(ca.Bytes),
 						ContainerFilePath: "/tls/ca.crt",
 						FileMode:          0o0644,
 					},
 					{
-						Reader:            strings.NewReader(redisCrt),
-						ContainerFilePath: "/tls/redis.crt",
+						Reader:            bytes.NewReader(natsCert.Bytes),
+						ContainerFilePath: "/tls/nats.crt",
 						FileMode:          0o0644,
 					},
 					{
-						Reader:            strings.NewReader(redisKey),
-						ContainerFilePath: "/tls/redis.key",
+						Reader:            bytes.NewReader(natsCert.KeyBytes),
+						ContainerFilePath: "/tls/nats.key",
 						FileMode:          0o0644,
 					},
 				},
@@ -96,13 +134,8 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		NatsOptions: []nats.Option{
 			nats.MaxReconnects(2),
 			// Enable TLS with client certificate authentication
-			nats.ClientCert(
-				filepath.Join("testdata", "tls", "client.crt"),
-				filepath.Join("testdata", "tls", "client.key"),
-			),
-			nats.RootCAs(
-				filepath.Join("testdata", "tls", "ca.crt"),
-			),
+			nats.ClientCert(client.CertPath, client.KeyPath),
+			nats.RootCAs(ca.CertPath),
 		},
 		KeyValueConfig: jetstream.KeyValueConfig{
 			Bucket:  "test",
