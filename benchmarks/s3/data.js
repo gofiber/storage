@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738245559230,
+  "lastUpdate": 1742367798821,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -192,6 +192,102 @@ window.BENCHMARK_DATA = {
             "value": 1213,
             "unit": "allocs/op",
             "extra": "483 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c1933ed3e87ea6f84e3bde5edee29f19495afa91",
+          "message": "Merge pull request #1515 from mdelapenya/tc-go-adoption-2\n\nchore: adopt testcontainers-go for Postgres, MySQL and MongoDB",
+          "timestamp": "2025-03-19T08:01:09+01:00",
+          "tree_id": "bd7d7600b063b44df0a5960ac0d1d4b43f6fa48c",
+          "url": "https://github.com/gofiber/storage/commit/c1933ed3e87ea6f84e3bde5edee29f19495afa91"
+        },
+        "date": 1742367791140,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_S3_Set",
+            "value": 2231418,
+            "unit": "ns/op\t   78027 B/op\t     702 allocs/op",
+            "extra": "554 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - ns/op",
+            "value": 2231418,
+            "unit": "ns/op",
+            "extra": "554 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - B/op",
+            "value": 78027,
+            "unit": "B/op",
+            "extra": "554 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - allocs/op",
+            "value": 702,
+            "unit": "allocs/op",
+            "extra": "554 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get",
+            "value": 789154,
+            "unit": "ns/op\t   72499 B/op\t     647 allocs/op",
+            "extra": "1519 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - ns/op",
+            "value": 789154,
+            "unit": "ns/op",
+            "extra": "1519 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - B/op",
+            "value": 72499,
+            "unit": "B/op",
+            "extra": "1519 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - allocs/op",
+            "value": 647,
+            "unit": "allocs/op",
+            "extra": "1519 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete",
+            "value": 2554371,
+            "unit": "ns/op\t  113330 B/op\t    1204 allocs/op",
+            "extra": "459 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - ns/op",
+            "value": 2554371,
+            "unit": "ns/op",
+            "extra": "459 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - B/op",
+            "value": 113330,
+            "unit": "B/op",
+            "extra": "459 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - allocs/op",
+            "value": 1204,
+            "unit": "allocs/op",
+            "extra": "459 times\n4 procs"
           }
         ]
       }
