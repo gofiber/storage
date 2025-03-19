@@ -12,7 +12,7 @@ import (
 
 const (
 	// dynamoDBImage is the default image used for running DynamoDB in tests.
-	dynamoDBImage              = "amazon/dynamodb-local:2.6.0"
+	dynamoDBImage              = "amazon/dynamodb-local:latest"
 	dynamoDBImageEnvVar string = "TEST_DYNAMODB_IMAGE"
 )
 

@@ -32,5 +32,5 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
                 env:
-                    TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:2.6.0
+                    TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
                 run: cd ./dynamodb && go test ./... -v -race
