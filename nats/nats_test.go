@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	// mysqlImage is the default image used for running MySQL in tests.
+	// natsImage is the default image used for running NATS in tests.
 	natsImage       = "docker.io/nats:2-alpine"
 	natsImageEnvVar = "TEST_NATS_IMAGE"
 	natsTLSPort     = "4443/tcp"
