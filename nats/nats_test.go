@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ var config = Config{
 		Bucket:  "test",
 		Storage: jetstream.MemoryStorage,
 	},
+	Reset: true,
 }
 
 func Test_Storage_Nats_Set(t *testing.T) {
@@ -37,6 +39,25 @@ func Test_Storage_Nats_Set(t *testing.T) {
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
+}
+
+func Test_Storage_Nats_SetWithContext(t *testing.T) {
+	var (
+		testStore = New(config)
+		key       = "john"
+		val       = []byte("doe")
+	)
+	defer testStore.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 0)
 }
 
 func Test_Storage_Nats_Set_Overwrite(t *testing.T) {
@@ -76,6 +97,29 @@ func Test_Storage_Nats_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+}
+
+func Test_Storage_Nats_GetWithContext(t *testing.T) {
+	var (
+		testStore = New(config)
+		key       = "john"
+		val       = []byte("doe")
+	)
+	defer testStore.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.Set(key, val, 30*time.Second)
+	require.NoError(t, err)
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
@@ -177,6 +221,34 @@ func Test_Storage_Nats_Delete(t *testing.T) {
 	require.Nil(t, keys)
 }
 
+func Test_Storage_Nats_DeleteWithContext(t *testing.T) {
+	var (
+		testStore = New(config)
+		key       = "john"
+		val       = []byte("doe")
+	)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 5*time.Second)
+	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	require.NoError(t, testStore.Reset())
+}
+
 func Test_Storage_Nats_Reset(t *testing.T) {
 	testStore := New(config)
 	defer testStore.Close()
@@ -206,6 +278,40 @@ func Test_Storage_Nats_Reset(t *testing.T) {
 	keys, err = testStore.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
+}
+
+func Test_Storage_Nats_ResetWithContext(t *testing.T) {
+	testStore := New(config)
+	defer testStore.Close()
+	val := []byte("doe")
+
+	err := testStore.Set("john1", val, 5*time.Second)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 5*time.Second)
+	require.NoError(t, err)
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	keys, err = testStore.Keys()
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
 }
 
 func Test_Storage_Nats_Close(t *testing.T) {
