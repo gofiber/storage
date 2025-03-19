@@ -1,37 +1,127 @@
 package nats
 
 import (
+	"context"
+	_ "embed"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	tcnats "github.com/testcontainers/testcontainers-go/modules/nats"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var config = Config{
-	URLs: "nats://localhost:4443",
-	NatsOptions: []nats.Option{
-		nats.MaxReconnects(2),
-		// Enable TLS with client certificate authentication
-		nats.ClientCert("../tls/client.crt", "../tls/client.key"),
-		nats.RootCAs("../tls/ca.crt"),
-	},
-	KeyValueConfig: jetstream.KeyValueConfig{
-		Bucket:  "test",
-		Storage: jetstream.MemoryStorage,
-	},
+const (
+	// mysqlImage is the default image used for running MySQL in tests.
+	natsImage       = "docker.io/nats:2-alpine"
+	natsImageEnvVar = "TEST_NATS_IMAGE"
+	natsTLSPort     = "4443/tcp"
+)
+
+var (
+	//go:embed testdata/nats-tls.conf
+	natsTLSConfig string
+
+	//go:embed testdata/tls/ca.crt
+	caCrt string
+
+	//go:embed testdata/tls/redis.crt
+	redisCrt string
+
+	//go:embed testdata/tls/redis.key
+	redisKey string
+)
+
+func newTestStore(t testing.TB) (*Storage, error) {
+	t.Helper()
+
+	img := natsImage
+	if imgFromEnv := os.Getenv(natsImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	ctx := context.Background()
+
+	c, err := tcnats.Run(
+		ctx, img,
+		tcnats.WithConfigFile(strings.NewReader(natsTLSConfig)),
+		// Override the default wait strategy to use the port 4443 for TLS
+		testcontainers.WithWaitStrategy(wait.ForLog("Listening for client connections on 0.0.0.0:4443")),
+		// add the cert files to the container
+		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				ExposedPorts: []string{natsTLSPort},
+				Files: []testcontainers.ContainerFile{
+					{
+						Reader:            strings.NewReader(caCrt),
+						ContainerFilePath: "/tls/ca.crt",
+						FileMode:          0o0644,
+					},
+					{
+						Reader:            strings.NewReader(redisCrt),
+						ContainerFilePath: "/tls/redis.crt",
+						FileMode:          0o0644,
+					},
+					{
+						Reader:            strings.NewReader(redisKey),
+						ContainerFilePath: "/tls/redis.key",
+						FileMode:          0o0644,
+					},
+				},
+			},
+		}),
+	)
+	testcontainers.CleanupContainer(t, c)
+	require.NoError(t, err)
+
+	// build the connection string for the 4443 TLS port
+	mappedPort, err := c.MappedPort(ctx, natsTLSPort)
+	require.NoError(t, err)
+
+	hostIP, err := c.Host(ctx)
+	require.NoError(t, err)
+
+	uri := fmt.Sprintf("nats://%s:%s", hostIP, mappedPort.Port())
+	require.NoError(t, err)
+
+	return New(Config{
+		URLs: uri,
+		NatsOptions: []nats.Option{
+			nats.MaxReconnects(2),
+			// Enable TLS with client certificate authentication
+			nats.ClientCert(
+				filepath.Join("testdata", "tls", "client.crt"),
+				filepath.Join("testdata", "tls", "client.key"),
+			),
+			nats.RootCAs(
+				filepath.Join("testdata", "tls", "ca.crt"),
+			),
+		},
+		KeyValueConfig: jetstream.KeyValueConfig{
+			Bucket:  "test",
+			Storage: jetstream.MemoryStorage,
+		},
+	}), nil
 }
 
 func Test_Storage_Nats_Set(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val       = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
-	err := testStore.Set(key, val, 0)
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	keys, err := testStore.Keys()
@@ -41,14 +131,16 @@ func Test_Storage_Nats_Set(t *testing.T) {
 
 func Test_Storage_Nats_Set_Overwrite(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val1      = []byte("doe")
-		val2      = []byte("overwritten")
+		key  = "john"
+		val1 = []byte("doe")
+		val2 = []byte("overwritten")
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
-	err := testStore.Set(key, val1, 0)
+	err = testStore.Set(key, val1, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key, val2, 30*time.Second)
@@ -64,13 +156,15 @@ func Test_Storage_Nats_Set_Overwrite(t *testing.T) {
 
 func Test_Storage_Nats_Get(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val       = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
-	err := testStore.Set(key, val, 30*time.Second)
+	err = testStore.Set(key, val, 30*time.Second)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -84,14 +178,16 @@ func Test_Storage_Nats_Get(t *testing.T) {
 
 func Test_Storage_Nats_Set_Expiration(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val       = []byte("doe")
-		exp       = 1 * time.Second
+		key = "john"
+		val = []byte("doe")
+		exp = 1 * time.Second
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
-	err := testStore.Set(key, val, exp)
+	err = testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
@@ -107,11 +203,13 @@ func Test_Storage_Nats_Set_Expiration(t *testing.T) {
 
 func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val       = []byte("doe")
-		exp       = 5 * time.Second
+		key = "john"
+		val = []byte("doe")
+		exp = 5 * time.Second
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
 	keys, err := testStore.Keys()
@@ -138,7 +236,8 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 }
 
 func Test_Storage_Nats_Get_NotExist(t *testing.T) {
-	testStore := New(config)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
@@ -152,13 +251,15 @@ func Test_Storage_Nats_Get_NotExist(t *testing.T) {
 
 func Test_Storage_Nats_Delete(t *testing.T) {
 	var (
-		testStore = New(config)
-		key       = "john"
-		val       = []byte("doe")
+		key = "john"
+		val = []byte("doe")
 	)
+
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
 
-	err := testStore.Set(key, val, 0)
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	keys, err := testStore.Keys()
@@ -178,11 +279,13 @@ func Test_Storage_Nats_Delete(t *testing.T) {
 }
 
 func Test_Storage_Nats_Reset(t *testing.T) {
-	testStore := New(config)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
+
 	val := []byte("doe")
 
-	err := testStore.Set("john1", val, 0)
+	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -209,38 +312,41 @@ func Test_Storage_Nats_Reset(t *testing.T) {
 }
 
 func Test_Storage_Nats_Close(t *testing.T) {
-	testStore := New(config)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	require.Nil(t, testStore.Close())
 }
 
 func Test_Storage_Nats_Conn(t *testing.T) {
-	testStore := New(config)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
 	defer testStore.Close()
+
 	n, k := testStore.Conn()
 	require.NotNil(t, n)
 	require.NotNil(t, k)
 }
 
 func Benchmark_Nats_Set(b *testing.B) {
-	testStore := New(config)
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
+		require.NoError(b, err)
 	}
-
-	require.NoError(b, err)
 }
 
 func Benchmark_Nats_Get(b *testing.B) {
-	testStore := New(config)
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
 	defer testStore.Close()
 
-	err := testStore.Set("john", []byte("doe"), 0)
+	err = testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -248,23 +354,23 @@ func Benchmark_Nats_Get(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, err = testStore.Get("john")
+		require.NoError(b, err)
 	}
-
-	require.NoError(b, err)
 }
 
 func Benchmark_Nats_SetAndDelete(b *testing.B) {
-	testStore := New(config)
+	testStore, err := newTestStore(b)
+	require.NoError(b, err)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var err error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
-	}
+		err = testStore.Set("john", []byte("doe"), 0)
+		require.NoError(b, err)
 
-	require.NoError(b, err)
+		err = testStore.Delete("john")
+		require.NoError(b, err)
+	}
 }

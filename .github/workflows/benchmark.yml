@@ -122,13 +122,6 @@ jobs:
         run: |
           redis-server --port 6379 &
 
-      - name: Run NATS
-        if: ${{ matrix.package == 'nats' }}
-        run: |
-          ./.github/scripts/gen-test-certs.sh
-          docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
-          sleep 2
-
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
         run: |
@@ -146,6 +139,7 @@ jobs:
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
+          TEST_NATS_IMAGE: "nats:2-alpine"
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
 
       - name: Get Previous Benchmark Results
