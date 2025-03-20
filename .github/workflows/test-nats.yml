@@ -14,9 +14,9 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.20.x
-                    - 1.21.x
                     - 1.22.x
+                    - 1.23.x
+                    - 1.24.x
         runs-on: ubuntu-latest
         steps:
             -   name: Fetch Repository
@@ -25,11 +25,7 @@ jobs:
                 uses: actions/setup-go@v5
                 with:
                     go-version: '${{ matrix.go-version }}'
-            -   name: Generate config
-                run: ./.github/scripts/gen-test-certs.sh
-            -   name: Run NATS
-                run: |
-                    docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
-                    sleep 5
             -   name: Test Nats
+                env:
+                    TEST_NATS_IMAGE: "nats:2-alpine"
                 run: cd ./nats && go test ./... -v -race
