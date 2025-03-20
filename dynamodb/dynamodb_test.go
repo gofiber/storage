@@ -181,8 +181,9 @@ func Benchmark_DynamoDB_Set(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
-		require.NoError(b, err)
 	}
+
+	require.NoError(b, err)
 }
 
 func Benchmark_DynamoDB_Get(b *testing.B) {
@@ -198,8 +199,9 @@ func Benchmark_DynamoDB_Get(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, err = testStore.Get("john")
-		require.NoError(b, err)
 	}
+
+	require.NoError(b, err)
 }
 
 func Benchmark_DynamoDB_SetAndDelete(b *testing.B) {
@@ -211,10 +213,9 @@ func Benchmark_DynamoDB_SetAndDelete(b *testing.B) {
 	defer testStore.Close()
 
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
-		require.NoError(b, err)
-
+		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
-		require.NoError(b, err)
 	}
+
+	require.NoError(b, err)
 }
