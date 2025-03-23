@@ -6,7 +6,6 @@ title: LevelDB
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=leveldb*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-leveldb.yml?label=Tests)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 A fast key-value DB using [syndtr/goleveldb](https://github.com/syndtr/goleveldb)
 

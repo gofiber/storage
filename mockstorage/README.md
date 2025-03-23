@@ -7,8 +7,6 @@ title: MockStorage
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=mockstorage*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-mockstorage.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 A mock storage implementation for Fiber. This storage is not persistent and is only used for testing purposes.
 

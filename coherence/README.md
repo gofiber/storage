@@ -2,6 +2,10 @@
 <!-- Copyright © 2023, 2025 Oracle and/or its affiliates. -->
 A Coherence storage driver using [https://github.com/oracle/coherence-go-client](https://github.com/oracle/coherence-go-client).
 
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=coherence*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-coherence.yml?label=Tests)
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
