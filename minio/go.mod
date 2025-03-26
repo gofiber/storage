@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/minio/minio-go/v7 v7.0.76
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.35.0
 	github.com/valyala/bytebufferpool v1.0.0
