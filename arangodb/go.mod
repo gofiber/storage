@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/arangodb/go-driver v1.6.2
 	github.com/gofiber/utils/v2 v2.0.0-beta.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
