@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/couchbase/gocb/v2 v2.9.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/couchbase v0.35.0
 )
