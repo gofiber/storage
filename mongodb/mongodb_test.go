@@ -75,7 +75,11 @@ func Test_MongoDB_SetWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := testStore.SetWithContext(ctx, key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
+	err = testStore.SetWithContext(ctx, key, val, 0)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -118,7 +122,11 @@ func Test_MongoDB_GetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -195,7 +203,11 @@ func Test_MongoDB_DeleteWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
+	err = testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -236,7 +248,11 @@ func Test_MongoDB_Reset(t *testing.T) {
 func Test_MongoDB_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
 
-	err := testStore.Set("john1", val, 0)
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
+	err = testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
