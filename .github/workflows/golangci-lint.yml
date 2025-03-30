@@ -20,42 +20,37 @@ on:
       - ".github/dependabot.yml"
 
 jobs:
-  generate-matrix:
+  changes:
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: set-matrix
+
+      - name: Generate filters
+        id: filter-setup
         run: |
-          # Determine the base and head commits for diff based on the event type
-          BASE_SHA="${{ github.event.pull_request.base.sha || github.event.before }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha || github.event.after }}"
+          filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+          echo "filters<<EOF" >> $GITHUB_OUTPUT
+          echo "$filters" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        shell: bash
 
-          # Extract directories from changed files, only include those with go.mod files
-          GO_MOD_DIRECTORIES=()
-          FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA | grep -vE '/\.')
-          DIRECTORIES=$(echo "$FILES" | xargs -L1 dirname | sort -u)
-
-          for dir in $DIRECTORIES; do
-            if [[ -f "$dir/go.mod" ]]; then
-              GO_MOD_DIRECTORIES+=("$dir")
-            fi
-          done
-
-          # Export the JSON array
-          JSON_ARRAY=$(printf '%s\n' "${GO_MOD_DIRECTORIES[@]}" | jq -R -s -c 'split("\n")[:-1]')
-          echo "matrix=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+      - name: Filter changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: ${{ steps.filter-setup.outputs.filters }}
+    outputs:
+      packages: ${{ steps.filter.outputs.changes || '[]' }}
 
   lint:
-    needs: generate-matrix
+    needs: changes
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        modules: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+        package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
@@ -63,6 +58,6 @@ jobs:
         uses: reviewdog/action-golangci-lint@v2
         with:
           golangci_lint_flags: "--tests=false --timeout=5m"
-          workdir: ${{ matrix.modules }}
+          workdir: ${{ matrix.package }}
           fail_level: "warning"
           filter_mode: nofilter
