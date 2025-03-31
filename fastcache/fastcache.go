@@ -29,7 +29,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return s.cache.Get(nil, utils.UnsafeBytes(key)), nil
 }
 
-// Set stores the given value for the given key along
+// Set stores the given value for the given key
 // Empty key or value will be ignored without an error
 func (s *Storage) Set(key string, val []byte) error {
 	if len(key) <= 0 || len(val) <= 0 {
