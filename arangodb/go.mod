@@ -1,10 +1,11 @@
 module github.com/gofiber/storage/arangodb/v2
 
 go 1.19
+toolchain go1.24.1
 
 require (
 	github.com/arangodb/go-driver v1.6.6
-	github.com/gofiber/utils/v2 v2.0.0-beta.3
+	github.com/gofiber/utils/v2 v2.0.0-beta.8
 	github.com/stretchr/testify v1.10.0
 )
 
