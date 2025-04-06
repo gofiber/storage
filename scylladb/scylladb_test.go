@@ -1,9 +1,11 @@
 package scylladb
 
 import (
-	"github.com/stretchr/testify/require"
+	"context"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 var testStore = New(Config{Reset: true})
@@ -16,6 +18,19 @@ func Test_Scylla_Set(t *testing.T) {
 	)
 	err := testStore.Set(key, value, 0)
 	require.NoError(t, err)
+}
+
+func Test_Scylla_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_Scylla_Set_Override_Get(t *testing.T) {
@@ -52,6 +67,23 @@ func Test_Scylla_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+}
+
+func Test_Scylla_GetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
 }
 
 func Test_Scylla_Set_Expiration_Get(t *testing.T) {
@@ -95,6 +127,26 @@ func Test_Scylla_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Scylla_DeleteWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_Scylla_Reset(t *testing.T) {
 	var val = []byte("doe")
 
@@ -114,6 +166,30 @@ func Test_Scylla_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_Scylla_ResetWithContext(t *testing.T) {
+	val := []byte("doe")
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Scylla_Close(t *testing.T) {

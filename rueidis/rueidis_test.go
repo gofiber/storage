@@ -1,6 +1,7 @@
 package rueidis
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"testing"
@@ -21,6 +22,22 @@ func Test_Rueidis_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_Rueidis_SetWithContext(t *testing.T) {
+	var (
+		testStore = New(Config{
+			Reset: true,
+		})
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_Rueidis_Set_Override(t *testing.T) {
@@ -48,6 +65,26 @@ func Test_Rueidis_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+}
+
+func Test_Rueidis_GetWithContext(t *testing.T) {
+	var (
+		testStore = New(Config{
+			Reset: true,
+		})
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
 }
 
 func Test_Rueidis_Set_Expiration(t *testing.T) {
@@ -94,6 +131,29 @@ func Test_Rueidis_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Rueidis_DeleteWithContext(t *testing.T) {
+	var (
+		testStore = New(Config{
+			Reset: true,
+		})
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_Rueidis_Reset(t *testing.T) {
 	val := []byte("doe")
 
@@ -113,6 +173,33 @@ func Test_Rueidis_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_Rueidis_ResetWithContext(t *testing.T) {
+	testStore := New(Config{
+		Reset: true,
+	})
+	val := []byte("doe")
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Rueidis_Close(t *testing.T) {
