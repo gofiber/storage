@@ -1,10 +1,12 @@
 package surrealdb
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+	"time"
 )
 
 var testStore *Storage
@@ -64,6 +66,44 @@ func Test_Surrealdb_Flush(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_Surrealdb_GetExpired(t *testing.T) {
+	err := testStore.Set("temp", []byte("value"), 1*time.Second)
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	val, err := testStore.Get("temp")
+	require.NoError(t, err)
+	require.Nil(t, val)
+}
+
+func Test_Surrealdb_GetMissing(t *testing.T) {
+	val, err := testStore.Get("non-existent-key")
+	require.NoError(t, err)
+	require.Nil(t, val)
+}
+
+func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
+	_ = testStore.Reset()
+
+	// Geçerli kayıt
+	_ = testStore.Set("valid", []byte("123"), 0)
+
+	// Süresi geçen kayıt
+	_ = testStore.Set("expired", []byte("456"), 1*time.Second)
+	time.Sleep(2 * time.Second)
+
+	// List çağrısı
+	data, err := testStore.List()
+	require.NoError(t, err)
+
+	var result map[string][]byte
+	err = json.Unmarshal(data, &result)
+	require.NoError(t, err)
+
+	require.Contains(t, result, "valid")
+	require.NotContains(t, result, "expired")
+}
 func BenchmarkSet(b *testing.B) {
 	store, err := New(ConfigDefault)
 	if err != nil {
