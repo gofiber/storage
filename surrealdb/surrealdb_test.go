@@ -110,6 +110,7 @@ func BenchmarkSet(b *testing.B) {
 		b.Fatalf("failed to init storage: %v", err)
 	}
 	defer store.Close()
+	_ = store.Reset()
 
 	for i := 0; i < b.N; i++ {
 		err := store.Set(fmt.Sprintf("bench-key-%d", i), []byte("value"), 0)
