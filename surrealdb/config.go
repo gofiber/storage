@@ -10,6 +10,8 @@ type Config struct {
 	Password string
 	Access   string
 	Scope    string
+
+	DefaultTable string
 }
 
 var ConfigDefault = Config{
@@ -20,6 +22,7 @@ var ConfigDefault = Config{
 	Password:         "root",
 	Access:           "full",
 	Scope:            "all",
+	DefaultTable:     "fiber_storage",
 }
 
 func configDefault(config ...Config) Config {
@@ -53,6 +56,14 @@ func configDefault(config ...Config) Config {
 
 	if cfg.Scope == "" {
 		cfg.Scope = ConfigDefault.Scope
+	}
+
+	if cfg.Access == "" {
+		cfg.Access = ConfigDefault.Access
+	}
+
+	if cfg.DefaultTable == "" {
+		cfg.DefaultTable = ConfigDefault.DefaultTable
 	}
 
 	return cfg
