@@ -1,16 +1,40 @@
 package surrealdb
 
+// Config holds the configuration required to initialize and connect to a SurrealDB instance.
+// It includes authentication credentials, namespace/database selection, and default storage settings.
+//
+// Fields:
+//   - ConnectionString: the full SurrealDB connection URL (e.g., "ws://localhost:8000").
+//   - Namespace: the namespace to use when connecting to SurrealDB.
+//   - Database: the database name within the specified namespace.
+//   - Username: the SurrealDB root or application-level username for authentication.
+//   - Password: the associated password for the given username.
+//   - Access: optional field for token-based access (not always required).
+//   - Scope: optional scope name for scoped authentication (e.g., user login scopes).
+//   - DefaultTable: the default table name where key-value records will be stored.
 type Config struct {
+	// The connection URL to connect to SurrealDB
 	ConnectionString string
-	Namespace        string
-	Database         string
 
-	// auth
+	// The namespace to be used in SurrealDB
+	Namespace string
+
+	// The database to be used within the specified namespace
+	Database string
+
+	// The application username to connect to SurrealDB
 	Username string
-	Password string
-	Access   string
-	Scope    string
 
+	// The application password to connect to SurrealDB
+	Password string
+
+	// Optional access token or access type
+	Access string
+
+	// Optional scope for scoped logins (e.g., user-defined scopes)
+	Scope string
+
+	// The default table used to store key-value records
 	DefaultTable string
 }
 
