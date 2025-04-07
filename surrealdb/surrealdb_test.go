@@ -113,7 +113,7 @@ func BenchmarkSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("bench-key-%d-%d", i, time.Now().UnixNano())
-		err := store.Set(fmt.Sprintf("bench-key-%d", key), []byte("value"), 0)
+		err := store.Set(fmt.Sprintf("bench-key-%s", key), []byte("value"), 0)
 		if err != nil {
 			b.Errorf("Set failed: %v", err)
 		}
