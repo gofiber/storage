@@ -32,12 +32,10 @@ jobs:
         with:
           go-version: '${{ matrix.go-version }}'
 
-      - name: Wait for SurrealDB
+      - name: Run ScyllaDb
         run: |
-          for i in {1..15}; do
-            nc -z localhost 8000 && echo "SurrealDB is up!" && break
-            echo "Waiting for SurrealDB..."
-            sleep 2
-          done
+          docker run --name surrealdb -p 8000:8000 -d surrealdb/surrealdb:latest start --user root --pass root
+          sleep 30 # Wait for SurrealDb to initialize
+
       - name: Run Test
         run: cd ./surrealdb && go test ./... -v -race
