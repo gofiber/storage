@@ -23,13 +23,21 @@ jobs:
         image: 'surrealdb/surrealdb:latest'
         ports:
           - '8000:8000'
-        command: ["start", "--user", "root", "--pass", "root"]
+        command: [ "start", "--user", "root", "--pass", "root" ]
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
-      -   name: Install Go
-          uses: actions/setup-go@v5
-          with:
-            go-version: '${{ matrix.go-version }}'
-      -   name: Run Test
-          run: cd ./surrealdb && go test ./... -v -race
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ matrix.go-version }}'
+
+      - name: Wait for SurrealDB
+        run: |
+          for i in {1..15}; do
+            nc -z localhost 8000 && echo "SurrealDB is up!" && break
+            echo "Waiting for SurrealDB..."
+            sleep 2
+          done
+      - name: Run Test
+        run: cd ./surrealdb && go test ./... -v -race
