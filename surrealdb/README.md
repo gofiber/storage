@@ -8,6 +8,7 @@ title: SurrealDB
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-surrealdb.yml?label=Tests)
 
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -15,6 +16,7 @@ title: SurrealDB
 - [Default Config](#default-config)
 
 ### Signatures
+
 ```go
 func New(config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
@@ -25,20 +27,26 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *surrealdb.DB
 func (s *Storage) List() ([]byte, error) {
 ```
+
 ### Installation
+
 SurrealDB is tested on latest two version of Golang.
 Make sure to initialize a Go module first if you haven’t already:
+
 ```bash
 go get github.com/gofiber/storage/surrealdb
 ```
 
 ### Examples
+
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/surrealdb"
 ```
 
 You can use the following possibilities to create a storage:
+
 ```go
 // Initialize default config
 store := surrealdb.New()
@@ -57,6 +65,7 @@ DefaultTable:     "fiber_storage",
 ```
 
 ### Config
+
 ```go
 type Config struct {
 // The connection URL to connect to SurrealDB
@@ -86,6 +95,7 @@ DefaultTable string
 ```
 
 ### Default Config
+
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
