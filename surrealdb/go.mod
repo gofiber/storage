@@ -2,7 +2,6 @@ module github.com/gofiber/storage/surrealdb
 
 go 1.23.0
 
-toolchain go1.23.3
 
 require (
 	github.com/stretchr/testify v1.10.0
