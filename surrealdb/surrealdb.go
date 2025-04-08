@@ -89,7 +89,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expiresAt = time.Now().Add(exp).Unix()
 	}
 
-	_, err := surrealdb.Create[model](s.db, models.NewRecordID(s.table, key), &model{
+	// Upsert is used instead of Create to allow overriding the same key if it already exists.
+	_, err := surrealdb.Upsert[model](s.db, models.NewRecordID(s.table, key), &model{
 		Key:  key,
 		Body: val,
 		Exp:  expiresAt,

@@ -1,6 +1,6 @@
 ---
-id: surrealdb 
-title: SurrealDB 
+id: surrealdb
+title: SurrealDB
 ---
 
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=surrealdb*)
@@ -16,7 +16,7 @@ title: SurrealDB
 
 ### Signatures
 ```go
-func New(config ...Config) (*Storage, error) 
+func New(config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
