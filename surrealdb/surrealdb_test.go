@@ -13,11 +13,7 @@ var testStore *Storage
 var testConfig = ConfigDefault
 
 func TestMain(m *testing.M) {
-	var err error
-	testStore, err = New(testConfig)
-	if err != nil {
-		panic(err)
-	}
+	testStore = New(testConfig)
 
 	code := m.Run()
 	if err := testStore.Close(); err != nil {
@@ -86,14 +82,11 @@ func Test_Surrealdb_GetMissing(t *testing.T) {
 func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 	_ = testStore.Reset()
 
-	// Geçerli kayıt
 	_ = testStore.Set("valid", []byte("123"), 0)
 
-	// Süresi geçen kayıt
 	_ = testStore.Set("expired", []byte("456"), 1*time.Second)
 	time.Sleep(2 * time.Second)
 
-	// List çağrısı
 	data, err := testStore.List()
 	require.NoError(t, err)
 
@@ -104,18 +97,32 @@ func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 	require.Contains(t, result, "valid")
 	require.NotContains(t, result, "expired")
 }
+
 func BenchmarkSet(b *testing.B) {
-	store, err := New(ConfigDefault)
-	if err != nil {
-		b.Fatalf("failed to init storage: %v", err)
-	}
+	store := New(ConfigDefault)
 	defer store.Close()
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("bench-key-%d-%d", i, time.Now().UnixNano())
-		err := store.Set(fmt.Sprintf("bench-key-%s", key), []byte("value"), 0)
-		if err != nil {
-			b.Errorf("Set failed: %v", err)
-		}
+		store.Set(fmt.Sprintf("bench-key-%s", key), []byte("value"), 0)
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	store := New(ConfigDefault)
+	defer store.Close()
+	store.Reset()
+
+	key := "bench-get-key"
+	value := []byte("some-value")
+
+	err := store.Set(key, value, 0)
+	if err != nil {
+		b.Fatalf("failed to prepare test value: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		store.Get(key)
 	}
 }

@@ -1,6 +1,6 @@
-module github.com/gofiber/storage/surrealdb/v2
+module github.com/gofiber/storage/surrealdb
 
-go 1.22
+go 1.23
 
 require (
 	github.com/stretchr/testify v1.10.0

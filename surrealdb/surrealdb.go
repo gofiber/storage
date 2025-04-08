@@ -29,15 +29,15 @@ type model struct {
 
 // New creates a new SurrealDB storage instance using the provided configuration.
 // Returns an error if the connection or authentication fails.
-func New(config ...Config) (*Storage, error) {
+func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 	db, err := surrealdb.New(cfg.ConnectionString)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	if err = db.Use(cfg.Namespace, cfg.Database); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	authData := &surrealdb.Auth{
@@ -47,17 +47,17 @@ func New(config ...Config) (*Storage, error) {
 
 	token, err := db.SignIn(authData)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	if err = db.Authenticate(token); err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	return &Storage{
 		db:    db,
 		table: cfg.DefaultTable,
-	}, nil
+	}
 }
 
 func (s *Storage) Get(key string) ([]byte, error) {
@@ -113,6 +113,10 @@ func (s *Storage) Reset() error {
 
 func (s *Storage) Close() error {
 	return s.db.Close()
+}
+
+func (s *Storage) Conn() *surrealdb.DB {
+	return s.db
 }
 
 func (s *Storage) List() ([]byte, error) {
