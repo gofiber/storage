@@ -175,7 +175,7 @@ func Test_AzureBlob_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_S3_Conn(t *testing.T) {
+func Test_AzureBlob_Conn(t *testing.T) {
 	testStore, err := newTestStore(t)
 	require.NoError(t, err)
 	defer testStore.Close()
