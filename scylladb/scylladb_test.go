@@ -10,7 +10,6 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/scylladb"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -29,13 +28,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 
 	ctx := context.Background()
 
-	c, err := scylladb.Run(
-		ctx,
-		img,
-		testcontainers.WithWaitStrategy(
-			wait.ForLog(`.*initialization completed.*`).AsRegexp().WithStartupTimeout(15*time.Second),
-		),
-	)
+	c, err := scylladb.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, err
