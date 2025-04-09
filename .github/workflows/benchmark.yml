@@ -130,7 +130,7 @@ jobs:
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
-          TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
+          TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
           TEST_NATS_IMAGE: "nats:2-alpine"
