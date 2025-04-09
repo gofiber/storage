@@ -3,9 +3,10 @@ package scylladb
 import (
 	"errors"
 	"fmt"
-	"github.com/gocql/gocql"
 	"strings"
 	"time"
+
+	"github.com/gocql/gocql"
 )
 
 // Storage interface that is implemented by storage providers
@@ -50,6 +51,7 @@ func New(config ...Config) *Storage {
 		cluster := gocql.NewCluster(cfg.Hosts...)
 		cluster.Consistency = gocql.ParseConsistency(cfg.Consistency)
 		cluster.Port = cfg.Port
+		cluster.DisableInitialHostLookup = cfg.DisableInitialHostLookup
 
 		// Set credentials if provided
 		if len(strings.TrimSpace(cfg.Username)) > 0 && len(strings.TrimSpace(cfg.Password)) > 0 {
