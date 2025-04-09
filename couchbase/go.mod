@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/couchbase/v2
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/couchbase/gocb/v2 v2.9.4
