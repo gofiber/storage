@@ -27,5 +27,5 @@ jobs:
                 go-version: '${{ matrix.go-version }}'
         -   name: Run Test
             env:
-                TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:3.33.0
+                TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
             run: cd ./azureblob && go test ./... -v -race
