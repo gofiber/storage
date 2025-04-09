@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/mysql/v2
 
-go 1.23.7
+go 1.23
 
 require (
 	github.com/go-sql-driver/mysql v1.8.1

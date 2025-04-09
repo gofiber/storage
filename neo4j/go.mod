@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/neo4j
 
-go 1.23.7
+go 1.23
 
 require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.27.0

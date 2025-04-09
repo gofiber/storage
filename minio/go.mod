@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/minio
 
-go 1.23.7
+go 1.23
 
 require (
 	github.com/minio/minio-go/v7 v7.0.76
