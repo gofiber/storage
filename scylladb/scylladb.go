@@ -21,9 +21,9 @@ type Storage struct {
 }
 
 var (
-	checkSchemaErrorMsg = errors.New("the `value` row has an incorrect data type. " +
+	errCheckSchema = errors.New("the `value` row has an incorrect data type. " +
 		"The message should be BLOB, but it is instead %s. This could lead to encoding-related issues if the database is not migrated (refer to https://github.com/gofiber/storage/blob/main/MIGRATE.md)")
-	keyspaceErrorMsg    = errors.New(`keyspace cannot be empty`)
+	errKeyspace         = errors.New(`keyspace cannot be empty`)
 	createKeyspaceQuery = `CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};`
 	dropQuery           = `DROP TABLE IF EXISTS %s.%s;`
 	createTableQuery    = `CREATE TABLE IF NOT EXISTS %s.%s (key TEXT PRIMARY KEY, value BLOB)`
@@ -43,7 +43,7 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
-		panic(keyspaceErrorMsg)
+		panic(errKeyspace)
 	}
 
 	if cfg.Session == nil {
@@ -130,7 +130,7 @@ func (s *Storage) checkSchema(keyspace string) {
 	}
 
 	if dataType != "blob" {
-		panic(fmt.Errorf(checkSchemaErrorMsg.Error(), dataType))
+		panic(fmt.Errorf(errCheckSchema.Error(), dataType))
 	}
 }
 
