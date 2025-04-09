@@ -104,12 +104,6 @@ jobs:
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
 
-      - name: Install ScyllaDb
-        if: ${{ matrix.package == 'scylladb' }}
-        run: |
-          docker run --name scylladb -p 9042:9042 -p 19042:19042 -p 9160:9160 -p 7000:7000 -p 7001:7001 -p 7199:7199 -p 9180:9180 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
-          sleep 15 # Wait for ScyllaDb to initialize
-
       - name: Setup Redis
         if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' }}
         uses: shogo82148/actions-setup-redis@v1
@@ -141,6 +135,7 @@ jobs:
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
           TEST_NATS_IMAGE: "nats:2-alpine"
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+          TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
