@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744190308746,
+  "lastUpdate": 1744271151966,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -142,6 +142,54 @@ window.BENCHMARK_DATA = {
           {
             "name": "Benchmark_Minio_Set - allocs/op",
             "value": 20590,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3570609353cd2fa09dbc8ac38c2387d3def21e5b",
+          "message": "Merge pull request #1645 from gofiber/dependabot/go_modules/minio/github.com/minio/minio-go/v7-7.0.90\n\nchore(deps): bump github.com/minio/minio-go/v7 from 7.0.76 to 7.0.90 in /minio",
+          "timestamp": "2025-04-10T09:44:42+02:00",
+          "tree_id": "1a1a0c22c0326b738e085cc1a5588b1400b46e3e",
+          "url": "https://github.com/gofiber/storage/commit/3570609353cd2fa09dbc8ac38c2387d3def21e5b"
+        },
+        "date": 1744271144237,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Minio_Set",
+            "value": 4901494032,
+            "unit": "ns/op\t 2896336 B/op\t   20633 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - ns/op",
+            "value": 4901494032,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - B/op",
+            "value": 2896336,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - allocs/op",
+            "value": 20633,
             "unit": "allocs/op",
             "extra": "1 times\n4 procs"
           }
