@@ -13,7 +13,7 @@ import (
 
 const (
 	// azuriteImage is the default image used for running azurite in tests.
-	azuriteImage       = "mcr.microsoft.com/azure-storage/azurite:3.33.0"
+	azuriteImage       = "mcr.microsoft.com/azure-storage/azurite:latest"
 	azuriteImageEnvVar = "TEST_AZURITE_IMAGE"
 )
 
