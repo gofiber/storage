@@ -3,7 +3,7 @@ module github.com/gofiber/storage/mysql/v2
 go 1.23.0
 
 require (
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.36.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.36.0
