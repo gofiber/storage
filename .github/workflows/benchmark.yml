@@ -76,11 +76,6 @@ jobs:
         run: |
           docker run -d -p 11211:11211 memcached:latest
 
-      - name: Install Azurite
-        if: ${{ matrix.package == 'azureblob' }}
-        run: |
-          docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
-
       - name: Install Cloudflare Worker
         if: ${{ matrix.package == 'cloudflarekv' }}
         run : |
@@ -133,6 +128,7 @@ jobs:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
+          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
