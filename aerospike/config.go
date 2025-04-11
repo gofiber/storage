@@ -65,6 +65,8 @@ func configDefault(config ...Config) Config {
 	if cfg.Set == "" {
 		cfg.Set = ConfigDefault.Set
 	}
+	// Reset is a boolean, so we can't check for zero value
+	// It's maintained as-is from user config
 	if cfg.Expiration == 0 {
 		cfg.Expiration = ConfigDefault.Expiration
 	}
