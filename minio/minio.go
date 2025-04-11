@@ -75,7 +75,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer object.Close()
+	defer func() {
+		if err := object.Close(); err != nil {
+			log.Printf("Error closing object: %v\n", err)
+		}
+	}()
 
 	// convert to byte
 	bb := bytebufferpool.Get()
