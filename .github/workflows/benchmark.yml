@@ -58,8 +58,8 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: ${{ matrix.package }}/go.mod
-          cache-dependency-path: ${{ matrix.package }}/go.sum
+          # NOTE: Keep this in sync with the version from go.mod
+          go-version: "1.23.x"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
