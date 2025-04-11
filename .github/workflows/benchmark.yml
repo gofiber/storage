@@ -65,6 +65,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+        
+      - name: Install Aerospike
+        if: ${{ matrix.package == 'aerospike' }}
+        run: |
+          docker run -d -p 3000-3003:3000-3003 aerospike/aerospike-server:latest
 
       - name: Install ArangoDB
         if: ${{ matrix.package == 'arangodb' }}
@@ -161,3 +166,5 @@ jobs:
           #summary-always: ${{ github.event_name != 'push' && github.event_name != 'workflow_dispatch' }}
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+
+      
