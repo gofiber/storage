@@ -1,7 +1,6 @@
 package aerospike
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -14,9 +13,7 @@ type Storage struct {
 	namespace  string
 	set        string
 	reset      bool
-	gcInterval time.Duration
 	expiration time.Duration
-	ctx        context.Context
 	schemaInfo *SchemaInfo
 }
 
@@ -273,7 +270,11 @@ func (s *Storage) Reset() error {
 	}
 
 	// Ensure recordset is closed when we're done
-	defer recordset.Close()
+	defer func() {
+		if err := recordset.Close(); err != nil {
+			fmt.Printf("Error closing recordset: %v\n", err)
+		}
+	}()
 
 	// Create a write policy for deletes
 	writePolicy := aerospike.NewWritePolicy(0, 0)

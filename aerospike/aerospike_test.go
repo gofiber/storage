@@ -2,97 +2,19 @@ package aerospike
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcaerospike "github.com/testcontainers/testcontainers-go/modules/aerospike"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
-	// aerospikeImage is the default image used for running Aerospike in tests.
-	aerospikeImage              = "aerospike/aerospike-server:latest"
-	aerospikeImageEnvVar string = "TEST_AEROSPIKE_IMAGE"
-	aerospikePort               = "3000/tcp"
-	febricPort                  = "3001/tcp"
-	heartbeatPort               = "3002/tcp"
-	infoPort                    = "3003/tcp"
-	aerospikeReadyLog           = "migrations: complete"
-	aerospikeNamespace          = "test"
+	aerospikeImage     = "aerospike/aerospike-server:latest"
+	aerospikePort      = "3000/tcp"
+	aerospikeNamespace = "test"
 )
-
-// startAerospikeContainer starts an Aerospike container for testing
-func startAerospikeContainer(ctx context.Context) (testcontainers.Container, error) {
-	// Get custom image from env if specified
-	image := aerospikeImage
-	if envImage := os.Getenv(aerospikeImageEnvVar); envImage != "" {
-		image = envImage
-	}
-
-	// Container config
-	req := testcontainers.ContainerRequest{
-		Image:        image,
-		ExposedPorts: []string{aerospikePort, febricPort, heartbeatPort, infoPort},
-		WaitingFor: wait.ForAll(
-			wait.ForLog(aerospikeReadyLog),
-			wait.ForListeningPort(aerospikePort).WithStartupTimeout(5*time.Second),
-			wait.ForListeningPort(febricPort).WithStartupTimeout(5*time.Second),
-			wait.ForListeningPort(heartbeatPort).WithStartupTimeout(5*time.Second),
-		),
-		Cmd: []string{
-			"--config-file",
-			"/etc/aerospike/aerospike.conf",
-		},
-	}
-
-	// Start container
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start aerospike container: %w", err)
-	}
-
-	return container, nil
-}
-
-// setupTestClient creates a client connected to the test container
-func setupTestClient(t *testing.T) *Storage {
-	t.Helper()
-
-	c, err := startAerospikeContainer(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to start Aerospike container: %v", err)
-	}
-
-	// Extract host and port
-	host, err := c.Host(context.TODO())
-	if err != nil {
-		t.Fatalf("Failed to get container host: %v", err)
-	}
-
-	port, err := c.MappedPort(context.TODO(), aerospikePort)
-	if err != nil {
-		t.Fatalf("Failed to get container port: %v", err)
-	}
-
-	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		t.Fatalf("Failed to cleanup Aerospike container: %v", err)
-	}
-
-	return New(Config{
-		Hosts:     []*aerospike.Host{aerospike.NewHost(host, port.Int())},
-		Reset:     true,
-		Namespace: aerospikeNamespace,
-	})
-}
 
 func setupAerospikeTestClient(t *testing.T) *Storage {
 	t.Helper()
