@@ -76,8 +76,6 @@ func (s *Storage) createOrVerifySchema(version int, description string, forceUpd
 		return err
 	}
 
-	fmt.Println("Schema key:", schemaKey)
-
 	// Try to get existing schema
 	record, err := s.client.Get(nil, schemaKey, "version", "created_at", "updated_at", "description")
 	if err != nil {
@@ -186,9 +184,6 @@ func (s *Storage) updateSchema(schemaKey *aerospike.Key, version int, descriptio
 		UpdatedAt:   now,
 		Description: description,
 	}
-
-	// Log schema update
-	fmt.Printf("Schema updated from version %d to %d\n", oldVersion, version)
 
 	return nil
 }
