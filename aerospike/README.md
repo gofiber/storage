@@ -9,7 +9,7 @@ title: Aerospike
 
 A Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/aerospike-client-go](https://github.com/aerospike/aerospike-client-go).
 
-**Note: Requires Go 1.19 and above**
+**Note: Requires Go 1.23 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)

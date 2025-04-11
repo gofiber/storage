@@ -16,6 +16,10 @@ const (
 	aerospikeNamespace = "test"
 )
 
+// setupAerospikeTestClient sets up a test Aerospike client
+// using testcontainers-go. It starts an Aerospike container and returns
+// a Storage instance configured to connect to the container.
+// The container is cleaned up after the test completes.
 func setupAerospikeTestClient(t *testing.T) *Storage {
 	t.Helper()
 
@@ -26,6 +30,8 @@ func setupAerospikeTestClient(t *testing.T) *Storage {
 		t.Fatalf("Failed to start aerospike container: %v", err)
 	}
 
+	testcontainers.CleanupContainer(t, c)
+
 	// Extract host and port
 	host, err := c.Host(context.TODO())
 	if err != nil {
@@ -35,11 +41,6 @@ func setupAerospikeTestClient(t *testing.T) *Storage {
 	port, err := c.MappedPort(context.TODO(), aerospikePort)
 	if err != nil {
 		t.Fatalf("Failed to get container port: %v", err)
-	}
-
-	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		t.Fatalf("Failed to cleanup Aerospike container: %v", err)
 	}
 
 	return New(Config{
@@ -70,7 +71,7 @@ func Test_AeroSpikeDB_Get(t *testing.T) {
 	require.Equal(t, val, retrievedVal)
 }
 
-// Test_AeroSpikeDB_Set tests the Set method
+// Test_AeroSpikeDB_Delete tests the Delete method
 func Test_AeroSpikeDB_Delete(t *testing.T) {
 
 	var (
