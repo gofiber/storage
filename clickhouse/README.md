@@ -2,6 +2,10 @@
 
 A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](https://github.com/ClickHouse/clickhouse-go).
 
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=clickhouse*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-clickhouse.yml?label=Tests)
+
 ### Table of Contents
 
 - [Signatures](#signatures)

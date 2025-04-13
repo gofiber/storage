@@ -6,8 +6,6 @@ title: Bbolt
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=bbolt*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-bbolt.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 A Bbolt storage driver using [etcd-io/bbolt](https://github.com/etcd-io/bbolt). Bolt is a pure Go key/value store inspired by [Howard Chu's](https://twitter.com/hyc_symas) [LMDB project](https://www.symas.com/symas-embedded-database-lmdb). The goal of the project is to provide a simple, fast, and reliable database for projects that don't require a full database server such as Postgres or MySQL.
 

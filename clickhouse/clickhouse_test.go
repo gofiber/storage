@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -21,6 +23,8 @@ const (
 	clickhouseUser        string = "default"
 	clickhousePass        string = "password"
 	clickhouseDB          string = "fiber"
+	clickhouseHttpPort           = "8123/tcp"
+	clickhouseSuccessCode        = 200
 )
 
 func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
@@ -38,7 +42,16 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 		clickhouse.WithUsername(clickhouseUser),
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),
+		testcontainers.WithWaitStrategy(
+			wait.ForAll(
+				wait.ForListeningPort(clickhouseHttpPort),
+				wait.NewHTTPStrategy("/").WithPort(clickhouseHttpPort).WithStatusCodeMatcher(func(status int) bool {
+					return status == clickhouseSuccessCode
+				}),
+			),
+		),
 	)
+	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, err
 	}
@@ -67,13 +80,14 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 }
 
 func Test_Connection(t *testing.T) {
-	_, err := getTestConnection(t, Config{
+	client, err := getTestConnection(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-
 	require.NoError(t, err)
+
+	defer client.Close()
 }
 
 func Test_Set(t *testing.T) {
@@ -189,6 +203,17 @@ func Test_Reset(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, value)
+}
+
+func TestClose_ShouldReturn_NoError(t *testing.T) {
+	client, err := getTestConnection(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, client.Close())
 }
 
 func Benchmark_Clickhouse_Set(b *testing.B) {

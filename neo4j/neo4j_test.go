@@ -8,7 +8,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/neo4j"
+	"github.com/testcontainers/testcontainers-go/wait"
+)
+
+const (
+	neo4jHttpPort = "7474/tcp"
+	neo4jBoltPort = "7687/tcp"
+	neo4jReadyLog = "Bolt enabled on"
 )
 
 var testStore *Storage
@@ -21,6 +29,13 @@ func TestMain(m *testing.M) {
 	neo4jContainer, err := neo4j.Run(ctx,
 		"neo4j:5.26",
 		neo4j.WithAdminPassword("pass#w*#d"),
+		testcontainers.WithWaitStrategy(
+			wait.ForAll(
+				wait.ForListeningPort(neo4jHttpPort),
+				wait.ForListeningPort(neo4jBoltPort),
+				wait.ForLog(neo4jReadyLog),
+			),
+		),
 	)
 	if err != nil {
 		log.Fatalf("Failed to start Neo4j container: %v", err)

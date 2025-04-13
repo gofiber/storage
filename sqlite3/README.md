@@ -6,8 +6,6 @@ title: SQLite3
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=sqlite3*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-sqlite3.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3).
 

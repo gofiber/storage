@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/oracle/coherence-go-client/v2 v2.0.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
