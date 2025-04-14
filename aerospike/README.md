@@ -64,7 +64,7 @@ store := aerospike.New()
 store := aerospike.New(aerospike.Config{
 	Hosts:             []*aerospike.Host{aerospike.NewHost("localhost", 3000)},
 	Namespace:         "test", // Default namespace
-	Set:               "fiber",
+	SetName:           "fiber",
 	Reset:             false,
 	Expiration:        1 * time.Hour,
 	SchemaVersion:     1,
@@ -74,6 +74,7 @@ store := aerospike.New(aerospike.Config{
 ```
 
 ### Config
+
 ```go
 type Config struct {
 	// Hosts is a list of Aerospike server hosts
@@ -83,7 +84,7 @@ type Config struct {
 	Namespace string
 
 	// Set is the Aerospike set
-	Set string
+	SetName string
 
 	// Reset clears any existing keys in existing Set
 	Reset bool
@@ -108,7 +109,7 @@ Used only for optional fields
 var ConfigDefault = Config{
 	Hosts:             []*aerospike.Host{aerospike.NewHost("localhost", 3000)},
 	Namespace:         "test", // Default namespace
-	Set:               "fiber",
+	SetName:               "fiber",
 	Reset:             false,
 	Expiration:        1 * time.Hour,
 	SchemaVersion:     1,
