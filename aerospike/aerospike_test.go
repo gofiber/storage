@@ -81,9 +81,9 @@ func newTestStore(t testing.TB) *Storage {
 		t.Fatalf("Failed to get container port: %v", err)
 	}
 
-	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		t.Fatalf("Failed to cleanup Aerospike container: %v", err)
+	cleanupErr := testcontainers.CleanupContainer(t, c)
+	if cleanupErr != nil {
+		t.Fatalf("Failed to cleanup Aerospike container: %v", cleanupErr)
 	}
 
 	return New(Config{
