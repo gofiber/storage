@@ -33,4 +33,6 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
+                env:
+                    TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
                 run: cd ./aerospike && go test ./... -v -race
