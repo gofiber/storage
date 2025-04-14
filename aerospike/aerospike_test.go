@@ -138,6 +138,34 @@ func Test_AeroSpikeDB_Delete(t *testing.T) {
 	require.Nil(t, retrievedVal)
 }
 
+// Test_AeroSpikeDB_SetWithExpiration tests the Set method with expiration
+func Test_AeroSpikeDB_SetWithExpiration(t *testing.T) {
+	var (
+		key = "temp"
+		val = []byte("value")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// Set a value with 1 second expiration
+	err := testStore.Set(key, val, 1*time.Second)
+	require.NoError(t, err)
+
+	// Verify the value exists initially
+	retrievedVal, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, retrievedVal)
+
+	// Wait for expiration
+	time.Sleep(2 * time.Second)
+
+	// Verify the value is gone
+	retrievedVal, err = testStore.Get(key)
+	require.NoError(t, err)
+	require.Nil(t, retrievedVal)
+}
+
 // Test_AeroSpikeDB_Reset tests the Reset method
 func Test_AeroSpikeDB_Reset(t *testing.T) {
 

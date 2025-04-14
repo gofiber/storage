@@ -7,11 +7,12 @@ title: Aerospike
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-aerospike.yml?label=Tests)
 
-A Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/aerospike-client-go](https://github.com/aerospike/aerospike-client-go).
+An Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/aerospike-client-go](https://github.com/aerospike/aerospike-client-go).
 
 **Note: Requires Go 1.23 and above**
 
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -48,11 +49,13 @@ go get github.com/gofiber/storage/aerospike/v2
 ### Examples
 
 Import the storage package.
+
 ```go
 import "github.com/gofiber/storage/aerospike/v2"
 ```
 
 You can use the following possibilities to create a storage:
+
 ```go
 // Initialize default config
 store := aerospike.New()
