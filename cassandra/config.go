@@ -38,7 +38,7 @@ var ConfigDefault = Config{
 	Expiration:  10 * time.Minute,
 }
 
-// ConfigDefault is the default config
+// ConfigDefault is the Helper function to apply default config
 func configDefault(config ...Config) Config {
 	// Return default config if nothing provided
 	if len(config) < 1 {

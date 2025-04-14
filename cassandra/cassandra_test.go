@@ -3,6 +3,7 @@ package cassandra
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -12,9 +13,22 @@ import (
 	cassandracontainer "github.com/testcontainers/testcontainers-go/modules/cassandra"
 )
 
+const (
+	// cassandraImage is the default image used for running cassandra in tests.
+	cassandraImage              = "cassandra:4.1.3"
+	cassandraImageEnvVar string = "TEST_CASSANDRA_IMAGE"
+	cassandraPort               = "9042/tcp"
+)
+
 // setupCassandraContainer creates a Cassandra container using the official module
 func setupCassandraContainer(ctx context.Context) (*cassandracontainer.CassandraContainer, string, error) {
-	cassandraContainer, err := cassandracontainer.Run(ctx, "cassandra:4.1.3")
+
+	img := cassandraImage
+	if imgFromEnv := os.Getenv(cassandraImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	cassandraContainer, err := cassandracontainer.Run(ctx, img)
 	if err != nil {
 		return nil, "", err
 	}
@@ -25,7 +39,7 @@ func setupCassandraContainer(ctx context.Context) (*cassandracontainer.Cassandra
 		return nil, "", err
 	}
 
-	mappedPort, err := cassandraContainer.MappedPort(ctx, "9042/tcp")
+	mappedPort, err := cassandraContainer.MappedPort(ctx, cassandraPort)
 	if err != nil {
 		return nil, "", err
 	}
@@ -34,6 +48,7 @@ func setupCassandraContainer(ctx context.Context) (*cassandracontainer.Cassandra
 	return cassandraContainer, connectionURL, nil
 }
 
+// TestCassandraStorage tests the Cassandra storage implementation
 func TestCassandraStorage(t *testing.T) {
 	ctx := context.Background()
 
@@ -50,7 +65,6 @@ func TestCassandraStorage(t *testing.T) {
 
 	// Test cases
 	t.Run("KeyspaceCreation", func(t *testing.T) {
-		t.Skip("Skipping keyspace creation test")
 		testKeyspaceCreation(t, connectionURL)
 	})
 
@@ -71,6 +85,7 @@ func TestCassandraStorage(t *testing.T) {
 	})
 }
 
+// testKeyspaceCreation tests the keyspace creation functionality.
 func testKeyspaceCreation(t *testing.T, connectionURL string) {
 	// Create new storage
 	store := New(Config{
@@ -109,6 +124,7 @@ func testKeyspaceCreation(t *testing.T, connectionURL string) {
 	require.Equal(t, 1, count, "Table should have been created")
 }
 
+// testBasicOperations tests basic operations like setting, getting, and deleting keys.
 func testBasicOperations(t *testing.T, connectionURL string) {
 	// Create new storage
 	store := New(Config{
@@ -208,6 +224,7 @@ func testExpirableKeys(t *testing.T, connectionURL string) {
 	assert.Equal(t, []byte("value3"), value, "Key with no TTL should still exist")
 }
 
+// / testReset tests the Reset method.
 func testReset(t *testing.T, connectionURL string) {
 	// Create new storage
 	store := New(Config{
@@ -263,6 +280,7 @@ func testReset(t *testing.T, connectionURL string) {
 	require.Equal(t, []byte("value3"), value)
 }
 
+// testConcurrentAccess tests concurrent access to the storage.
 func testConcurrentAccess(t *testing.T, connectionURL string) {
 	// Create new storage
 	store := New(Config{

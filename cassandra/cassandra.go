@@ -18,14 +18,6 @@ type Storage struct {
 	ttl      int
 }
 
-// SchemaInfo represents the schema metadata
-type SchemaInfo struct {
-	Version     int
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-}
-
 // New creates a new Cassandra storage instance
 func New(cnfg Config) *Storage {
 
@@ -137,7 +129,6 @@ func (s *Storage) createDataTable() error {
 		CREATE TABLE IF NOT EXISTS %s.%s (
 			key text PRIMARY KEY,
 			value blob,
-			created_at timestamp,
 			expires_at timestamp
 		)
 	`, s.keyspace, s.table)
@@ -180,14 +171,14 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// Insert with TTL if specified
 	var query string
 	if ttl > 0 {
-		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, created_at, expires_at) VALUES (?, ?, ?, ?) USING TTL %d",
+		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, expires_at) VALUES (?, ?, ?) USING TTL %d",
 			s.keyspace, s.table, ttl)
 	} else {
-		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, created_at, expires_at) VALUES (?, ?, ?, ?)",
+		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, expires_at) VALUES (?, ?, ?)",
 			s.keyspace, s.table)
 	}
 
-	return s.session.Query(query, key, value, time.Now(), expiresAt).Exec()
+	return s.session.Query(query, key, value, expiresAt).Exec()
 }
 
 // Get retrieves a value by key
@@ -234,188 +225,3 @@ func (s *Storage) Close() {
 		s.session.Close()
 	}
 }
-
-// Test functions
-
-// // setupCassandraContainer creates a Cassandra container using the official module
-// func setupCassandraContainer(ctx context.Context) (*cassandracontainer.CassandraContainer, string, error) {
-// 	cassandraContainer, err := cassandracontainer.RunContainer(ctx,
-// 		testcontainers.WithImage("cassandra:4.1"),
-// 		cassandracontainer.WithInitialWaitTimeout(2*time.Minute),
-// 	)
-// 	if err != nil {
-// 		return nil, "", err
-// 	}
-
-// 	// Get connection parameters
-// 	host, err := cassandraContainer.Host(ctx)
-// 	if err != nil {
-// 		return nil, "", err
-// 	}
-
-// 	mappedPort, err := cassandraContainer.MappedPort(ctx, "9042/tcp")
-// 	if err != nil {
-// 		return nil, "", err
-// 	}
-
-// 	connectionURL := host + ":" + mappedPort.Port()
-// 	return cassandraContainer, connectionURL, nil
-// }
-
-// func TestSchemaManagement(t *testing.T) {
-// 	ctx := context.Background()
-
-// 	// Start Cassandra container
-// 	cassandraContainer, connectionURL, err := setupCassandraContainer(ctx)
-// 	if err != nil {
-// 		t.Fatalf("Failed to start Cassandra container: %v", err)
-// 	}
-// 	defer func() {
-// 		if err := cassandraContainer.Terminate(ctx); err != nil {
-// 			t.Logf("Failed to terminate container: %v", err)
-// 		}
-// 	}()
-
-// 	// 1. Test keyspace creation
-// 	store := New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_keyspace_creation",
-// 		Table:             "test_table",
-// 		SchemaVersion:     1,
-// 		SchemaDescription: "Initial Schema",
-// 	})
-
-// 	// Verify keyspace was created
-// 	systemCluster := gocql.NewCluster(connectionURL)
-// 	systemSession, err := systemCluster.CreateSession()
-// 	if err != nil {
-// 		t.Fatalf("Failed to connect to system keyspace: %v", err)
-// 	}
-
-// 	var count int
-// 	err = systemSession.Query(
-// 		"SELECT COUNT(*) FROM system_schema.keyspaces WHERE keyspace_name = ?",
-// 		"test_keyspace_creation",
-// 	).Scan(&count)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 1, count, "Keyspace should have been created")
-// 	systemSession.Close()
-
-// 	// 2. Test table creation
-// 	// Connect to the keyspace and check if tables exist
-// 	cluster := gocql.NewCluster(connectionURL)
-// 	cluster.Keyspace = "test_keyspace_creation"
-// 	session, err := cluster.CreateSession()
-// 	if err != nil {
-// 		t.Fatalf("Failed to connect to keyspace: %v", err)
-// 	}
-
-// 	// Check for data table
-// 	err = session.Query(
-// 		"SELECT COUNT(*) FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
-// 		"test_keyspace_creation", "test_table",
-// 	).Scan(&count)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 1, count, "Data table should have been created")
-
-// 	// Check for schema_info table
-// 	err = session.Query(
-// 		"SELECT COUNT(*) FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
-// 		"test_keyspace_creation", "schema_info",
-// 	).Scan(&count)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 1, count, "Schema info table should have been created")
-
-// 	session.Close()
-// 	store.Close()
-
-// 	// 3. Test schema update
-// 	// Create initial schema
-// 	storeV1 := New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_schema_update",
-// 		Table:             "test_table",
-// 		SchemaVersion:     1,
-// 		SchemaDescription: "Schema v1",
-// 	})
-
-// 	// Verify initial schema
-// 	schemaInfo, err := storeV1.GetSchemaInfo()
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 1, schemaInfo.Version)
-// 	assert.Equal(t, "Schema v1", schemaInfo.Description)
-// 	createdAt := schemaInfo.CreatedAt
-
-// 	// Close and create with higher version
-// 	storeV1.Close()
-
-// 	// Create updated schema
-// 	storeV2 := New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_schema_update",
-// 		Table:             "test_table",
-// 		SchemaVersion:     2,
-// 		SchemaDescription: "Schema v2",
-// 	})
-
-// 	// Verify schema was updated
-// 	updatedSchema, err := storeV2.GetSchemaInfo()
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 2, updatedSchema.Version)
-// 	assert.Equal(t, "Schema v2", updatedSchema.Description)
-// 	assert.Equal(t, createdAt.Format(time.RFC3339), updatedSchema.CreatedAt.Format(time.RFC3339))
-// 	assert.True(t, updatedSchema.UpdatedAt.After(createdAt))
-
-// 	storeV2.Close()
-
-// 	// 4. Test forced schema update with same version
-// 	storeForce := New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_schema_update",
-// 		Table:             "test_table",
-// 		SchemaVersion:     2, // Same version
-// 		SchemaDescription: "Schema v2 forced",
-// 		ForceSchemaUpdate: true,
-// 	})
-
-// 	// Verify schema was updated despite same version
-// 	forcedSchema, err := storeForce.GetSchemaInfo()
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 2, forcedSchema.Version)
-// 	assert.Equal(t, "Schema v2 forced", forcedSchema.Description)
-// 	assert.True(t, forcedSchema.UpdatedAt.After(updatedSchema.UpdatedAt))
-
-// 	storeForce.Close()
-
-// 	// 5. Test reset functionality
-// 	resetStore := New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_schema_reset",
-// 		Table:             "test_table",
-// 		SchemaVersion:     1,
-// 		SchemaDescription: "Initial Schema",
-// 	})
-
-// 	// Add some data
-// 	err = resetStore.Set("key1", []byte("value1"), 0)
-// 	assert.NoError(t, err)
-
-// 	// Close and reopen with reset
-// 	resetStore.Close()
-
-// 	resetStore = New(Config{
-// 		Hosts:             []string{connectionURL},
-// 		Keyspace:          "test_schema_reset",
-// 		Table:             "test_table",
-// 		SchemaVersion:     1,
-// 		SchemaDescription: "Reset Schema",
-// 		Reset:             true,
-// 	})
-
-// 	// Check that data is gone
-// 	val, err := resetStore.Get("key1")
-// 	assert.NoError(t, err)
-// 	assert.Nil(t, val, "Key should be gone after reset")
-
-// 	resetStore.Close()
-// }

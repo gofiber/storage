@@ -1,12 +1,12 @@
 # Cassandra
 
-A Cassandra storage driver using [https://github.com/gocql/gocql](https://github.com/apache/cassandra-gocql-driver).
+A Cassandra storage driver using [gocql/gocql](https://github.com/gocql/gocql)
 
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=cassandra*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cassandra.yml?label=Tests)
 
-### Table of Contents
+## Table of Contents
 
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -31,6 +31,7 @@ func (s *Storage) Conn() *Session
 Cassandra is supported on the latest two versions of Go:
 
 Install the cassandra implementation:
+
 ```bash
 go get github.com/gofiber/storage/cassandra
 ```
@@ -56,6 +57,7 @@ After running this command you're ready to start using the storage and connectin
 ### Examples
 
 You can use the following options to create a cassandra storage driver:
+
 ```go
 import "github.com/gofiber/storage/cassandra"
 
