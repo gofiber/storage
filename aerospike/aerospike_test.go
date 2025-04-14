@@ -66,12 +66,10 @@ func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	c, err := startAerospikeContainer(context.Background())
+	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		t.Fatalf("Failed to start Aerospike container: %v", err)
 	}
-
-	// Cleanup container
-	testcontainers.CleanupContainer(t, c)
 
 	// Extract host and port
 	host, err := c.Host(context.TODO())
