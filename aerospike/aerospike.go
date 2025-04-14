@@ -1,7 +1,7 @@
 package aerospike
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
@@ -11,7 +11,7 @@ import (
 type Storage struct {
 	client     *aerospike.Client
 	namespace  string
-	set        string
+	setName    string
 	reset      bool
 	expiration time.Duration
 	schemaInfo *SchemaInfo
@@ -33,7 +33,7 @@ func New(config ...Config) *Storage {
 
 	// connect to the host
 	cp := aerospike.NewClientPolicy()
-	cp.Timeout = 10 * time.Second
+	cp.Timeout = cfg.InitialConnectionTimeout
 
 	// Create client
 	client, err := aerospike.NewClientWithPolicyAndHost(cp, cfg.Hosts...)
@@ -45,7 +45,7 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		client:     client,
 		namespace:  cfg.Namespace,
-		set:        cfg.Set,
+		setName:    cfg.SetName,
 		reset:      cfg.Reset,
 		expiration: cfg.Expiration,
 	}
@@ -71,7 +71,7 @@ func New(config ...Config) *Storage {
 func (s *Storage) createOrVerifySchema(version int, description string, forceUpdate bool) error {
 
 	// Schema info is stored with a special key
-	schemaKey, err := aerospike.NewKey(s.namespace, s.set, "_schema_info")
+	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, "_schema_info")
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	k, err := aerospike.NewKey(s.namespace, s.set, key)
+	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	k, err := aerospike.NewKey(s.namespace, s.set, key)
+	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // Delete key
 func (s *Storage) Delete(key string) error {
-	k, err := aerospike.NewKey(s.namespace, s.set, key)
+	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (s *Storage) Reset() error {
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
 
-	recordset, err := s.client.ScanAll(scanPolicy, s.namespace, s.set)
+	recordset, err := s.client.ScanAll(scanPolicy, s.namespace, s.setName)
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (s *Storage) Reset() error {
 	// Ensure recordset is closed when we're done
 	defer func() {
 		if err := recordset.Close(); err != nil {
-			fmt.Printf("Error closing recordset: %v\n", err)
+			log.Printf("Error closing recordset: %v\n", err)
 		}
 	}()
 
@@ -278,7 +278,7 @@ func (s *Storage) Reset() error {
 	for result := range recordset.Results() {
 		if result.Err != nil {
 			// Log the error but continue with other records
-			fmt.Printf("Error scanning: %v\n", result.Err)
+			log.Printf("Error scanning: %v\n", result.Err)
 			continue
 		}
 
@@ -286,7 +286,7 @@ func (s *Storage) Reset() error {
 		_, err = s.client.Delete(writePolicy, result.Record.Key)
 		if err != nil {
 			// Log the error but continue with other records
-			fmt.Printf("Error deleting key %v: %v\n", result.Record.Key, err)
+			log.Printf("Error deleting key %v: %v\n", result.Record.Key, err)
 		}
 	}
 

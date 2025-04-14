@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/aerospike/v2
+module github.com/gofiber/storage/aerospike
 
 go 1.23.0
 

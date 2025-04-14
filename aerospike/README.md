@@ -43,7 +43,7 @@ go mod init github.com/<user>/<repo>
 And then install the aerospike implementation:
 
 ```bash
-go get github.com/gofiber/storage/aerospike/v2
+go get github.com/gofiber/storage/aerospike
 ```
 
 ### Examples
@@ -51,7 +51,7 @@ go get github.com/gofiber/storage/aerospike/v2
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/aerospike/v2"
+import "github.com/gofiber/storage/aerospike"
 ```
 
 You can use the following possibilities to create a storage:
