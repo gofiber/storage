@@ -27,9 +27,14 @@ type SchemaInfo struct {
 }
 
 // New creates a new Cassandra storage instance
-func New(cfg Config) *Storage {
+func New(cnfg Config) *Storage {
+
+	// Default config
+	cfg := configDefault(cnfg)
+
 	// Create cluster config
 	cluster := gocql.NewCluster(cfg.Hosts...)
+	cluster.Consistency = cfg.Consistency
 
 	// Don't set keyspace initially - we need to create it first
 	// We'll connect to system keyspace first
