@@ -70,6 +70,9 @@ func newTestStore(t testing.TB) *Storage {
 		t.Fatalf("Failed to start Aerospike container: %v", err)
 	}
 
+	// Cleanup container
+	testcontainers.CleanupContainer(t, c)
+
 	// Extract host and port
 	host, err := c.Host(context.TODO())
 	if err != nil {
@@ -79,11 +82,6 @@ func newTestStore(t testing.TB) *Storage {
 	port, err := c.MappedPort(context.TODO(), aerospikePort)
 	if err != nil {
 		t.Fatalf("Failed to get container port: %v", err)
-	}
-
-	cleanupErr := testcontainers.CleanupContainer(t, c)
-	if cleanupErr != nil {
-		t.Fatalf("Failed to cleanup Aerospike container: %v", cleanupErr)
 	}
 
 	return New(Config{
