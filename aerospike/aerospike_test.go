@@ -18,7 +18,7 @@ const (
 	aerospikeImage              = "aerospike/aerospike-server:latest"
 	aerospikeImageEnvVar string = "TEST_AEROSPIKE_IMAGE"
 	aerospikePort               = "3000/tcp"
-	febricPort                  = "3001/tcp"
+	fabricPort                  = "3001/tcp"
 	heartbeatPort               = "3002/tcp"
 	infoPort                    = "3003/tcp"
 	aerospikeReadyLog           = "migrations: complete"
@@ -36,11 +36,11 @@ func startAerospikeContainer(ctx context.Context) (testcontainers.Container, err
 	// Container config
 	req := testcontainers.ContainerRequest{
 		Image:        image,
-		ExposedPorts: []string{aerospikePort, febricPort, heartbeatPort, infoPort},
+		ExposedPorts: []string{aerospikePort, fabricPort, heartbeatPort, infoPort},
 		WaitingFor: wait.ForAll(
 			wait.ForLog(aerospikeReadyLog),
 			wait.ForListeningPort(aerospikePort).WithStartupTimeout(5*time.Second),
-			wait.ForListeningPort(febricPort).WithStartupTimeout(5*time.Second),
+			wait.ForListeningPort(fabricPort).WithStartupTimeout(5*time.Second),
 			wait.ForListeningPort(heartbeatPort).WithStartupTimeout(5*time.Second),
 		),
 		Cmd: []string{
@@ -61,8 +61,8 @@ func startAerospikeContainer(ctx context.Context) (testcontainers.Container, err
 	return container, nil
 }
 
-// setupTestClient creates a client connected to the test container
-func setupTestClient(t *testing.T) *Storage {
+// newTestStore creates a client connected to the test container
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	c, err := startAerospikeContainer(context.Background())
@@ -100,7 +100,7 @@ func Test_AeroSpikeDB_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore := setupTestClient(t)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// Set a value
@@ -121,7 +121,7 @@ func Test_AeroSpikeDB_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore := setupTestClient(t)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// Set a value
@@ -148,7 +148,7 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 		val2 = []byte("smith")
 	)
 
-	testStore := setupTestClient(t)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// Set multiple values
@@ -174,11 +174,59 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 // Test_AeroSpikeDB_GetSchemaInfo tests the GetSchemaInfo method
 func Test_AeroSpikeDB_GetSchemaInfo(t *testing.T) {
 
-	testStore := setupTestClient(t)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// Get schema info
 	schemaInfo := testStore.GetSchemaInfo()
 	require.NotNil(t, schemaInfo)
 	require.GreaterOrEqual(t, schemaInfo.Version, 1)
+}
+
+func Benchmark_AeroSpikeDB_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_AeroSpikeDB_Get(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_AeroSpikeDB_SetAndDelete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

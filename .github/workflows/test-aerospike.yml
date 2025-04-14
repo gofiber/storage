@@ -11,15 +11,7 @@ on:
 name: "Tests Aerospike"
 jobs:
     Tests:
-        runs-on: ubuntu-latest
-        services:
-            aerospike:
-                image: 'aerospike/aerospike-server:latest'                
-                ports:
-                    - '3000:3000'
-                    - '3001:3001'
-                    - '3002:3002'
-                    - '3003:3003'
+        runs-on: ubuntu-latest        
         strategy:
             matrix:
                 go-version:
