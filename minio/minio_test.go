@@ -56,7 +56,6 @@ func newTestStore(t testing.TB) *Storage {
 				AccessKeyID:     c.Username,
 				SecretAccessKey: c.Password,
 			},
-			Reset: true,
 		},
 	)
 }
