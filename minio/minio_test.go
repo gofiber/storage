@@ -23,7 +23,7 @@ const (
 	minioHealthPath         = "/minio/health/live"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	img := minioImage
@@ -43,14 +43,10 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		),
 	)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	conn, err := c.ConnectionString(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return New(
 		Config{
@@ -62,7 +58,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 			},
 			Reset: true,
 		},
-	), nil
+	)
 }
 
 func Test_Get(t *testing.T) {
@@ -71,11 +67,10 @@ func Test_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -92,11 +87,10 @@ func Test_Get_Empty_Key(t *testing.T) {
 		key = ""
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	_, err = testStore.Get(key)
+	_, err := testStore.Get(key)
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
 }
@@ -106,11 +100,10 @@ func Test_Get_Not_Exists_Key(t *testing.T) {
 		key = "not-exists"
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	_, err = testStore.Get(key)
+	_, err := testStore.Get(key)
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified key does not exist.")
 }
@@ -120,8 +113,7 @@ func Test_Get_Not_Exists_Bucket(t *testing.T) {
 		key = "john"
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// random bucket name
@@ -139,11 +131,10 @@ func Test_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
 
@@ -153,12 +144,10 @@ func Test_Set_Empty_Key(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
-
+	err := testStore.Set(key, val, 0)
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
 
@@ -170,14 +159,13 @@ func Test_Set_Not_Exists_Bucket(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified bucket does not exist")
 }
@@ -188,11 +176,10 @@ func Test_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
@@ -205,11 +192,10 @@ func Test_Delete_Empty_Key(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.Error(t, err)
 	require.EqualError(t, err, "the key value is required")
 }
@@ -219,15 +205,13 @@ func Test_Delete_Not_Exists_Bucket(t *testing.T) {
 		key = "john"
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	err = testStore.Delete(key)
-
+	err := testStore.Delete(key)
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified bucket does not exist")
 }
@@ -237,11 +221,10 @@ func Test_Reset(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -256,20 +239,18 @@ func Test_Reset(t *testing.T) {
 }
 
 func Test_Close(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
+	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
 }
 
 func Benchmark_Minio_Set(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
-	defer testStore.Close()
-
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -278,11 +259,10 @@ func Benchmark_Minio_Set(b *testing.B) {
 }
 
 func Benchmark_Minio_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -296,13 +276,13 @@ func Benchmark_Minio_Get(b *testing.B) {
 }
 
 func Benchmark_Minio_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
