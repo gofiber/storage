@@ -15,7 +15,7 @@ type Config struct {
 	// Keyspace is the name of the Cassandra keyspace to use.
 	Keyspace string
 	// Optional. Default is kv_store
-	/// Table is the name of the Cassandra table to use.
+	// Table is the name of the Cassandra table to use.
 	Table string
 	// Optional. Default is Quorum
 	// Consistency is the Cassandra consistency level.

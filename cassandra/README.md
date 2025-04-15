@@ -49,7 +49,7 @@ necessary for the client to operate correctly.
 To start Cassandra using Docker, issue the following:
 
 ```bash
-docker run --name cassandra --network host -d cassandra:tag
+docker run --name cassandra --network host -d cassandra:latest
 ```
 
 After running this command you're ready to start using the storage and connecting to the database.
@@ -82,7 +82,7 @@ type Config struct {
 	// Keyspace is the name of the Cassandra keyspace to use.
 	Keyspace string
 	// Optional. Default is kv_store
-	/// Table is the name of the Cassandra table to use.
+	// Table is the name of the Cassandra table to use.
 	Table string
 	// Optional. Default is Quorum
 	// Consistency is the Cassandra consistency level.

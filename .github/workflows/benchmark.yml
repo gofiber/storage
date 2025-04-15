@@ -131,7 +131,7 @@ jobs:
           TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
-          TEST_CASSANDRA_IMAGE: "cassandra:4.1.3"
+          TEST_CASSANDRA_IMAGE: "cassandra:latest"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
           TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"

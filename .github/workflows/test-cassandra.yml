@@ -26,5 +26,5 @@ jobs:
           go-version: '${{ matrix.go-version }}'
       - name: Run Test
         env:
-          TEST_CASSANDRA_IMAGE: cassandra:4.1.3
+          TEST_CASSANDRA_IMAGE: cassandra:latest
         run: cd ./cassandra && go clean -testcache && go test ./... -v -race

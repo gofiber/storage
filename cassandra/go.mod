@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/cassandra/v2
+module github.com/gofiber/storage/cassandra
 
 go 1.23.0
 

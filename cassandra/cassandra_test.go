@@ -8,44 +8,48 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 	cassandracontainer "github.com/testcontainers/testcontainers-go/modules/cassandra"
 )
 
 const (
 	// cassandraImage is the default image used for running cassandra in tests.
-	cassandraImage              = "cassandra:4.1.3"
+	cassandraImage              = "cassandra:latest"
 	cassandraImageEnvVar string = "TEST_CASSANDRA_IMAGE"
 	cassandraPort               = "9042/tcp"
 )
 
-// setupCassandraContainer creates a Cassandra container using the official module
-func setupCassandraContainer(ctx context.Context) (*cassandracontainer.CassandraContainer, string, error) {
+// newTestStore creates a Cassandra container using the official module
+func newTestStore(t testing.TB) (*cassandracontainer.CassandraContainer, string, error) {
+	t.Helper()
 
 	img := cassandraImage
 	if imgFromEnv := os.Getenv(cassandraImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
 
-	cassandraContainer, err := cassandracontainer.Run(ctx, img)
+	ctx := context.Background()
+
+	c, err := cassandracontainer.Run(ctx, img)
+	testcontainers.CleanupContainer(t, c)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// Get connection parameters
-	host, err := cassandraContainer.Host(ctx)
+	host, err := c.Host(ctx)
 	if err != nil {
 		return nil, "", err
 	}
 
-	mappedPort, err := cassandraContainer.MappedPort(ctx, cassandraPort)
+	mappedPort, err := c.MappedPort(ctx, cassandraPort)
 	if err != nil {
 		return nil, "", err
 	}
 
 	connectionURL := host + ":" + mappedPort.Port()
-	return cassandraContainer, connectionURL, nil
+	return c, connectionURL, nil
 }
 
 // TestCassandraStorage tests the Cassandra storage implementation
@@ -53,7 +57,7 @@ func TestCassandraStorage(t *testing.T) {
 	ctx := context.Background()
 
 	// Start Cassandra container
-	cassandraContainer, connectionURL, err := setupCassandraContainer(ctx)
+	cassandraContainer, connectionURL, err := newTestStore(t)
 	if err != nil {
 		t.Fatalf("Failed to start Cassandra container: %v", err)
 	}
@@ -185,15 +189,15 @@ func testExpirableKeys(t *testing.T, connectionURL string) {
 	// Verify all keys exist initially
 	value, err := store.Get("key_default_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value1"), value)
+	require.Equal(t, []byte("value1"), value)
 
 	value, err = store.Get("key_specific_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value2"), value)
+	require.Equal(t, []byte("value2"), value)
 
 	value, err = store.Get("key_no_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value3"), value)
+	require.Equal(t, []byte("value3"), value)
 
 	// Wait for specific TTL to expire
 	time.Sleep(1500 * time.Millisecond)
@@ -201,15 +205,15 @@ func testExpirableKeys(t *testing.T, connectionURL string) {
 	// Specific TTL key should be gone, others should remain
 	value, err = store.Get("key_specific_ttl")
 	require.NoError(t, err)
-	assert.Nil(t, value, "Key with 1s TTL should have expired")
+	require.Nil(t, value, "Key with 1s TTL should have expired")
 
 	value, err = store.Get("key_default_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value1"), value, "Key with default TTL should still exist")
+	require.Equal(t, []byte("value1"), value, "Key with default TTL should still exist")
 
 	value, err = store.Get("key_no_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value3"), value, "Key with no TTL should still exist")
+	require.Equal(t, []byte("value3"), value, "Key with no TTL should still exist")
 
 	// Wait for default TTL to expire
 	time.Sleep(4 * time.Second)
@@ -217,11 +221,11 @@ func testExpirableKeys(t *testing.T, connectionURL string) {
 	// Default TTL key should be gone, no TTL key should remain
 	value, err = store.Get("key_default_ttl")
 	require.NoError(t, err)
-	assert.Nil(t, value, "Key with default TTL should have expired")
+	require.Nil(t, value, "Key with default TTL should have expired")
 
 	value, err = store.Get("key_no_ttl")
 	require.NoError(t, err)
-	assert.Equal(t, []byte("value3"), value, "Key with no TTL should still exist")
+	require.Equal(t, []byte("value3"), value, "Key with no TTL should still exist")
 }
 
 // / testReset tests the Reset method.
@@ -325,4 +329,97 @@ func testConcurrentAccess(t *testing.T, connectionURL string) {
 	for i := 0; i < concurrentOps; i++ {
 		<-done
 	}
+}
+
+func Benchmark_Cassandra_Set(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	c, connectionURL, err := newTestStore(b)
+	if err != nil {
+		b.Fatalf("Failed to start Cassandra container: %v", err)
+	}
+	defer func() {
+		if err := c.Terminate(context.TODO()); err != nil {
+			b.Logf("Failed to terminate container: %v", err)
+		}
+	}()
+	require.NoError(b, err)
+
+	// Create new storage
+	store := New(Config{
+		Hosts:    []string{connectionURL},
+		Keyspace: "test_concurrent",
+		Table:    "test_kv",
+	})
+	defer store.Close()
+
+	for i := 0; i < b.N; i++ {
+		err = store.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Cassandra_Get(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	c, connectionURL, err := newTestStore(b)
+	if err != nil {
+		b.Fatalf("Failed to start Cassandra container: %v", err)
+	}
+	defer func() {
+		if err := c.Terminate(context.TODO()); err != nil {
+			b.Logf("Failed to terminate container: %v", err)
+		}
+	}()
+	require.NoError(b, err)
+
+	// Create new storage
+	client := New(Config{
+		Hosts:    []string{connectionURL},
+		Keyspace: "test_concurrent",
+		Table:    "test_kv",
+	})
+	defer client.Close()
+
+	err = client.Set("john", []byte("doe"), 0)
+
+	for i := 0; i < b.N; i++ {
+		_, err = client.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	c, connectionURL, err := newTestStore(b)
+	if err != nil {
+		b.Fatalf("Failed to start Cassandra container: %v", err)
+	}
+	defer func() {
+		if err := c.Terminate(context.TODO()); err != nil {
+			b.Logf("Failed to terminate container: %v", err)
+		}
+	}()
+	require.NoError(b, err)
+
+	// Create new storage
+	client := New(Config{
+		Hosts:    []string{connectionURL},
+		Keyspace: "test_concurrent",
+		Table:    "test_kv",
+	})
+	defer client.Close()
+
+	for i := 0; i < b.N; i++ {
+		_ = client.Set("john", []byte("doe"), 0)
+		err = client.Delete("john")
+	}
+
+	require.NoError(b, err)
 }
