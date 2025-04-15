@@ -237,6 +237,18 @@ func Test_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Reset_Not_Exists_Bucket(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.RemoveBucket()
+	require.NoError(t, err)
+
+	err = testStore.Reset()
+	require.Error(t, err)
+	require.EqualError(t, err, "The specified bucket does not exist")
+}
+
 func Test_Close(t *testing.T) {
 	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
