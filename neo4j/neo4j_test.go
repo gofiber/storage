@@ -2,8 +2,6 @@ package neo4j
 
 import (
 	"context"
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -19,10 +17,7 @@ const (
 	neo4jReadyLog = "Bolt enabled on"
 )
 
-var testStore *Storage
-
-// TestMain sets up and tears down the test container
-func TestMain(m *testing.M) {
+func newTestStore(t testing.TB) *Storage {
 	ctx := context.Background()
 
 	// Start a Neo4j test container
@@ -37,36 +32,20 @@ func TestMain(m *testing.M) {
 			),
 		),
 	)
-	if err != nil {
-		log.Fatalf("Failed to start Neo4j container: %v", err)
-	}
+	testcontainers.CleanupContainer(t, neo4jContainer)
+	require.NoError(t, err)
 
 	// Get the Bolt URI
 	uri, err := neo4jContainer.BoltUrl(ctx)
-	if err != nil {
-		log.Fatalf("Failed to get connection string: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Initialize Neo4j store with test container credentials
-	store := New(Config{
+	return New(Config{
 		Reset:    true,
 		URI:      uri,
 		Username: "neo4j",
 		Password: "pass#w*#d",
 	})
-
-	testStore = store
-
-	defer testStore.Close()
-	defer func() {
-		if err := neo4jContainer.Terminate(ctx); err != nil {
-			log.Printf("Failed to terminate Neo4j container: %v", err)
-		}
-	}()
-
-	code := m.Run()
-
-	os.Exit(code)
 }
 
 func Test_Neo4jStore_Set(t *testing.T) {
@@ -74,6 +53,9 @@ func Test_Neo4jStore_Set(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -84,6 +66,9 @@ func Test_Neo4jStore_Upsert(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -97,6 +82,9 @@ func Test_Neo4jStore_Get(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -113,6 +101,9 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 		exp = 100 * time.Millisecond
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
@@ -126,12 +117,18 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 func Test_Neo4jStore_Get_Expired(t *testing.T) {
 	key := "john"
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
 func Test_Neo4jStore_Get_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
@@ -142,6 +139,9 @@ func Test_Neo4jStore_Delete(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -156,6 +156,9 @@ func Test_Neo4jStore_Delete(t *testing.T) {
 
 func Test_Neo4jStore_Reset(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -178,6 +181,9 @@ func Test_Neo4jStore_Reset(t *testing.T) {
 func Test_Neo4jStore_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("0xF6", val, 0)
 	require.NoError(t, err)
 
@@ -187,14 +193,20 @@ func Test_Neo4jStore_Non_UTF8(t *testing.T) {
 }
 
 func Test_Neo4jStore_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Test_Neo4jStore_Conn(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_Neo4jStore_Set(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -207,6 +219,9 @@ func Benchmark_Neo4jStore_Set(b *testing.B) {
 }
 
 func Benchmark_Neo4jStore_Get(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -221,6 +236,9 @@ func Benchmark_Neo4jStore_Get(b *testing.B) {
 }
 
 func Benchmark_Neo4jStore_SetAndDelete(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
