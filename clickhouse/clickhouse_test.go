@@ -27,7 +27,7 @@ const (
 	clickhouseSuccessCode        = 200
 )
 
-func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
+func newTestStore(t testing.TB, cfg Config) *Storage {
 	t.Helper()
 
 	img := clickhouseImage
@@ -52,20 +52,14 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 		),
 	)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	hostPort, err := c.ConnectionHost(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	pair := strings.Split(hostPort, ":")
 	port, err := strconv.Atoi(pair[1])
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	// configure the client for the testcontainers clickhouse instance
 	cfg.Host = pair[0]
@@ -75,57 +69,53 @@ func getTestConnection(t testing.TB, cfg Config) (*Storage, error) {
 	cfg.Database = clickhouseDB
 
 	client, err := New(cfg)
+	require.NoError(t, err)
 
-	return client, err
+	return client
 }
 
 func Test_Connection(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
-
 	defer client.Close()
 }
 
 func Test_Set(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekey", []byte("somevalue"), 0)
+	err := client.Set("somekey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 }
 
 func Test_Set_With_Exp(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("setsomekeywithexp", []byte("somevalue"), time.Second*1)
+	err := client.Set("setsomekeywithexp", []byte("somevalue"), time.Second*1)
 	require.NoError(t, err)
 }
 
 func Test_Get(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekey", []byte("somevalue"), 0)
+	err := client.Set("somekey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	value, err := client.Get("somekey")
@@ -136,15 +126,14 @@ func Test_Get(t *testing.T) {
 }
 
 func Test_Get_With_Exp(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("getsomekeywithexp", []byte("somevalue"), time.Second*2)
+	err := client.Set("getsomekeywithexp", []byte("somevalue"), time.Second*2)
 	require.NoError(t, err)
 
 	value, err := client.Get("getsomekeywithexp")
@@ -162,15 +151,14 @@ func Test_Get_With_Exp(t *testing.T) {
 }
 
 func Test_Delete(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
+	err := client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
 	require.NoError(t, err)
 
 	err = client.Delete("somekeytodelete")
@@ -184,15 +172,14 @@ func Test_Delete(t *testing.T) {
 }
 
 func Test_Reset(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("testkey", []byte("somevalue"), 0)
+	err := client.Set("testkey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	err = client.Reset()
@@ -206,29 +193,26 @@ func Test_Reset(t *testing.T) {
 }
 
 func TestClose_ShouldReturn_NoError(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
-
 	require.NoError(t, client.Close())
 }
 
 func Benchmark_Clickhouse_Set(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	client, err := getTestConnection(b, Config{
+	client := newTestStore(b, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(b, err)
-
 	defer client.Close()
 
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = client.Set("john", []byte("doe"), 0)
 	}
@@ -237,19 +221,18 @@ func Benchmark_Clickhouse_Set(b *testing.B) {
 }
 
 func Benchmark_Clickhouse_Get(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	client, err := getTestConnection(b, Config{
+	client := newTestStore(b, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(b, err)
-
 	defer client.Close()
 
-	err = client.Set("john", []byte("doe"), 0)
+	err := client.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		_, err = client.Get("john")
@@ -262,15 +245,14 @@ func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	client, err := getTestConnection(b, Config{
+	client := newTestStore(b, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-
-	require.NoError(b, err)
 	defer client.Close()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = client.Set("john", []byte("doe"), 0)
 		err = client.Delete("john")
