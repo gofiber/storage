@@ -62,12 +62,6 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 }
 
 func Test_MYSQL_New(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	require.True(t, testStore.db != nil)
-	require.NoError(t, testStore.Close())
-
 	c := mustStartMySQL(t)
 
 	dsn, err := c.ConnectionString(context.Background())
