@@ -242,15 +242,15 @@ func Benchmark_Clickhouse_Get(b *testing.B) {
 }
 
 func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-
 	client := newTestStore(b, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
 	defer client.Close()
+
+	b.ReportAllocs()
+	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
