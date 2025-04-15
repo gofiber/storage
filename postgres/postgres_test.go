@@ -23,7 +23,7 @@ const (
 	postgresDatabase    string = "fiber"
 )
 
-func newTestConfig(t testing.TB) (Config, error) {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	ctx := context.Background()
@@ -42,42 +42,32 @@ func newTestConfig(t testing.TB) (Config, error) {
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
-	var cfg Config
 	conn, err := c.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		return cfg, err
-	}
+	require.NoError(t, err)
 
-	cfg = Config{
+	cfg := Config{
 		ConnectionURI: conn,
 		Reset:         true,
 	}
-	return cfg, nil
+	return cfg
 }
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	cfg, err := newTestConfig(t)
-	if err != nil {
-		return nil, err
-	}
-
-	return newTestStoreWithConfig(t, cfg)
+	return newTestStoreWithConfig(t, newTestConfig(t))
 }
 
-func newTestStoreWithConfig(t testing.TB, cfg Config) (*Storage, error) {
+func newTestStoreWithConfig(t testing.TB, cfg Config) *Storage {
 	t.Helper()
 
-	return New(cfg), nil
+	return New(cfg)
 }
 
 func TestNoCreateUser(t *testing.T) {
-	cfg, err := newTestConfig(t)
-	require.NoError(t, err)
+	cfg := newTestConfig(t)
 
-	testStore, err := newTestStoreWithConfig(t, cfg)
-	require.NoError(t, err)
+	testStore := newTestStoreWithConfig(t, cfg)
 	defer testStore.Close()
 
 	// Create a new user
@@ -88,7 +78,7 @@ func TestNoCreateUser(t *testing.T) {
 	username := "testuser" + strconv.Itoa(int(time.Now().UnixNano()))
 	password := "testpassword"
 
-	_, err = conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
+	_, err := conn.Exec(ctx, "CREATE USER "+username+" WITH PASSWORD '"+password+"'")
 	require.NoError(t, err)
 
 	_, err = conn.Exec(ctx, "GRANT CONNECT ON DATABASE "+postgresDatabase+" TO "+username)
@@ -213,12 +203,11 @@ func TestNoCreateUser(t *testing.T) {
 
 }
 func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// Create a test table with wrong schema
-	_, err = testStore.Conn().Exec(context.Background(), `
+	_, err := testStore.Conn().Exec(context.Background(), `
 			CREATE TABLE IF NOT EXISTS test_schema_table (
 				k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 				v  BYTEA NOT NULL,
@@ -243,11 +232,10 @@ func Test_Postgres_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
 
@@ -257,11 +245,10 @@ func Test_Postgres_Set_Override(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
@@ -274,11 +261,10 @@ func Test_Postgres_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -293,11 +279,10 @@ func Test_Postgres_Set_Expiration(t *testing.T) {
 		exp = 1 * time.Second
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, exp)
+	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
@@ -310,8 +295,7 @@ func Test_Postgres_Set_Expiration(t *testing.T) {
 func Test_Postgres_Get_Expired(t *testing.T) {
 	key := "john"
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.Get(key)
@@ -320,8 +304,7 @@ func Test_Postgres_Get_Expired(t *testing.T) {
 }
 
 func Test_Postgres_Get_NotExist(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
@@ -335,11 +318,10 @@ func Test_Postgres_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
@@ -353,11 +335,10 @@ func Test_Postgres_Delete(t *testing.T) {
 func Test_Postgres_Reset(t *testing.T) {
 	val := []byte("doe")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -378,12 +359,11 @@ func Test_Postgres_Reset(t *testing.T) {
 func Test_Postgres_GC(t *testing.T) {
 	testVal := []byte("doe")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	// This key should expire
-	err = testStore.Set("john", testVal, time.Nanosecond)
+	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
 	testStore.gc(time.Now())
@@ -404,11 +384,10 @@ func Test_Postgres_GC(t *testing.T) {
 func Test_Postgres_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("0xF6", val, 0)
+	err := testStore.Set("0xF6", val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get("0xF6")
@@ -425,28 +404,25 @@ func Test_SslRequiredMode(t *testing.T) {
 }
 
 func Test_Postgres_Conn(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_Postgres_Close(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Benchmark_Postgres_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -455,11 +431,10 @@ func Benchmark_Postgres_Set(b *testing.B) {
 }
 
 func Benchmark_Postgres_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -473,13 +448,13 @@ func Benchmark_Postgres_Get(b *testing.B) {
 }
 
 func Benchmark_Postgres_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
