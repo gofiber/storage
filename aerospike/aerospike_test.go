@@ -2,7 +2,6 @@ package aerospike
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -26,7 +25,9 @@ const (
 )
 
 // startAerospikeContainer starts an Aerospike container for testing
-func startAerospikeContainer(ctx context.Context) (testcontainers.Container, error) {
+func startAerospikeContainer(t testing.TB, ctx context.Context) testcontainers.Container {
+	t.Helper()
+
 	// Get custom image from env if specified
 	image := aerospikeImage
 	if envImage := os.Getenv(aerospikeImageEnvVar); envImage != "" {
@@ -50,37 +51,28 @@ func startAerospikeContainer(ctx context.Context) (testcontainers.Container, err
 	}
 
 	// Start container
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	ctr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started:          true,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start aerospike container: %w", err)
-	}
+	testcontainers.CleanupContainer(t, ctr)
+	require.NoError(t, err)
 
-	return container, nil
+	return ctr
 }
 
 // newTestStore creates a client connected to the test container
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	c, err := startAerospikeContainer(context.Background())
-	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		t.Fatalf("Failed to start Aerospike container: %v", err)
-	}
+	c := startAerospikeContainer(t, context.Background())
 
 	// Extract host and port
 	host, err := c.Host(context.TODO())
-	if err != nil {
-		t.Fatalf("Failed to get container host: %v", err)
-	}
+	require.NoError(t, err)
 
 	port, err := c.MappedPort(context.TODO(), aerospikePort)
-	if err != nil {
-		t.Fatalf("Failed to get container port: %v", err)
-	}
+	require.NoError(t, err)
 
 	return New(Config{
 		Hosts:     []*aerospike.Host{aerospike.NewHost(host, port.Int())},
