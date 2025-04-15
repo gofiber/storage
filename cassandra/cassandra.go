@@ -153,7 +153,7 @@ func (s *Storage) dropTables() error {
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// Calculate expiration time
 	var expiresAt *time.Time
-	var ttl int = -1 // Default to no TTL
+	var ttl = -1 // Default to no TTL
 
 	if exp > 0 {
 		// Specific expiration provided
