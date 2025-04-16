@@ -1,14 +1,16 @@
 package redis
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
-	"log"
+	"net"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/mdelapenya/tlscert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -21,12 +23,18 @@ const (
 	redisImage       = "docker.io/redis:7"
 	redisImageEnvVar = "TEST_REDIS_IMAGE"
 	redisPort        = "6379/tcp"
+	redisTLSPort     = "6380/tcp"
 )
 
 type testStoreSettings struct {
 	withAddress  bool
 	withHostPort bool
 	withURL      bool
+
+	// TLS settings
+	withSecureURL    bool
+	withMTLSdisabled bool
+	withTLS          bool
 }
 
 type testStoreOption func(*testStoreSettings)
@@ -43,15 +51,70 @@ func withHostPort() testStoreOption {
 	}
 }
 
+func withTLS(secureURL bool, mtlsDisabled bool) testStoreOption {
+	return func(o *testStoreSettings) {
+		o.withTLS = true
+		o.withSecureURL = secureURL
+		o.withMTLSdisabled = mtlsDisabled
+	}
+}
+
 // withURL sets the test store to use a URL.
 // Use it when you want to explicitly combine multiple addresses in the same test
 // to verify which one is being used.
 // - true: the URL will receive the URI provided by the testcontainer
 // - false: the URL will be set to an empty string
-func withURL(b bool) testStoreOption {
+func withURL(useContainerURI bool) testStoreOption {
 	return func(o *testStoreSettings) {
-		o.withURL = b
+		o.withURL = useContainerURI
 	}
+}
+
+// createTLSCerts creates a CA certificate, a client certificate and a nats certificate,
+// storing them in the given temporary directory.
+func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *tlscert.Certificate) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+
+	// ips is the extra list of IPs to include in the certificates.
+	// It's used to allow the client and Redis certificates to be used in the same host
+	// when the tests are run using a remote docker daemon.
+	ips := []net.IP{net.ParseIP("127.0.0.1")}
+
+	// Generate CA certificate
+	caCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:              "localhost",
+		IPAddresses:       ips,
+		Name:              "ca",
+		SubjectCommonName: "ca",
+		IsCA:              true,
+		ParentDir:         tmpDir,
+	})
+	require.NotNil(t, caCert)
+
+	// Generate client certificate
+	clientCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:              "localhost",
+		Name:              "Redis Client",
+		SubjectCommonName: "localhost",
+		IPAddresses:       ips,
+		Parent:            caCert,
+		ParentDir:         tmpDir,
+	})
+	require.NotNil(t, clientCert)
+
+	// Generate Redis certificate
+	redisCert := tlscert.SelfSignedFromRequest(tlscert.Request{
+		Host:        "localhost",
+		IPAddresses: ips,
+		Name:        "Redis Server",
+		Parent:      caCert,
+		ParentDir:   tmpDir,
+	})
+	require.NotNil(t, redisCert)
+
+	return caCert, clientCert, redisCert
 }
 
 func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
@@ -71,21 +134,79 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 		img = imgFromEnv
 	}
 
+	cfg := Config{
+		Reset: true,
+	}
+
 	ctx := context.Background()
 
-	c, err := redis.Run(
-		ctx, img,
-		testcontainers.WithWaitStrategy(wait.ForListeningPort(redisPort).WithStartupTimeout(time.Second*10)),
-	)
+	tcOpts := []testcontainers.ContainerCustomizer{}
+
+	waitStrategies := []wait.Strategy{
+		wait.ForListeningPort(redisPort).WithStartupTimeout(time.Second * 10),
+	}
+
+	if settings.withTLS {
+		// wait for the TLS port to be available
+		waitStrategies = append(waitStrategies, wait.ForListeningPort(redisTLSPort).WithStartupTimeout(time.Second*10))
+
+		cmds := []string{
+			"--port", "6379",
+			"--tls-port", "6380",
+			"--tls-cert-file", "/tls/server.crt",
+			"--tls-key-file", "/tls/server.key",
+			"--tls-ca-cert-file", "/tls/ca.crt",
+			"--tls-auth-clients", "yes",
+		}
+
+		if settings.withMTLSdisabled {
+			cmds = append(cmds, "--tls-auth-clients", "no")
+		}
+
+		// Generate TLS certificates in the fly and add them to the container before it starts.
+		// Update the CMD to use the TLS certificates.
+		caCert, clientCert, serverCert := createTLSCerts(t)
+
+		tcOpts = append(tcOpts, testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				ExposedPorts: []string{"6380/tcp"},
+				Files: []testcontainers.ContainerFile{
+					{
+						Reader:            bytes.NewReader(caCert.Bytes),
+						ContainerFilePath: "/tls/ca.crt",
+						FileMode:          0o644,
+					},
+					{
+						Reader:            bytes.NewReader(serverCert.Bytes),
+						ContainerFilePath: "/tls/server.crt",
+						FileMode:          0o644,
+					},
+					{
+						Reader:            bytes.NewReader(serverCert.KeyBytes),
+						ContainerFilePath: "/tls/server.key",
+						FileMode:          0o644,
+					},
+				},
+				Cmd: cmds,
+			},
+		}))
+
+		cfg.TLSConfig = &tls.Config{
+			MinVersion:   tls.VersionTLS12,
+			RootCAs:      caCert.TLSConfig().RootCAs,
+			Certificates: clientCert.TLSConfig().Certificates,
+			ServerName:   "localhost", // Match the server cert's common name
+		}
+	}
+
+	tcOpts = append(tcOpts, testcontainers.WithWaitStrategy(waitStrategies...))
+
+	c, err := redis.Run(ctx, img, tcOpts...)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
 	uri, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
-
-	cfg := Config{
-		Reset: true,
-	}
 
 	if settings.withHostPort {
 		host, err := c.Host(ctx)
@@ -105,6 +226,21 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 
 	if settings.withURL {
 		cfg.URL = uri
+	}
+
+	if settings.withTLS {
+		host, err := c.Host(ctx)
+		require.NoError(t, err)
+
+		port, err := c.MappedPort(ctx, redisTLSPort)
+		require.NoError(t, err)
+
+		scheme := "redis"
+		if settings.withSecureURL {
+			scheme = "rediss"
+		}
+
+		cfg.URL = scheme + "://" + host + ":" + port.Port()
 	}
 
 	return New(cfg)
@@ -285,120 +421,46 @@ func Test_Redis_Initalize_WithHostPort(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	tlsCfg := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cer},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-	}
-
-	testStoreUrl := New(Config{
-		URL:       "redis://localhost:6380",
-		TLSConfig: tlsCfg,
-	})
-	defer testStoreUrl.Close()
-
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err = testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
-}
-
 func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
-	if err != nil {
-		log.Println(err)
-		return
+	testFn := func(secureURL bool, mtlsDisabled bool) {
+		testStore := newTestStore(t, withTLS(secureURL, mtlsDisabled))
+		defer testStore.Close()
+
+		var (
+			key = "clark"
+			val = []byte("kent")
+		)
+
+		err := testStore.Set(key, val, 0)
+		require.NoError(t, err)
+
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, val, result)
+
+		err = testStore.Delete(key)
+		require.NoError(t, err)
+
+		keys, err := testStore.Keys()
+		require.NoError(t, err)
+		require.Nil(t, keys)
 	}
-	tlsCfg := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		InsecureSkipVerify: false,
-		Certificates:       []tls.Certificate{cer},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-	}
 
-	testStoreUrl := New(Config{
-		URL:       "redis://localhost:6380",
-		TLSConfig: tlsCfg,
+	t.Run("insecure-url/mtls-disabled", func(t *testing.T) {
+		testFn(false, true)
 	})
-	defer testStoreUrl.Close()
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err = testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
-}
-
-func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
-	testStoreUrl := New(Config{
-		URL: "rediss://localhost:16380",
+	t.Run("insecure-url/mtls-enabled", func(t *testing.T) {
+		testFn(false, false)
 	})
-	defer testStoreUrl.Close()
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
+	t.Run("secure-url/mtls-disabled", func(t *testing.T) {
+		testFn(true, true)
+	})
 
-	err := testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
+	t.Run("secure-url/mtls-enabled", func(t *testing.T) {
+		testFn(true, false)
+	})
 }
 
 func Test_Redis_Universal_Addrs(t *testing.T) {
