@@ -21,7 +21,7 @@ const (
 )
 
 // newTestStore creates a Cassandra container using the official module
-func newTestStore(t testing.TB) (*cassandracontainer.CassandraContainer, string, error) {
+func newTestStore(t testing.TB) string {
 	t.Helper()
 
 	img := cassandraImage
@@ -33,71 +33,58 @@ func newTestStore(t testing.TB) (*cassandracontainer.CassandraContainer, string,
 
 	c, err := cassandracontainer.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, "", err
-	}
+	require.NoError(t, err)
 
 	// Get connection parameters
 	host, err := c.Host(ctx)
-	if err != nil {
-		return nil, "", err
-	}
+	require.NoError(t, err)
 
 	mappedPort, err := c.MappedPort(ctx, cassandraPort)
-	if err != nil {
-		return nil, "", err
-	}
+	require.NoError(t, err)
 
 	connectionURL := host + ":" + mappedPort.Port()
-	return c, connectionURL, nil
+	return connectionURL
 }
 
 // TestCassandraStorage tests the Cassandra storage implementation
 func TestCassandraStorage(t *testing.T) {
-	ctx := context.Background()
 
 	// Start Cassandra container
-	cassandraContainer, connectionURL, err := newTestStore(t)
-	if err != nil {
-		t.Fatalf("Failed to start Cassandra container: %v", err)
-	}
-	defer func() {
-		if err := cassandraContainer.Terminate(ctx); err != nil {
-			t.Logf("Failed to terminate container: %v", err)
-		}
-	}()
+	connectionURL := newTestStore(t)
+
+	// Create new storage
+	store := New(Config{
+		Hosts:      []string{connectionURL},
+		Keyspace:   "test_keyspace_creation",
+		Table:      "test_kv",
+		Expiration: 5 * time.Second, // Short default TTL for testing
+	})
+	defer store.Close()
 
 	// Test cases
 	t.Run("KeyspaceCreation", func(t *testing.T) {
-		testKeyspaceCreation(t, connectionURL)
+		testKeyspaceCreation(t, connectionURL, store)
 	})
 
 	t.Run("BasicOperations", func(t *testing.T) {
-		testBasicOperations(t, connectionURL)
+		testBasicOperations(t, store)
 	})
 
 	t.Run("ExpirableKeys", func(t *testing.T) {
-		testExpirableKeys(t, connectionURL)
-	})
-
-	t.Run("Reset", func(t *testing.T) {
-		testReset(t, connectionURL)
+		testExpirableKeys(t, store)
 	})
 
 	t.Run("ConcurrentAccess", func(t *testing.T) {
-		testConcurrentAccess(t, connectionURL)
+		testConcurrentAccess(t, store)
+	})
+
+	t.Run("Reset", func(t *testing.T) {
+		testReset(t, connectionURL, store)
 	})
 }
 
 // testKeyspaceCreation tests the keyspace creation functionality.
-func testKeyspaceCreation(t *testing.T, connectionURL string) {
-	// Create new storage
-	store := New(Config{
-		Hosts:    []string{connectionURL},
-		Keyspace: "test_keyspace_creation",
-		Table:    "test_kv",
-	})
-	defer store.Close()
+func testKeyspaceCreation(t *testing.T, connectionURL string, store *Storage) {
 
 	// Verify keyspace was created
 	systemCluster := gocql.NewCluster(connectionURL)
@@ -129,14 +116,7 @@ func testKeyspaceCreation(t *testing.T, connectionURL string) {
 }
 
 // testBasicOperations tests basic operations like setting, getting, and deleting keys.
-func testBasicOperations(t *testing.T, connectionURL string) {
-	// Create new storage
-	store := New(Config{
-		Hosts:    []string{connectionURL},
-		Keyspace: "test_basic_ops",
-		Table:    "test_kv",
-	})
-	defer store.Close()
+func testBasicOperations(t *testing.T, store *Storage) {
 
 	// Set a key
 	err := store.Set("test_key", []byte("test_value"), 0)
@@ -163,15 +143,7 @@ func testBasicOperations(t *testing.T, connectionURL string) {
 }
 
 // testExpirableKeys tests the expirable keys functionality.
-func testExpirableKeys(t *testing.T, connectionURL string) {
-	// Create new storage with default expiration
-	store := New(Config{
-		Hosts:      []string{connectionURL},
-		Keyspace:   "test_expirable",
-		Table:      "test_kv",
-		Expiration: 5 * time.Second, // Short default TTL for testing
-	})
-	defer store.Close()
+func testExpirableKeys(t *testing.T, store *Storage) {
 
 	// Set keys with different expiration settings
 	// Key with default TTL (exp = 0 means use default)
@@ -229,13 +201,7 @@ func testExpirableKeys(t *testing.T, connectionURL string) {
 }
 
 // / testReset tests the Reset method.
-func testReset(t *testing.T, connectionURL string) {
-	// Create new storage
-	store := New(Config{
-		Hosts:    []string{connectionURL},
-		Keyspace: "test_reset",
-		Table:    "test_kv",
-	})
+func testReset(t *testing.T, connectionURL string, store *Storage) {
 
 	// Set some keys
 	err := store.Set("key1", []byte("value1"), 0)
@@ -262,9 +228,6 @@ func testReset(t *testing.T, connectionURL string) {
 	require.NoError(t, err)
 	require.Nil(t, value, "Key should be deleted after reset")
 
-	// Close the first storage
-	store.Close()
-
 	// Create new storage with Reset flag
 	store = New(Config{
 		Hosts:    []string{connectionURL},
@@ -285,14 +248,7 @@ func testReset(t *testing.T, connectionURL string) {
 }
 
 // testConcurrentAccess tests concurrent access to the storage.
-func testConcurrentAccess(t *testing.T, connectionURL string) {
-	// Create new storage
-	store := New(Config{
-		Hosts:    []string{connectionURL},
-		Keyspace: "test_concurrent",
-		Table:    "test_kv",
-	})
-	defer store.Close()
+func testConcurrentAccess(t *testing.T, store *Storage) {
 
 	// Number of goroutines
 	const concurrentOps = 10
@@ -335,16 +291,7 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	c, connectionURL, err := newTestStore(b)
-	if err != nil {
-		b.Fatalf("Failed to start Cassandra container: %v", err)
-	}
-	defer func() {
-		if err := c.Terminate(context.TODO()); err != nil {
-			b.Logf("Failed to terminate container: %v", err)
-		}
-	}()
-	require.NoError(b, err)
+	connectionURL := newTestStore(b)
 
 	// Create new storage
 	store := New(Config{
@@ -354,6 +301,7 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 	})
 	defer store.Close()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = store.Set("john", []byte("doe"), 0)
 	}
@@ -365,16 +313,7 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	c, connectionURL, err := newTestStore(b)
-	if err != nil {
-		b.Fatalf("Failed to start Cassandra container: %v", err)
-	}
-	defer func() {
-		if err := c.Terminate(context.TODO()); err != nil {
-			b.Logf("Failed to terminate container: %v", err)
-		}
-	}()
-	require.NoError(b, err)
+	connectionURL := newTestStore(b)
 
 	// Create new storage
 	client := New(Config{
@@ -384,7 +323,7 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 	})
 	defer client.Close()
 
-	err = client.Set("john", []byte("doe"), 0)
+	err := client.Set("john", []byte("doe"), 0)
 
 	for i := 0; i < b.N; i++ {
 		_, err = client.Get("john")
@@ -397,16 +336,7 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	c, connectionURL, err := newTestStore(b)
-	if err != nil {
-		b.Fatalf("Failed to start Cassandra container: %v", err)
-	}
-	defer func() {
-		if err := c.Terminate(context.TODO()); err != nil {
-			b.Logf("Failed to terminate container: %v", err)
-		}
-	}()
-	require.NoError(b, err)
+	connectionURL := newTestStore(b)
 
 	// Create new storage
 	client := New(Config{
@@ -416,6 +346,7 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 	})
 	defer client.Close()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = client.Set("john", []byte("doe"), 0)
 		err = client.Delete("john")
