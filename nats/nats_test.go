@@ -75,7 +75,7 @@ func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *
 	return caCert, clientCert, natsCert
 }
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	ca, client, natsCert := createTLSCerts(t)
@@ -141,7 +141,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 			Bucket:  "test",
 			Storage: jetstream.MemoryStorage,
 		},
-	}), nil
+	})
 }
 
 func Test_Storage_Nats_Set(t *testing.T) {
@@ -150,11 +150,10 @@ func Test_Storage_Nats_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	keys, err := testStore.Keys()
@@ -169,11 +168,10 @@ func Test_Storage_Nats_Set_Overwrite(t *testing.T) {
 		val2 = []byte("overwritten")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val1, 0)
+	err := testStore.Set(key, val1, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key, val2, 30*time.Second)
@@ -193,11 +191,10 @@ func Test_Storage_Nats_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 30*time.Second)
+	err := testStore.Set(key, val, 30*time.Second)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -216,11 +213,10 @@ func Test_Storage_Nats_Set_Expiration(t *testing.T) {
 		exp = 1 * time.Second
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, exp)
+	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
@@ -241,8 +237,7 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 		exp = 5 * time.Second
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	keys, err := testStore.Keys()
@@ -269,8 +264,7 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 }
 
 func Test_Storage_Nats_Get_NotExist(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
@@ -288,11 +282,10 @@ func Test_Storage_Nats_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	keys, err := testStore.Keys()
@@ -312,13 +305,12 @@ func Test_Storage_Nats_Delete(t *testing.T) {
 }
 
 func Test_Storage_Nats_Reset(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	val := []byte("doe")
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -345,14 +337,12 @@ func Test_Storage_Nats_Reset(t *testing.T) {
 }
 
 func Test_Storage_Nats_Close(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Test_Storage_Nats_Conn(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	n, k := testStore.Conn()
@@ -361,13 +351,13 @@ func Test_Storage_Nats_Conn(t *testing.T) {
 }
 
 func Benchmark_Nats_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -376,11 +366,10 @@ func Benchmark_Nats_Set(b *testing.B) {
 }
 
 func Benchmark_Nats_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -394,13 +383,13 @@ func Benchmark_Nats_Get(b *testing.B) {
 }
 
 func Benchmark_Nats_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")

@@ -18,7 +18,7 @@ const (
 	scyllaDBEnvVar = "TEST_SCYLLADB_IMAGE"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	img := scyllaDBImage
@@ -30,19 +30,13 @@ func newTestStore(t testing.TB) (*Storage, error) {
 
 	c, err := scylladb.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	connectionHost, err := c.NonShardAwareConnectionHost(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	scyllaPort, err := c.MappedPort(ctx, "9042/tcp")
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return New(Config{
 		Hosts: []string{connectionHost},
@@ -51,7 +45,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		// Disable initial host lookup in tests.
 		// See https://github.com/apache/cassandra-gocql-driver/issues/1020#issuecomment-362494859
 		DisableInitialHostLookup: true,
-	}), nil
+	})
 }
 
 func Test_Scylla_Set(t *testing.T) {
@@ -61,11 +55,10 @@ func Test_Scylla_Set(t *testing.T) {
 		value = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, value, 0)
+	err := testStore.Set(key, value, 0)
 	require.NoError(t, err)
 }
 
@@ -76,11 +69,10 @@ func Test_Scylla_Set_Override_Get(t *testing.T) {
 		valOverride = []byte("doe2")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, valInitial, 0)
+	err := testStore.Set(key, valInitial, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -101,11 +93,10 @@ func Test_Scylla_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -120,11 +111,10 @@ func Test_Scylla_Set_Expiration_Get(t *testing.T) {
 		exp = 1 * time.Second
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, exp)
+	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
 	time.Sleep(1001 * time.Millisecond)
@@ -135,8 +125,7 @@ func Test_Scylla_Set_Expiration_Get(t *testing.T) {
 }
 
 func Test_Scylla_Get_NotExist(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.Get("not-exist")
@@ -150,11 +139,10 @@ func Test_Scylla_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
@@ -168,11 +156,10 @@ func Test_Scylla_Delete(t *testing.T) {
 func Test_Scylla_Reset(t *testing.T) {
 	var val = []byte("doe")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -191,27 +178,25 @@ func Test_Scylla_Reset(t *testing.T) {
 }
 
 func Test_Scylla_Close(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Test_Scylla_Conn(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_Scylla_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -220,11 +205,10 @@ func Benchmark_Scylla_Set(b *testing.B) {
 }
 
 func Benchmark_Scylla_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -238,13 +222,13 @@ func Benchmark_Scylla_Get(b *testing.B) {
 }
 
 func Benchmark_Scylla_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")

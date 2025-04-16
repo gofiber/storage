@@ -21,7 +21,7 @@ const (
 	couchbaseBucket      string = "fiber_storage"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	img := couchbaseImage
@@ -40,36 +40,29 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		testcontainers.WithWaitStrategy(wait.ForListeningPort("8091/tcp")),
 	)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	conn, err := c.ConnectionString(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return New(Config{
 		Username: couchbaseUser,
 		Password: couchbasePass,
 		Host:     conn,
 		Bucket:   couchbaseBucket,
-	}), nil
+	})
 }
 
 func TestSetCouchbase_ShouldReturnNoError(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("test"), 0)
-
+	err := testStore.Set("test", []byte("test"), 0)
 	require.NoError(t, err)
 }
 
 func TestGetCouchbase_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	val, err := testStore.Get("not_found_key")
@@ -79,11 +72,10 @@ func TestGetCouchbase_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
 }
 
 func TestSetAndGet_GetShouldReturn_SetValueWithoutError(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
 	val, err := testStore.Get("test")
@@ -93,11 +85,10 @@ func TestSetAndGet_GetShouldReturn_SetValueWithoutError(t *testing.T) {
 }
 
 func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("fiber_test_value"), 3*time.Second)
+	err := testStore.Set("test", []byte("fiber_test_value"), 3*time.Second)
 	require.NoError(t, err)
 
 	time.Sleep(6 * time.Second)
@@ -109,11 +100,10 @@ func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
 }
 
 func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete("test")
@@ -124,11 +114,10 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("fiber_test_value"), 0)
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
 	err = testStore.Reset()
@@ -139,28 +128,25 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 }
 
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-
+	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
 }
 
 func TestGetConn_ReturnsNotNil(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_Couchbase_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -169,11 +155,10 @@ func Benchmark_Couchbase_Set(b *testing.B) {
 }
 
 func Benchmark_Couchbase_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -187,13 +172,13 @@ func Benchmark_Couchbase_Get(b *testing.B) {
 }
 
 func Benchmark_Couchbase_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")

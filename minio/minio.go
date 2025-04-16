@@ -146,11 +146,12 @@ func (s *Storage) Reset() error {
 		GovernanceBypass: true,
 	}
 
+	var errs []error
 	for err := range s.minio.RemoveObjects(s.ctx, s.cfg.Bucket, objectsCh, opts) {
-		log.Println("Error detected during deletion: ", err)
+		errs = append(errs, err.Err)
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // Close the storage
