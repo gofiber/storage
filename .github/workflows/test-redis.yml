@@ -18,8 +18,8 @@ jobs:
                     - 1.23.x
                     - 1.24.x
                 redis:
-                    - '6.x'
-                    - '7.x'
+                    - '6'
+                    - '7'
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
@@ -45,5 +45,5 @@ jobs:
 
             -   name: Run Test
                 env:
-                    TEST_REDIS_IMAGE: "docker.io/redis:7"
+                    TEST_REDIS_IMAGE: "docker.io/redis:${{ matrix.redis }}"
                 run: cd ./redis && go test ./... -v -race
