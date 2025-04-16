@@ -33,7 +33,7 @@ type testStoreSettings struct {
 
 	// TLS settings
 	withSecureURL    bool
-	withMTLSdisabled bool
+	withMTLSDisabled bool
 	withTLS          bool
 }
 
@@ -55,7 +55,7 @@ func withTLS(secureURL bool, mtlsDisabled bool) testStoreOption {
 	return func(o *testStoreSettings) {
 		o.withTLS = true
 		o.withSecureURL = secureURL
-		o.withMTLSdisabled = mtlsDisabled
+		o.withMTLSDisabled = mtlsDisabled
 	}
 }
 
@@ -159,7 +159,7 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 			"--tls-auth-clients", "yes",
 		}
 
-		if settings.withMTLSdisabled {
+		if settings.withMTLSDisabled {
 			cmds = append(cmds, "--tls-auth-clients", "no")
 		}
 
