@@ -2,7 +2,6 @@ module github.com/gofiber/storage/coherence
 
 go 1.23.0
 
-toolchain go1.23.7
 
 require (
 	github.com/oracle/coherence-go-client/v2 v2.1.0
