@@ -160,6 +160,11 @@ type Config struct {
     //
     // Optional. Default is false
     Reset bool
+
+	// DisableInitialHostLookup disables the initial host lookup
+	//
+	// Optional. Default is false
+	DisableInitialHostLookup bool
 }
 ```
 
@@ -167,15 +172,16 @@ type Config struct {
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-    Session:     nil,
-    Keyspace:    "fiber",
-    Hosts:       []string{"127.0.0.1"},
-    Username:    "",
-    Password:    "",
-    Port:        9042,
-    Table:       "fiber_storage",
-    Consistency: "LOCAL_ONE",
-    SslOpts:     nil,
-    Reset:       false,
+	Session:                  nil,
+	Keyspace:                 "fiber",
+	Hosts:                    []string{"127.0.0.1"},
+	Username:                 "",
+	Password:                 "",
+	Port:                     9042,
+	Table:                    "fiber_storage",
+	Consistency:              "LOCAL_ONE",
+	SslOpts:                  nil,
+	Reset:                    false,
+	DisableInitialHostLookup: false,
 }
 ```
