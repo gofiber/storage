@@ -174,17 +174,17 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 					{
 						Reader:            bytes.NewReader(caCert.Bytes),
 						ContainerFilePath: "/tls/ca.crt",
-						FileMode:          0o600,
+						FileMode:          0o644,
 					},
 					{
 						Reader:            bytes.NewReader(serverCert.Bytes),
 						ContainerFilePath: "/tls/server.crt",
-						FileMode:          0o600,
+						FileMode:          0o644,
 					},
 					{
 						Reader:            bytes.NewReader(serverCert.KeyBytes),
 						ContainerFilePath: "/tls/server.key",
-						FileMode:          0o600,
+						FileMode:          0o644,
 					},
 				},
 				Cmd: cmds,
