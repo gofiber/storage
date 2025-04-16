@@ -25,4 +25,6 @@ jobs:
             with:
                 go-version: '${{ matrix.go-version }}'
         -   name: Run Test
+            env:
+                TEST_MINIO_IMAGE: docker.io/minio/minio:latest
             run: cd ./s3 && go test ./... -v -race
