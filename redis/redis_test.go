@@ -70,7 +70,7 @@ func withURL(useContainerURI bool) testStoreOption {
 	}
 }
 
-// createTLSCerts creates a CA certificate, a client certificate and a nats certificate,
+// createTLSCerts creates a CA certificate, a client certificate and a Redis certificate,
 // storing them in the given temporary directory.
 func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *tlscert.Certificate) {
 	t.Helper()
