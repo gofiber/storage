@@ -401,7 +401,7 @@ func Test_Redis_Conn(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
 }
 
-func Test_Redis_Initalize_WithHostPort(t *testing.T) {
+func Test_Redis_Initialize_WithHostPort(t *testing.T) {
 	var (
 		key = "clark"
 		val = []byte("kent")
@@ -421,7 +421,7 @@ func Test_Redis_Initalize_WithHostPort(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
+func Test_Redis_Initialize_WithURL_TLS_Verify(t *testing.T) {
 	testFn := func(secureURL bool, mtlsDisabled bool) {
 		testStore := newTestStore(t, withTLS(secureURL, mtlsDisabled))
 		defer testStore.Close()
