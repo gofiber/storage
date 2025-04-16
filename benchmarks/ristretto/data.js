@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1743020488429,
+  "lastUpdate": 1744788342242,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -96,6 +96,102 @@ window.BENCHMARK_DATA = {
             "value": 6,
             "unit": "allocs/op",
             "extra": "1907302 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "366e1ee57157ed9518c8b85e1fb82a408387c372",
+          "message": "Merge pull request #1675 from gofiber/dependabot/go_modules/ristretto/github.com/dgraph-io/ristretto-0.2.0\n\nchore(deps): bump github.com/dgraph-io/ristretto from 0.1.1 to 0.2.0 in /ristretto",
+          "timestamp": "2025-04-16T09:24:40+02:00",
+          "tree_id": "53cd3274b103bde7b5cf071f93bc6c4f6ee0ffa9",
+          "url": "https://github.com/gofiber/storage/commit/366e1ee57157ed9518c8b85e1fb82a408387c372"
+        },
+        "date": 1744788334136,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Ristretto_Set",
+            "value": 327,
+            "unit": "ns/op\t     123 B/op\t       4 allocs/op",
+            "extra": "3720187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - ns/op",
+            "value": 327,
+            "unit": "ns/op",
+            "extra": "3720187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - B/op",
+            "value": 123,
+            "unit": "B/op",
+            "extra": "3720187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "3720187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get",
+            "value": 83.12,
+            "unit": "ns/op\t      18 B/op\t       1 allocs/op",
+            "extra": "13598983 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - ns/op",
+            "value": 83.12,
+            "unit": "ns/op",
+            "extra": "13598983 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - B/op",
+            "value": 18,
+            "unit": "B/op",
+            "extra": "13598983 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "13598983 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete",
+            "value": 652.1,
+            "unit": "ns/op\t     219 B/op\t       6 allocs/op",
+            "extra": "1881328 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - ns/op",
+            "value": 652.1,
+            "unit": "ns/op",
+            "extra": "1881328 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - B/op",
+            "value": 219,
+            "unit": "B/op",
+            "extra": "1881328 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - allocs/op",
+            "value": 6,
+            "unit": "allocs/op",
+            "extra": "1881328 times\n4 procs"
           }
         ]
       }
