@@ -17,7 +17,7 @@ const (
 	azuriteImageEnvVar = "TEST_AZURITE_IMAGE"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	img := azuriteImage
@@ -29,14 +29,10 @@ func newTestStore(t testing.TB) (*Storage, error) {
 
 	c, err := azurite.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	serviceURL, err := c.BlobServiceURL(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return New(Config{
 		Account:   azurite.AccountName,
@@ -47,7 +43,7 @@ func newTestStore(t testing.TB) (*Storage, error) {
 			Key:     azurite.AccountKey,
 		},
 		Reset: true,
-	}), nil
+	})
 }
 
 func Test_AzureBlob_Get(t *testing.T) {
@@ -56,11 +52,10 @@ func Test_AzureBlob_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
@@ -74,11 +69,10 @@ func Test_AzureBlob_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
 
@@ -88,11 +82,10 @@ func Test_AzureBlob_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
@@ -114,11 +107,10 @@ func Test_AzureBlob_Override(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set(key, val, 0)
@@ -126,8 +118,7 @@ func Test_AzureBlob_Override(t *testing.T) {
 }
 
 func Test_AzureBlob_Get_NotExist(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
@@ -143,11 +134,10 @@ func Test_AzureBlob_Get_NotExist(t *testing.T) {
 func Test_AzureBlob_Reset(t *testing.T) {
 	val := []byte("doe")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)
@@ -176,27 +166,25 @@ func Test_AzureBlob_Reset(t *testing.T) {
 }
 
 func Test_AzureBlob_Conn(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_AzureBlob_Close(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Benchmark_AzureBlob_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -205,11 +193,10 @@ func Benchmark_AzureBlob_Set(b *testing.B) {
 }
 
 func Benchmark_AzureBlob_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -223,13 +210,13 @@ func Benchmark_AzureBlob_Get(b *testing.B) {
 }
 
 func Benchmark_AzureBlob_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")

@@ -11,6 +11,9 @@ import (
 func Test_S3_CreateDeleteBucket(t *testing.T) {
 	bkt := "test-new-bucket"
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.CreateBucket(bkt)
 	require.NoError(t, err)
 
@@ -20,6 +23,9 @@ func Test_S3_CreateDeleteBucket(t *testing.T) {
 
 func Test_S3_DeleteMany(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -60,6 +66,9 @@ func Test_S3_SetWithChecksum(t *testing.T) {
 	checksum := map[types.ChecksumAlgorithm][]byte{
 		types.ChecksumAlgorithmSha256: sha256sum,
 	}
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.SetWithChecksum(key, val, checksum)
 	require.NoError(t, err)
