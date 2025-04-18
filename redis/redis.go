@@ -13,6 +13,13 @@ type Storage struct {
 	db redis.UniversalClient
 }
 
+// NewFromConnection creates a new instance of Storage using the provided Redis universal client.
+func NewFromConnection(conn redis.UniversalClient) *Storage {
+	return &Storage{
+		db: conn,
+	}
+}
+
 // New creates a new Redis storage instance.
 func New(config ...Config) *Storage {
 	// Set default config
