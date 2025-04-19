@@ -288,8 +288,6 @@ func testConcurrentAccess(t *testing.T, store *Storage) {
 }
 
 func Benchmark_Cassandra_Set(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
 
 	connectionURL := newTestStore(b)
 
@@ -301,6 +299,9 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 	})
 	defer store.Close()
 
+	b.ReportAllocs()
+	b.ResetTimer()
+
 	var err error
 	for i := 0; i < b.N; i++ {
 		err = store.Set("john", []byte("doe"), 0)
@@ -310,8 +311,6 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 }
 
 func Benchmark_Cassandra_Get(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
 
 	connectionURL := newTestStore(b)
 
@@ -322,6 +321,9 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 		Table:    "test_kv",
 	})
 	defer client.Close()
+
+	b.ReportAllocs()
+	b.ResetTimer()
 
 	err := client.Set("john", []byte("doe"), 0)
 
@@ -333,8 +335,6 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 }
 
 func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
 
 	connectionURL := newTestStore(b)
 
@@ -345,6 +345,9 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 		Table:    "test_kv",
 	})
 	defer client.Close()
+
+	b.ReportAllocs()
+	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
