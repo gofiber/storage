@@ -48,37 +48,64 @@ func newTestStore(t testing.TB) string {
 
 // TestCassandraStorage tests the Cassandra storage implementation
 func TestCassandraStorage(t *testing.T) {
-
-	// Start Cassandra container
-	connectionURL := newTestStore(t)
-
-	// Create new storage
-	store := New(Config{
-		Hosts:      []string{connectionURL},
-		Keyspace:   "test_keyspace_creation",
-		Table:      "test_kv",
-		Expiration: 5 * time.Second, // Short default TTL for testing
-	})
-	defer store.Close()
-
 	// Test cases
 	t.Run("KeyspaceCreation", func(t *testing.T) {
+		connectionURL := newTestStore(t)
+		store := New(Config{
+			Hosts:      []string{connectionURL},
+			Keyspace:   "test_keyspace_creation",
+			Table:      "test_kv",
+			Expiration: 5 * time.Second,
+		})
+		defer store.Close()
 		testKeyspaceCreation(t, connectionURL, store)
 	})
 
 	t.Run("BasicOperations", func(t *testing.T) {
+		connectionURL := newTestStore(t)
+		store := New(Config{
+			Hosts:      []string{connectionURL},
+			Keyspace:   "test_basic_ops",
+			Table:      "test_kv",
+			Expiration: 5 * time.Second,
+		})
+		defer store.Close()
 		testBasicOperations(t, store)
 	})
 
 	t.Run("ExpirableKeys", func(t *testing.T) {
+		connectionURL := newTestStore(t)
+		store := New(Config{
+			Hosts:      []string{connectionURL},
+			Keyspace:   "test_expirable",
+			Table:      "test_kv",
+			Expiration: 5 * time.Second,
+		})
+		defer store.Close()
 		testExpirableKeys(t, store)
 	})
 
 	t.Run("ConcurrentAccess", func(t *testing.T) {
+		connectionURL := newTestStore(t)
+		store := New(Config{
+			Hosts:      []string{connectionURL},
+			Keyspace:   "test_concurrent",
+			Table:      "test_kv",
+			Expiration: 5 * time.Second,
+		})
+		defer store.Close()
 		testConcurrentAccess(t, store)
 	})
 
 	t.Run("Reset", func(t *testing.T) {
+		connectionURL := newTestStore(t)
+		store := New(Config{
+			Hosts:      []string{connectionURL},
+			Keyspace:   "test_reset",
+			Table:      "test_kv",
+			Expiration: 5 * time.Second,
+		})
+		defer store.Close()
 		testReset(t, connectionURL, store)
 	})
 }
