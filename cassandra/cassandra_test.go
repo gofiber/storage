@@ -397,20 +397,24 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 // testIdentifierValidation tests the validateIdentifier function
 func testIdentifierValidation(t *testing.T) {
 	// Test valid identifiers
-	validCases := []string{
-		"test",
-		"test123",
-		"test_123",
-		"TEST",
-		"Test123",
-		"test_table",
+	validCases := []struct {
+		name     string
+		expected string
+	}{
+		{"test", "test"},
+		{"test123", "test123"},
+		{"test_123", "test_123"},
+		{"TEST", `"TEST"`},
+		{"Test123", `"Test123"`},
+		{"test-table", `"test-table"`},
+		{"test.table", `"test.table"`},
 	}
 
 	for _, tc := range validCases {
-		t.Run(fmt.Sprintf("valid_%s", tc), func(t *testing.T) {
-			result, err := validateIdentifier(tc, "test")
+		t.Run(fmt.Sprintf("valid_%s", tc.name), func(t *testing.T) {
+			result, err := validateIdentifier(tc.name, "test")
 			require.NoError(t, err)
-			require.Equal(t, tc, result)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 
@@ -421,8 +425,6 @@ func testIdentifierValidation(t *testing.T) {
 	}{
 		{"empty", ""},
 		{"space", "test table"},
-		{"hyphen", "test-table"},
-		{"dot", "test.table"},
 		{"quote", `test"table`},
 		{"semicolon", "test;table"},
 		{"sql_injection", `test"; DROP KEYSPACE prod; --`},

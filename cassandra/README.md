@@ -52,7 +52,7 @@ To start Cassandra using Docker, issue the following:
 docker run --name cassandra --network host -d cassandra:latest
 ```
 
-After running this command you're ready to start using the storage and connecting to the database.
+After running this command, you're ready to start using the storage and connecting to the database.
 
 ### Examples
 
@@ -75,24 +75,24 @@ store := New(Config{
 ```go
 // Config defines the configuration options for the Cassandra storage
 type Config struct {
-	// Optional. Default is localhost
-	// Hosts is a list of Cassandra nodes to connect to.
-	Hosts []string
-	// Optional. Default is gofiber
-	// Keyspace is the name of the Cassandra keyspace to use.
-	Keyspace string
-	// Optional. Default is kv_store
-	// Table is the name of the Cassandra table to use.
-	Table string
-	// Optional. Default is Quorum
-	// Consistency is the Cassandra consistency level.
-	Consistency gocql.Consistency
-	// Optional. Default is 10 minutes
-	// Expiration is the time after which an entry is considered expired.
-	Expiration time.Duration
-	// Optional. Default is false
-	// Reset is a flag to reset the database.
-	Reset bool
+    // Optional. Default is localhost
+    // Hosts is a list of Cassandra nodes to connect to.
+    Hosts []string
+    // Optional. Default is gofiber
+    // Keyspace is the name of the Cassandra keyspace to use.
+    Keyspace string
+    // Optional. Default is kv_store
+    // Table is the name of the Cassandra table to use.
+    Table string
+    // Optional. Default is Quorum
+    // Consistency is the Cassandra consistency level.
+    Consistency gocql.Consistency
+    // Optional. Default is 10 minutes
+    // Expiration is the time after which an entry is considered expired.
+    Expiration time.Duration
+    // Optional. Default is false
+    // Reset is a flag to reset the database.
+    Reset bool
 }
 ```
 
@@ -100,11 +100,11 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
-	Hosts:       []string{"localhost:9042"},
-	Keyspace:    "gofiber",
-	Table:       "kv_store",
-	Consistency: gocql.Quorum,
-	Reset:       false,
-	Expiration:  10 * time.Minute,
+    Hosts:       []string{"localhost:9042"},
+    Keyspace:    "gofiber",
+    Table:       "kv_store",
+    Consistency: gocql.Quorum,
+    Reset:       false,
+    Expiration:  10 * time.Minute,
 }
 ```

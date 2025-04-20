@@ -5,15 +5,20 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gocql/gocql"
+	"github.com/scylladb/gocqlx/v2"
+	"github.com/scylladb/gocqlx/v2/qb"
 )
 
 // Storage represents a Cassandra storage implementation
 type Storage struct {
 	cluster  *gocql.ClusterConfig
 	session  *gocql.Session
+	sx       gocqlx.Session
 	keyspace string
 	table    string
 	ttl      int
@@ -25,10 +30,34 @@ var (
 )
 
 // validateIdentifier checks if an identifier is valid
-func validateIdentifier(name, field string) (string, error) {
-	if !identifierPattern.MatchString(name) {
-		return "", fmt.Errorf("invalid %s name: must contain only alphanumeric characters and underscores", field)
+func validateIdentifier(name, identifierType string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("invalid %s name: cannot be empty", identifierType)
 	}
+
+	// Check for invalid characters
+	if strings.ContainsAny(name, " \t\n\r\f\v") {
+		return "", fmt.Errorf("invalid %s name: cannot contain whitespace", identifierType)
+	}
+
+	// Check for SQL injection attempts
+	if strings.ContainsAny(name, ";'\"") {
+		return "", fmt.Errorf("invalid %s name: cannot contain special characters", identifierType)
+	}
+
+	// Check for unicode characters
+	for _, r := range name {
+		if r > unicode.MaxASCII {
+			return "", fmt.Errorf("invalid %s name: cannot contain unicode characters", identifierType)
+		}
+	}
+
+	// If the identifier contains any special characters or is case-sensitive,
+	// wrap it in double quotes
+	if strings.ContainsAny(name, "-.") || strings.ToLower(name) != name {
+		return `"` + name + `"`, nil
+	}
+
 	return name, nil
 }
 
@@ -102,6 +131,7 @@ func (s *Storage) createOrVerifyKeySpace(reset bool) error {
 		return fmt.Errorf("failed to connect to keyspace %s: %w", s.keyspace, err)
 	}
 	s.session = session
+	s.sx = gocqlx.NewSession(session)
 
 	// Drop tables if reset is requested
 	if reset {
@@ -146,6 +176,7 @@ func (s *Storage) ensureKeyspace(systemSession *gocql.Session) error {
 
 // createDataTable creates the data table for key-value storage
 func (s *Storage) createDataTable() error {
+	// Create table with proper escaping
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s.%s (
 			key text PRIMARY KEY,
@@ -154,20 +185,27 @@ func (s *Storage) createDataTable() error {
 		)
 	`, s.keyspace, s.table)
 
+	// Execute the query
 	return s.session.Query(query).Exec()
 }
 
 // dropTables drops existing tables for reset
 func (s *Storage) dropTables() error {
-	// Drop data table
+	// Drop data table with proper escaping
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
 	if err := s.session.Query(query).Exec(); err != nil {
 		return err
 	}
 
-	// Drop schema_info table
+	// Drop schema_info table with proper escaping
 	query = fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
 	return s.session.Query(query).Exec()
+}
+
+// queryResult holds the result of a SELECT query
+type queryResult struct {
+	Value     []byte    `db:"value"`
+	ExpiresAt time.Time `db:"expires_at"`
 }
 
 // Set stores a key-value pair with optional expiration
@@ -189,26 +227,36 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	}
 	// If exp == 0 and s.ttl == 0, no TTL will be set (live forever)
 
-	// Insert with TTL if specified
-	var query string
+	// Use query builder for insert
+	stmt, names := qb.Insert(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+		Columns("key", "value", "expires_at").
+		ToCql()
+
 	if ttl > 0 {
-		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, expires_at) VALUES (?, ?, ?) USING TTL %d",
-			s.keyspace, s.table, ttl)
-	} else {
-		query = fmt.Sprintf("INSERT INTO %s.%s (key, value, expires_at) VALUES (?, ?, ?)",
-			s.keyspace, s.table)
+		stmt += fmt.Sprintf(" USING TTL %d", ttl)
 	}
 
-	return s.session.Query(query, key, value, expiresAt).Exec()
+	// Use gocqlx session
+	return s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+		"key":        key,
+		"value":      value,
+		"expires_at": expiresAt,
+	}).ExecRelease()
 }
 
 // Get retrieves a value by key
 func (s *Storage) Get(key string) ([]byte, error) {
-	var value []byte
-	var expiresAt time.Time
+	// Use query builder for select
+	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+		Columns("value", "expires_at").
+		Where(qb.Eq("key")).
+		ToCql()
 
-	query := fmt.Sprintf("SELECT value, expires_at FROM %s.%s WHERE key = ?", s.keyspace, s.table)
-	if err := s.session.Query(query, key).Scan(&value, &expiresAt); err != nil {
+	var result queryResult
+	// Use gocqlx session
+	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+		"key": key,
+	}).GetRelease(&result); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, nil
 		}
@@ -216,7 +264,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// Check if expired (as a backup in case TTL didn't work)
-	if !expiresAt.IsZero() && expiresAt.Before(time.Now()) {
+	if !result.ExpiresAt.IsZero() && result.ExpiresAt.Before(time.Now()) {
 		// Expired but not yet removed by TTL
 		err := s.Delete(key)
 		if err != nil {
@@ -225,17 +273,25 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	return value, nil
+	return result.Value, nil
 }
 
 // Delete removes a key from storage
 func (s *Storage) Delete(key string) error {
-	query := fmt.Sprintf("DELETE FROM %s.%s WHERE key = ?", s.keyspace, s.table)
-	return s.session.Query(query, key).Exec()
+	// Use query builder for delete
+	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+		Where(qb.Eq("key")).
+		ToCql()
+
+	// Use gocqlx session
+	return s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+		"key": key,
+	}).ExecRelease()
 }
 
 // Reset clears all keys from storage
 func (s *Storage) Reset() error {
+	// Use proper escaping for table name
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
 	return s.session.Query(query).Exec()
 }
