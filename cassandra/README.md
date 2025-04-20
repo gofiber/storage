@@ -23,7 +23,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
-func (s *Storage) Conn() *Session
+func (s *Storage) Conn() *gocql.Session
 ```
 
 ### Installation

@@ -38,7 +38,7 @@ var ConfigDefault = Config{
 	Expiration:  10 * time.Minute,
 }
 
-// ConfigDefault is the Helper function to apply default config
+// configDefault applies `ConfigDefault` values to a user‑supplied Config.
 func configDefault(config ...Config) Config {
 	// Return default config if nothing provided
 	if len(config) < 1 {
@@ -67,6 +67,9 @@ func configDefault(config ...Config) Config {
 
 	if cfg.Expiration == 0 {
 		cfg.Expiration = ConfigDefault.Expiration
+	} else if cfg.Expiration < 0 {
+		// Disallow negative expirations – they produce invalid TTLs.
+		cfg.Expiration = 0
 	}
 
 	return cfg

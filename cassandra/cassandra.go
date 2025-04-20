@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -18,48 +19,68 @@ type Storage struct {
 	ttl      int
 }
 
-// New creates a new Cassandra storage instance
-func New(cnfg Config) *Storage {
+var (
+	// identifierPattern matches valid Cassandra identifiers
+	identifierPattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+)
 
+// validateIdentifier checks if an identifier is valid
+func validateIdentifier(name, field string) (string, error) {
+	if !identifierPattern.MatchString(name) {
+		return "", fmt.Errorf("invalid %s name: must contain only alphanumeric characters and underscores", field)
+	}
+	return name, nil
+}
+
+// New creates a new Cassandra storage instance
+func New(cnfg Config) (*Storage, error) {
 	// Default config
 	cfg := configDefault(cnfg)
+
+	// Validate and escape identifiers
+	keyspace, err := validateIdentifier(cfg.Keyspace, "keyspace")
+	if err != nil {
+		return nil, err
+	}
+	table, err := validateIdentifier(cfg.Table, "table")
+	if err != nil {
+		return nil, err
+	}
 
 	// Create cluster config
 	cluster := gocql.NewCluster(cfg.Hosts...)
 	cluster.Consistency = cfg.Consistency
 
-	// Don't set keyspace initially - we need to create it first
-	// We'll connect to system keyspace first
-
 	// Convert expiration to seconds for TTL
 	ttl := 0
 	if cfg.Expiration > 0 {
 		ttl = int(cfg.Expiration.Seconds())
+	} else if cfg.Expiration < 0 {
+		// Expiration < 0 means indefinite storage
+		cfg.Expiration = 0
 	}
 
 	// Create storage instance
 	storage := &Storage{
 		cluster:  cluster,
-		keyspace: cfg.Keyspace,
-		table:    cfg.Table,
+		keyspace: keyspace,
+		table:    table,
 		ttl:      ttl,
 	}
 
 	// Initialize keyspace
 	if err := storage.createOrVerifyKeySpace(cfg.Reset); err != nil {
-		log.Printf("Failed to initialize keyspace: %v", err)
-		panic(err)
+		return nil, fmt.Errorf("cassandra storage init: %w", err)
 	}
 
-	return storage
+	return storage, nil
 }
 
 // createOrVerifyKeySpace ensures the keyspace and table exist with proper keyspace
 func (s *Storage) createOrVerifyKeySpace(reset bool) error {
-	// Connect to system keyspace first to create our keyspace if needed
-	systemCluster := gocql.NewCluster(s.cluster.Hosts...)
-	systemCluster.Consistency = s.cluster.Consistency
-	systemCluster.Timeout = s.cluster.Timeout
+	// Clone the original cluster config and set system keyspace
+	systemCluster := *s.cluster
+	systemCluster.Keyspace = "system"
 
 	// Connect to the system keyspace
 	systemSession, err := systemCluster.CreateSession()
@@ -153,7 +174,7 @@ func (s *Storage) dropTables() error {
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// Calculate expiration time
 	var expiresAt *time.Time
-	var ttl = -1 // Default to no TTL
+	var ttl int
 
 	if exp > 0 {
 		// Specific expiration provided
@@ -166,7 +187,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		t := time.Now().Add(time.Duration(s.ttl) * time.Second)
 		expiresAt = &t
 	}
-	// If exp < 0, we'll use no TTL (indefinite storage)
+	// If exp == 0 and s.ttl == 0, no TTL will be set (live forever)
 
 	// Insert with TTL if specified
 	var query string
@@ -217,6 +238,11 @@ func (s *Storage) Delete(key string) error {
 func (s *Storage) Reset() error {
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
 	return s.session.Query(query).Exec()
+}
+
+// Conn returns the underlying gocql session.
+func (s *Storage) Conn() *gocql.Session {
+	return s.session
 }
 
 // Close closes the storage connection
