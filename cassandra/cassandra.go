@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -23,11 +22,6 @@ type Storage struct {
 	table    string
 	ttl      int
 }
-
-var (
-	// identifierPattern matches valid Cassandra identifiers
-	identifierPattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-)
 
 // validateIdentifier checks if an identifier is valid
 func validateIdentifier(name, identifierType string) (string, error) {
