@@ -62,14 +62,12 @@ func newTestStore(t testing.TB, keyspace string) *Storage {
 func Test_keyspace_creation(t *testing.T) {
 	store := newTestStore(t, "test_keyspace_creation")
 	require.NotNil(t, store)
-	//store.Close()
 }
 
 // Test_set tests the Set operation
 func Test_set(t *testing.T) {
 	store := newTestStore(t, "test_basic_ops")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	// Test Set
 	err := store.Set("test", []byte("value"), 0)
@@ -85,7 +83,6 @@ func Test_set(t *testing.T) {
 func Test_get(t *testing.T) {
 	store := newTestStore(t, "test_basic_ops")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	// Set a value first
 	err := store.Set("test", []byte("value"), 0)
@@ -106,7 +103,6 @@ func Test_get(t *testing.T) {
 func Test_delete(t *testing.T) {
 	store := newTestStore(t, "test_basic_ops")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	// Set a value first
 	err := store.Set("test", []byte("value"), 0)
@@ -131,7 +127,6 @@ func Test_delete(t *testing.T) {
 func Test_expirable_keys(t *testing.T) {
 	store := newTestStore(t, "test_expirable")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	// Set key with 1 second expiration
 	err := store.Set("test", []byte("value"), time.Second)
@@ -153,7 +148,6 @@ func Test_expirable_keys(t *testing.T) {
 func Test_concurrent_access(t *testing.T) {
 	store := newTestStore(t, "test_concurrent")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
@@ -178,7 +172,6 @@ func Test_concurrent_access(t *testing.T) {
 func Test_reset(t *testing.T) {
 	store := newTestStore(t, "test_reset")
 	require.NotNil(t, store)
-	//defer store.Close()
 
 	// Add some data
 	err := store.Set("test1", []byte("value1"), 0)
