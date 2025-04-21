@@ -26,6 +26,12 @@ type Config struct {
 	// Optional. Default is false
 	// Reset is a flag to reset the database.
 	Reset bool
+	// Optional. Default is 3
+	// MaxRetries is the maximum number of retries for a query.
+	MaxRetries int
+	// Optional. Default is 5 seconds
+	// ConnectTimeout is the timeout for connecting to the Cassandra cluster.
+	ConnectTimeout time.Duration
 }
 
 // ConfigDefault is the default config

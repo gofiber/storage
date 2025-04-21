@@ -12,6 +12,13 @@ import (
 	"github.com/scylladb/gocqlx/v2/qb"
 )
 
+var (
+	// ErrNotFound is returned when the key does not exist
+	ErrNotFound = fmt.Errorf("key not found")
+	// ErrKeyExpired is returned when the key has expired
+	ErrKeyExpired = fmt.Errorf("key expired")
+)
+
 // Storage represents a Cassandra storage implementation
 type Storage struct {
 	cluster  *gocql.ClusterConfig
@@ -73,6 +80,8 @@ func New(cnfg Config) (*Storage, error) {
 	// Create cluster config
 	cluster := gocql.NewCluster(cfg.Hosts...)
 	cluster.Consistency = cfg.Consistency
+	cluster.ConnectTimeout = cfg.ConnectTimeout
+	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: cfg.MaxRetries}
 
 	// Convert expiration to seconds for TTL
 	ttl := 0
@@ -257,7 +266,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		"key": key,
 	}).GetRelease(&result); err != nil {
 		if err == gocql.ErrNotFound {
-			return nil, fmt.Errorf("key not found")
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -268,7 +277,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		if err := s.Delete(key); err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("key expired")
+		return nil, ErrKeyExpired
 	}
 
 	return result.Value, nil
@@ -276,24 +285,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Delete removes a key from storage
 func (s *Storage) Delete(key string) error {
-	// First check if the key exists
-	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
-		Columns("key").
-		Where(qb.Eq("key")).
-		ToCql()
-
-	var exists string
-	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
-		"key": key,
-	}).GetRelease(&exists); err != nil {
-		if err == gocql.ErrNotFound {
-			return fmt.Errorf("key not found")
-		}
-		return err
-	}
-
 	// Use query builder for delete
-	stmt, names = qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Where(qb.Eq("key")).
 		ToCql()
 
@@ -315,7 +308,8 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the storage connection
+// Close closes the storage connection.
+// This method is not thread-safe and should not be called concurrently with other methods.
 func (s *Storage) Close() {
 	if s.session != nil {
 		s.session.Close()
