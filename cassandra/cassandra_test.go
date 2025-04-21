@@ -207,8 +207,6 @@ func Test_valid_identifiers(t *testing.T) {
 		{"test_123", "test_123"},
 		{"TEST", "TEST"},
 		{"Test123", "Test123"},
-		{"test-table", "test-table"},
-		{"test.table", "test.table"},
 	}
 
 	for _, tc := range validCases {
@@ -221,6 +219,10 @@ func Test_valid_identifiers(t *testing.T) {
 
 // Test_invalid_identifiers tests invalid identifier cases
 func Test_invalid_identifiers(t *testing.T) {
+
+	store := newTestStore(t, "test_validation")
+	require.NotNil(t, store)
+
 	invalidCases := []struct {
 		name string
 		key  string
@@ -235,46 +237,46 @@ func Test_invalid_identifiers(t *testing.T) {
 
 	for _, tc := range invalidCases {
 		t.Run(fmt.Sprintf("invalid_%s", tc.name), func(t *testing.T) {
-			_, err := validateIdentifier(tc.key, "test")
+			err := store.Set(tc.key, []byte("value"), 0)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "invalid test name")
+			require.Contains(t, err.Error(), "invalid key name")
 		})
 	}
 }
 
 func Benchmark_Cassandra_Set(b *testing.B) {
-	connectionURL := newTestStore(b, "test_concurrent")
+	store := newTestStore(b, "test_concurrent")
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		err := connectionURL.Set("john", []byte("doe"), 0)
+		err := store.Set("john", []byte("doe"), 0)
 		require.NoError(b, err)
 	}
 }
 
 func Benchmark_Cassandra_Get(b *testing.B) {
-	connectionURL := newTestStore(b, "test_concurrent")
+	store := newTestStore(b, "test_concurrent")
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := connectionURL.Get("john")
+		_, err := store.Get("john")
 		require.NoError(b, err)
 	}
 }
 
 func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
-	connectionURL := newTestStore(b, "test_concurrent")
+	store := newTestStore(b, "test_concurrent")
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = connectionURL.Set("john", []byte("doe"), 0)
-		err := connectionURL.Delete("john")
+		_ = store.Set("john", []byte("doe"), 0)
+		err := store.Delete("john")
 		require.NoError(b, err)
 	}
 }

@@ -179,21 +179,21 @@ func (s *Storage) createDataTable() error {
 		)
 	`, s.keyspace, s.table)
 
-	// Execute the query
-	return s.session.Query(query).Exec()
+	// Use gocqlx session
+	return s.sx.Query(query, []string{}).ExecRelease()
 }
 
 // dropTables drops existing tables for reset
 func (s *Storage) dropTables() error {
 	// Drop data table with proper escaping
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
-	if err := s.session.Query(query).Exec(); err != nil {
+	if err := s.sx.Query(query, []string{}).ExecRelease(); err != nil {
 		return err
 	}
 
 	// Drop schema_info table with proper escaping
 	query = fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
-	return s.session.Query(query).Exec()
+	return s.sx.Query(query, []string{}).ExecRelease()
 }
 
 // queryResult holds the result of a SELECT query
@@ -205,25 +205,8 @@ type queryResult struct {
 // Set stores a key-value pair with optional expiration
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// Validate key
-	if key == "" {
-		return fmt.Errorf("key may not be empty")
-	}
-
-	// Check for invalid characters
-	if strings.ContainsAny(key, " \t\n\r\f\v") {
-		return fmt.Errorf("invalid test name: cannot contain whitespace")
-	}
-
-	// Check for SQL injection attempts and special characters
-	if strings.ContainsAny(key, ";'\"-.") {
-		return fmt.Errorf("invalid test name: cannot contain special characters")
-	}
-
-	// Check for unicode characters
-	for _, r := range key {
-		if r > unicode.MaxASCII {
-			return fmt.Errorf("invalid test name: cannot contain unicode characters")
-		}
+	if _, err := validateIdentifier(key, "key"); err != nil {
+		return err
 	}
 
 	// Calculate expiration time
