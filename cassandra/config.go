@@ -36,12 +36,14 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Hosts:       []string{"localhost:9042"},
-	Keyspace:    "gofiber",
-	Table:       "kv_store",
-	Consistency: gocql.Quorum,
-	Reset:       false,
-	Expiration:  10 * time.Minute,
+	Hosts:          []string{"localhost:9042"},
+	Keyspace:       "gofiber",
+	Table:          "kv_store",
+	Consistency:    gocql.Quorum,
+	Reset:          false,
+	Expiration:     10 * time.Minute,
+	MaxRetries:     3,
+	ConnectTimeout: 5 * time.Second,
 }
 
 // configDefault applies `ConfigDefault` values to a user‑supplied Config.
@@ -76,6 +78,14 @@ func configDefault(config ...Config) Config {
 	} else if cfg.Expiration < 0 {
 		// Disallow negative expirations – they produce invalid TTLs.
 		cfg.Expiration = 0
+	}
+
+	if cfg.MaxRetries == 0 {
+		cfg.MaxRetries = ConfigDefault.MaxRetries
+	}
+
+	if cfg.ConnectTimeout == 0 {
+		cfg.ConnectTimeout = ConfigDefault.ConnectTimeout
 	}
 
 	return cfg
