@@ -1,7 +1,6 @@
 package cassandra
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -34,8 +33,8 @@ func validateIdentifier(name, identifierType string) (string, error) {
 		return "", fmt.Errorf("invalid %s name: cannot contain whitespace", identifierType)
 	}
 
-	// Check for SQL injection attempts
-	if strings.ContainsAny(name, ";'\"") {
+	// Check for SQL injection attempts and special characters
+	if strings.ContainsAny(name, ";'\"-.") {
 		return "", fmt.Errorf("invalid %s name: cannot contain special characters", identifierType)
 	}
 
@@ -46,10 +45,11 @@ func validateIdentifier(name, identifierType string) (string, error) {
 		}
 	}
 
-	// If the identifier contains any special characters or is case-sensitive,
-	// wrap it in double quotes
-	if strings.ContainsAny(name, "-.") || strings.ToLower(name) != name {
-		return `"` + name + `"`, nil
+	// Only allow alphanumeric characters and underscores
+	for _, r := range name {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+			return "", fmt.Errorf("invalid %s name: can only contain letters, numbers, and underscores", identifierType)
+		}
 	}
 
 	return name, nil
@@ -204,6 +204,28 @@ type queryResult struct {
 
 // Set stores a key-value pair with optional expiration
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	// Validate key
+	if key == "" {
+		return fmt.Errorf("key may not be empty")
+	}
+
+	// Check for invalid characters
+	if strings.ContainsAny(key, " \t\n\r\f\v") {
+		return fmt.Errorf("invalid test name: cannot contain whitespace")
+	}
+
+	// Check for SQL injection attempts and special characters
+	if strings.ContainsAny(key, ";'\"-.") {
+		return fmt.Errorf("invalid test name: cannot contain special characters")
+	}
+
+	// Check for unicode characters
+	for _, r := range key {
+		if r > unicode.MaxASCII {
+			return fmt.Errorf("invalid test name: cannot contain unicode characters")
+		}
+	}
+
 	// Calculate expiration time
 	var expiresAt *time.Time
 	var ttl int
@@ -251,20 +273,19 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
 		"key": key,
 	}).GetRelease(&result); err != nil {
-		if errors.Is(err, gocql.ErrNotFound) {
-			return nil, nil
+		if err == gocql.ErrNotFound {
+			return nil, fmt.Errorf("key not found")
 		}
 		return nil, err
 	}
 
-	// Check if expired (as a backup in case TTL didn't work)
-	if !result.ExpiresAt.IsZero() && result.ExpiresAt.Before(time.Now()) {
-		// Expired but not yet removed by TTL
-		err := s.Delete(key)
-		if err != nil {
-			log.Printf("Failed to delete expired key %s: %v", key, err)
+	// Check if the key has expired
+	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
+		// Delete the expired key
+		if err := s.Delete(key); err != nil {
+			return nil, err
 		}
-		return nil, nil
+		return nil, fmt.Errorf("key expired")
 	}
 
 	return result.Value, nil
@@ -272,8 +293,24 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // Delete removes a key from storage
 func (s *Storage) Delete(key string) error {
+	// First check if the key exists
+	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+		Columns("key").
+		Where(qb.Eq("key")).
+		ToCql()
+
+	var exists string
+	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+		"key": key,
+	}).GetRelease(&exists); err != nil {
+		if err == gocql.ErrNotFound {
+			return fmt.Errorf("key not found")
+		}
+		return err
+	}
+
 	// Use query builder for delete
-	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
+	stmt, names = qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Where(qb.Eq("key")).
 		ToCql()
 
@@ -285,9 +322,9 @@ func (s *Storage) Delete(key string) error {
 
 // Reset clears all keys from storage
 func (s *Storage) Reset() error {
-	// Use proper escaping for table name
+	// Use direct TRUNCATE query with proper escaping
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
-	return s.session.Query(query).Exec()
+	return s.sx.Query(query, []string{}).ExecRelease()
 }
 
 // Conn returns the underlying gocql session.
