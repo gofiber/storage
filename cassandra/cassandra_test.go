@@ -22,7 +22,7 @@ const (
 )
 
 // newTestStore creates a Cassandra container using the official module
-func newTestStore(t testing.TB, keyspace string) *Storage {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	img := cassandraImage
@@ -44,7 +44,7 @@ func newTestStore(t testing.TB, keyspace string) *Storage {
 
 	store, err := New(Config{
 		Hosts:       []string{fmt.Sprintf("%s:%d", host, port.Int())},
-		Keyspace:    keyspace,
+		Keyspace:    "test_cassandra",
 		Table:       "test_kv",
 		Consistency: gocql.One,
 		Expiration:  10 * time.Second,
@@ -58,15 +58,9 @@ func newTestStore(t testing.TB, keyspace string) *Storage {
 	return store
 }
 
-// Test_keyspace_creation tests the keyspace creation functionality
-func Test_keyspace_creation(t *testing.T) {
-	store := newTestStore(t, "test_keyspace_creation")
-	require.NotNil(t, store)
-}
-
-// Test_set tests the Set operation
-func Test_set(t *testing.T) {
-	store := newTestStore(t, "test_basic_ops")
+// Test_Set tests the Set operation
+func Test_Set(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	// Test Set
@@ -79,9 +73,9 @@ func Test_set(t *testing.T) {
 	require.Equal(t, []byte("value"), val)
 }
 
-// Test_get tests the Get operation
-func Test_get(t *testing.T) {
-	store := newTestStore(t, "test_basic_ops")
+// Test_Get tests the Get operation
+func Test_Get(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	// Set a value first
@@ -99,9 +93,9 @@ func Test_get(t *testing.T) {
 	require.Nil(t, val)
 }
 
-// Test_delete tests the Delete operation
-func Test_delete(t *testing.T) {
-	store := newTestStore(t, "test_basic_ops")
+// Test_Delete tests the Delete operation
+func Test_Delete(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	// Set a value first
@@ -123,9 +117,9 @@ func Test_delete(t *testing.T) {
 	require.Nil(t, val)
 }
 
-// Test_expirable_keys tests the expirable keys functionality
-func Test_expirable_keys(t *testing.T) {
-	store := newTestStore(t, "test_expirable")
+// Test_Expirable_Keys tests the expirable keys functionality
+func Test_Expirable_Keys(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	// Set key with 1 second expiration
@@ -144,9 +138,9 @@ func Test_expirable_keys(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond, "Key should expire within 3 seconds")
 }
 
-// Test_concurrent_access tests concurrent access to the storage
-func Test_concurrent_access(t *testing.T) {
-	store := newTestStore(t, "test_concurrent")
+// Test_Concurrent_Access tests concurrent access to the storage
+func Test_Concurrent_Access(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	var wg sync.WaitGroup
@@ -168,9 +162,9 @@ func Test_concurrent_access(t *testing.T) {
 	wg.Wait()
 }
 
-// Test_reset tests the Reset method
-func Test_reset(t *testing.T) {
-	store := newTestStore(t, "test_reset")
+// Test_Reset tests the Reset method
+func Test_Reset(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	// Add some data
@@ -193,9 +187,9 @@ func Test_reset(t *testing.T) {
 	require.Nil(t, val)
 }
 
-// Test_valid_identifiers tests valid identifier cases
-func Test_valid_identifiers(t *testing.T) {
-	store := newTestStore(t, "test_validation")
+// Test_Valid_Identifiers tests valid identifier cases
+func Test_Valid_Identifiers(t *testing.T) {
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	validCases := []struct {
@@ -217,10 +211,10 @@ func Test_valid_identifiers(t *testing.T) {
 	}
 }
 
-// Test_invalid_identifiers tests invalid identifier cases
-func Test_invalid_identifiers(t *testing.T) {
+// Test_Invalid_Identifiers tests invalid identifier cases
+func Test_Invalid_Identifiers(t *testing.T) {
 
-	store := newTestStore(t, "test_validation")
+	store := newTestStore(t)
 	require.NotNil(t, store)
 
 	invalidCases := []struct {
@@ -245,19 +239,20 @@ func Test_invalid_identifiers(t *testing.T) {
 }
 
 func Benchmark_Cassandra_Set(b *testing.B) {
-	store := newTestStore(b, "test_concurrent")
+	store := newTestStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
-		err := store.Set("john", []byte("doe"), 0)
-		require.NoError(b, err)
+		err = store.Set("john", []byte("doe"), 0)
 	}
+	require.NoError(b, err)
 }
 
 func Benchmark_Cassandra_Get(b *testing.B) {
-	store := newTestStore(b, "test_concurrent")
+	store := newTestStore(b)
 
 	err := store.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -266,20 +261,21 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := store.Get("john")
-		require.NoError(b, err)
+		_, err = store.Get("john")
 	}
+	require.NoError(b, err)
 }
 
 func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
-	store := newTestStore(b, "test_concurrent")
+	store := newTestStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		_ = store.Set("john", []byte("doe"), 0)
-		err := store.Delete("john")
-		require.NoError(b, err)
+		err = store.Delete("john")
 	}
+	require.NoError(b, err)
 }

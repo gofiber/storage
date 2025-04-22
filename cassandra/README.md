@@ -49,7 +49,7 @@ necessary for the client to operate correctly.
 To start Cassandra using Docker, issue the following:
 
 ```bash
-docker run --name cassandra --network host -d cassandra:latest
+docker run --name cassandra -p 9042:9042 -d cassandra:latest
 ```
 
 After running this command, you're ready to start using the storage and connecting to the database.
