@@ -68,6 +68,9 @@ func Test_Scylla_SetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -122,6 +125,9 @@ func Test_Scylla_GetWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -189,6 +195,9 @@ func Test_Scylla_DeleteWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -229,6 +238,9 @@ func Test_Scylla_Reset(t *testing.T) {
 
 func Test_Scylla_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)

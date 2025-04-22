@@ -168,14 +168,12 @@ func Test_Storage_Nats_SetWithContext(t *testing.T) {
 		key       = "john"
 		val       = []byte("doe")
 	)
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
 	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = testStore.SetWithContext(ctx, key, val, 0)
+	err := testStore.SetWithContext(ctx, key, val, 0)
 	require.ErrorIs(t, err, context.Canceled)
 
 	keys, err := testStore.Keys()
@@ -235,14 +233,12 @@ func Test_Storage_Nats_GetWithContext(t *testing.T) {
 		val       = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
 	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = testStore.Set(key, val, 30*time.Second)
+	err := testStore.Set(key, val, 30*time.Second)
 	require.NoError(t, err)
 
 	result, err := testStore.GetWithContext(ctx, key)
@@ -359,11 +355,9 @@ func Test_Storage_Nats_DeleteWithContext(t *testing.T) {
 		val       = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 5*time.Second)
+	err := testStore.Set(key, val, 5*time.Second)
 	require.NoError(t, err)
 
 	keys, err := testStore.Keys()

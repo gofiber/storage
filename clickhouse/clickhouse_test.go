@@ -84,18 +84,17 @@ func Test_Connection(t *testing.T) {
 }
 
 func Test_SetWithContext(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err = client.SetWithContext(ctx, "somekey", []byte("somevalue"), 0)
+	err := client.SetWithContext(ctx, "somekey", []byte("somevalue"), 0)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -124,15 +123,14 @@ func Test_Set_With_Exp(t *testing.T) {
 }
 
 func Test_GetWithContext(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 	defer client.Close()
 
-	err = client.Set("somekey", []byte("somevalue"), 0)
+	err := client.Set("somekey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -187,16 +185,15 @@ func Test_Get_With_Exp(t *testing.T) {
 }
 
 func Test_DeleteWithContext(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 
 	defer client.Close()
 
-	err = client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
+	err := client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -232,16 +229,15 @@ func Test_Delete(t *testing.T) {
 }
 
 func Test_ResetWithContext(t *testing.T) {
-	client, err := getTestConnection(t, Config{
+	client := newTestStore(t, Config{
 		Engine: Memory,
 		Table:  "test_table",
 		Clean:  true,
 	})
-	require.NoError(t, err)
 
 	defer client.Close()
 
-	err = client.Set("testkey", []byte("somevalue"), 0)
+	err := client.Set("testkey", []byte("somevalue"), 0)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

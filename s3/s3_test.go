@@ -26,6 +26,9 @@ func Test_S3_SetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -71,6 +74,9 @@ func Test_S3_GetWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -118,6 +124,9 @@ func Test_S3_DeleteWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -158,6 +167,9 @@ func Test_S3_Reset(t *testing.T) {
 
 func Test_S3_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)

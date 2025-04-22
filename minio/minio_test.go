@@ -310,7 +310,7 @@ func Test_ResetWithContext(t *testing.T) {
 	cancel()
 
 	err = testStore.ResetWithContext(ctx)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, context.Canceled)
 
 	result, err := testStore.Get("john1")
 	require.NoError(t, err)
@@ -322,6 +322,9 @@ func Test_Reset_Not_Exists_Bucket(t *testing.T) {
 	defer testStore.Close()
 
 	err := testStore.RemoveBucket()
+	require.NoError(t, err)
+
+	err = testStore.Reset()
 	require.Error(t, err)
 	require.EqualError(t, err, "The specified bucket does not exist")
 }

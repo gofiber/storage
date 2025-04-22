@@ -69,11 +69,10 @@ func Test_DynamoDB_SetWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.SetWithContext(ctx, key, val, 0)
+	err := testStore.SetWithContext(ctx, key, val, 0)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -118,8 +117,7 @@ func Test_DynamoDB_GetWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	result, err := testStore.GetWithContext(ctx, key)
@@ -162,11 +160,10 @@ func Test_DynamoDB_DeleteWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -207,11 +204,10 @@ func Test_DynamoDB_Reset(t *testing.T) {
 func Test_DynamoDB_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
 
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("john1", val, 0)
+	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Set("john2", val, 0)

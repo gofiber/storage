@@ -69,6 +69,9 @@ func Test_AzureBlob_GetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -98,6 +101,9 @@ func Test_AzureBlob_SetWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -136,6 +142,9 @@ func Test_AzureBlob_DeleteWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
