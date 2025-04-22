@@ -259,6 +259,9 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 func Benchmark_Cassandra_Get(b *testing.B) {
 	store := newTestStore(b, "test_concurrent")
 
+	err := store.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
