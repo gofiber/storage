@@ -2,7 +2,6 @@ package cassandra
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 	"unicode"
@@ -171,7 +170,6 @@ func (s *Storage) ensureKeyspace(systemSession *gocql.Session) error {
 		if err := systemSession.Query(query).Exec(); err != nil {
 			return err
 		}
-		log.Printf("Created keyspace: %s", s.keyspace)
 	}
 
 	return nil
