@@ -12,7 +12,6 @@ import (
 
 type Storage struct {
 	session driver.Conn
-	context context.Context
 	table   string
 }
 
@@ -47,12 +46,11 @@ func New(configuration Config) (*Storage, error) {
 
 	return &Storage{
 		session: conn,
-		context: ctx,
 		table:   configuration.Table,
 	}, nil
 }
 
-func (s *Storage) Set(key string, value []byte, expiration time.Duration) error {
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expiration time.Duration) error {
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -65,7 +63,7 @@ func (s *Storage) Set(key string, value []byte, expiration time.Duration) error 
 	return s.
 		session.
 		Exec(
-			s.context,
+			ctx,
 			insertDataString,
 			driver.Named("table", s.table),
 			driver.Named("key", key),
@@ -74,7 +72,11 @@ func (s *Storage) Set(key string, value []byte, expiration time.Duration) error 
 		)
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
+func (s *Storage) Set(key string, value []byte, expiration time.Duration) error {
+	return s.SetWithContext(context.Background(), key, value, expiration)
+}
+
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) == 0 {
 		return []byte{}, nil
 	}
@@ -82,7 +84,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	var result schema
 
 	row := s.session.QueryRow(
-		s.context,
+		ctx,
 		selectDataString,
 		driver.Named("table", s.table),
 		driver.Named("key", key),
@@ -109,16 +111,28 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return []byte(result.Value), nil
 }
 
-func (s *Storage) Delete(key string) error {
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) == 0 {
 		return nil
 	}
 
-	return s.session.Exec(s.context, deleteDataString, driver.Named("table", s.table), driver.Named("key", key))
+	return s.session.Exec(ctx, deleteDataString, driver.Named("table", s.table), driver.Named("key", key))
+}
+
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.session.Exec(ctx, resetDataString, driver.Named("table", s.table))
 }
 
 func (s *Storage) Reset() error {
-	return s.session.Exec(s.context, resetDataString, driver.Named("table", s.table))
+	return s.ResetWithContext(context.Background())
 }
 
 func (s *Storage) Close() error {

@@ -4,10 +4,13 @@ package coherence
  * Copyright © 2023, 2024 Oracle and/or its affiliates.
  */
 import (
-	"github.com/stretchr/testify/require"
+	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -53,6 +56,25 @@ func Test_Coherence_Set_And_Get(t *testing.T) {
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.Equal(t, value1, val)
+
+	require.NotNil(t, testStore.Conn())
+}
+
+func Test_Coherence_SetContext_And_Get(t *testing.T) {
+	var val []byte
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Microsecond)
+	defer cancel()
+
+	testStore.Reset()
+
+	err := testStore.SetWithContext(ctx, key1, value1, 1*time.Nanosecond)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	fmt.Println(string(val))
+	require.True(t, len(val) == 0)
 
 	require.NotNil(t, testStore.Conn())
 }
