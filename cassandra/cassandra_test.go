@@ -47,7 +47,7 @@ func newTestStore(t testing.TB, keyspace string) *Storage {
 		Keyspace:    keyspace,
 		Table:       "test_kv",
 		Consistency: gocql.One,
-		Expiration:  5 * time.Second,
+		Expiration:  10 * time.Second,
 	})
 	require.NoError(t, err)
 
