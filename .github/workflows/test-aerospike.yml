@@ -4,14 +4,14 @@ on:
             - master
             - main
         paths:
-            - 'minio/**'
+            - 'aerospike/**'
     pull_request:
         paths:
-            - 'minio/**'
-name: "Tests Minio"
+            - 'aerospike/**'
+name: "Tests Aerospike"
 jobs:
     Tests:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-latest        
         strategy:
             matrix:
                 go-version:
@@ -26,5 +26,5 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
                 env:
-                    TEST_MINIO_IMAGE: docker.io/minio/minio:latest
-                run: cd ./minio && go test ./... -v -race
+                    TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
+                run: cd ./aerospike && go test ./... -v -race

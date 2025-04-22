@@ -12,6 +12,9 @@ func Test_S3_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
@@ -21,6 +24,9 @@ func Test_S3_Set_Override(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -35,6 +41,9 @@ func Test_S3_Get(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -44,6 +53,9 @@ func Test_S3_Get(t *testing.T) {
 }
 
 func Test_S3_Get_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
@@ -54,6 +66,9 @@ func Test_S3_Delete(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -68,6 +83,9 @@ func Test_S3_Delete(t *testing.T) {
 
 func Test_S3_Reset(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -88,14 +106,20 @@ func Test_S3_Reset(t *testing.T) {
 }
 
 func Test_S3_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Test_S3_Conn(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_S3_Set(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -108,6 +132,9 @@ func Benchmark_S3_Set(b *testing.B) {
 }
 
 func Benchmark_S3_Get(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -122,6 +149,9 @@ func Benchmark_S3_Get(b *testing.B) {
 }
 
 func Benchmark_S3_SetAndDelete(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
