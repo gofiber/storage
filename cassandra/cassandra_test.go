@@ -51,17 +51,13 @@ func newTestStore(t testing.TB) *Storage {
 	})
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		store.Close()
-	})
-
 	return store
 }
 
 // Test_Set tests the Set operation
 func Test_Set(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	// Test Set
 	err := store.Set("test", []byte("value"), 0)
@@ -76,7 +72,7 @@ func Test_Set(t *testing.T) {
 // Test_Get tests the Get operation
 func Test_Get(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	// Set a value first
 	err := store.Set("test", []byte("value"), 0)
@@ -96,7 +92,7 @@ func Test_Get(t *testing.T) {
 // Test_Delete tests the Delete operation
 func Test_Delete(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	// Set a value first
 	err := store.Set("test", []byte("value"), 0)
@@ -120,7 +116,7 @@ func Test_Delete(t *testing.T) {
 // Test_Expirable_Keys tests the expirable keys functionality
 func Test_Expirable_Keys(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	// Set key with 1 second expiration
 	err := store.Set("test", []byte("value"), time.Second)
@@ -141,7 +137,7 @@ func Test_Expirable_Keys(t *testing.T) {
 // Test_Concurrent_Access tests concurrent access to the storage
 func Test_Concurrent_Access(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
@@ -165,7 +161,7 @@ func Test_Concurrent_Access(t *testing.T) {
 // Test_Reset tests the Reset method
 func Test_Reset(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	// Add some data
 	err := store.Set("test1", []byte("value1"), 0)
@@ -190,7 +186,7 @@ func Test_Reset(t *testing.T) {
 // Test_Valid_Identifiers tests valid identifier cases
 func Test_Valid_Identifiers(t *testing.T) {
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	validCases := []struct {
 		name string
@@ -213,9 +209,8 @@ func Test_Valid_Identifiers(t *testing.T) {
 
 // Test_Invalid_Identifiers tests invalid identifier cases
 func Test_Invalid_Identifiers(t *testing.T) {
-
 	store := newTestStore(t)
-	require.NotNil(t, store)
+	defer store.Close()
 
 	invalidCases := []struct {
 		name string
@@ -240,6 +235,7 @@ func Test_Invalid_Identifiers(t *testing.T) {
 
 func Benchmark_Cassandra_Set(b *testing.B) {
 	store := newTestStore(b)
+	defer store.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -253,6 +249,7 @@ func Benchmark_Cassandra_Set(b *testing.B) {
 
 func Benchmark_Cassandra_Get(b *testing.B) {
 	store := newTestStore(b)
+	defer store.Close()
 
 	err := store.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
@@ -268,6 +265,7 @@ func Benchmark_Cassandra_Get(b *testing.B) {
 
 func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 	store := newTestStore(b)
+	defer store.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
