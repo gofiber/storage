@@ -11,7 +11,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	cassandracontainer "github.com/testcontainers/testcontainers-go/modules/cassandra"
+	"github.com/testcontainers/testcontainers-go/modules/cassandra"
 )
 
 const (
@@ -32,18 +32,15 @@ func newTestStore(t testing.TB) *Storage {
 
 	ctx := context.Background()
 
-	c, err := cassandracontainer.Run(ctx, img)
+	c, err := cassandra.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-
-	port, err := c.MappedPort(ctx, cassandraPort)
+	connectionHost, err := c.ConnectionHost(ctx)
 	require.NoError(t, err)
 
 	store, err := New(Config{
-		Hosts:       []string{fmt.Sprintf("%s:%d", host, port.Int())},
+		Hosts:       []string{connectionHost},
 		Keyspace:    "test_cassandra",
 		Table:       "test_kv",
 		Consistency: gocql.One,
