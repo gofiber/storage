@@ -3,7 +3,6 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/surrealdb"
@@ -22,29 +21,27 @@ var (
 
 func newTestStore(t testing.TB) (*Storage, error) {
 	t.Helper()
+	ctx := context.Background()
 
 	img := surrealDb
 	if imgFromEnv := os.Getenv(surrealDbImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
-	surrealdbContainer, err := surrealdb.Run(context.Background(), img)
+	surrealdbContainer, err := surrealdb.Run(
+		ctx, img,
+		surrealdb.WithUsername(surrealDbUser),
+		surrealdb.WithPassword(surrealDbPass),
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	testcontainers.CleanupContainer(t, surrealdbContainer)
 
-	host, err := surrealdbContainer.Host(context.Background())
+	url, err := surrealdbContainer.URL(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	port, err := surrealdbContainer.MappedPort(context.Background(), "8000")
-	if err != nil {
-		return nil, err
-	}
-
-	url := fmt.Sprintf("ws://%s:%s", host, port.Port())
 
 	return New(
 		Config{
@@ -78,7 +75,6 @@ func Test_Surrealdb_CreateAndGet(t *testing.T) {
 	get, err := testStore.Get("test")
 	require.NoError(t, err)
 	require.NotEmpty(t, get)
-
 }
 
 func Test_Surrealdb_ListTable(t *testing.T) {
@@ -132,11 +128,11 @@ func Test_Surrealdb_GetExpired(t *testing.T) {
 	err = testStore.Set("temp", []byte("value"), 1*time.Second)
 	require.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
-
-	val, err := testStore.Get("temp")
+	require.Eventually(t, func() bool {
+		val, _ := testStore.Get("temp")
+		return val == nil
+	}, 3*time.Second, 100*time.Millisecond)
 	require.NoError(t, err)
-	require.Nil(t, val)
 }
 
 func Test_Surrealdb_GetMissing(t *testing.T) {

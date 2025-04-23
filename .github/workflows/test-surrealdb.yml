@@ -26,4 +26,6 @@ jobs:
           go-version: '${{ matrix.go-version }}'
 
       - name: Run Test
+        env:
+          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:latest
         run: cd ./surrealdb && go test ./... -v -race
