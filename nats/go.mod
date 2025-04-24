@@ -3,7 +3,7 @@ module github.com/gofiber/storage/nats
 go 1.23.0
 
 require (
-	github.com/mdelapenya/tlscert v0.1.0
+	github.com/mdelapenya/tlscert v0.2.0
 	github.com/nats-io/nats.go v1.41.2
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.36.0
