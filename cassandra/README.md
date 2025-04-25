@@ -87,12 +87,24 @@ type Config struct {
     // Optional. Default is Quorum
     // Consistency is the Cassandra consistency level.
     Consistency gocql.Consistency
+    // Optional. PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+    // PoolConfig is the Cassandra connection pool configuration.
+    PoolConfig *gocql.PoolConfig
+    // Optional. Default is false
+    // SslOpts is the SSL options for the Cassandra cluster.
+    SslOpts *gocql.SslOptions
     // Optional. Default is 10 minutes
     // Expiration is the time after which an entry is considered expired.
     Expiration time.Duration
     // Optional. Default is false
     // Reset is a flag to reset the database.
     Reset bool
+    // Optional. Default is 3
+    // MaxRetries is the maximum number of retries for a query.
+    MaxRetries int
+    // Optional. Default is 5 seconds
+    // ConnectTimeout is the timeout for connecting to the Cassandra cluster.
+    ConnectTimeout time.Duration
 }
 ```
 
@@ -100,11 +112,17 @@ type Config struct {
 
 ```go
 var ConfigDefault = Config{
-    Hosts:       []string{"localhost:9042"},
-    Keyspace:    "gofiber",
-    Table:       "kv_store",
-    Consistency: gocql.Quorum,
-    Reset:       false,
-    Expiration:  10 * time.Minute,
+    Hosts:          []string{"localhost:9042"},
+    Keyspace:       "gofiber",
+    Table:          "kv_store",
+    Consistency:    gocql.Quorum,
+    Reset:          false,
+    Expiration:     10 * time.Minute,
+    MaxRetries:     3,
+    ConnectTimeout: 5 * time.Second,
+    SslOpts:        nil,
+    PoolConfig: &gocql.PoolConfig{
+        HostSelectionPolicy: gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy()),
+    },
 }
 ```
