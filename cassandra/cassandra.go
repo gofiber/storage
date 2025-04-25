@@ -78,6 +78,12 @@ func New(cnfg Config) (*Storage, error) {
 
 	// Create cluster config
 	cluster := gocql.NewCluster(cfg.Hosts...)
+
+	// Safe check for SSL options
+	if cfg.SslOpts != nil {
+		cluster.SslOpts = cfg.SslOpts
+	}
+
 	cluster.Consistency = cfg.Consistency
 	cluster.ConnectTimeout = cfg.ConnectTimeout
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: cfg.MaxRetries}
@@ -112,6 +118,9 @@ func (s *Storage) createOrVerifyKeySpace(reset bool) error {
 	// Clone the original cluster config and set system keyspace
 	systemCluster := *s.cluster
 	systemCluster.Keyspace = "system"
+	systemCluster.PoolConfig = gocql.PoolConfig{
+		HostSelectionPolicy: gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy()),
+	}
 
 	// Connect to the system keyspace
 	systemSession, err := systemCluster.CreateSession()

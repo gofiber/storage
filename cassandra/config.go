@@ -20,6 +20,12 @@ type Config struct {
 	// Optional. Default is Quorum
 	// Consistency is the Cassandra consistency level.
 	Consistency gocql.Consistency
+	// Optional. PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+	// PoolConfig is the Cassandra connection pool configuration.
+	PoolConfig *gocql.PoolConfig
+	// Optional. Default is false
+	// SslOpts is the SSL options for the Cassandra cluster.
+	SslOpts *gocql.SslOptions
 	// Optional. Default is 10 minutes
 	// Expiration is the time after which an entry is considered expired.
 	Expiration time.Duration
@@ -44,6 +50,10 @@ var ConfigDefault = Config{
 	Expiration:     10 * time.Minute,
 	MaxRetries:     3,
 	ConnectTimeout: 5 * time.Second,
+	SslOpts:        nil,
+	PoolConfig: &gocql.PoolConfig{
+		HostSelectionPolicy: gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy()),
+	},
 }
 
 // configDefault applies `ConfigDefault` values to a user‑supplied Config.
@@ -86,6 +96,16 @@ func configDefault(config ...Config) Config {
 
 	if cfg.ConnectTimeout == 0 {
 		cfg.ConnectTimeout = ConfigDefault.ConnectTimeout
+	}
+
+	// Safe check for PoolConfig
+	if cfg.PoolConfig == nil {
+		cfg.PoolConfig = ConfigDefault.PoolConfig
+	}
+
+	// Safe check for SslOpts
+	if cfg.SslOpts == nil {
+		cfg.SslOpts = ConfigDefault.SslOpts
 	}
 
 	return cfg
