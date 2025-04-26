@@ -75,7 +75,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer object.Close()
+	defer func() {
+		if err := object.Close(); err != nil {
+			log.Printf("Error closing object: %v\n", err)
+		}
+	}()
 
 	// convert to byte
 	bb := bytebufferpool.Get()
@@ -142,11 +146,12 @@ func (s *Storage) Reset() error {
 		GovernanceBypass: true,
 	}
 
+	var errs []error
 	for err := range s.minio.RemoveObjects(s.ctx, s.cfg.Bucket, objectsCh, opts) {
-		log.Println("Error detected during deletion: ", err)
+		errs = append(errs, err.Err)
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // Close the storage

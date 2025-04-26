@@ -1,31 +1,49 @@
 package azureblob
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/azure/azurite"
 )
 
-var testStore *Storage
+const (
+	// azuriteImage is the default image used for running azurite in tests.
+	azuriteImage       = "mcr.microsoft.com/azure-storage/azurite:latest"
+	azuriteImageEnvVar = "TEST_AZURITE_IMAGE"
+)
 
-func TestMain(m *testing.M) {
-	testStore = New(Config{
-		Account:   "devstoreaccount1",
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	img := azuriteImage
+	if imgFromEnv := os.Getenv(azuriteImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	ctx := context.Background()
+
+	c, err := azurite.Run(ctx, img)
+	testcontainers.CleanupContainer(t, c)
+	require.NoError(t, err)
+
+	serviceURL, err := c.BlobServiceURL(ctx)
+	require.NoError(t, err)
+
+	return New(Config{
+		Account:   azurite.AccountName,
 		Container: "test",
-		Endpoint:  "http://127.0.0.1:10000/devstoreaccount1",
+		Endpoint:  serviceURL + "/" + azurite.AccountName,
 		Credentials: Credentials{
-			Account: "devstoreaccount1",
-			Key:     "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==",
+			Account: azurite.AccountName,
+			Key:     azurite.AccountKey,
 		},
 		Reset: true,
 	})
-
-	code := m.Run()
-
-	_ = testStore.Close()
-	os.Exit(code)
 }
 
 func Test_AzureBlob_Get(t *testing.T) {
@@ -33,6 +51,9 @@ func Test_AzureBlob_Get(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -48,6 +69,9 @@ func Test_AzureBlob_Set(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
@@ -57,6 +81,9 @@ func Test_AzureBlob_Delete(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -80,6 +107,9 @@ func Test_AzureBlob_Override(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -88,6 +118,9 @@ func Test_AzureBlob_Override(t *testing.T) {
 }
 
 func Test_AzureBlob_Get_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get("notexist")
 	if err != nil {
 		if bloberror.HasCode(err, bloberror.BlobNotFound) {
@@ -100,6 +133,9 @@ func Test_AzureBlob_Get_NotExist(t *testing.T) {
 
 func Test_AzureBlob_Reset(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -129,15 +165,22 @@ func Test_AzureBlob_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_S3_Conn(t *testing.T) {
+func Test_AzureBlob_Conn(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_AzureBlob_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Benchmark_AzureBlob_Set(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -150,6 +193,9 @@ func Benchmark_AzureBlob_Set(b *testing.B) {
 }
 
 func Benchmark_AzureBlob_Get(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -164,6 +210,9 @@ func Benchmark_AzureBlob_Get(b *testing.B) {
 }
 
 func Benchmark_AzureBlob_SetAndDelete(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 

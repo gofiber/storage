@@ -46,6 +46,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to get connection string: %v", err)
 	}
+	defer func() {
+		if err := neo4jContainer.Terminate(ctx); err != nil {
+			log.Printf("Failed to terminate Neo4j container: %v", err)
+		}
+	}()
 
 	// Initialize Neo4j store with test container credentials
 	store := New(Config{
@@ -58,11 +63,6 @@ func TestMain(m *testing.M) {
 	testStore = store
 
 	defer testStore.Close()
-	defer func() {
-		if err := neo4jContainer.Terminate(ctx); err != nil {
-			log.Printf("Failed to terminate Neo4j container: %v", err)
-		}
-	}()
 
 	code := m.Run()
 
@@ -187,7 +187,7 @@ func Test_Neo4jStore_Non_UTF8(t *testing.T) {
 }
 
 func Test_Neo4jStore_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	require.NoError(t, testStore.Close())
 }
 
 func Test_Neo4jStore_Conn(t *testing.T) {
