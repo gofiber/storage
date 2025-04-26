@@ -200,6 +200,43 @@ var ConfigDefault = Config{
 }
 ```
 
+### Using an Existing Redis Connection
+If you already have a Redis client configured in your application, you can create a Storage instance directly from that client. This is useful when you want to share an existing connection throughout your application instead of creating a new one.
+
+```go
+import (
+    "github.com/gofiber/storage/redis"
+    redigo "github.com/redis/go-redis/v9"
+    "fmt"
+    "context"
+)
+
+func main() {
+    // Create or reuse a Redis universal client (e.g., redis.NewClient, redis.NewClusterClient, etc.)
+    client := redigo.NewUniversalClient(&redigo.UniversalOptions{
+        Addrs: []string{"127.0.0.1:6379"},
+    })
+
+    // Create a new Storage instance from the existing Redis client
+    store := redis.NewFromConnection(client)
+
+    // Set a value
+    if err := store.Set("john", []byte("doe"), 0); err != nil {
+        panic(err)
+    }
+
+    // Get the value
+    val, err := store.Get("john")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Stored value:", string(val))
+
+    // Clean up
+    store.Close()
+}
+```
+
 ### Example: Using DragonflyDB
 > **Note:** You can use [DragonflyDB](https://dragonflydb.io/) in the same way as Redis.  
 > Simply start a DragonflyDB server and configure it just like Redis. Then, call `New()` and use it exactly as you would with Redis.
