@@ -107,9 +107,10 @@ jobs:
           auto-start: 'false'
 
       - name: Run Redis
-        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' }}
+        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' || matrix.package == 'valkey' }}
         run: |
           redis-server --port 6379 &
+          sleep 15
 
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
