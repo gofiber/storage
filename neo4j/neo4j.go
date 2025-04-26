@@ -69,14 +69,18 @@ func New(config ...Config) *Storage {
 	// delete all nodes if reset set to true
 	if cfg.Reset {
 		if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
-			db.Close(ctx)
+			if err := db.Close(ctx); err != nil {
+				log.Printf("Error closing storage: %v\n", err)
+			}
 			log.Panicf("Unable to reset storage: %v\n", err)
 		}
 	}
 
 	// create index on key
 	if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("CREATE INDEX neo4jstore_key_idx IF NOT EXISTS FOR (n:%s) ON (n.k)", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
-		db.Close(ctx)
+		if err := db.Close(ctx); err != nil {
+			log.Printf("Error closing storage: %v\n", err)
+		}
 		log.Panicf("Unable to create index on key: %v\n", err)
 	}
 

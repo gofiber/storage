@@ -49,11 +49,12 @@ type Storage interface {
 ```
 
 ## 📑 Storage Implementations
-
+- [Aerospike](./aerospike/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Aerospike%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-aerospike.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [ArangoDB](./arangodb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+ArangoDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-arangodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [AzureBlob](./azureblob/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Azure+Blob%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-azureblob.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Badger](./badger/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Badger%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-badger.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Bbolt](./bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Bbolt%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-bbolt.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [Cassandra](./cassandra/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Cassandra%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cassandra.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [CloudflareKV](./cloudflarekv/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+CloudflareKV%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cloudflarekv.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Coherence](./coherence/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Coherence%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-coherence.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Couchbase](./couchbase/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Couchbase%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-couchbase.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
