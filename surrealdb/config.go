@@ -1,5 +1,10 @@
 package surrealdb
 
+import (
+	"log"
+	"strings"
+)
+
 // Config holds the configuration required to initialize and connect to a SurrealDB instance.
 // It includes authentication credentials, namespace/database selection, and default storage settings.
 //
@@ -13,7 +18,7 @@ package surrealdb
 //   - Scope: optional scope name for scoped authentication (e.g., user login scopes).
 //   - DefaultTable: the default table name where key-value records will be stored.
 type Config struct {
-	// The connection URL to connect to SurrealDB
+	// WebSocket connections (ws:// or wss://) are recommended over HTTP for better reliability
 	ConnectionString string
 
 	// The namespace to be used in SurrealDB
@@ -36,13 +41,6 @@ type Config struct {
 
 	// The default table used to store key-value records
 	DefaultTable string
-
-	//// Mode determines the operational mode of SurrealDB.
-	//// Accepted values:
-	//// - "default" (requires authentication)
-	//// - "memory" (in-memory mode, no authentication required) - not supported
-	//// - "kv" (file-based key-value store, no authentication required) - not supported
-	//Mode string
 }
 
 var ConfigDefault = Config{
@@ -97,9 +95,10 @@ func configDefault(config ...Config) Config {
 		cfg.DefaultTable = ConfigDefault.DefaultTable
 	}
 
-	//if cfg.Mode == "" {
-	//	cfg.Mode = ConfigDefault.Mode
-	//}
+	if !strings.HasPrefix(cfg.ConnectionString, "ws://") && !strings.HasPrefix(cfg.ConnectionString, "wss://") &&
+		!strings.HasPrefix(cfg.ConnectionString, "http://") && !strings.HasPrefix(cfg.ConnectionString, "https://") {
+		log.Printf("Warning: ConnectionString %s doesn't start with ws://, wss://, http:// or https://", cfg.ConnectionString)
+	}
 
 	return cfg
 }
