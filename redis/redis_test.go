@@ -540,43 +540,6 @@ func Benchmark_Redis_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_Redis_WithConnection_SetAndDelete(b *testing.B) {
-	connection := New(Config{
-		Reset: true,
-	})
-
-	testStore := NewFromConnection(connection.Conn())
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var err error
-	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
-	}
-
-	require.NoError(b, err)
-}
-
-func Benchmark_Redis_WithConnection_Get(b *testing.B) {
-	connection := New(Config{
-		Reset: true,
-	})
-
-	testStore := NewFromConnection(connection.Conn())
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		_, err = testStore.Get("john")
-	}
-
-	require.NoError(b, err)
-}
-
 func Test_Redis_NewFromConnection(t *testing.T) {
 	t.Parallel()
 
