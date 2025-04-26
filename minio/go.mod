@@ -3,7 +3,7 @@ module github.com/gofiber/storage/minio
 go 1.23.0
 
 require (
-	github.com/minio/minio-go/v7 v7.0.90
+	github.com/minio/minio-go/v7 v7.0.91
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.36.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.36.0
