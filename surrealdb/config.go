@@ -37,12 +37,12 @@ type Config struct {
 	// The default table used to store key-value records
 	DefaultTable string
 
-	// Mode determines the operational mode of SurrealDB.
-	// Accepted values:
-	// - "default" (requires authentication)
-	// - "memory" (in-memory mode, no authentication required)
-	// - "kv" (file-based key-value store, no authentication required)
-	Mode string
+	//// Mode determines the operational mode of SurrealDB.
+	//// Accepted values:
+	//// - "default" (requires authentication)
+	//// - "memory" (in-memory mode, no authentication required) - not supported
+	//// - "kv" (file-based key-value store, no authentication required) - not supported
+	//Mode string
 }
 
 var ConfigDefault = Config{
@@ -54,7 +54,6 @@ var ConfigDefault = Config{
 	Access:           "full",
 	Scope:            "all",
 	DefaultTable:     "fiber_storage",
-	Mode:             "default", // default, kv, memory
 }
 
 func configDefault(config ...Config) Config {
@@ -97,6 +96,10 @@ func configDefault(config ...Config) Config {
 	if cfg.DefaultTable == "" {
 		cfg.DefaultTable = ConfigDefault.DefaultTable
 	}
+
+	//if cfg.Mode == "" {
+	//	cfg.Mode = ConfigDefault.Mode
+	//}
 
 	return cfg
 }

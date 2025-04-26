@@ -110,6 +110,10 @@ func Test_Surrealdb_Delete(t *testing.T) {
 
 	err = testStore.Delete("test")
 	require.NoError(t, err)
+
+	val, err := testStore.Get("test")
+	require.NoError(t, err)
+	require.Nil(t, val)
 }
 
 func Test_Surrealdb_Flush(t *testing.T) {
@@ -117,7 +121,19 @@ func Test_Surrealdb_Flush(t *testing.T) {
 	require.NoError(t, err)
 	defer testStore.Close()
 
+	err = testStore.Set("test_key", []byte("test_value"), 0)
 	require.NoError(t, err)
+
+	val, err := testStore.Get("test_key")
+	require.NoError(t, err)
+	require.NotNil(t, val)
+
+	err = testStore.Reset()
+	require.NoError(t, err)
+
+	val, err = testStore.Get("test_key")
+	require.NoError(t, err)
+	require.Nil(t, val)
 }
 
 func Test_Surrealdb_GetExpired(t *testing.T) {
