@@ -604,6 +604,7 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	connection := New(newConfigFromContainer(t))
 
 	testStore := NewFromConnection(connection.Conn())
+	defer testStore.Close()
 
 	err := testStore.Set("foo", []byte("bar"), 0)
 	require.NoError(t, err, "failed to set key in Redis storage")
