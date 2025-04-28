@@ -104,11 +104,12 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 			"--tls-cert-file", "/tls/server.crt",
 			"--tls-key-file", "/tls/server.key",
 			"--tls-ca-cert-file", "/tls/ca.crt",
-			"--tls-auth-clients", "yes",
 		}
 
 		if settings.withMTLSDisabled {
 			cmds = append(cmds, "--tls-auth-clients", "no")
+		} else {
+			cmds = append(cmds, "--tls-auth-clients", "yes")
 		}
 
 		// completely override the default CMD, as the Redis module is opinionated about the CMD
