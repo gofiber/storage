@@ -7,7 +7,7 @@ require (
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/cassandra v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/cassandra v0.37.0
 )
 
 require (
