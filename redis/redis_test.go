@@ -331,7 +331,9 @@ func Test_Redis_Initialize_WithHostPort(t *testing.T) {
 }
 
 func Test_Redis_Initialize_WithURL_TLS_Verify(t *testing.T) {
-	testFn := func(secureURL bool, mtlsDisabled bool) {
+	testFn := func(t *testing.T, secureURL bool, mtlsDisabled bool) {
+		t.Helper()
+
 		testStore := newTestStore(t, withTLS(secureURL, mtlsDisabled))
 		defer testStore.Close()
 
@@ -356,19 +358,19 @@ func Test_Redis_Initialize_WithURL_TLS_Verify(t *testing.T) {
 	}
 
 	t.Run("insecure-url/mtls-disabled", func(t *testing.T) {
-		testFn(false, true)
+		testFn(t, false, true)
 	})
 
 	t.Run("insecure-url/mtls-enabled", func(t *testing.T) {
-		testFn(false, false)
+		testFn(t, false, false)
 	})
 
 	t.Run("secure-url/mtls-disabled", func(t *testing.T) {
-		testFn(true, true)
+		testFn(t, true, true)
 	})
 
 	t.Run("secure-url/mtls-enabled", func(t *testing.T) {
-		testFn(true, false)
+		testFn(t, true, false)
 	})
 }
 
