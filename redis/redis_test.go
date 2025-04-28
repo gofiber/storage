@@ -33,18 +33,24 @@ type testStoreSettings struct {
 
 type testStoreOption func(*testStoreSettings)
 
+// withAddress sets the test store to use address-based connection.
 func withAddress() testStoreOption {
 	return func(o *testStoreSettings) {
 		o.address = true
 	}
 }
 
+// withHostPort sets the test store to use host and port based connection.
 func withHostPort() testStoreOption {
 	return func(o *testStoreSettings) {
 		o.hostPort = true
 	}
 }
 
+// withTLS configures the test store to use TLS.
+// Parameters:
+// - secureURL: when true, uses "rediss://" scheme, otherwise uses "redis://"
+// - mtlsDisabled: when true, disables mutual TLS authentication (--tls-auth-clients no)
 func withTLS(secureURL bool, mtlsDisabled bool) testStoreOption {
 	return func(o *testStoreSettings) {
 		o.tls = true
@@ -64,6 +70,10 @@ func withURL(useContainerURI bool) testStoreOption {
 	}
 }
 
+// newConfigFromContainer creates a Redis configuration using a test container.
+// It configures the container based on the provided options and returns a Config
+// that can be used to connect to the container.
+// The container is cleaned up when the test completes.
 func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 	t.Helper()
 
@@ -151,6 +161,10 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 	return cfg
 }
 
+// newTestStore creates a new Redis storage instance backed by Testcontainers.
+// It configures the container based on the provided options and returns a Storage
+// instance connected to the container. The caller is responsible for calling
+// Close() on the returned Storage when done.
 func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 	return New(newConfigFromContainer(t, opts...))
 }
@@ -502,6 +516,7 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 }
 
 func Test_Redis_Cluster(t *testing.T) {
+	// TODO: Replace with containerized cluster when testcontainers-go Redis module supports clustering
 	testStoreUniversal := New(Config{
 		Addrs: []string{
 			"localhost:7000",
