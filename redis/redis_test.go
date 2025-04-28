@@ -11,7 +11,6 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -90,10 +89,6 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 
 	tcOpts := []testcontainers.ContainerCustomizer{}
 
-	waitStrategies := []wait.Strategy{
-		wait.ForListeningPort(redisPort).WithStartupTimeout(time.Second * 10),
-	}
-
 	if settings.withTLS {
 		tcOpts = append(tcOpts, redis.WithTLS())
 
@@ -115,8 +110,6 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 		// completely override the default CMD, as the Redis module is opinionated about the CMD
 		tcOpts = append(tcOpts, testcontainers.WithCmd(cmds...))
 	}
-
-	tcOpts = append(tcOpts, testcontainers.WithWaitStrategy(waitStrategies...))
 
 	c, err := redis.Run(ctx, img, tcOpts...)
 	testcontainers.CleanupContainer(t, c)
