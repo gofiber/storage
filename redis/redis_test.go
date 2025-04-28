@@ -139,8 +139,10 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 	}
 
 	if settings.withAddress {
-		// trim the scheme from the URI
-		cfg.Addrs = []string{strings.TrimPrefix(uri, "redis://")}
+		// trim the schemes from the URI
+		addr := strings.TrimPrefix(uri, "redis://")
+		addr = strings.TrimPrefix(addr, "rediss://")
+		cfg.Addrs = []string{addr}
 	}
 
 	if settings.withURL {
