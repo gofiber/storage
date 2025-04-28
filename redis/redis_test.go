@@ -671,3 +671,27 @@ func Benchmark_Redis_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Redis_NewFromConnection(t *testing.T) {
+	t.Parallel()
+
+	connection := New(Config{
+		Reset: true,
+	})
+
+	testStore := NewFromConnection(connection.Conn())
+
+	err := testStore.Set("foo", []byte("bar"), 0)
+	require.NoError(t, err, "failed to set key in Redis storage")
+
+	val, err := testStore.Get("foo")
+	require.NoError(t, err, "failed to get key from Redis storage")
+	require.Equal(t, []byte("bar"), val, "value mismatch in Redis storage")
+
+	err = testStore.Delete("foo")
+	require.NoError(t, err, "failed to delete key in Redis storage")
+
+	val, err = testStore.Get("foo")
+
+	require.Nil(t, val, "expected value to be nil after deletion")
+}
