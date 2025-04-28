@@ -65,7 +65,7 @@ func withURL(useContainerURI bool) testStoreOption {
 	}
 }
 
-func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
+func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 	t.Helper()
 
 	settings := &testStoreSettings{
@@ -154,7 +154,11 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 		cfg.URL = strings.Replace(cfg.URL, "rediss://", "redis://", 1)
 	}
 
-	return New(cfg)
+	return cfg
+}
+
+func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
+	return New(newConfigFromContainer(t, opts...))
 }
 
 func Test_Redis_Set(t *testing.T) {
@@ -588,9 +592,7 @@ func Benchmark_Redis_SetAndDelete(b *testing.B) {
 func Test_Redis_NewFromConnection(t *testing.T) {
 	t.Parallel()
 
-	connection := New(Config{
-		Reset: true,
-	})
+	connection := New(newConfigFromContainer(t))
 
 	testStore := NewFromConnection(connection.Conn())
 
@@ -605,6 +607,6 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	require.NoError(t, err, "failed to delete key in Redis storage")
 
 	val, err = testStore.Get("foo")
-
+	require.NoError(t, err)
 	require.Nil(t, val, "expected value to be nil after deletion")
 }
