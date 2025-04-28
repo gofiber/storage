@@ -21,35 +21,35 @@ const (
 )
 
 type testStoreSettings struct {
-	withAddress  bool
-	withHostPort bool
-	withURL      bool
+	address  bool
+	hostPort bool
+	url      bool
 
 	// TLS settings
-	withSecureURL    bool
-	withMTLSDisabled bool
-	withTLS          bool
+	secureURL    bool
+	mtlsDisabled bool
+	tls          bool
 }
 
 type testStoreOption func(*testStoreSettings)
 
 func withAddress() testStoreOption {
 	return func(o *testStoreSettings) {
-		o.withAddress = true
+		o.address = true
 	}
 }
 
 func withHostPort() testStoreOption {
 	return func(o *testStoreSettings) {
-		o.withHostPort = true
+		o.hostPort = true
 	}
 }
 
 func withTLS(secureURL bool, mtlsDisabled bool) testStoreOption {
 	return func(o *testStoreSettings) {
-		o.withTLS = true
-		o.withSecureURL = secureURL
-		o.withMTLSDisabled = mtlsDisabled
+		o.tls = true
+		o.secureURL = secureURL
+		o.mtlsDisabled = mtlsDisabled
 	}
 }
 
@@ -60,7 +60,7 @@ func withTLS(secureURL bool, mtlsDisabled bool) testStoreOption {
 // - false: the URL will be set to an empty string
 func withURL(useContainerURI bool) testStoreOption {
 	return func(o *testStoreSettings) {
-		o.withURL = useContainerURI
+		o.url = useContainerURI
 	}
 }
 
@@ -68,9 +68,9 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 	t.Helper()
 
 	settings := &testStoreSettings{
-		withURL:      true, // by default, the URL will be set to the URI provided by the testcontainer
-		withAddress:  false,
-		withHostPort: false,
+		url:      true, // by default, the URL will be set to the URI provided by the testcontainer
+		address:  false,
+		hostPort: false,
 	}
 	for _, o := range opts {
 		o(settings)
@@ -89,7 +89,7 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 
 	tcOpts := []testcontainers.ContainerCustomizer{}
 
-	if settings.withTLS {
+	if settings.tls {
 		tcOpts = append(tcOpts, redis.WithTLS())
 
 		// Use Redis module's TLS options, but for the MTLS case, disable the auth-clients flag
@@ -101,11 +101,12 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 			"--tls-ca-cert-file", "/tls/ca.crt",
 		}
 
-		if settings.withMTLSDisabled {
-			cmds = append(cmds, "--tls-auth-clients", "no")
-		} else {
-			cmds = append(cmds, "--tls-auth-clients", "yes")
-		}
+		cmds = append(cmds, "--tls-auth-clients", func() string {
+			if settings.mtlsDisabled {
+				return "no"
+			}
+			return "yes"
+		}())
 
 		// completely override the default CMD, as the Redis module is opinionated about the CMD
 		tcOpts = append(tcOpts, testcontainers.WithCmd(cmds...))
@@ -120,7 +121,7 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 	uri, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
-	if settings.withHostPort {
+	if settings.hostPort {
 		host, err := c.Host(ctx)
 		require.NoError(t, err)
 
@@ -131,18 +132,18 @@ func newConfigFromContainer(t testing.TB, opts ...testStoreOption) Config {
 		cfg.Port = port.Int()
 	}
 
-	if settings.withAddress {
+	if settings.address {
 		// trim the schemes from the URI
 		addr := strings.TrimPrefix(uri, "redis://")
 		addr = strings.TrimPrefix(addr, "rediss://")
 		cfg.Addrs = []string{addr}
 	}
 
-	if settings.withURL {
+	if settings.url {
 		cfg.URL = uri
 	}
 
-	if !settings.withSecureURL {
+	if !settings.secureURL {
 		// Replace the scheme with the insecure one
 		cfg.URL = strings.Replace(cfg.URL, "rediss://", "redis://", 1)
 	}
