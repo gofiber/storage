@@ -1,16 +1,12 @@
 package redis
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
-	"net"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/mdelapenya/tlscert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -23,7 +19,6 @@ const (
 	redisImage       = "docker.io/redis:7"
 	redisImageEnvVar = "TEST_REDIS_IMAGE"
 	redisPort        = "6379/tcp"
-	redisTLSPort     = "6380/tcp"
 )
 
 type testStoreSettings struct {
@@ -70,53 +65,6 @@ func withURL(useContainerURI bool) testStoreOption {
 	}
 }
 
-// createTLSCerts creates a CA certificate, a client certificate and a Redis certificate,
-// storing them in the given temporary directory.
-func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *tlscert.Certificate) {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-
-	// ips is the extra list of IPs to include in the certificates.
-	// It's used to allow the client and Redis certificates to be used in the same host
-	// when the tests are run using a remote docker daemon.
-	ips := []net.IP{net.ParseIP("127.0.0.1")}
-
-	// Generate CA certificate
-	caCert := tlscert.SelfSignedFromRequest(tlscert.Request{
-		Host:              "localhost",
-		IPAddresses:       ips,
-		Name:              "ca",
-		SubjectCommonName: "ca",
-		IsCA:              true,
-		ParentDir:         tmpDir,
-	})
-	require.NotNil(t, caCert)
-
-	// Generate client certificate
-	clientCert := tlscert.SelfSignedFromRequest(tlscert.Request{
-		Host:              "localhost",
-		Name:              "Redis Client",
-		SubjectCommonName: "localhost",
-		IPAddresses:       ips,
-		Parent:            caCert,
-		ParentDir:         tmpDir,
-	})
-	require.NotNil(t, clientCert)
-
-	// Generate Redis certificate
-	redisCert := tlscert.SelfSignedFromRequest(tlscert.Request{
-		Host:        "localhost",
-		IPAddresses: ips,
-		Name:        "Redis Server",
-		Parent:      caCert,
-		ParentDir:   tmpDir,
-	})
-	require.NotNil(t, redisCert)
-
-	return caCert, clientCert, redisCert
-}
-
 func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 	t.Helper()
 
@@ -147,12 +95,12 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 	}
 
 	if settings.withTLS {
-		// wait for the TLS port to be available
-		waitStrategies = append(waitStrategies, wait.ForListeningPort(redisTLSPort).WithStartupTimeout(time.Second*10))
+		tcOpts = append(tcOpts, redis.WithTLS())
 
+		// Use Redis module's TLS options, but for the MTLS case, disable the auth-clients flag
 		cmds := []string{
-			"--port", "6379",
-			"--tls-port", "6380",
+			"--port", "0",
+			"--tls-port", "6379",
 			"--tls-cert-file", "/tls/server.crt",
 			"--tls-key-file", "/tls/server.key",
 			"--tls-ca-cert-file", "/tls/ca.crt",
@@ -163,40 +111,8 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 			cmds = append(cmds, "--tls-auth-clients", "no")
 		}
 
-		// Generate TLS certificates in the fly and add them to the container before it starts.
-		// Update the CMD to use the TLS certificates.
-		caCert, clientCert, serverCert := createTLSCerts(t)
-
-		tcOpts = append(tcOpts, testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				ExposedPorts: []string{"6380/tcp"},
-				Files: []testcontainers.ContainerFile{
-					{
-						Reader:            bytes.NewReader(caCert.Bytes),
-						ContainerFilePath: "/tls/ca.crt",
-						FileMode:          0o644,
-					},
-					{
-						Reader:            bytes.NewReader(serverCert.Bytes),
-						ContainerFilePath: "/tls/server.crt",
-						FileMode:          0o644,
-					},
-					{
-						Reader:            bytes.NewReader(serverCert.KeyBytes),
-						ContainerFilePath: "/tls/server.key",
-						FileMode:          0o644,
-					},
-				},
-				Cmd: cmds,
-			},
-		}))
-
-		cfg.TLSConfig = &tls.Config{
-			MinVersion:   tls.VersionTLS12,
-			RootCAs:      caCert.TLSConfig().RootCAs,
-			Certificates: clientCert.TLSConfig().Certificates,
-			ServerName:   "localhost", // Match the server cert's common name
-		}
+		// completely override the default CMD, as the Redis module is opinionated about the CMD
+		tcOpts = append(tcOpts, testcontainers.WithCmd(cmds...))
 	}
 
 	tcOpts = append(tcOpts, testcontainers.WithWaitStrategy(waitStrategies...))
@@ -204,6 +120,8 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 	c, err := redis.Run(ctx, img, tcOpts...)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
+
+	cfg.TLSConfig = c.TLSConfig()
 
 	uri, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -228,19 +146,9 @@ func newTestStore(t testing.TB, opts ...testStoreOption) *Storage {
 		cfg.URL = uri
 	}
 
-	if settings.withTLS {
-		host, err := c.Host(ctx)
-		require.NoError(t, err)
-
-		port, err := c.MappedPort(ctx, redisTLSPort)
-		require.NoError(t, err)
-
-		scheme := "redis"
-		if settings.withSecureURL {
-			scheme = "rediss"
-		}
-
-		cfg.URL = scheme + "://" + host + ":" + port.Port()
+	if !settings.withSecureURL {
+		// Replace the scheme with the insecure one
+		cfg.URL = strings.Replace(cfg.URL, "rediss://", "redis://", 1)
 	}
 
 	return New(cfg)
