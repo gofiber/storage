@@ -18,3 +18,8 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      groups:
+          testcontainers-modules:
+              patterns:
+                  - "github.com/testcontainers/testcontainers-go"
+                  - "github.com/testcontainers/testcontainers-go/modules/**"
