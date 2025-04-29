@@ -99,19 +99,6 @@ jobs:
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
 
-      - name: Setup Redis
-        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        uses: shogo82148/actions-setup-redis@v1
-        with:
-          redis-version: '7.x'
-          auto-start: 'false'
-
-      - name: Run Redis
-        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        run: |
-          redis-server --port 6379 &
-          sleep 15
-
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
         run: |
@@ -134,6 +121,7 @@ jobs:
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
           TEST_NATS_IMAGE: "nats:2-alpine"
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+          TEST_REDIS_IMAGE: "docker.io/redis:7"
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
 
       - name: Get Previous Benchmark Results
