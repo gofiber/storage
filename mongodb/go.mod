@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/mongodb v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/mongodb v0.37.0
 	go.mongodb.org/mongo-driver v1.17.3
 )
 

@@ -114,8 +114,8 @@ github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOf
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/testcontainers/testcontainers-go v0.37.0 h1:L2Qc0vkTw2EHWQ08djon0D2uw7Z/PtHS/QzZZ5Ra/hg=
 github.com/testcontainers/testcontainers-go v0.37.0/go.mod h1:QPzbxZhQ6Bclip9igjLFj6z0hs01bU8lrl2dHQmgFGM=
-github.com/testcontainers/testcontainers-go/modules/minio v0.36.0 h1:NYOqshU552vjkpeNCDev7W3Jmuh2yVEvdko6Q9WX/GM=
-github.com/testcontainers/testcontainers-go/modules/minio v0.36.0/go.mod h1:LAL+x/siLvLHVQ5G/r3X1bLlUhOj9xo8CUEySbNWUz4=
+github.com/testcontainers/testcontainers-go/modules/minio v0.37.0 h1:p2LXViCDHBP0JfVfT9hDxkbTxv+BzAL5ZYOF8sj1q1I=
+github.com/testcontainers/testcontainers-go/modules/minio v0.37.0/go.mod h1:OhJqQ9L2FOnb/otqLbjskhj7utl1Z5RFt2k6mhG9aeI=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
