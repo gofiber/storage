@@ -7,7 +7,7 @@ require (
 	github.com/nats-io/nats.go v1.41.2
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/nats v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/nats v0.37.0
 )
 
 require (

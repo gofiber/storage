@@ -6,7 +6,7 @@ require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/neo4j v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/neo4j v0.37.0
 )
 
 require (

@@ -6,7 +6,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.91
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/minio v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/minio v0.37.0
 	github.com/valyala/bytebufferpool v1.0.0
 )
 
