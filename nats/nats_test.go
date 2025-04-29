@@ -92,29 +92,25 @@ func newTestStore(t testing.TB) *Storage {
 		tcnats.WithConfigFile(strings.NewReader(natsTLSConfig)),
 		// Override the default wait strategy to use the port 4443 for TLS
 		testcontainers.WithWaitStrategy(wait.ForLog("Listening for client connections on 0.0.0.0:4443")),
+		testcontainers.WithExposedPorts(natsTLSPort),
 		// add the cert files to the container
-		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				ExposedPorts: []string{natsTLSPort},
-				Files: []testcontainers.ContainerFile{
-					{
-						Reader:            bytes.NewReader(ca.Bytes),
-						ContainerFilePath: "/tls/ca.crt",
-						FileMode:          0o0644,
-					},
-					{
-						Reader:            bytes.NewReader(natsCert.Bytes),
-						ContainerFilePath: "/tls/nats.crt",
-						FileMode:          0o0644,
-					},
-					{
-						Reader:            bytes.NewReader(natsCert.KeyBytes),
-						ContainerFilePath: "/tls/nats.key",
-						FileMode:          0o0644,
-					},
-				},
+		testcontainers.WithFiles(
+			testcontainers.ContainerFile{
+				Reader:            bytes.NewReader(ca.Bytes),
+				ContainerFilePath: "/tls/ca.crt",
+				FileMode:          0o0644,
 			},
-		}),
+			testcontainers.ContainerFile{
+				Reader:            bytes.NewReader(natsCert.Bytes),
+				ContainerFilePath: "/tls/nats.crt",
+				FileMode:          0o0644,
+			},
+			testcontainers.ContainerFile{
+				Reader:            bytes.NewReader(natsCert.KeyBytes),
+				ContainerFilePath: "/tls/nats.key",
+				FileMode:          0o0644,
+			},
+		),
 	)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
