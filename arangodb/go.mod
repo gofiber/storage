@@ -2,7 +2,6 @@ module github.com/gofiber/storage/arangodb/v2
 
 go 1.23.0
 
-toolchain go1.23.6
 
 require (
 	github.com/arangodb/go-driver v1.6.6
