@@ -66,11 +66,6 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install ArangoDB
-        if: ${{ matrix.package == 'arangodb' }}
-        run: |
-          docker run -d -p 8529:8529 -e "ARANGO_NO_AUTH=1" arangodb:latest
-
       - name: Install Memcached
         if: ${{ matrix.package == 'memcache' }}
         run: |
@@ -110,10 +105,11 @@ jobs:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
-          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
-          TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
+          TEST_ARANGODB_IMAGE: arangodb:latest
+          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_CASSANDRA_IMAGE: "cassandra:latest"
+          TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
           TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
