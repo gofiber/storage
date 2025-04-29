@@ -6,7 +6,7 @@ require (
 	github.com/couchbase/gocb/v2 v2.10.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/couchbase v0.36.0
+	github.com/testcontainers/testcontainers-go/modules/couchbase v0.37.0
 )
 
 require (
