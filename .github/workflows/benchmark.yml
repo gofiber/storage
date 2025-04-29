@@ -66,11 +66,6 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install ArangoDB
-        if: ${{ matrix.package == 'arangodb' }}
-        run: |
-          docker run -d -p 8529:8529 -e "ARANGO_NO_AUTH=1" arangodb:latest
-
       - name: Install Memcached
         if: ${{ matrix.package == 'memcache' }}
         run: |
@@ -99,19 +94,6 @@ jobs:
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
 
-      - name: Setup Redis
-        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        uses: shogo82148/actions-setup-redis@v1
-        with:
-          redis-version: '7.x'
-          auto-start: 'false'
-
-      - name: Run Redis
-        if: ${{ matrix.package == 'redis' || matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        run: |
-          redis-server --port 6379 &
-          sleep 15
-
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
         run: |
@@ -123,10 +105,11 @@ jobs:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
-          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
-          TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
+          TEST_ARANGODB_IMAGE: arangodb:latest
+          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_CASSANDRA_IMAGE: "cassandra:latest"
+          TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
           TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
@@ -134,6 +117,7 @@ jobs:
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
           TEST_NATS_IMAGE: "nats:2-alpine"
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+          TEST_REDIS_IMAGE: "docker.io/redis:7"
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
           TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:latest"
 
