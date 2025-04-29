@@ -9,7 +9,7 @@ import (
 	"github.com/aerospike/aerospike-client-go/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	tcaerospike "github.com/testcontainers/testcontainers-go/modules/aerospike"
 )
 
 const (
@@ -34,27 +34,8 @@ func startAerospikeContainer(t testing.TB, ctx context.Context) testcontainers.C
 		image = envImage
 	}
 
-	// Container config
-	req := testcontainers.ContainerRequest{
-		Image:        image,
-		ExposedPorts: []string{aerospikePort, fabricPort, heartbeatPort, infoPort},
-		WaitingFor: wait.ForAll(
-			wait.ForLog(aerospikeReadyLog),
-			wait.ForListeningPort(aerospikePort).WithStartupTimeout(5*time.Second),
-			wait.ForListeningPort(fabricPort).WithStartupTimeout(5*time.Second),
-			wait.ForListeningPort(heartbeatPort).WithStartupTimeout(5*time.Second),
-		),
-		Cmd: []string{
-			"--config-file",
-			"/etc/aerospike/aerospike.conf",
-		},
-	}
-
 	// Start container
-	ctr, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	ctr, err := tcaerospike.Run(ctx, image)
 	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
 
