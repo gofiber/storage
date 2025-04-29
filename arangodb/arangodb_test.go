@@ -2,9 +2,9 @@ package arangodb
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,9 +38,10 @@ func newTestStore(t testing.TB) *Storage {
 	endpoint, err := arangodbContainer.HTTPEndpoint(ctx)
 	require.NoError(t, err)
 
-	lastColonIndex := strings.LastIndex(endpoint, ":")
-	host := endpoint[:lastColonIndex]
-	port := endpoint[lastColonIndex+1:]
+	parsedURL, err := url.Parse(endpoint)
+	require.NoError(t, err)
+	host := parsedURL.Scheme + "://" + parsedURL.Hostname()
+	port := parsedURL.Port()
 
 	iPort, err := strconv.Atoi(port)
 	require.NoError(t, err)
