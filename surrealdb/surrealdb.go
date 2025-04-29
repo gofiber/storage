@@ -10,8 +10,10 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db    *surrealdb.DB
-	table string
+	db       *surrealdb.DB
+	table    string
+	stopGC   chan struct{}
+	interval time.Duration
 }
 
 // model represents a key-value storage record used in SurrealDB.
@@ -54,10 +56,15 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	return &Storage{
-		db:    db,
-		table: cfg.DefaultTable,
+	storage := &Storage{
+		db:       db,
+		table:    cfg.DefaultTable,
+		stopGC:   make(chan struct{}),
+		interval: cfg.GCInterval,
 	}
+
+	go storage.gc()
+	return storage
 }
 
 func (s *Storage) Get(key string) ([]byte, error) {
@@ -113,6 +120,7 @@ func (s *Storage) Reset() error {
 }
 
 func (s *Storage) Close() error {
+	close(s.stopGC)
 	return s.db.Close()
 }
 
@@ -138,4 +146,31 @@ func (s *Storage) List() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func (s *Storage) gc() {
+	ticker := time.NewTicker(s.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.cleanupExpired()
+		case <-s.stopGC:
+			return
+		}
+	}
+}
+
+func (s *Storage) cleanupExpired() {
+	records, err := surrealdb.Select[[]model, models.Table](s.db, models.Table(s.table))
+	if err != nil {
+		return
+	}
+	now := time.Now().Unix()
+	for _, item := range *records {
+		if item.Exp > 0 && now > item.Exp {
+			_ = s.Delete(item.Key)
+		}
+	}
 }

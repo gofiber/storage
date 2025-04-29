@@ -182,6 +182,27 @@ func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 	require.NotContains(t, result, "expired")
 }
 
+func Test_Surrealdb_GarbageCollector_RemovesExpiredKeys(t *testing.T) {
+	testStore, err := newTestStore(t)
+	require.NoError(t, err)
+	defer testStore.Close()
+
+	err = testStore.Set("temp_key", []byte("temp_value"), 1*time.Second)
+	require.NoError(t, err)
+
+	val, err := testStore.Get("temp_key")
+	require.NoError(t, err)
+	require.NotNil(t, val)
+
+	time.Sleep(3 * time.Second)
+
+	require.Eventually(t, func() bool {
+		val, err = testStore.Get("temp_key")
+		require.NoError(t, err)
+		return val == nil
+	}, 3*time.Second, 300*time.Millisecond)
+}
+
 func Benchmark_SurrealDB_Set(b *testing.B) {
 	testStore, err := newTestStore(b)
 	require.NoError(b, err)

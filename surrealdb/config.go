@@ -3,6 +3,7 @@ package surrealdb
 import (
 	"log"
 	"strings"
+	"time"
 )
 
 // Config holds the configuration required to initialize and connect to a SurrealDB instance.
@@ -41,6 +42,9 @@ type Config struct {
 
 	// The default table used to store key-value records
 	DefaultTable string
+
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 
 var ConfigDefault = Config{
@@ -52,6 +56,7 @@ var ConfigDefault = Config{
 	Access:           "full",
 	Scope:            "all",
 	DefaultTable:     "fiber_storage",
+	GCInterval:       time.Second * 10,
 }
 
 func configDefault(config ...Config) Config {
@@ -98,6 +103,10 @@ func configDefault(config ...Config) Config {
 	if !strings.HasPrefix(cfg.ConnectionString, "ws://") && !strings.HasPrefix(cfg.ConnectionString, "wss://") &&
 		!strings.HasPrefix(cfg.ConnectionString, "http://") && !strings.HasPrefix(cfg.ConnectionString, "https://") {
 		log.Printf("Warning: ConnectionString %s doesn't start with ws://, wss://, http:// or https://", cfg.ConnectionString)
+	}
+
+	if int(cfg.GCInterval.Seconds()) <= 0 {
+		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 
 	return cfg

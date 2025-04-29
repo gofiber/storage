@@ -62,6 +62,7 @@ Password:         "root",
 Access:           "full",
 Scope:            "all",
 DefaultTable:     "fiber_storage",
+GCInterval:       time.Second * 10,
 })
 ```
 
@@ -92,6 +93,9 @@ Scope string
 
 // The default table used to store key-value records
 DefaultTable string
+
+// Optional. Default is 10 * time.Second
+GCInterval time.Duration
 }
 ```
 
@@ -108,5 +112,6 @@ Password:         "root",
 Access:           "full",
 Scope:            "all",
 DefaultTable:     "fiber_storage",
+GCInterval:       time.Second * 10,
 }
 ```
