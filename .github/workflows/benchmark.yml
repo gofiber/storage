@@ -84,19 +84,6 @@ jobs:
           docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
           sleep 30
 
-      - name: Setup Redis
-        if: ${{ matrix.package == 'valkey' }}
-        uses: shogo82148/actions-setup-redis@v1
-        with:
-          redis-version: '7.x'
-          auto-start: 'false'
-
-      - name: Run Redis
-        if: ${{ matrix.package == 'valkey' }}
-        run: |
-          redis-server --port 6379 &
-          sleep 15
-
       - name: Install etcd
         if: ${{ matrix.package == 'etcd' }}
         run: |
@@ -132,6 +119,7 @@ jobs:
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
           TEST_REDIS_IMAGE: "docker.io/redis:7"
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
+          TEST_VALKEY_IMAGE: "valkey/valkey:8"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
