@@ -12,19 +12,11 @@ name: "Tests ArangoDB"
 jobs:
     Tests:
         runs-on: ubuntu-latest
-        services:
-            arangodb:
-                image: 'arangodb:latest'
-                env:
-                    ARANGO_NO_AUTH: 1
-                ports:
-                    - '8529:8529'
         strategy:
             matrix:
                 go-version:
-                    - 1.19.x
-                    - 1.20.x
-                    - 1.21.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
@@ -33,4 +25,6 @@ jobs:
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
+                env:
+                    TEST_ARANGODB_IMAGE: arangodb:latest
                 run: cd ./arangodb && go test ./... -v -race
