@@ -28,6 +28,10 @@ type Config struct {
 	UseAddress   bool
 	UseHostPort  bool
 	UseURL       bool
+	// Image is the image to use for the Redis container
+	//
+	// Optional. Default is "docker.io/redis:7", but could be set to Valkey.
+	Image string
 }
 
 // Option is a function that configures a Config
@@ -63,6 +67,13 @@ func WithURL(useContainerURI bool) Option {
 	}
 }
 
+// WithImage sets the image to use for the Redis container
+func WithImage(image string) Option {
+	return func(c *Config) {
+		c.Image = image
+	}
+}
+
 // Container represents a running Redis container
 type Container struct {
 	URL       string
@@ -86,6 +97,10 @@ func Start(t testing.TB, opts ...Option) *Container {
 	img := Image
 	if imgFromEnv := os.Getenv(ImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
+	}
+
+	if config.Image != "" {
+		img = config.Image
 	}
 
 	ctx := context.Background()
