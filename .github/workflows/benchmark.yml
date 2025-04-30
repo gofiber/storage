@@ -85,14 +85,14 @@ jobs:
           sleep 30
 
       - name: Setup Redis
-        if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
+        if: ${{ matrix.package == 'valkey' }}
         uses: shogo82148/actions-setup-redis@v1
         with:
           redis-version: '7.x'
           auto-start: 'false'
 
       - name: Run Redis
-        if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
+        if: ${{ matrix.package == 'valkey' }}
         run: |
           redis-server --port 6379 &
           sleep 15
