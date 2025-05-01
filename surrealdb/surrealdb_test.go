@@ -19,7 +19,7 @@ var (
 	surrealDbPass        string = "root"
 )
 
-func newTestStore(t testing.TB) (*Storage, error) {
+func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 	ctx := context.Background()
 
@@ -32,16 +32,12 @@ func newTestStore(t testing.TB) (*Storage, error) {
 		surrealdb.WithUsername(surrealDbUser),
 		surrealdb.WithPassword(surrealDbPass),
 	)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	testcontainers.CleanupContainer(t, surrealdbContainer)
 
 	url, err := surrealdbContainer.URL(ctx)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(t, err)
 
 	return New(
 		Config{
@@ -52,24 +48,22 @@ func newTestStore(t testing.TB) (*Storage, error) {
 			Password:         surrealDbPass,
 			DefaultTable:     "fiber_storage",
 		},
-	), nil
+	)
 }
 
 func Test_Surrealdb_Create(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("test12345"), 0)
+	err := testStore.Set("test", []byte("test12345"), 0)
 	require.NoError(t, err)
 }
 
 func Test_Surrealdb_CreateAndGet(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("test12345"), 0)
+	err := testStore.Set("test", []byte("test12345"), 0)
 	require.NoError(t, err)
 
 	get, err := testStore.Get("test")
@@ -78,8 +72,7 @@ func Test_Surrealdb_CreateAndGet(t *testing.T) {
 }
 
 func Test_Surrealdb_ListTable(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	bytes, err := testStore.List()
@@ -88,11 +81,10 @@ func Test_Surrealdb_ListTable(t *testing.T) {
 }
 
 func Test_Surrealdb_Get_WithNoErr(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("test1234"), 0)
+	err := testStore.Set("test", []byte("test1234"), 0)
 	require.NoError(t, err)
 
 	get, err := testStore.Get("test")
@@ -101,11 +93,10 @@ func Test_Surrealdb_Get_WithNoErr(t *testing.T) {
 }
 
 func Test_Surrealdb_Delete(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test", []byte("delete1234"), 0)
+	err := testStore.Set("test", []byte("delete1234"), 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete("test")
@@ -117,11 +108,10 @@ func Test_Surrealdb_Delete(t *testing.T) {
 }
 
 func Test_Surrealdb_Flush(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("test_key", []byte("test_value"), 0)
+	err := testStore.Set("test_key", []byte("test_value"), 0)
 	require.NoError(t, err)
 
 	val, err := testStore.Get("test_key")
@@ -137,11 +127,10 @@ func Test_Surrealdb_Flush(t *testing.T) {
 }
 
 func Test_Surrealdb_GetExpired(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("temp", []byte("value"), 1*time.Second)
+	err := testStore.Set("temp", []byte("value"), 1*time.Second)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
@@ -152,8 +141,7 @@ func Test_Surrealdb_GetExpired(t *testing.T) {
 }
 
 func Test_Surrealdb_GetMissing(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	val, err := testStore.Get("non-existent-key")
@@ -162,8 +150,7 @@ func Test_Surrealdb_GetMissing(t *testing.T) {
 }
 
 func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
 	_ = testStore.Set("valid", []byte("123"), 0)
@@ -183,11 +170,10 @@ func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 }
 
 func Test_Surrealdb_GarbageCollector_RemovesExpiredKeys(t *testing.T) {
-	testStore, err := newTestStore(t)
-	require.NoError(t, err)
+	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	err = testStore.Set("temp_key", []byte("temp_value"), 1*time.Second)
+	err := testStore.Set("temp_key", []byte("temp_value"), 1*time.Second)
 	require.NoError(t, err)
 
 	val, err := testStore.Get("temp_key")
@@ -204,13 +190,13 @@ func Test_Surrealdb_GarbageCollector_RemovesExpiredKeys(t *testing.T) {
 }
 
 func Benchmark_SurrealDB_Set(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
 	}
@@ -219,11 +205,10 @@ func Benchmark_SurrealDB_Set(b *testing.B) {
 }
 
 func Benchmark_SurrealDB_Get(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
-	err = testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -237,13 +222,12 @@ func Benchmark_SurrealDB_Get(b *testing.B) {
 }
 
 func Benchmark_SurrealDB_SetAndDelete(b *testing.B) {
-	testStore, err := newTestStore(b)
-	require.NoError(b, err)
+	testStore := newTestStore(b)
 	defer testStore.Close()
 
 	b.ReportAllocs()
 	b.ResetTimer()
-
+	var err error
 	for i := 0; i < b.N; i++ {
 		testStore.Set("john", []byte("doe"), 0)
 		err = testStore.Delete("john")
