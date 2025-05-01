@@ -73,12 +73,6 @@ jobs:
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
 
-      - name: Install Coherence
-        if: ${{ matrix.package == 'coherence' }}
-        run: |
-          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
-          sleep 30
-
       - name: Install etcd
         if: ${{ matrix.package == 'etcd' }}
         run: |
@@ -104,6 +98,7 @@ jobs:
           TEST_ARANGODB_IMAGE: arangodb:latest
           TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_CASSANDRA_IMAGE: "cassandra:latest"
+          TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
