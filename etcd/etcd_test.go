@@ -1,25 +1,44 @@
 package etcd
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/etcd"
 )
 
-var testStore *Storage
+const (
+	// etcdImage is the default image used for running etcd in tests.
+	etcdImage              = "gcr.io/etcd-development/etcd:v3.5.21"
+	etcdImageEnvVar string = "TEST_ETCD_IMAGE"
+)
 
-func TestMain(m *testing.M) {
-	testStore = New(Config{
-		Endpoints: []string{"localhost:2379"},
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	img := etcdImage
+	if imgFromEnv := os.Getenv(etcdImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	ctx := context.Background()
+
+	// create a 2-node cluster
+	c, err := etcd.Run(ctx, img, etcd.WithNodes("etcd-1", "etcd-2"), etcd.WithClusterToken("test-cluster"))
+	testcontainers.CleanupContainer(t, c)
+	require.NoError(t, err)
+
+	hostPort, err := c.ClientEndpoint(ctx)
+	require.NoError(t, err)
+
+	return New(Config{
+		Endpoints: []string{hostPort},
 	})
-
-	code := m.Run()
-
-	_ = testStore.Reset()
-	_ = testStore.Close()
-	os.Exit(code)
 }
 
 func TestSetEtcd_ShouldReturnNoError(t *testing.T) {
@@ -28,11 +47,17 @@ func TestSetEtcd_ShouldReturnNoError(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 }
 
 func TestGetEtcd_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	val, err := testStore.Get("not_found_key")
 
 	require.NoError(t, err)
@@ -40,6 +65,9 @@ func TestGetEtcd_ShouldReturnNil_WhenDocumentNotFound(t *testing.T) {
 }
 
 func TestSetAndGet_GetShouldReturn_SettedValueWithoutError(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
@@ -50,6 +78,9 @@ func TestSetAndGet_GetShouldReturn_SettedValueWithoutError(t *testing.T) {
 }
 
 func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 3*time.Second)
 	require.NoError(t, err)
 
@@ -62,6 +93,9 @@ func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
 }
 
 func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
@@ -73,6 +107,9 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
@@ -84,15 +121,22 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 }
 
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {
+	testStore := newTestStore(t)
 	err := testStore.Close()
 	require.NoError(t, err)
 }
 
 func TestGetConn_ReturnsNotNill(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Benchmark_Etcd_Set(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -105,6 +149,9 @@ func Benchmark_Etcd_Set(b *testing.B) {
 }
 
 func Benchmark_Etcd_Get(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -119,6 +166,9 @@ func Benchmark_Etcd_Get(b *testing.B) {
 }
 
 func Benchmark_Etcd_SetAndDelete(b *testing.B) {
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 

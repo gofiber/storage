@@ -15,24 +15,17 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.19.x
-                    - 1.20.x
-                    - 1.21.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
-            -   name: Install etcd
-                run: |
-                    docker run -d --name Etcd-server \
-                      --publish 2379:2379 \
-                      --publish 2380:2380 \
-                      --env ALLOW_NONE_AUTHENTICATION=yes \
-                      --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
-                      bitnami/etcd:latest
 
             -   name: Install Go
                 uses: actions/setup-go@v5
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
+                env:
+                    TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.5.21
                 run: cd ./etcd && go test ./... -v -race
