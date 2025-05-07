@@ -37,6 +37,13 @@ const (
 func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
+	// The coherence client adds debug messages to stdout, which corrupt
+	// the output of the benchmarks. See "[Coherence Client Debug]" for
+	// more information.
+	//
+	// [Coherence Client Debug]: https://github.com/oracle/coherence-go-client/blob/6383df14821ecf7c1ecd5f33a2c2fd402102d797/coherence/session.go#L195
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+
 	img := coherenceImage
 	if imgFromEnv := os.Getenv(coherenceImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
