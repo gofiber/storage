@@ -28,6 +28,10 @@ const (
 	coherenceImageEnvVar string = "TEST_COHERENCE_IMAGE"
 	coherencePort               = "1408/tcp"
 	coherencePort2              = "30000/tcp"
+
+	// configuration for the health check
+	coherenceHealthEnvVar = "COHERENCE_HEALTH_HTTP_PORT"
+	coherenceHealthPort   = "6676"
 )
 
 func newTestConfig(t testing.TB) Config {
@@ -42,10 +46,15 @@ func newTestConfig(t testing.TB) Config {
 
 	c, err := testcontainers.Run(ctx,
 		img,
-		testcontainers.WithExposedPorts(coherencePort, coherencePort2),
+		testcontainers.WithExposedPorts(coherencePort, coherencePort2, coherenceHealthPort),
+		testcontainers.WithEnv(map[string]string{
+			coherenceHealthEnvVar: coherenceHealthPort,
+		}),
 		testcontainers.WithWaitStrategy(
 			wait.ForListeningPort(coherencePort),
 			wait.ForListeningPort(coherencePort2),
+			wait.ForListeningPort(coherenceHealthPort+"/tcp"),
+			wait.ForHTTP("/ready").WithPort(coherenceHealthPort+"/tcp").WithStartupTimeout(time.Second*30),
 		),
 	)
 	testcontainers.CleanupContainer(t, c)
