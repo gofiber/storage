@@ -17,31 +17,13 @@ jobs:
             matrix:
                 go-version:
                     - 1.23.x
+                    - 1.24.x
                 valkey:
-                    - '7.x'
-                    - '8.x'
+                    - '7'
+                    - '8'
         steps:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
-
-            -   name: Generate TLS certs
-                run: ./.github/scripts/gen-test-certs.sh
-
-            -   name: Setup Valkey
-                uses: shogo82148/actions-setup-redis@v1
-                with:
-                    distribution: 'valkey'
-                    redis-version: ${{ matrix.valkey }}
-                    auto-start: 'false'
-                    redis-port: '6379'
-                    redis-tls-port: '6380'
-
-            -   name: Run Valkey
-                run: |
-                    valkey-server --tls-port 6380 --port 6379 \
-                    --tls-cert-file /home/runner/work/storage/storage/tls/valkey.crt \
-                    --tls-key-file /home/runner/work/storage/storage/tls/valkey.key \
-                    --tls-ca-cert-file /home/runner/work/storage/storage/tls/ca.crt &
 
             -   name: Setup Valkey Cluster
                 uses: vishnudxb/redis-cluster@1.0.9
@@ -60,4 +42,6 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
 
             -   name: Run Test
+                env:
+                    TEST_VALKEY_IMAGE: "valkey/valkey:${{ matrix.valkey }}"
                 run: cd ./valkey && go test ./... -v -race
