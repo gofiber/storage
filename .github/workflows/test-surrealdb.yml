@@ -4,11 +4,11 @@ on:
       - master
       - main
     paths:
-      - 'coherence/**'
+      - 'surrealdb/**'
   pull_request:
     paths:
-      - 'coherence/**'
-name: "Tests Coherence"
+      - 'surrealdb/**'
+name: "Tests SurrealDB"
 jobs:
   Tests:
     runs-on: ubuntu-latest
@@ -24,7 +24,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '${{ matrix.go-version }}'
+
       - name: Run Test
         env:
-          TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
-        run: cd ./coherence && COHERENCE_SESSION_DEBUG=true go clean -testcache && go test ./... -v -race
+          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:latest
+        run: cd ./surrealdb && go test ./... -v -race
