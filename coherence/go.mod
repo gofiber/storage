@@ -3,7 +3,7 @@ module github.com/gofiber/storage/coherence
 go 1.23.0
 
 require (
-	github.com/oracle/coherence-go-client/v2 v2.1.0
+	github.com/oracle/coherence-go-client/v2 v2.2.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
 )
