@@ -278,6 +278,8 @@ func Test_Coherence_With_Scope(t *testing.T) {
 }
 
 func Benchmark_Coherence_Set(b *testing.B) {
+	b.Setenv("COHERENCE_LOG_LEVEL", "ERROR")
+
 	testStore := newTestStore(b)
 	defer testStore.Close()
 
@@ -293,6 +295,8 @@ func Benchmark_Coherence_Set(b *testing.B) {
 }
 
 func Benchmark_Coherence_Get(b *testing.B) {
+	b.Setenv("COHERENCE_LOG_LEVEL", "ERROR")
+
 	testStore := newTestStore(b)
 	defer testStore.Close()
 
@@ -310,6 +314,8 @@ func Benchmark_Coherence_Get(b *testing.B) {
 }
 
 func Benchmark_Coherence_SetAndDelete(b *testing.B) {
+	b.Setenv("COHERENCE_LOG_LEVEL", "ERROR")
+
 	testStore := newTestStore(b)
 	defer testStore.Close()
 
