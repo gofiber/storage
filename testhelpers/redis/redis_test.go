@@ -1,8 +1,11 @@
 package testredis
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/stretchr/testify/require"
 )
@@ -155,6 +158,28 @@ func TestStart(t *testing.T) {
 				require.Zero(t, ctr.Port)
 			})
 		})
+	})
+
+	t.Run("can-connect", func(t *testing.T) {
+		ctr := Start(t)
+
+		options, err := redis.ParseURL(ctr.URL)
+		require.NoError(t, err)
+
+		// Use go-redis client to verify connectivity
+		client := redis.NewUniversalClient(&redis.UniversalOptions{
+			Addrs:     []string{options.Addr},
+			TLSConfig: ctr.TLSConfig,
+			Username:  options.Username,
+			Password:  options.Password,
+			DB:        options.DB,
+		})
+		defer client.Close()
+
+		// Ping should succeed and return "PONG"
+		resp := client.Ping(context.Background())
+		require.NoError(t, resp.Err())
+		require.Equal(t, "PONG", resp.Val())
 	})
 }
 
