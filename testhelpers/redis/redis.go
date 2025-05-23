@@ -3,7 +3,6 @@ package testredis
 import (
 	"context"
 	"crypto/tls"
-	"os"
 	"strings"
 	"testing"
 
@@ -13,10 +12,7 @@ import (
 )
 
 const (
-	// Image is the default image used for running Redis in tests.
-	Image       = "docker.io/redis:7"
-	ImageEnvVar = "TEST_REDIS_IMAGE"
-	Port        = "6379/tcp"
+	Port = "6379/tcp"
 )
 
 // Config represents the configuration for a Redis container
@@ -28,10 +24,6 @@ type Config struct {
 	UseAddress   bool
 	UseHostPort  bool
 	UseURL       bool
-	// Image is the image to use for the Redis container
-	//
-	// Optional. Default is "docker.io/redis:7", but could be set to Valkey.
-	Image string
 }
 
 // Option is a function that configures a Config
@@ -67,13 +59,6 @@ func WithURL(useContainerURI bool) Option {
 	}
 }
 
-// WithImage sets the image to use for the Redis container
-func WithImage(image string) Option {
-	return func(c *Config) {
-		c.Image = image
-	}
-}
-
 // Container represents a running Redis container
 type Container struct {
 	URL       string
@@ -85,7 +70,7 @@ type Container struct {
 }
 
 // Start starts a Redis container for testing and returns its configuration
-func Start(t testing.TB, opts ...Option) *Container {
+func Start(t testing.TB, img string, opts ...Option) *Container {
 	t.Helper()
 
 	config := &Config{
@@ -95,13 +80,8 @@ func Start(t testing.TB, opts ...Option) *Container {
 		o(config)
 	}
 
-	img := Image
-	if imgFromEnv := os.Getenv(ImageEnvVar); imgFromEnv != "" {
-		img = imgFromEnv
-	}
-
-	if config.Image != "" {
-		img = config.Image
+	if img == "" {
+		panic("Redis image is not set: callers must provide an image using WithImage()")
 	}
 
 	ctx := context.Background()

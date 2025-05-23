@@ -28,9 +28,7 @@ func newConfigFromContainer(t testing.TB, opts ...testredis.Option) Config {
 		img = imgFromEnv
 	}
 
-	opts = append(opts, testredis.WithImage(img))
-
-	redisCtr := testredis.Start(t, opts...)
+	redisCtr := testredis.Start(t, img, opts...)
 
 	cfg := Config{
 		Reset:     true,
