@@ -2,23 +2,79 @@ package valkey
 
 import (
 	"context"
-	"crypto/tls"
-	"log"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	testredis "github.com/gofiber/storage/testhelpers/redis"
 )
 
-var testStore = New(Config{
-	Reset: true,
-})
+const (
+	// valkeyImage is the default image used for running Valkey in tests.
+	valkeyImage       = "valkey/valkey:8"
+	valkeyImageEnvVar = "TEST_VALKEY_IMAGE"
+)
+
+var (
+	// benchmarkStore is a singleton store used for all benchmarks
+	benchmarkStore *Storage
+	// benchmarkStoreOnce ensures the store is initialized only once
+	benchmarkStoreOnce sync.Once
+)
+
+// initBenchmarkStore initializes the singleton store for benchmarks.
+// There is no need to call Close() on the returned store, it will be reused
+// for all benchmarks. Testcontainers will reuse the container if it already exists
+// and will terminate it at the end of a test session.
+func initBenchmarkStore(b *testing.B) {
+	benchmarkStoreOnce.Do(func() {
+		benchmarkStore = newTestStore(b, testredis.WithReuse("valkey-benchmark"))
+	})
+}
+
+// newConfigFromContainer creates a Redis configuration using Testcontainers.
+// It configures the container based on the provided options and returns a Config
+// that can be used to connect to the container.
+// The container is cleaned up when the test completes.
+func newConfigFromContainer(t testing.TB, opts ...testredis.Option) Config {
+	t.Helper()
+
+	img := valkeyImage
+	if imgFromEnv := os.Getenv(valkeyImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	redisCtr := testredis.Start(t, img, opts...)
+
+	cfg := Config{
+		Reset:       true,
+		TLSConfig:   redisCtr.TLSConfig,
+		InitAddress: redisCtr.Addrs,
+		URL:         redisCtr.URL,
+	}
+
+	return cfg
+}
+
+// newTestStore creates a new Redis storage instance backed by Testcontainers.
+// It configures the container based on the provided options and returns a Storage
+// instance connected to the container. The caller is responsible for calling
+// Close() on the returned Storage when done.
+func newTestStore(t testing.TB, opts ...testredis.Option) *Storage {
+	return New(newConfigFromContainer(t, opts...))
+}
 
 func Test_Valkey_Set(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -29,6 +85,9 @@ func Test_Valkey_SetWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -43,6 +102,9 @@ func Test_Valkey_Set_Override(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -55,6 +117,9 @@ func Test_Valkey_Get(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -70,6 +135,9 @@ func Test_Valkey_GetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
@@ -81,21 +149,20 @@ func Test_Valkey_GetWithContext(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_Valkey_Set_Expiration(t *testing.T) {
+func Test_Valkey_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
 		exp = 1 * time.Second
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
-}
-
-func Test_Valkey_Get_Expired(t *testing.T) {
-	key := "john"
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
@@ -103,6 +170,9 @@ func Test_Valkey_Get_Expired(t *testing.T) {
 }
 
 func Test_Valkey_Get_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
@@ -113,6 +183,9 @@ func Test_Valkey_Delete(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -130,6 +203,8 @@ func Test_Valkey_DeleteWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -147,6 +222,9 @@ func Test_Valkey_DeleteWithContext(t *testing.T) {
 
 func Test_Valkey_Reset(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -168,6 +246,9 @@ func Test_Valkey_Reset(t *testing.T) {
 
 func Test_Valkey_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -191,99 +272,123 @@ func Test_Valkey_ResetWithContext(t *testing.T) {
 }
 
 func Test_Valkey_Close(t *testing.T) {
+	testStore := newTestStore(t)
 	require.Nil(t, testStore.Close())
 }
 
 func Test_Valkey_Conn(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	require.True(t, testStore.Conn() != nil)
 }
 
 func Test_Valkey_WithTLS(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
-	if err != nil {
-		log.Println(err)
+	testFn := func(t *testing.T, secureURL bool, mtlsDisabled bool) {
+		t.Helper()
+
+		testStore := newTestStore(t, testredis.WithTLS(secureURL, mtlsDisabled))
+		defer testStore.Close()
+
+		var (
+			key = "clark"
+			val = []byte("kent")
+		)
+
+		err := testStore.Set(key, val, 0)
+		require.NoError(t, err)
+
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, val, result)
+
+		err = testStore.Delete(key)
 		require.NoError(t, err)
 	}
-	tlsCfg := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cer},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-	}
 
-	storeTLS := New(Config{
-		InitAddress: []string{"localhost:6380"},
-		TLSConfig:   tlsCfg,
+	t.Run("insecure-url/mtls-disabled", func(t *testing.T) {
+		testFn(t, false, true)
 	})
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
+	t.Run("insecure-url/mtls-enabled", func(t *testing.T) {
+		testFn(t, false, false)
+	})
 
-	err = storeTLS.Set(key, val, 0)
-	require.NoError(t, err)
+	t.Run("secure-url/mtls-disabled", func(t *testing.T) {
+		testFn(t, true, true)
+	})
 
-	result, err := storeTLS.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = storeTLS.Delete(key)
-	require.NoError(t, err)
-	require.Nil(t, storeTLS.Close())
+	t.Run("secure-url/mtls-enabled", func(t *testing.T) {
+		testFn(t, true, false)
+	})
 }
 
 func Test_Valkey_With_HostPort(t *testing.T) {
-	store := New(Config{
-		InitAddress: []string{"localhost:6379"},
-	})
+	testStore := newTestStore(t, testredis.WithHostPort())
+	defer testStore.Close()
 
 	var (
 		key = "bruce"
 		val = []byte("wayne")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
 
-	err = store.Delete(key)
+	err = testStore.Delete(key)
 	require.NoError(t, err)
-	require.Nil(t, store.Close())
+	require.Nil(t, testStore.Close())
 }
 
 func Test_Valkey_With_URL(t *testing.T) {
-	store := New(Config{
-		URL: "redis://localhost:6379",
-	})
+	testStore := newTestStore(t, testredis.WithAddress(), testredis.WithURL(false))
+	defer testStore.Close()
 
 	var (
 		key = "bruce"
 		val = []byte("wayne")
 	)
 
-	err := store.Set(key, val, 0)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
-	result, err := store.Get(key)
+	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
 
-	err = store.Delete(key)
+	err = testStore.Delete(key)
 	require.NoError(t, err)
-	require.Nil(t, store.Close())
+	require.Nil(t, testStore.Close())
+}
+
+func Test_Valkey_With_TLS_URL(t *testing.T) {
+	testStore := newTestStore(t, testredis.WithTLS(true, false), testredis.WithAddress(), testredis.WithURL(true))
+	defer testStore.Close()
+
+	var (
+		key = "bruce"
+		val = []byte("wayne")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	err = testStore.Delete(key)
+	require.NoError(t, err)
+	require.Nil(t, testStore.Close())
 }
 
 func Test_Valkey_Cluster(t *testing.T) {
+	t.Skip("TODO: Replace with containerized cluster when testcontainers-go Valkey module supports clustering")
+
 	store := New(Config{
 		InitAddress: []string{
 			"localhost:7000",
@@ -313,39 +418,45 @@ func Test_Valkey_Cluster(t *testing.T) {
 }
 
 func Benchmark_Valkey_Set(b *testing.B) {
+	initBenchmarkStore(b)
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
+		err = benchmarkStore.Set("john", []byte("doe"), 0)
 	}
 
 	require.NoError(b, err)
 }
 
 func Benchmark_Valkey_Get(b *testing.B) {
-	err := testStore.Set("john", []byte("doe"), 0)
+	initBenchmarkStore(b)
+
+	err := benchmarkStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = testStore.Get("john")
+		_, err = benchmarkStore.Get("john")
 	}
 
 	require.NoError(b, err)
 }
 
 func Benchmark_Valkey_SetAndDelete(b *testing.B) {
+	initBenchmarkStore(b)
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
+		_ = benchmarkStore.Set("john", []byte("doe"), 0)
+		err = benchmarkStore.Delete("john")
 	}
 
 	require.NoError(b, err)

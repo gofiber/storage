@@ -2,22 +2,63 @@ package redis
 
 import (
 	"context"
-	"crypto/tls"
-	"log"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	testredis "github.com/gofiber/storage/testhelpers/redis"
 )
+
+const (
+	// redisImage is the default image used for running Redis in tests.
+	redisImage       = "docker.io/redis:7"
+	redisImageEnvVar = "TEST_REDIS_IMAGE"
+)
+
+// newConfigFromContainer creates a Redis configuration using Testcontainers.
+// It configures the container based on the provided options and returns a Config
+// that can be used to connect to the container.
+// The container is cleaned up when the test completes.
+func newConfigFromContainer(t testing.TB, opts ...testredis.Option) Config {
+	t.Helper()
+
+	img := redisImage
+	if imgFromEnv := os.Getenv(redisImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	redisCtr := testredis.Start(t, img, opts...)
+
+	cfg := Config{
+		Reset:     true,
+		TLSConfig: redisCtr.TLSConfig,
+		Host:      redisCtr.Host,
+		Port:      redisCtr.Port,
+		Addrs:     redisCtr.Addrs,
+		URL:       redisCtr.URL,
+	}
+
+	return cfg
+}
+
+// newTestStore creates a new Redis storage instance backed by Testcontainers.
+// It configures the container based on the provided options and returns a Storage
+// instance connected to the container. The caller is responsible for calling
+// Close() on the returned Storage when done.
+func newTestStore(t testing.TB, opts ...testredis.Option) *Storage {
+	return New(newConfigFromContainer(t, opts...))
+}
 
 func Test_Redis_Set(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -25,12 +66,12 @@ func Test_Redis_Set(t *testing.T) {
 
 func Test_Redis_SetWithContext(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -41,12 +82,12 @@ func Test_Redis_SetWithContext(t *testing.T) {
 
 func Test_Redis_Set_Override(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -61,12 +102,12 @@ func Test_Redis_Set_Override(t *testing.T) {
 
 func Test_Redis_Get(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -82,12 +123,12 @@ func Test_Redis_Get(t *testing.T) {
 
 func Test_Redis_GetWithContext(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -102,13 +143,13 @@ func Test_Redis_GetWithContext(t *testing.T) {
 
 func Test_Redis_Expiration(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 		exp = 1 * time.Second
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
@@ -125,9 +166,9 @@ func Test_Redis_Expiration(t *testing.T) {
 }
 
 func Test_Redis_Get_NotExist(t *testing.T) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	result, err := testStore.Get("notexist")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
@@ -135,12 +176,12 @@ func Test_Redis_Get_NotExist(t *testing.T) {
 
 func Test_Redis_Delete(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -159,12 +200,12 @@ func Test_Redis_Delete(t *testing.T) {
 
 func Test_Redis_DeleteWithContext(t *testing.T) {
 	var (
-		testStore = New(Config{
-			Reset: true,
-		})
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
@@ -181,10 +222,10 @@ func Test_Redis_DeleteWithContext(t *testing.T) {
 }
 
 func Test_Redis_Reset(t *testing.T) {
-	testStore := New(Config{
-		Reset: true,
-	})
 	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
@@ -213,9 +254,9 @@ func Test_Redis_Reset(t *testing.T) {
 }
 
 func Test_Redis_ResetWithContext(t *testing.T) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	val := []byte("doe")
 
 	err := testStore.Set("john1", val, 0)
@@ -244,166 +285,85 @@ func Test_Redis_ResetWithContext(t *testing.T) {
 }
 
 func Test_Redis_Close(t *testing.T) {
-	testStore := New(Config{
-		Reset: true,
-	})
-	require.Nil(t, testStore.Close())
+	testStore := newTestStore(t)
+	require.NoError(t, testStore.Close())
 }
 
 func Test_Redis_Conn(t *testing.T) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	require.True(t, testStore.Conn() != nil)
 }
 
-func Test_Redis_Initalize_WithURL(t *testing.T) {
-	testStoreUrl := New(Config{
-		URL: "redis://localhost:6379",
-	})
+func Test_Redis_Initialize_WithHostPort(t *testing.T) {
 	var (
 		key = "clark"
 		val = []byte("kent")
 	)
 
-	err := testStoreUrl.Set(key, val, 0)
+	testStore := newTestStore(t, testredis.WithHostPort())
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
-	result, err := testStoreUrl.Get(key)
+	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
 
-	err = testStoreUrl.Delete(key)
+	err = testStore.Delete(key)
 	require.NoError(t, err)
-
-	require.Nil(t, testStoreUrl.Close())
 }
 
-func Test_Redis_Initalize_WithURL_TLS(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	tlsCfg := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		InsecureSkipVerify: true,
-		Certificates:       []tls.Certificate{cer},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
+func Test_Redis_Initialize_WithURL_TLS_Verify(t *testing.T) {
+	testFn := func(t *testing.T, secureURL bool, mtlsDisabled bool) {
+		t.Helper()
+
+		testStore := newTestStore(t, testredis.WithTLS(secureURL, mtlsDisabled))
+		defer testStore.Close()
+
+		var (
+			key = "clark"
+			val = []byte("kent")
+		)
+
+		err := testStore.Set(key, val, 0)
+		require.NoError(t, err)
+
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, val, result)
+
+		err = testStore.Delete(key)
+		require.NoError(t, err)
+
+		keys, err := testStore.Keys()
+		require.NoError(t, err)
+		require.Nil(t, keys)
 	}
 
-	testStoreUrl := New(Config{
-		URL:       "redis://localhost:6380",
-		TLSConfig: tlsCfg,
+	t.Run("insecure-url/mtls-disabled", func(t *testing.T) {
+		testFn(t, false, true)
 	})
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err = testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUrl.Close())
-}
-
-func Test_Redis_Initalize_WithURL_TLS_Verify(t *testing.T) {
-	cer, err := tls.LoadX509KeyPair("/home/runner/work/storage/storage/tls/client.crt", "/home/runner/work/storage/storage/tls/client.key")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	tlsCfg := &tls.Config{
-		MinVersion:         tls.VersionTLS12,
-		CurvePreferences:   []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		InsecureSkipVerify: false,
-		Certificates:       []tls.Certificate{cer},
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-	}
-
-	testStoreUrl := New(Config{
-		URL:       "redis://localhost:6380",
-		TLSConfig: tlsCfg,
+	t.Run("insecure-url/mtls-enabled", func(t *testing.T) {
+		testFn(t, false, false)
 	})
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err = testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUrl.Close())
-}
-
-func Test_Redis_Initalize_With_Secure_URL(t *testing.T) {
-	testStoreUrl := New(Config{
-		URL: "rediss://localhost:16380",
+	t.Run("secure-url/mtls-disabled", func(t *testing.T) {
+		testFn(t, true, true)
 	})
 
-	var (
-		key = "clark"
-		val = []byte("kent")
-	)
-
-	err := testStoreUrl.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStoreUrl.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	err = testStoreUrl.Delete(key)
-	require.NoError(t, err)
-
-	keys, err := testStoreUrl.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUrl.Close())
+	t.Run("secure-url/mtls-enabled", func(t *testing.T) {
+		testFn(t, true, false)
+	})
 }
 
 func Test_Redis_Universal_Addrs(t *testing.T) {
 	// This should failover and create a Single Node connection.
-	testStoreUniversal := New(Config{
-		Addrs: []string{"localhost:6379"},
-	})
-
+	testStoreUniversal := newTestStore(t, testredis.WithAddress())
+	defer testStoreUniversal.Close()
 	var (
 		key = "bruce"
 		val = []byte("wayne")
@@ -422,18 +382,14 @@ func Test_Redis_Universal_Addrs(t *testing.T) {
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The URL should get ignored since it's empty
-	testStoreUniversal := New(Config{
-		URL:   "",
-		Addrs: []string{"localhost:6379"},
-	})
-
+	// the withURL option goes last to include it in the config
+	testStoreUniversal := newTestStore(t, testredis.WithAddress(), testredis.WithURL(false))
+	defer testStoreUniversal.Close()
 	var (
 		key = "bruce"
 		val = []byte("wayne")
@@ -452,17 +408,13 @@ func Test_Redis_Universal_With_URL_Undefined(t *testing.T) {
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Addrs field should get ignored since URL is defined
-	testStoreUniversal := New(Config{
-		URL:   "redis://localhost:6379",
-		Addrs: []string{"localhost:6355"},
-	})
+	testStoreUniversal := newTestStore(t, testredis.WithAddress(), testredis.WithURL(true))
+	defer testStoreUniversal.Close()
 
 	var (
 		key = "bruce"
@@ -482,19 +434,13 @@ func Test_Redis_Universal_With_URL_Defined(t *testing.T) {
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Test_Redis_Universal_With_HostPort(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Host and Port should get ignored since Addrs is defined
-	testStoreUniversal := New(Config{
-		Host:  "localhost",
-		Port:  6388,
-		Addrs: []string{"localhost:6379"},
-	})
-
+	testStoreUniversal := newTestStore(t, testredis.WithAddress(), testredis.WithHostPort(), testredis.WithURL(false))
+	defer testStoreUniversal.Close()
 	var (
 		key = "bruce"
 		val = []byte("wayne")
@@ -513,19 +459,13 @@ func Test_Redis_Universal_With_HostPort(t *testing.T) {
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 	// This should failover to creating a regular *redis.Client
 	// The Host and Port should get ignored since Addrs is defined
-	testStoreUniversal := New(Config{
-		URL:   "redis://localhost:6379",
-		Host:  "localhost",
-		Port:  6388,
-		Addrs: []string{"localhost:6399"},
-	})
+	testStoreUniversal := newTestStore(t, testredis.WithAddress(), testredis.WithHostPort(), testredis.WithURL(true))
+	defer testStoreUniversal.Close()
 
 	var (
 		key = "bruce"
@@ -545,11 +485,11 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 	keys, err := testStoreUniversal.Keys()
 	require.NoError(t, err)
 	require.Nil(t, keys)
-
-	require.Nil(t, testStoreUniversal.Close())
 }
 
 func Test_Redis_Cluster(t *testing.T) {
+	t.Skip("TODO: Replace with containerized cluster when testcontainers-go Redis module supports clustering")
+
 	testStoreUniversal := New(Config{
 		Addrs: []string{
 			"localhost:7000",
@@ -584,9 +524,9 @@ func Test_Redis_Cluster(t *testing.T) {
 }
 
 func Benchmark_Redis_Set(b *testing.B) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -599,9 +539,9 @@ func Benchmark_Redis_Set(b *testing.B) {
 }
 
 func Benchmark_Redis_Get(b *testing.B) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -616,9 +556,9 @@ func Benchmark_Redis_Get(b *testing.B) {
 }
 
 func Benchmark_Redis_SetAndDelete(b *testing.B) {
-	testStore := New(Config{
-		Reset: true,
-	})
+	testStore := newTestStore(b)
+	defer testStore.Close()
+
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -629,4 +569,27 @@ func Benchmark_Redis_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Redis_NewFromConnection(t *testing.T) {
+	t.Parallel()
+
+	connection := New(newConfigFromContainer(t))
+
+	testStore := NewFromConnection(connection.Conn())
+	defer testStore.Close()
+
+	err := testStore.Set("foo", []byte("bar"), 0)
+	require.NoError(t, err, "failed to set key in Redis storage")
+
+	val, err := testStore.Get("foo")
+	require.NoError(t, err, "failed to get key from Redis storage")
+	require.Equal(t, []byte("bar"), val, "value mismatch in Redis storage")
+
+	err = testStore.Delete("foo")
+	require.NoError(t, err, "failed to delete key in Redis storage")
+
+	val, err = testStore.Get("foo")
+	require.NoError(t, err)
+	require.Nil(t, val, "expected value to be nil after deletion")
 }
