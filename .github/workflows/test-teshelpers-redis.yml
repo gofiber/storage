@@ -4,11 +4,11 @@ on:
             - master
             - main
         paths:
-            - 'rueidis/**'
+            - 'testhelpers/redis/**'
     pull_request:
         paths:
-            - 'rueidis/**'
-name: "Tests Rueidis"
+            - 'testhelpers/redis/**'
+name: "Tests TestHelper Redis"
 jobs:
     Tests:
         runs-on: ubuntu-latest
@@ -24,17 +24,6 @@ jobs:
             -   name: Fetch Repository
                 uses: actions/checkout@v4
 
-            -   name: Setup Redis Cluster
-                uses: vishnudxb/redis-cluster@1.0.9
-                with:
-                    master1-port: 7000
-                    master2-port: 7001
-                    master3-port: 7002
-                    slave1-port: 7003
-                    slave2-port: 7004
-                    slave3-port: 7005
-                    sleep-duration: 10
-
             -   name: Install Go
                 uses: actions/setup-go@v5
                 with:
@@ -43,4 +32,5 @@ jobs:
             -   name: Run Test
                 env:
                     TEST_REDIS_IMAGE: "docker.io/redis:${{ matrix.redis }}"
-                run: cd ./rueidis && go test ./... -v -race
+                working-directory: testhelpers/redis
+                run: go test ./... -v -race
