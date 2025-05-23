@@ -1,12 +1,19 @@
 package rueidis
 
 import (
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	testredis "github.com/gofiber/storage/testhelpers/redis"
+)
+
+const (
+	// redisImage is the default image used for running Redis in tests.
+	redisImage       = "docker.io/redis:7"
+	redisImageEnvVar = "TEST_REDIS_IMAGE"
 )
 
 // newConfigFromContainer creates a Rueidis configuration using Testcontainers.
@@ -16,7 +23,12 @@ import (
 func newConfigFromContainer(t testing.TB, opts ...testredis.Option) Config {
 	t.Helper()
 
-	redisCtr := testredis.Start(t, opts...)
+	img := redisImage
+	if imgFromEnv := os.Getenv(redisImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	redisCtr := testredis.Start(t, img, opts...)
 
 	cfg := Config{
 		Reset:       true,
