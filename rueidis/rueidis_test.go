@@ -82,7 +82,7 @@ func Test_Rueidis_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_Rueidis_Set_Expiration(t *testing.T) {
+func Test_Rueidis_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -96,13 +96,6 @@ func Test_Rueidis_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
-}
-
-func Test_Rueidis_Get_Expired(t *testing.T) {
-	key := "john"
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
