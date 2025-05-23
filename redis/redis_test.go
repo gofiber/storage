@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -9,12 +10,25 @@ import (
 	testredis "github.com/gofiber/storage/testhelpers/redis"
 )
 
+const (
+	// redisImage is the default image used for running Redis in tests.
+	redisImage       = "docker.io/redis:7"
+	redisImageEnvVar = "TEST_REDIS_IMAGE"
+)
+
 // newConfigFromContainer creates a Redis configuration using Testcontainers.
 // It configures the container based on the provided options and returns a Config
 // that can be used to connect to the container.
 // The container is cleaned up when the test completes.
 func newConfigFromContainer(t testing.TB, opts ...testredis.Option) Config {
 	t.Helper()
+
+	img := redisImage
+	if imgFromEnv := os.Getenv(redisImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	opts = append(opts, testredis.WithImage(img))
 
 	redisCtr := testredis.Start(t, opts...)
 
