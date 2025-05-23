@@ -44,7 +44,11 @@ func TestStart(t *testing.T) {
 	})
 
 	t.Run("with-tls", func(t *testing.T) {
+		t.Parallel()
+
 		t.Run("secure-url", func(t *testing.T) {
+			t.Parallel()
+
 			t.Run("mtls-enabled", func(t *testing.T) {
 				t.Parallel()
 
@@ -70,6 +74,8 @@ func TestStart(t *testing.T) {
 		})
 
 		t.Run("insecure-url", func(t *testing.T) {
+			t.Parallel()
+
 			t.Run("mtls-disabled", func(t *testing.T) {
 				t.Parallel()
 
@@ -126,7 +132,11 @@ func TestStart(t *testing.T) {
 	})
 
 	t.Run("with-multiple-options", func(t *testing.T) {
+		t.Parallel()
+
 		t.Run("address/url", func(t *testing.T) {
+			t.Parallel()
+
 			t.Run("no-tls", func(t *testing.T) {
 				t.Parallel()
 
@@ -161,6 +171,8 @@ func TestStart(t *testing.T) {
 	})
 
 	t.Run("can-connect", func(t *testing.T) {
+		t.Parallel()
+
 		ctr := Start(t)
 
 		options, err := redis.ParseURL(ctr.URL)
@@ -184,7 +196,11 @@ func TestStart(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
+	t.Parallel()
+
 	t.Run("with-tls", func(t *testing.T) {
+		t.Parallel()
+
 		config := &Config{}
 		WithTLS(true, false)(config)
 		require.True(t, config.UseTLS)
@@ -193,24 +209,32 @@ func TestConfig(t *testing.T) {
 	})
 
 	t.Run("with-address", func(t *testing.T) {
+		t.Parallel()
+
 		config := &Config{}
 		WithAddress()(config)
 		require.True(t, config.UseAddress)
 	})
 
 	t.Run("with-host-port", func(t *testing.T) {
+		t.Parallel()
+
 		config := &Config{}
 		WithHostPort()(config)
 		require.True(t, config.UseHostPort)
 	})
 
 	t.Run("with-url", func(t *testing.T) {
+		t.Parallel()
+
 		config := &Config{}
 		WithURL(true)(config)
 		require.True(t, config.UseURL)
 	})
 
 	t.Run("with-image", func(t *testing.T) {
+		t.Parallel()
+
 		customImage := "docker.io/redis:6"
 		config := &Config{}
 		WithImage(customImage)(config)
