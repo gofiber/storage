@@ -24,6 +24,7 @@ type Config struct {
 	UseAddress   bool
 	UseHostPort  bool
 	UseURL       bool
+	name         string
 }
 
 // Option is a function that configures a Config
@@ -56,6 +57,15 @@ func WithHostPort() Option {
 func WithURL(useContainerURI bool) Option {
 	return func(c *Config) {
 		c.UseURL = useContainerURI
+	}
+}
+
+// WithReuse sets the container to be reused,
+// providing a name to identify the container.
+// This container is not cleaned up when the test completes.
+func WithReuse(name string) Option {
+	return func(c *Config) {
+		c.name = name
 	}
 }
 
@@ -109,8 +119,15 @@ func Start(t testing.TB, img string, opts ...Option) *Container {
 		tcOpts = append(tcOpts, testcontainers.WithCmd(cmds...))
 	}
 
+	if config.name != "" {
+		tcOpts = append(tcOpts, testcontainers.WithReuseByName(config.name))
+	}
+
 	c, err := redis.Run(ctx, img, tcOpts...)
-	testcontainers.CleanupContainer(t, c)
+	if config.name == "" {
+		// only cleanup the container if it's not being reused
+		testcontainers.CleanupContainer(t, c)
+	}
 	require.NoError(t, err)
 
 	ctr := &Container{

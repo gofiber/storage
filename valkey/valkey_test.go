@@ -2,6 +2,7 @@ package valkey
 
 import (
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,23 @@ const (
 	valkeyImage       = "valkey/valkey:8"
 	valkeyImageEnvVar = "TEST_VALKEY_IMAGE"
 )
+
+var (
+	// benchmarkStore is a singleton store used for all benchmarks
+	benchmarkStore *Storage
+	// benchmarkStoreOnce ensures the store is initialized only once
+	benchmarkStoreOnce sync.Once
+)
+
+// initBenchmarkStore initializes the singleton store for benchmarks.
+// There is no need to call Close() on the returned store, it will be reused
+// for all benchmarks. Testcontainers will reuse the container if it already exists
+// and will terminate it at the end of a test session.
+func initBenchmarkStore(b *testing.B) {
+	benchmarkStoreOnce.Do(func() {
+		benchmarkStore = newTestStore(b, testredis.WithReuse("valkey-benchmark"))
+	})
+}
 
 // newConfigFromContainer creates a Redis configuration using Testcontainers.
 // It configures the container based on the provided options and returns a Config
@@ -321,48 +339,45 @@ func Test_Valkey_Cluster(t *testing.T) {
 }
 
 func Benchmark_Valkey_Set(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	initBenchmarkStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
+		err = benchmarkStore.Set("john", []byte("doe"), 0)
 	}
 
 	require.NoError(b, err)
 }
 
 func Benchmark_Valkey_Get(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	initBenchmarkStore(b)
 
-	err := testStore.Set("john", []byte("doe"), 0)
+	err := benchmarkStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = testStore.Get("john")
+		_, err = benchmarkStore.Get("john")
 	}
 
 	require.NoError(b, err)
 }
 
 func Benchmark_Valkey_SetAndDelete(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	initBenchmarkStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
+		_ = benchmarkStore.Set("john", []byte("doe"), 0)
+		err = benchmarkStore.Delete("john")
 	}
 
 	require.NoError(b, err)
