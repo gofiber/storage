@@ -91,7 +91,7 @@ func Start(t testing.TB, img string, opts ...Option) *Container {
 	}
 
 	if img == "" {
-		panic("Redis image is not set: callers must provide an image using WithImage()")
+		panic("Redis image is not set: callers must provide a non-empty image parameter")
 	}
 
 	ctx := context.Background()
