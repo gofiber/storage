@@ -112,7 +112,7 @@ func Test_Valkey_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_Valkey_Set_Expiration(t *testing.T) {
+func Test_Valkey_Expiration(t *testing.T) {
 	var (
 		key = "john"
 		val = []byte("doe")
@@ -126,13 +126,6 @@ func Test_Valkey_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
-}
-
-func Test_Valkey_Get_Expired(t *testing.T) {
-	key := "john"
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
 
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
