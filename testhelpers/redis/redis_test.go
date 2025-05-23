@@ -42,7 +42,7 @@ func TestStart(t *testing.T) {
 
 	t.Run("with-tls", func(t *testing.T) {
 		t.Run("secure-url", func(t *testing.T) {
-			t.Run("mtls-disabled", func(t *testing.T) {
+			t.Run("mtls-enabled", func(t *testing.T) {
 				t.Parallel()
 
 				ctr := Start(t, WithTLS(true, false))
@@ -52,15 +52,17 @@ func TestStart(t *testing.T) {
 				require.Empty(t, ctr.Addrs)
 				require.Empty(t, ctr.Host)
 				require.Zero(t, ctr.Port)
+				require.Contains(t, ctr.cmds, "--tls-auth-clients", "yes")
 			})
 
-			t.Run("mtls-enabled", func(t *testing.T) {
+			t.Run("mtls-disabled", func(t *testing.T) {
 				t.Parallel()
 
 				ctr := Start(t, WithTLS(true, true))
 				require.NotEmpty(t, ctr.URL)
 				require.True(t, strings.HasPrefix(ctr.URL, "rediss://"))
 				require.NotNil(t, ctr.TLSConfig)
+				require.Contains(t, ctr.cmds, "--tls-auth-clients", "no")
 			})
 		})
 

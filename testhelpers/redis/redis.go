@@ -77,6 +77,7 @@ func WithImage(image string) Option {
 // Container represents a running Redis container
 type Container struct {
 	URL       string
+	cmds      []string
 	Addrs     []string
 	Host      string
 	Port      int
@@ -106,16 +107,17 @@ func Start(t testing.TB, opts ...Option) *Container {
 	ctx := context.Background()
 	tcOpts := []testcontainers.ContainerCustomizer{}
 
+	var cmds []string
 	if config.UseTLS {
 		tcOpts = append(tcOpts, redis.WithTLS())
 
-		cmds := []string{
+		cmds = append(cmds,
 			"--port", "0",
 			"--tls-port", "6379",
 			"--tls-cert-file", "/tls/server.crt",
 			"--tls-key-file", "/tls/server.key",
 			"--tls-ca-cert-file", "/tls/ca.crt",
-		}
+		)
 
 		cmds = append(cmds, "--tls-auth-clients", func() string {
 			if config.MTLSDisabled {
@@ -133,6 +135,7 @@ func Start(t testing.TB, opts ...Option) *Container {
 
 	ctr := &Container{
 		TLSConfig: c.TLSConfig(),
+		cmds:      cmds,
 	}
 
 	uri, err := c.ConnectionString(ctx)
