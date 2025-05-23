@@ -299,6 +299,7 @@ func Test_ResetWithContext(t *testing.T) {
 	)
 
 	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	err := testStore.Set("john1", val, 0)
 	require.NoError(t, err)
