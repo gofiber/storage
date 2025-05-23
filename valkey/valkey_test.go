@@ -302,7 +302,7 @@ func Test_Valkey_With_TLS_URL(t *testing.T) {
 
 func Test_Valkey_Cluster(t *testing.T) {
 	t.Skip("TODO: Replace with containerized cluster when testcontainers-go Valkey module supports clustering")
-	// TODO: Replace with containerized cluster when testcontainers-go Valkey module supports clustering
+
 	store := New(Config{
 		InitAddress: []string{
 			"localhost:7000",

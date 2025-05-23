@@ -397,7 +397,8 @@ func Test_Redis_Universal_With_HostPort_And_URL(t *testing.T) {
 }
 
 func Test_Redis_Cluster(t *testing.T) {
-	// TODO: Replace with containerized cluster when testcontainers-go Redis module supports clustering
+	t.Skip("TODO: Replace with containerized cluster when testcontainers-go Redis module supports clustering")
+
 	testStoreUniversal := New(Config{
 		Addrs: []string{
 			"localhost:7000",

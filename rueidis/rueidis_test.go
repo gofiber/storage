@@ -278,7 +278,8 @@ func Test_Rueidis_With_TLS_URL(t *testing.T) {
 }
 
 func Test_Rueidis_Cluster(t *testing.T) {
-	// TODO: Replace with containerized cluster when testcontainers-go Rueidis module supports clustering
+	t.Skip("TODO: Replace with containerized cluster when testcontainers-go Redis module supports clustering")
+
 	store := New(Config{
 		InitAddress: []string{
 			"localhost:7000",
