@@ -32,5 +32,7 @@ use (
 	./s3
 	./scylladb
 	./sqlite3
+	./surrealdb
+	./testhelpers/redis
 	./valkey
 )

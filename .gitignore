@@ -30,3 +30,6 @@ vendor/
 vendor
 /Godeps/
 node_modules/
+
+# Go workspace file
+go.work.sum
