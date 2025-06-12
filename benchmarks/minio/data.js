@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1747727091395,
+  "lastUpdate": 1749713223090,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -816,6 +816,102 @@ window.BENCHMARK_DATA = {
             "value": 464,
             "unit": "allocs/op",
             "extra": "490 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c03dbe1997622d0a5ee569609c93675dafd5317",
+          "message": "Merge pull request #1776 from gofiber/dependabot/go_modules/minio/github.com/minio/minio-go/v7-7.0.93\n\nchore(deps): bump github.com/minio/minio-go/v7 from 7.0.92 to 7.0.93 in /minio",
+          "timestamp": "2025-06-12T09:25:46+02:00",
+          "tree_id": "c3a6a806c728142e19368b6b6e522a3bd272d145",
+          "url": "https://github.com/gofiber/storage/commit/0c03dbe1997622d0a5ee569609c93675dafd5317"
+        },
+        "date": 1749713215530,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Minio_Set",
+            "value": 2306857,
+            "unit": "ns/op\t   91941 B/op\t     296 allocs/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - ns/op",
+            "value": 2306857,
+            "unit": "ns/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - B/op",
+            "value": 91941,
+            "unit": "B/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Set - allocs/op",
+            "value": 296,
+            "unit": "allocs/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get",
+            "value": 706727,
+            "unit": "ns/op\t   16026 B/op\t     205 allocs/op",
+            "extra": "1754 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - ns/op",
+            "value": 706727,
+            "unit": "ns/op",
+            "extra": "1754 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - B/op",
+            "value": 16026,
+            "unit": "B/op",
+            "extra": "1754 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_Get - allocs/op",
+            "value": 205,
+            "unit": "allocs/op",
+            "extra": "1754 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete",
+            "value": 2475030,
+            "unit": "ns/op\t  103902 B/op\t     464 allocs/op",
+            "extra": "494 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - ns/op",
+            "value": 2475030,
+            "unit": "ns/op",
+            "extra": "494 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - B/op",
+            "value": 103902,
+            "unit": "B/op",
+            "extra": "494 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Minio_SetAndDelete - allocs/op",
+            "value": 464,
+            "unit": "allocs/op",
+            "extra": "494 times\n4 procs"
           }
         ]
       }
