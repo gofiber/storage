@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745912679526,
+  "lastUpdate": 1749799905263,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -672,6 +672,102 @@ window.BENCHMARK_DATA = {
             "value": 231,
             "unit": "allocs/op",
             "extra": "408 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4ab3b3c0bd8c40ec0fad9cabc69e21d33d6fb0ee",
+          "message": "Merge pull request #1777 from gofiber/dependabot/go_modules/mysql/github.com/go-sql-driver/mysql-1.9.3\n\nchore(deps): bump github.com/go-sql-driver/mysql from 1.9.2 to 1.9.3 in /mysql",
+          "timestamp": "2025-06-13T09:29:11+02:00",
+          "tree_id": "b30d2d35af2789c245235360128d4eb92ca41942",
+          "url": "https://github.com/gofiber/storage/commit/4ab3b3c0bd8c40ec0fad9cabc69e21d33d6fb0ee"
+        },
+        "date": 1749799897192,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_MYSQL_Set",
+            "value": 962570,
+            "unit": "ns/op\t    9653 B/op\t      99 allocs/op",
+            "extra": "1176 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - ns/op",
+            "value": 962570,
+            "unit": "ns/op",
+            "extra": "1176 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - B/op",
+            "value": 9653,
+            "unit": "B/op",
+            "extra": "1176 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - allocs/op",
+            "value": 99,
+            "unit": "allocs/op",
+            "extra": "1176 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get",
+            "value": 967574,
+            "unit": "ns/op\t    9700 B/op\t     109 allocs/op",
+            "extra": "1225 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - ns/op",
+            "value": 967574,
+            "unit": "ns/op",
+            "extra": "1225 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - B/op",
+            "value": 9700,
+            "unit": "B/op",
+            "extra": "1225 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - allocs/op",
+            "value": 109,
+            "unit": "allocs/op",
+            "extra": "1225 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete",
+            "value": 3388474,
+            "unit": "ns/op\t   18805 B/op\t     195 allocs/op",
+            "extra": "303 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - ns/op",
+            "value": 3388474,
+            "unit": "ns/op",
+            "extra": "303 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - B/op",
+            "value": 18805,
+            "unit": "B/op",
+            "extra": "303 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - allocs/op",
+            "value": 195,
+            "unit": "allocs/op",
+            "extra": "303 times\n4 procs"
           }
         ]
       }
