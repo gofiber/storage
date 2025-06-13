@@ -20,7 +20,6 @@ type Storage struct {
 	nc  *nats.Conn
 	kv  jetstream.KeyValue
 	err error
-	ctx context.Context
 	cfg Config
 	mu  sync.RWMutex
 }
@@ -42,7 +41,7 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 	var err error
 	s.kv, err = newNatsKV(
 		nc,
-		s.ctx,
+		context.Background(),
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
@@ -118,7 +117,6 @@ func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	storage := &Storage{
-		ctx: cfg.Context,
 		cfg: cfg,
 	}
 
@@ -156,11 +154,19 @@ func New(config ...Config) *Storage {
 	// TODO improve this crude way to wait for the connection to be established
 	time.Sleep(cfg.WaitForConnection)
 
+	// Reset bucket
+	if cfg.Reset {
+		err = storage.Reset()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return storage
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -172,7 +178,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, fmt.Errorf("kv not initialized: %v", s.err)
 	}
 
-	v, err := kv.Get(s.ctx, key)
+	v, err := kv.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -185,15 +191,20 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		bytes.NewBuffer(v.Value())).
 		Decode(&e)
 	if err != nil || e.Expiry <= time.Now().Unix() {
-		_ = kv.Delete(s.ctx, key)
+		_ = kv.Delete(ctx, key)
 		return nil, nil
 	}
 
 	return e.Data, nil
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext key with value and expiry with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -221,9 +232,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	// set
-	_, err = kv.Put(s.ctx, key, e.Bytes())
+	_, err = kv.Put(ctx, key, e.Bytes())
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		_, err := kv.Create(s.ctx, key, e.Bytes())
+		_, err := kv.Create(ctx, key, e.Bytes())
 		if err != nil {
 			return fmt.Errorf("create: %w", err)
 		}
@@ -232,8 +243,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete key by key
-func (s *Storage) Delete(key string) error {
+// Set key with value and expiry
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext key by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
@@ -246,18 +262,23 @@ func (s *Storage) Delete(key string) error {
 		return fmt.Errorf("kv not initialized: %v", s.err)
 	}
 
-	return kv.Delete(s.ctx, key)
+	return kv.Delete(ctx, key)
 }
 
-// Reset all keys
-func (s *Storage) Reset() error {
+// Delete key by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext all keys with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	js, err := jetstream.New(s.nc)
 	if err != nil {
 		return fmt.Errorf("get jetstream: %w", err)
 	}
 
 	// Delete the bucket
-	err = js.DeleteKeyValue(s.ctx, s.cfg.KeyValueConfig.Bucket)
+	err = js.DeleteKeyValue(ctx, s.cfg.KeyValueConfig.Bucket)
 	if err != nil {
 		return fmt.Errorf("delete kv: %w", err)
 	}
@@ -267,7 +288,7 @@ func (s *Storage) Reset() error {
 	defer s.mu.Unlock()
 	s.kv, err = newNatsKV(
 		s.nc,
-		s.ctx,
+		ctx,
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
@@ -277,6 +298,11 @@ func (s *Storage) Reset() error {
 
 	s.err = nil
 	return nil
+}
+
+// Reset all keys
+func (s *Storage) Reset() error {
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the nats connection
@@ -303,7 +329,7 @@ func (s *Storage) Keys() ([]string, error) {
 		return nil, fmt.Errorf("kv not initialized: %v", s.err)
 	}
 
-	keyLister, err := kv.ListKeys(s.ctx)
+	keyLister, err := kv.ListKeys(context.Background())
 
 	if err != nil {
 		return nil, fmt.Errorf("keys: %w", err)
