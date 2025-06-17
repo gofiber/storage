@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749628668562,
+  "lastUpdate": 1750146153423,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2616,6 +2616,102 @@ window.BENCHMARK_DATA = {
             "value": 1426,
             "unit": "allocs/op",
             "extra": "441 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a872a0b45f860b87341dfa826977c9871cda9bdf",
+          "message": "Merge pull request #1781 from gofiber/dependabot/go_modules/s3/github.com/aws/smithy-go-1.22.4\n\nchore(deps): bump github.com/aws/smithy-go from 1.22.3 to 1.22.4 in /s3",
+          "timestamp": "2025-06-17T09:41:20+02:00",
+          "tree_id": "9e8e149fce662c66c16a5e063fb051f8b3e0ada9",
+          "url": "https://github.com/gofiber/storage/commit/a872a0b45f860b87341dfa826977c9871cda9bdf"
+        },
+        "date": 1750146145793,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_S3_Set",
+            "value": 2185555,
+            "unit": "ns/op\t   87443 B/op\t     836 allocs/op",
+            "extra": "567 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - ns/op",
+            "value": 2185555,
+            "unit": "ns/op",
+            "extra": "567 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - B/op",
+            "value": 87443,
+            "unit": "B/op",
+            "extra": "567 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Set - allocs/op",
+            "value": 836,
+            "unit": "allocs/op",
+            "extra": "567 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get",
+            "value": 875777,
+            "unit": "ns/op\t   79350 B/op\t     738 allocs/op",
+            "extra": "1393 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - ns/op",
+            "value": 875777,
+            "unit": "ns/op",
+            "extra": "1393 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - B/op",
+            "value": 79350,
+            "unit": "B/op",
+            "extra": "1393 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_Get - allocs/op",
+            "value": 738,
+            "unit": "allocs/op",
+            "extra": "1393 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete",
+            "value": 2539793,
+            "unit": "ns/op\t  128974 B/op\t    1426 allocs/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - ns/op",
+            "value": 2539793,
+            "unit": "ns/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - B/op",
+            "value": 128974,
+            "unit": "B/op",
+            "extra": "476 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_S3_SetAndDelete - allocs/op",
+            "value": 1426,
+            "unit": "allocs/op",
+            "extra": "476 times\n4 procs"
           }
         ]
       }
