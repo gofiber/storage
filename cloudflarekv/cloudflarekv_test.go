@@ -2,18 +2,21 @@ package cloudflarekv
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
+var testStore *Storage
+
 func TestMain(m *testing.M) {
 
-	var testStore *Storage
-
 	testStore = New(Config{
-		Key: "test",
+		Key:   "test",
+		Reset: true,
 	})
 
 	code := m.Run()
@@ -24,12 +27,6 @@ func TestMain(m *testing.M) {
 
 func Test_CloudflareKV_Get(t *testing.T) {
 	t.Parallel()
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
 
 	var (
 		key = "john"
@@ -55,14 +52,30 @@ func Test_CloudflareKV_Get(t *testing.T) {
 	_ = testStore.Close()
 }
 
-func Test_CloudflareKV_Set(t *testing.T) {
+func Test_CloudflareKV_GetWithContext(t *testing.T) {
 	t.Parallel()
 
-	var testStore *Storage
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
 
-	testStore = New(Config{
-		Key: "test",
-	})
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	val, err = testStore.GetWithContext(ctx, key)
+	fmt.Println(err)
+	require.ErrorContains(t, err, context.Canceled.Error())
+	require.Nil(t, val)
+
+	_ = testStore.Close()
+}
+
+func Test_CloudflareKV_Set(t *testing.T) {
+	t.Parallel()
 
 	var (
 		key = "john"
@@ -76,14 +89,21 @@ func Test_CloudflareKV_Set(t *testing.T) {
 	_ = testStore.Close()
 }
 
+func Test_CloudflareKV_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
 func Test_CloudflareKV_Delete(t *testing.T) {
 	t.Parallel()
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
 
 	var (
 		key = "john"
@@ -99,14 +119,28 @@ func Test_CloudflareKV_Delete(t *testing.T) {
 	_ = testStore.Close()
 }
 
+func Test_CloudflareKV_DeleteWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_CloudflareKV_Reset(t *testing.T) {
 	t.Parallel()
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
 
 	err := testStore.Reset()
 
@@ -114,14 +148,33 @@ func Test_CloudflareKV_Reset(t *testing.T) {
 
 	_ = testStore.Close()
 }
+
+func Test_CloudflareKV_ResetWithContext(t *testing.T) {
+	val := []byte("doe")
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_CloudflareKV_Close(t *testing.T) {
 	t.Parallel()
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
 
 	require.Nil(t, testStore.Close())
 
@@ -131,25 +184,12 @@ func Test_CloudflareKV_Close(t *testing.T) {
 func Test_CloudflareKV_Conn(t *testing.T) {
 	t.Parallel()
 
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
-
 	require.NotNil(t, testStore.Conn())
 
 	_ = testStore.Close()
 }
 
 func Benchmark_CloudflareKV_Set(b *testing.B) {
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -164,13 +204,6 @@ func Benchmark_CloudflareKV_Set(b *testing.B) {
 }
 
 func Benchmark_CloudflareKV_Get(b *testing.B) {
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
-
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
 
@@ -187,13 +220,6 @@ func Benchmark_CloudflareKV_Get(b *testing.B) {
 }
 
 func Benchmark_CloudflareKV_SetAndDelete(b *testing.B) {
-
-	var testStore *Storage
-
-	testStore = New(Config{
-		Key: "test",
-	})
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
