@@ -23,3 +23,6 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          utils-modules:
+              patterns:
+                  - "github.com/gofiber/utils/v2"
