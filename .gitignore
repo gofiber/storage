@@ -31,5 +31,5 @@ vendor
 /Godeps/
 node_modules/
 
-# Go specific
-go.work*
+# Go workspace file
+go.work.sum

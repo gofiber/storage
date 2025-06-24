@@ -7,8 +7,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	coh "github.com/oracle/coherence-go-client/v2/coherence"
 	"time"
+
+	coh "github.com/oracle/coherence-go-client/v2/coherence"
 )
 
 const (
