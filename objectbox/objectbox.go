@@ -18,13 +18,20 @@ type Storage struct {
 func New(config ...Config) *Storage {
 	cfg := getConfig(config...)
 
-	ob, err := objectbox.NewBuilder().Model(ObjectBoxModel()).MaxSizeInKb(cfg.MaxSizeInKb).MaxReaders(cfg.MaxReaders).Directory(cfg.Directory).Build()
+	ob, err := objectbox.NewBuilder().
+		Directory(cfg.Directory).
+		Model(ObjectBoxModel()).
+		MaxSizeInKb(cfg.MaxSizeInKb).
+		MaxReaders(cfg.MaxReaders).
+		Build()
+
 	if err != nil {
 		panic(err)
 	}
 
+	box := BoxForCache(ob)
+
 	if cfg.Reset {
-		box := BoxForCache(ob)
 		err = box.RemoveAll()
 
 		if err != nil {
@@ -34,7 +41,7 @@ func New(config ...Config) *Storage {
 
 	storage := &Storage{
 		ob:   ob,
-		box:  BoxForCache(ob),
+		box:  box,
 		done: make(chan struct{}),
 	}
 
@@ -71,6 +78,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // Set stores a value in cache with the specified key and expiration.
 // If expiration is 0, the entry won't expire.
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	// If key or value is empty, return without storing
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -78,9 +86,8 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// Since objectbox go doesn't support conflict strategy,
 	// we need to check if the key already exists
 	// and update the value if it does.
-
 	query := s.box.Query(Cache_.Key.Equals(key, true))
-	cachesIds, err := query.FindIds()
+	caches, err := query.Find()
 	if err != nil {
 		return err
 	}
@@ -88,8 +95,8 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// if the id is 0 it will create new cache
 	// otherwise it will update the existing entry
 	var id uint64 = 0
-	if len(cachesIds) > 0 {
-		id = cachesIds[0]
+	if len(caches) > 0 {
+		id = caches[0].Id
 	}
 
 	var expAt int64
@@ -143,7 +150,7 @@ func (s *Storage) Close() error {
 
 // cleanStorage removes all expired cache entries.
 func (s *Storage) cleanStorage() {
-	s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove() //nolint:errcheck // It is fine to ignore the error
+	s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove()
 }
 
 // cleanerTicker runs periodic cleanup of expired entries.

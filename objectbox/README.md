@@ -32,7 +32,7 @@ func (s *Storage) Close() error
 
 ### Installation
 
-[Install ojectbox](https://golang.objectbox.io/install)
+[Install objectbox](https://golang.objectbox.io/install)
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)

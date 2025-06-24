@@ -20,6 +20,7 @@ use (
 	./minio
 	./mockstorage
 	./mongodb
+	./objectbox
 	./mssql
 	./mysql
 	./nats
@@ -35,4 +36,5 @@ use (
 	./surrealdb
 	./testhelpers/redis
 	./valkey
+
 )
