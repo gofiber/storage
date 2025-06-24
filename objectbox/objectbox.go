@@ -75,7 +75,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
-	// Since objectbox go doen't support conflict strategy,
+	// Since objectbox go doesn't support conflict strategy,
 	// we need to check if the key already exists
 	// and update the value if it does.
 
@@ -94,7 +94,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 
 	var expAt int64
 
-	if exp > 0 { // Changed from exp != 0 to exp > 0
+	if exp > 0 {
 		expAt = time.Now().Add(exp).Unix()
 	}
 
