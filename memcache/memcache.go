@@ -1,6 +1,7 @@
 package memcache
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -68,10 +69,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.Value, nil
 }
 
-// Set key with value
+// GetWithContext gets value by key (dummy context support)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -87,18 +91,32 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
+// SetWithContext sets key with value (dummy context support)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
 	return s.db.Delete(key)
 }
 
+// DeleteWithContext deletes key by key (dummy context support)
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
 // Reset all keys
 func (s *Storage) Reset() error {
 	return s.db.DeleteAll()
+}
+
+// ResetWithContext resets all keys (dummy context support)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
 }
 
 // Close the database
@@ -111,7 +129,7 @@ func (s *Storage) acquireItem() *mc.Item {
 	return s.items.Get().(*mc.Item)
 }
 
-// Release item from pool
+// Release item back to pool
 func (s *Storage) releaseItem(item *mc.Item) {
 	if item != nil {
 		item.Key = ""
