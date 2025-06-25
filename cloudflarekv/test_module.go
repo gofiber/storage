@@ -68,7 +68,12 @@ func (t *TestModule) GetWorkersKV(ctx context.Context, rc *cloudflare.ResourceCo
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body:", err)
+		}
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -111,7 +116,12 @@ func (t *TestModule) WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.Res
 		return cloudflare.Response{}, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body:", err)
+		}
+	}()
 
 	return cloudflare.Response{
 		Success: true,
@@ -148,7 +158,12 @@ func (t *TestModule) DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.Re
 		return cloudflare.Response{}, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body:", err)
+		}
+	}()
 
 	return cloudflare.Response{
 		Success: true,
@@ -189,7 +204,12 @@ func (t *TestModule) ListWorkersKVKeys(ctx context.Context, rc *cloudflare.Resou
 		return cloudflare.ListStorageKeysResponse{}, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body:", err)
+		}
+	}()
 
 	result := []cloudflare.StorageKey{}
 

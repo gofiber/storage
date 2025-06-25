@@ -125,6 +125,7 @@ func Test_Coherence_Set_And_GetWithContext(t *testing.T) {
 	err := testStore.Set(key1, value1, 0)
 	require.NoError(t, err)
 
+	// Coherence will create new context instance as the provided one is deadline exceeded.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -144,12 +145,13 @@ func Test_Coherence_SetContext_And_Get(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Microsecond)
 	cancel()
 
+	// Coherencce will create new context instance as the provided one is deadline exceeded.
 	err := testStore.SetWithContext(ctx, key1, value1, 1*time.Nanosecond)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
-	require.True(t, len(val) == 0)
+	require.False(t, len(val) == 0)
 
 	require.NotNil(t, testStore.Conn())
 }
@@ -284,6 +286,7 @@ func Test_Coherence_ResetWithContext(t *testing.T) {
 	require.Equal(t, value2, val)
 
 	// reset the store, this should remove both entries
+	// Coherence will create new context instance as the provided one is deadline exceeded.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err = testStore.ResetWithContext(ctx)
@@ -292,11 +295,11 @@ func Test_Coherence_ResetWithContext(t *testing.T) {
 	// check the keys have expired
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
-	require.False(t, len(val) == 0)
+	require.True(t, len(val) == 0)
 
 	val, err = testStore.Get(key2)
 	require.NoError(t, err)
-	require.False(t, len(val) == 0)
+	require.True(t, len(val) == 0)
 }
 
 func Test_Coherence_Set_And_Delete(t *testing.T) {
@@ -329,13 +332,14 @@ func Test_Coherence_Set_And_DeleteWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
+	// Coherence will create new context instance as the provided one is deadline exceeded.
 	err = testStore.DeleteWithContext(ctx, key1)
 	require.Error(t, err)
 
 	// ensure the key has gone
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
-	require.False(t, len(val) == 0)
+	require.True(t, len(val) == 0)
 }
 
 // TestCoherenceWithScope ensures we can create multiple session stores with multiple scopes.
