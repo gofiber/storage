@@ -96,7 +96,7 @@ func New(config ...Config) *Storage {
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err = db.Exec(strings.Replace(dropQuery, "%s", cfg.Table, -1)); err != nil {
+		if _, err = db.Exec(strings.ReplaceAll(dropQuery, "%s", cfg.Table)); err != nil {
 			_ = db.Close()
 			panic(err)
 		}
@@ -104,7 +104,7 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	for _, query := range initQuery {
-		if _, err := db.Exec(strings.Replace(query, "%s", cfg.Table, -1)); err != nil {
+		if _, err := db.Exec(strings.ReplaceAll(query, "%s", cfg.Table)); err != nil {
 			_ = db.Close()
 
 			panic(err)

@@ -5,7 +5,6 @@ package coherence
  */
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -117,6 +116,25 @@ func Test_Coherence_Set_And_Get(t *testing.T) {
 	require.NotNil(t, testStore.Conn())
 }
 
+func Test_Coherence_Set_And_GetWithContext(t *testing.T) {
+	var val []byte
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key1, value1, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	val, err = testStore.GetWithContext(ctx, key1)
+	require.Error(t, err)
+	require.Empty(t, val)
+
+	require.NotNil(t, testStore.Conn())
+}
+
 func Test_Coherence_SetContext_And_Get(t *testing.T) {
 	var val []byte
 
@@ -124,14 +142,13 @@ func Test_Coherence_SetContext_And_Get(t *testing.T) {
 	defer testStore.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Microsecond)
-	defer cancel()
+	cancel()
 
 	err := testStore.SetWithContext(ctx, key1, value1, 1*time.Nanosecond)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
-	fmt.Println(string(val))
 	require.True(t, len(val) == 0)
 
 	require.NotNil(t, testStore.Conn())
@@ -245,6 +262,43 @@ func Test_Coherence_Reset(t *testing.T) {
 	require.True(t, len(val) == 0)
 }
 
+func Test_Coherence_ResetWithContext(t *testing.T) {
+	var val []byte
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key1, value1, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set(key2, value2, 0)
+	require.NoError(t, err)
+
+	// check the keys exist
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+
+	val, err = testStore.Get(key2)
+	require.NoError(t, err)
+	require.Equal(t, value2, val)
+
+	// reset the store, this should remove both entries
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = testStore.ResetWithContext(ctx)
+	require.NoError(t, err)
+
+	// check the keys have expired
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.False(t, len(val) == 0)
+
+	val, err = testStore.Get(key2)
+	require.NoError(t, err)
+	require.False(t, len(val) == 0)
+}
+
 func Test_Coherence_Set_And_Delete(t *testing.T) {
 	var val []byte
 
@@ -261,6 +315,27 @@ func Test_Coherence_Set_And_Delete(t *testing.T) {
 	val, err = testStore.Get(key1)
 	require.NoError(t, err)
 	require.True(t, len(val) == 0)
+}
+
+func Test_Coherence_Set_And_DeleteWithContext(t *testing.T) {
+	var val []byte
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key1, value1, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key1)
+	require.Error(t, err)
+
+	// ensure the key has gone
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.False(t, len(val) == 0)
 }
 
 // TestCoherenceWithScope ensures we can create multiple session stores with multiple scopes.

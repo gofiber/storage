@@ -89,7 +89,7 @@ func Test_Neo4jStore_SetWithContext(t *testing.T) {
 	defer cancel()
 
 	err := testStore.SetWithContext(ctx, key, val, 10*time.Millisecond)
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorContains(t, err, context.DeadlineExceeded.Error())
 }
 
 func Test_Neo4jStore_Upsert(t *testing.T) {
