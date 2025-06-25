@@ -66,6 +66,22 @@ func Test_Set(t *testing.T) {
 	require.Equal(t, []byte("value"), val)
 }
 
+func Test_SetWithContext(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	// Test SetWithContext
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := store.SetWithContext(ctx, "test", []byte("value"), 0)
+	require.ErrorIs(t, err, context.Canceled)
+
+	// Verify the value was not set
+	val, err := store.Get("test")
+	require.Error(t, err)
+	require.Empty(t, val)
+}
+
 // Test_Get tests the Get operation
 func Test_Get(t *testing.T) {
 	store := newTestStore(t)
@@ -84,6 +100,28 @@ func Test_Get(t *testing.T) {
 	val, err = store.Get("nonexistent")
 	require.Error(t, err)
 	require.Nil(t, val)
+}
+
+// Test_GetWithContext tests the Get operation with context
+func Test_GetWithContext(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	// Set a value first
+	err := store.Set("test", []byte("value"), 0)
+	require.NoError(t, err)
+
+	// Test GetWithContext
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	val, err := store.GetWithContext(ctx, "test")
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, val)
+
+	// Verify the value still exists
+	val, err = store.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value"), val)
 }
 
 // Test_Delete tests the Delete operation
@@ -108,6 +146,32 @@ func Test_Delete(t *testing.T) {
 	val, err = store.Get("test")
 	require.Error(t, err)
 	require.Nil(t, val)
+}
+
+// Test_DeleteWithContext tests the Delete operation with context
+func Test_DeleteWithContext(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	// Set a value first
+	err := store.Set("test", []byte("value"), 0)
+	require.NoError(t, err)
+
+	// Verify the value exists
+	val, err := store.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value"), val)
+
+	// Test DeleteWithContext
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = store.DeleteWithContext(ctx, "test")
+	require.ErrorIs(t, err, context.Canceled)
+
+	// Verify the value still exists
+	val, err = store.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value"), val)
 }
 
 // Test_Expirable_Keys tests the expirable keys functionality
@@ -178,6 +242,33 @@ func Test_Reset(t *testing.T) {
 	val, err = store.Get("test2")
 	require.Error(t, err)
 	require.Nil(t, val)
+}
+
+// Test_ResetWithContext tests the Reset method with context
+func Test_ResetWithContext(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	// Add some data
+	err := store.Set("test1", []byte("value1"), 0)
+	require.NoError(t, err)
+	err = store.Set("test2", []byte("value2"), 0)
+	require.NoError(t, err)
+
+	// Reset storage with context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = store.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	// Verify data is still there
+	val, err := store.Get("test1")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value1"), val)
+
+	val, err = store.Get("test2")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value2"), val)
 }
 
 // Test_Valid_Identifiers tests valid identifier cases
