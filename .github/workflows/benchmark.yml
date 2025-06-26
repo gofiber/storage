@@ -82,6 +82,10 @@ jobs:
             --env ALLOW_NONE_AUTHENTICATION=yes \
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
+      
+      - name: Install objectbox
+        if: ${{ matrix.package == 'objectbox' }}
+        run: echo "n" | bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
 
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
