@@ -251,7 +251,7 @@ func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
 func Benchmark_ObjectBox_Cleaner(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("expired-key-%d", i)
-		store.Set(key, []byte("benchmark-value"), -1*time.Second)
+		_ = store.Set(key, []byte("benchmark-value"), -1*time.Second)
 	}
 
 	b.ReportAllocs()

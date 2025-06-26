@@ -150,7 +150,7 @@ func (s *Storage) Close() error {
 
 // cleanStorage removes all expired cache entries.
 func (s *Storage) cleanStorage() {
-	s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove()
+	_, _ = s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove()
 }
 
 // cleanerTicker runs periodic cleanup of expired entries.

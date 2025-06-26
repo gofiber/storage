@@ -5,11 +5,11 @@ import "time"
 // Config defines the configuration options for ObjectBox storage.
 type Config struct {
 	// Directory is the path where the database is stored.
-	// Optional, defaults to "objectbox"
+	// Optional, defaults to "objectbox_db"
 	Directory string
 
 	// MaxSizeInKb sets the maximum size of the database in kilobytes.
-	// Optional, defaults to 1GB (1024 * 1024 * 1024)
+	// Optional, defaults to 1GB (1024 * 1024)
 	MaxSizeInKb uint64
 
 	// MaxReaders defines the maximum number of concurrent readers.
