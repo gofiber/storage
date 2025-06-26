@@ -1,0 +1,34 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'objectbox/**'
+    pull_request:
+        paths:
+            - 'objectbox/**'
+name: "Tests ObjectBox"
+jobs:
+    Tests:
+        strategy:
+            matrix:
+                go-version:
+                    - 1.23.x
+                    - 1.24.x
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+            -   name: Install ObjectBox
+                run: echo "n" | bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
+            -   name: Test ObjectBox - with -race check
+                if: runner.os != 'Windows'
+                run: cd ./objectbox && go test ./... -v -race
+            -   name: Test ObjectBox - without -race check
+                if: runner.os == 'Windows'
+                run: cd ./objectbox && go test ./... -v
