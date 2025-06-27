@@ -13,11 +13,9 @@ import (
 func createTestStore(t *testing.T) *Storage {
 	t.Helper()
 
-	// Create a temporary directory for the test database
 	testDir, err := os.MkdirTemp("", "objectbox-test-*")
 	require.NoError(t, err)
 
-	// Configure the store for testing
 	store := New(Config{
 		Directory:       testDir,
 		Reset:           true,
@@ -26,7 +24,6 @@ func createTestStore(t *testing.T) *Storage {
 		CleanerInterval: 60 * time.Second,
 	})
 
-	// Register a cleanup function to close the store and remove the database
 	t.Cleanup(func() {
 		require.NoError(t, store.Close())
 		require.NoError(t, os.RemoveAll(testDir))
@@ -39,11 +36,9 @@ func createTestStore(t *testing.T) *Storage {
 func createBenchmarkStore(b *testing.B) *Storage {
 	b.Helper()
 
-	// Create a temporary directory for the test database
 	testDir, err := os.MkdirTemp("", "objectbox-benchmark-*")
 	require.NoError(b, err)
 
-	// Configure the store for testing
 	store := New(Config{
 		Directory:       testDir,
 		Reset:           true,
@@ -52,7 +47,6 @@ func createBenchmarkStore(b *testing.B) *Storage {
 		CleanerInterval: 60 * time.Second,
 	})
 
-	// Register a cleanup function to close the store and remove the database
 	b.Cleanup(func() {
 		require.NoError(b, store.Close())
 		require.NoError(b, os.RemoveAll(testDir))

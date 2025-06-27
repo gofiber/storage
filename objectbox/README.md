@@ -22,48 +22,41 @@ An ObjectBox storage driver using [objectbox/objectbox-go](https://github.com/ob
 ### Signatures
 
 ```go
-func New(config ...Config) Storage
-func (s *Storage) Get(key string) ([]byte, error)
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error
-func (s *Storage) Delete(key string) error
-func (s *Storage) Reset() error
-func (s *Storage) Close() error
+func New(config ...Config) Storage // Creates a new ObjectBox storage instance
+func (s *Storage) Get(key string) ([]byte, error) // Retrieves a value by key
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error // Stores a value with an optional expiration
+func (s *Storage) Delete(key string) error // Deletes a value by key
+func (s *Storage) Reset() error // Clears all entries from the storage
+func (s *Storage) Close() error // Closes the storage connection
 ```
 
 ### Installation
 
-[Install objectbox](https://golang.objectbox.io/install)
-
+First, ensure you have ObjectBox Go installed:
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
 ```
-Init your module
 
-```bash
-go mod init github.com/<user>/<repo>
-```
-
-And then install the objectbox implementation:
-
+Then, install the ObjectBox storage driver:
 ```bash
 go get github.com/gofiber/storage/objectbox/v2
 ```
 
 ### Examples
 
-Import the storage package.
+Import the storage package:
 
 ```go
 import "github.com/gofiber/storage/objectbox/v2"
 ```
 
-You can use the following possibilities to create a storage:
+You can use the following possibilities to create a storage instance:
 
 ```go
-// Initialize default config
+// Initialize with default config
 store := objectbox.New()
 
-// Initialize custom config
+// Initialize with custom config
 store := objectbox.New(objectbox.Config{
     Directory:       "objectbox_db",
     MaxSizeInKb:     1024 * 1024, // 1GB

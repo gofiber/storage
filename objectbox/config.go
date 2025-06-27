@@ -33,11 +33,10 @@ var DefaultConfig = Config{
 	CleanerInterval: 60 * time.Second,
 }
 
+// getConfig returns a Config struct, applying user-provided overrides to DefaultConfig.
 func getConfig(config ...Config) Config {
-	// Start with the default config as a base.
 	cfg := DefaultConfig
 
-	// If the user provided a config, overwrite the defaults.
 	if len(config) > 0 {
 		userConfig := config[0]
 

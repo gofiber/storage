@@ -6,7 +6,7 @@ import (
 	"github.com/objectbox/objectbox-go/objectbox"
 )
 
-// Storage handles the ObjectBox database operations and cleanup routines.
+// Storage handles ObjectBox database operations and cleanup routines.
 type Storage struct {
 	ob   *objectbox.ObjectBox
 	box  *CacheBox
@@ -50,8 +50,8 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
-// Get retrieves a value from cache by its key.
-// Returns nil if key doesn't exist or has expired.
+// Get retrieves a value from storage by its key.
+// Returns nil if the key doesn't exist or has expired.
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) < 1 {
 		return nil, nil
@@ -75,7 +75,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return caches[0].Value, nil
 }
 
-// Set stores a value in cache with the specified key and expiration.
+// Set stores a value in storage with the specified key and expiration.
 // If expiration is 0, the entry won't expire.
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	// If key or value is empty, return without storing
@@ -84,8 +84,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	}
 
 	return s.ob.RunInWriteTx(func() error {
-		// Since objectbox go doesn't support conflict strategy,
-		// we need to check if the key already exists
+		// Since objectbox-go doesn't support conflict strategy, we need to check if the key already exists
 		// and update the value if it does.
 		query := s.box.Query(Cache_.Key.Equals(key, true))
 		caches, err := query.Find()
@@ -118,7 +117,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	})
 }
 
-// Delete removes an entry from cache by its key.
+// Delete removes an entry from storage by its key.
 func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
@@ -133,20 +132,19 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-// Reset removes all entries from the cache.
+// Reset removes all entries from the storage.
 func (s *Storage) Reset() error {
 	return s.box.RemoveAll()
 }
 
-// Close shuts down the storage, stopping the cleanup routine
-// and closing the database connection.
+// Close shuts down the storage, stopping the cleanup routine and closing the database connection.
 func (s *Storage) Close() error {
 	close(s.done)
 	s.ob.Close()
 	return nil
 }
 
-// cleanStorage removes all expired cache entries.
+// cleanStorage removes all expired entries from the storage.
 func (s *Storage) cleanStorage() {
 	_, _ = s.box.Query(
 		Cache_.ExpiresAt.NotEquals(0),
@@ -154,7 +152,7 @@ func (s *Storage) cleanStorage() {
 	).Remove()
 }
 
-// cleanerTicker runs periodic cleanup of expired entries.
+// cleanerTicker runs a periodic cleanup of expired entries.
 func (s *Storage) cleanerTicker(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
