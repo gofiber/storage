@@ -83,41 +83,39 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
-	// Since objectbox go doesn't support conflict strategy,
-	// we need to check if the key already exists
-	// and update the value if it does.
-	query := s.box.Query(Cache_.Key.Equals(key, true))
-	caches, err := query.Find()
-	if err != nil {
+	return s.ob.RunInWriteTx(func() error {
+		// Since objectbox go doesn't support conflict strategy,
+		// we need to check if the key already exists
+		// and update the value if it does.
+		query := s.box.Query(Cache_.Key.Equals(key, true))
+		caches, err := query.Find()
+		if err != nil {
+			return err
+		}
+
+		// if the id is 0 it will create new cache
+		// otherwise it will update the existing entry
+		var id uint64 = 0
+		if len(caches) > 0 {
+			id = caches[0].Id
+		}
+
+		var expAt int64
+
+		if exp != 0 {
+			expAt = time.Now().Add(exp).Unix()
+		}
+
+		cache := &Cache{
+			Id:        id,
+			Key:       key,
+			Value:     value,
+			ExpiresAt: expAt,
+		}
+
+		_, err = s.box.Put(cache)
 		return err
-	}
-
-	// if the id is 0 it will create new cache
-	// otherwise it will update the existing entry
-	var id uint64 = 0
-	if len(caches) > 0 {
-		id = caches[0].Id
-	}
-
-	var expAt int64
-
-	if exp > 0 {
-		expAt = time.Now().Add(exp).Unix()
-	}
-
-	cache := &Cache{
-		Id:        id,
-		Key:       key,
-		Value:     value,
-		ExpiresAt: expAt,
-	}
-
-	_, err = s.box.Put(cache)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	})
 }
 
 // Delete removes an entry from cache by its key.
@@ -150,7 +148,10 @@ func (s *Storage) Close() error {
 
 // cleanStorage removes all expired cache entries.
 func (s *Storage) cleanStorage() {
-	_, _ = s.box.Query(Cache_.ExpiresAt.LessThan(time.Now().Unix())).Remove()
+	_, _ = s.box.Query(
+		Cache_.ExpiresAt.NotEquals(0),
+		Cache_.ExpiresAt.LessThan(time.Now().Unix()),
+	).Remove()
 }
 
 // cleanerTicker runs periodic cleanup of expired entries.

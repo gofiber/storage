@@ -183,6 +183,7 @@ func Test_ObjectBox_Cleaner(t *testing.T) {
 		{"expired2", []byte("value2"), -2 * time.Second},
 		{"valid1", []byte("value3"), 1 * time.Hour},
 		{"valid2", []byte("value4"), 2 * time.Hour},
+		{"no_expiry", []byte("value5"), 0},
 	}
 
 	for _, tt := range tests {
@@ -205,7 +206,7 @@ func Test_ObjectBox_Cleaner(t *testing.T) {
 		if tt.expiry < 0 && got != nil {
 			t.Errorf("Expected expired key %s to be nil, got %v", tt.key, got)
 		}
-		if tt.expiry > 0 && got == nil {
+		if tt.expiry >= 0 && got == nil {
 			t.Errorf("Expected valid key %s to exist, got nil", tt.key)
 		}
 	}
