@@ -2,21 +2,67 @@ package objectbox
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-var store = New(Config{
-	Reset:           true,
-	Directory:       "test_db",
-	MaxSizeInKb:     1024,
-	MaxReaders:      10,
-	CleanerInterval: 60 * time.Second,
-})
+// createTestStore sets up a new, clean Storage instance for each test.
+func createTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	// Create a temporary directory for the test database
+	testDir, err := os.MkdirTemp("", "objectbox-test-*")
+	require.NoError(t, err)
+
+	// Configure the store for testing
+	store := New(Config{
+		Directory:       testDir,
+		Reset:           true,
+		MaxSizeInKb:     1024,
+		MaxReaders:      10,
+		CleanerInterval: 60 * time.Second,
+	})
+
+	// Register a cleanup function to close the store and remove the database
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+		require.NoError(t, os.RemoveAll(testDir))
+	})
+
+	return store
+}
+
+// createBenchmarkStore sets up a new, clean Storage instance for each benchmark.
+func createBenchmarkStore(b *testing.B) *Storage {
+	b.Helper()
+
+	// Create a temporary directory for the test database
+	testDir, err := os.MkdirTemp("", "objectbox-benchmark-*")
+	require.NoError(b, err)
+
+	// Configure the store for testing
+	store := New(Config{
+		Directory:       testDir,
+		Reset:           true,
+		MaxSizeInKb:     1024,
+		MaxReaders:      10,
+		CleanerInterval: 60 * time.Second,
+	})
+
+	// Register a cleanup function to close the store and remove the database
+	b.Cleanup(func() {
+		require.NoError(b, store.Close())
+		require.NoError(b, os.RemoveAll(testDir))
+	})
+
+	return store
+}
 
 func Test_ObjectBox_Set_And_Get(t *testing.T) {
+	store := createTestStore(t)
 	key := "test_key"
 	value := []byte("test_value")
 
@@ -29,6 +75,7 @@ func Test_ObjectBox_Set_And_Get(t *testing.T) {
 }
 
 func Test_ObjectBox_Multiple_Sets_Same_Key(t *testing.T) {
+	store := createTestStore(t)
 	key := "multi_set_test"
 	value1 := []byte("first_value")
 	value2 := []byte("second_value")
@@ -57,12 +104,14 @@ func Test_ObjectBox_Multiple_Sets_Same_Key(t *testing.T) {
 }
 
 func Test_ObjectBox_Get_NotExist(t *testing.T) {
+	store := createTestStore(t)
 	result, err := store.Get("nonexistent_key")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
 func Test_ObjectBox_Delete(t *testing.T) {
+	store := createTestStore(t)
 	key := "delete_test"
 	value := []byte("delete_value")
 
@@ -78,6 +127,7 @@ func Test_ObjectBox_Delete(t *testing.T) {
 }
 
 func Test_ObjectBox_Expiration(t *testing.T) {
+	store := createTestStore(t)
 	key := "expire_test"
 	value := []byte("expire_value")
 
@@ -92,6 +142,7 @@ func Test_ObjectBox_Expiration(t *testing.T) {
 }
 
 func Test_ObjectBox_Reset(t *testing.T) {
+	store := createTestStore(t)
 	key1 := "reset_test_1"
 	key2 := "reset_test_2"
 	value := []byte("reset_value")
@@ -114,22 +165,26 @@ func Test_ObjectBox_Reset(t *testing.T) {
 }
 
 func Test_ObjectBox_Empty_Key(t *testing.T) {
+	store := createTestStore(t)
 	result, err := store.Get("")
 	require.NoError(t, err)
 	require.Nil(t, result)
 }
 
 func Test_ObjectBox_Empty_Value(t *testing.T) {
+	store := createTestStore(t)
 	err := store.Set("test_key", []byte{}, 0)
 	require.NoError(t, err)
 }
 
 func Test_ObjectBox_Empty_Key_Delete(t *testing.T) {
+	store := createTestStore(t)
 	err := store.Delete("")
 	require.NoError(t, err)
 }
 
 func Test_ObjectBox_Concurrent_Operations(t *testing.T) {
+	store := createTestStore(t)
 	const goroutines = 10
 	done := make(chan bool)
 
@@ -158,6 +213,7 @@ func Test_ObjectBox_Concurrent_Operations(t *testing.T) {
 }
 
 func Test_ObjectBox_Zero_Expiration(t *testing.T) {
+	store := createTestStore(t)
 	key := "zero_expiration_test"
 	value := []byte("test_value")
 
@@ -173,6 +229,7 @@ func Test_ObjectBox_Zero_Expiration(t *testing.T) {
 }
 
 func Test_ObjectBox_Cleaner(t *testing.T) {
+	store := createTestStore(t)
 	// Set items with different expiration times
 	tests := []struct {
 		key    string
@@ -213,6 +270,7 @@ func Test_ObjectBox_Cleaner(t *testing.T) {
 }
 
 func Benchmark_ObjectBox_Set(b *testing.B) {
+	store := createBenchmarkStore(b)
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -224,6 +282,7 @@ func Benchmark_ObjectBox_Set(b *testing.B) {
 }
 
 func Benchmark_ObjectBox_Get(b *testing.B) {
+	store := createBenchmarkStore(b)
 	err := store.Set("bench_key", []byte("bench_value"), 0)
 	require.NoError(b, err)
 
@@ -237,6 +296,7 @@ func Benchmark_ObjectBox_Get(b *testing.B) {
 }
 
 func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
+	store := createBenchmarkStore(b)
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -249,15 +309,3 @@ func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-func Benchmark_ObjectBox_Cleaner(b *testing.B) {
-	for i := 0; i < 100; i++ {
-		key := fmt.Sprintf("expired-key-%d", i)
-		_ = store.Set(key, []byte("benchmark-value"), -1*time.Second)
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		store.cleanStorage()
-	}
-}

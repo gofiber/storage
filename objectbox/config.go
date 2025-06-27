@@ -34,28 +34,28 @@ var DefaultConfig = Config{
 }
 
 func getConfig(config ...Config) Config {
-	if len(config) < 1 {
-		return DefaultConfig
-	}
+	// Start with the default config as a base.
+	cfg := DefaultConfig
 
-	cfg := config[0]
+	// If the user provided a config, overwrite the defaults.
+	if len(config) > 0 {
+		userConfig := config[0]
 
-	// Set default values
+		if userConfig.Directory != "" {
+			cfg.Directory = userConfig.Directory
+		}
+		if userConfig.MaxSizeInKb != 0 {
+			cfg.MaxSizeInKb = userConfig.MaxSizeInKb
+		}
+		if userConfig.MaxReaders != 0 {
+			cfg.MaxReaders = userConfig.MaxReaders
+		}
+		if userConfig.CleanerInterval != 0 {
+			cfg.CleanerInterval = userConfig.CleanerInterval
+		}
 
-	if cfg.Directory == "" {
-		cfg.Directory = DefaultConfig.Directory
-	}
-
-	if cfg.MaxSizeInKb == 0 {
-		cfg.MaxSizeInKb = DefaultConfig.MaxSizeInKb
-	}
-
-	if cfg.MaxReaders == 0 {
-		cfg.MaxReaders = DefaultConfig.MaxReaders
-	}
-
-	if int(cfg.CleanerInterval.Seconds()) == 0 {
-		cfg.CleanerInterval = DefaultConfig.CleanerInterval
+		// For the boolean, we always take the user's value.
+		cfg.Reset = userConfig.Reset
 	}
 
 	return cfg
