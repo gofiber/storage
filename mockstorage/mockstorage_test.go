@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStorageDefaultBehavior(t *testing.T) {
@@ -273,4 +275,46 @@ func TestStorageConnAndKeys(t *testing.T) {
 	if len(keys) != 1 || !bytes.Equal(keys[0], []byte("key1")) {
 		t.Errorf("Keys() = %v, want %v", keys, [][]byte{[]byte("key1")})
 	}
+}
+
+func Benchmark_Mockstorage_Set(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_Get(b *testing.B) {
+	testStore := New()
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_SetAndDelete(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }
