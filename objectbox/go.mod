@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/objectbox/v2
+module github.com/gofiber/storage/objectbox
 
 go 1.23
 
