@@ -26,9 +26,6 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Install ObjectBox
                 run: echo "n" | bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
-            -   name: Test ObjectBox - with -race check
-                if: runner.os != 'Windows'
+            -   name: Test ObjectBox
                 run: cd ./objectbox && go test ./... -v -race
-            -   name: Test ObjectBox - without -race check
-                if: runner.os == 'Windows'
-                run: cd ./objectbox && go test ./... -v
+        
