@@ -6,6 +6,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStorageDefaultBehavior(t *testing.T) {
@@ -382,4 +384,46 @@ func TestResetWithContext(t *testing.T) {
 	if err == nil || err.Error() != "custom reset error" {
 		t.Errorf("ResetWithContext custom override failed: err=%v", err)
 	}
+}
+
+func Benchmark_Mockstorage_Set(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_Get(b *testing.B) {
+	testStore := New()
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_SetAndDelete(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }
