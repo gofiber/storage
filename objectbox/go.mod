@@ -11,6 +11,6 @@ require (
 
 require (
 	github.com/google/flatbuffers v25.2.10+incompatible
-	github.com/stretchr/testify v1.10.0
 	github.com/objectbox/objectbox-go v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
