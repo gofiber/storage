@@ -33,6 +33,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
+**Note:** The context methods are dummy methods and don't have any functionality, as LevelDB does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+
 ### Installation
 
 LevelDB is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
