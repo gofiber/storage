@@ -33,7 +33,7 @@ func (s *Storage) Close() error // Closes the storage connection
 ### Installation
 
 First, ensure you have ObjectBox installed by following the official installation guide:
-https://golang.objectbox.io/install
+[ObjectBox installation guide](https://golang.objectbox.io/install)
 
 Then, install the ObjectBox storage driver:
 ```bash
@@ -45,7 +45,10 @@ go get github.com/gofiber/storage/objectbox
 Import the storage package:
 
 ```go
-import "github.com/gofiber/storage/objectbox"
++import (
++    "github.com/gofiber/storage/objectbox"
++    "time"
++)
 ```
 
 You can use the following possibilities to create a storage instance:
