@@ -45,10 +45,10 @@ go get github.com/gofiber/storage/objectbox
 Import the storage package:
 
 ```go
-+import (
-+    "github.com/gofiber/storage/objectbox"
-+    "time"
-+)
+import (
+    "github.com/gofiber/storage/objectbox"
+    "time"
+)
 ```
 
 You can use the following possibilities to create a storage instance:
