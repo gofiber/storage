@@ -32,7 +32,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
 func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
-func (s *Storage) Conn() *badger.DB
+func (s *Storage) Conn() *pebble.DB
 ```
 
 **Note:** The context methods are dummy methods and don't have any functionality, as Pebble does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.

@@ -3,7 +3,6 @@ package cloudflarekv
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -67,7 +66,6 @@ func Test_CloudflareKV_GetWithContext(t *testing.T) {
 	cancel()
 
 	val, err = testStore.GetWithContext(ctx, key)
-	fmt.Println(err)
 	require.ErrorContains(t, err, context.Canceled.Error())
 	require.Nil(t, val)
 

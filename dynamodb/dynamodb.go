@@ -76,7 +76,7 @@ func New(config Config) *Storage {
 	return store
 }
 
-// GetWithContext value by key with context
+// GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	k := make(map[string]types.AttributeValue)
 	k[keyAttrName] = &types.AttributeValueMemberS{

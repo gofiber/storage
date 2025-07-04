@@ -82,7 +82,7 @@ func New(config ...Config) *Storage {
 	}
 }
 
-// GetWithContext value by key with context
+// GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
