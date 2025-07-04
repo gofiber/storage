@@ -1,6 +1,7 @@
 package cassandra
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -218,8 +219,8 @@ type queryResult struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
-// Set stores a key-value pair with optional expiration
-func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+// SetWithContext stores a key-value pair with optional expiration with context support
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
 	// Validate key
 	if _, err := validateIdentifier(key, "key"); err != nil {
 		return err
@@ -256,11 +257,16 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		"key":        key,
 		"value":      value,
 		"expires_at": expiresAt,
-	}).ExecRelease()
+	}).WithContext(ctx).ExecRelease()
 }
 
-// Get retrieves a value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// Set stores a key-value pair with optional expiration
+func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, value, exp)
+}
+
+// GetWithContext retrieves a value by key with context support.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	// Use query builder for select
 	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Columns("value", "expires_at").
@@ -271,7 +277,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	// Use gocqlx session
 	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
 		"key": key,
-	}).GetRelease(&result); err != nil {
+	}).WithContext(ctx).GetRelease(&result); err != nil {
 		if err == gocql.ErrNotFound {
 			return nil, ErrNotFound
 		}
@@ -290,8 +296,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return result.Value, nil
 }
 
-// Delete removes a key from storage
-func (s *Storage) Delete(key string) error {
+// Get retrieves a value by key.
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// DeleteWithContext removes a key from storage with context support.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	// Use query builder for delete
 	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Where(qb.Eq("key")).
@@ -300,14 +311,26 @@ func (s *Storage) Delete(key string) error {
 	// Use gocqlx session
 	return s.sx.Query(stmt, names).BindMap(map[string]interface{}{
 		"key": key,
-	}).ExecRelease()
+	}).WithContext(ctx).ExecRelease()
 }
 
-// Reset clears all keys from storage
-func (s *Storage) Reset() error {
+// Delete removes a key from storage.
+func (s *Storage) Delete(key string) error {
+	// Use the context-free version
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext clears all keys from storage with context support.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	// Use direct TRUNCATE query with proper escaping
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
-	return s.sx.Query(query, []string{}).ExecRelease()
+	return s.sx.Query(query, []string{}).WithContext(ctx).ExecRelease()
+}
+
+// Reset clears all keys from storage.
+func (s *Storage) Reset() error {
+	// Use the context-free version
+	return s.ResetWithContext(context.Background())
 }
 
 // Conn returns the underlying gocql session.

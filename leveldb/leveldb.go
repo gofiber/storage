@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -41,12 +42,12 @@ func New(config ...Config) *Storage {
 }
 
 // Get value by key
-func (s *Storage) Get(key []byte) ([]byte, error) {
+func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
 
-	data, err := s.db.Get(key, nil)
+	data, err := s.db.Get([]byte(key), nil)
 	if err != nil {
 		return nil, nil
 	}
@@ -66,13 +67,18 @@ func (s *Storage) Get(key []byte) ([]byte, error) {
 	return stored.Value, nil
 }
 
+// GetWithContext gets value by key (dummy context support)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Set key with value
-func (s *Storage) Set(key, value []byte, exp time.Duration) error {
+func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
 	if exp == 0 {
-		return s.db.Put(key, value, nil)
+		return s.db.Put([]byte(key), value, nil)
 	}
 
 	data := item{
@@ -84,7 +90,12 @@ func (s *Storage) Set(key, value []byte, exp time.Duration) error {
 	if err != nil {
 		return err
 	}
-	return s.db.Put(key, encoded, nil)
+	return s.db.Put([]byte(key), encoded, nil)
+}
+
+// SetWithContext sets key with value (dummy context support)
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	return s.Set(key, value, exp)
 }
 
 // Delete key by key
@@ -109,6 +120,11 @@ func (s *Storage) Reset() error {
 	}
 
 	return iter.Error()
+}
+
+// ResetWithContext resets all keys (dummy context support)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
 }
 
 // Close the memory storage

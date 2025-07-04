@@ -101,12 +101,10 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-
-	ctx := context.Background()
 
 	res, err := neo4j.ExecuteQuery(
 		ctx, s.db, s.cypherMatch,
@@ -139,8 +137,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return model.Val, nil
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext key with value and expiration time with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -156,8 +158,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		Exp: expireAt,
 	}
 
-	ctx := context.Background()
-
 	_, err := neo4j.ExecuteQuery(
 		ctx, s.db, s.cypherMerge,
 		map[string]any{"key": data.Key, "val": data.Val, "exp": data.Exp},
@@ -167,25 +167,40 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete value by key
-func (s *Storage) Delete(key string) error {
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext value by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
 
-	_, err := neo4j.ExecuteQuery(context.Background(), s.db, s.cypherDelete, map[string]any{"key": key}, neo4j.EagerResultTransformer)
+	_, err := neo4j.ExecuteQuery(ctx, s.db, s.cypherDelete, map[string]any{"key": key}, neo4j.EagerResultTransformer)
 	return err
 }
 
-// Reset all keys. Remove all nodes
-func (s *Storage) Reset() error {
+// Delete value by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext all keys with context. Remove all nodes
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	_, err := neo4j.ExecuteQuery(
-		context.Background(), s.db, s.cypherReset,
+		ctx, s.db, s.cypherReset,
 		nil,
 		neo4j.EagerResultTransformer,
 	)
 
 	return err
+}
+
+// Reset all keys. Remove all nodes
+func (s *Storage) Reset() error {
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database

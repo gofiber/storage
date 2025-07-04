@@ -1,6 +1,7 @@
 package badger
 
 import (
+	"context"
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
@@ -72,6 +73,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, err
 }
 
+// GetWithContext gets value by key.
+// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
@@ -88,6 +95,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	})
 }
 
+// SetWithContext sets key with value.
+// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
 // Delete key by key
 func (s *Storage) Delete(key string) error {
 	// Ain't Nobody Got Time For That
@@ -99,8 +112,20 @@ func (s *Storage) Delete(key string) error {
 	})
 }
 
+// DeleteWithContext deletes key by key.
+// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
 // Reset all keys
 func (s *Storage) Reset() error {
+	return s.db.DropAll()
+}
+
+// ResetWithContext resets all keys.
+// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.db.DropAll()
 }
 
