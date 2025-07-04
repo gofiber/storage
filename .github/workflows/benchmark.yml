@@ -64,7 +64,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install Cloudflare Worker
         if: ${{ matrix.package == 'cloudflarekv' }}
@@ -82,7 +82,7 @@ jobs:
             --env ALLOW_NONE_AUTHENTICATION=yes \
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
-      
+
       - name: Install MSSQL
         if: ${{ matrix.package == 'mssql' }}
         run: |
@@ -151,4 +151,4 @@ jobs:
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
-      
+
