@@ -32,6 +32,7 @@ func (s *Storage) CheckBucket() error
 func (s *Storage) CreateBucket() error
 func (s *Storage) RemoveBucket() error
 func (s *Storage) Conn() *minio.Client
+func (s *Storage) GetPresignedURL(key string, expiration time.Duration, isDownload bool) (string, error)
 ```
 ### Installation
 Install the Minio implementation:
