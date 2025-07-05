@@ -154,6 +154,26 @@ func (s *Storage) Reset() error {
 	return errors.Join(errs...)
 }
 
+// GetPresignedURL generates a presigned GET URL for an object
+func (s *Storage) GetPresignedURL(key string, expiration time.Duration, isDownload bool) (string, error) {
+	if len(key) == 0 {
+		return "", errors.New("the key value is required")
+	}
+
+	reqParams := make(url.Values)
+	if isDownload {
+		reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", key))
+		reqParams.Set("Content-Type", "application/octet-stream")
+	}
+
+	presignedURL, err := s.minio.PresignedGetObject(s.ctx, s.cfg.Bucket, key, expiration, reqParams)
+	if err != nil {
+		return "", err
+	}
+
+	return presignedURL.String(), nil
+}
+
 // Close the storage
 func (s *Storage) Close() error {
 	return nil
