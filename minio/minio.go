@@ -156,8 +156,8 @@ func (s *Storage) Reset() error {
 	return errors.Join(errs...)
 }
 
-// GetPresignedUrl generates a presigned GET url for an object
-func (s *Storage) GetPresignedUrl(key string, expiration time.Duration, downloadUrl bool) (string, error) {
+// GetPresignedURL generates a presigned GET url for an object
+func (s *Storage) GetPresignedURL(key string, expiration time.Duration, isDownload bool) (string, error) {
 	if len(key) == 0 {
 		return "", errors.New("the key value is required")
 	}
