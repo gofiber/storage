@@ -9,8 +9,6 @@ title: Etcd
 
 A Etcd storage driver using [`etcd-io/etcd`](https://github.com/etcd-io/etcd).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

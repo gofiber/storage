@@ -9,8 +9,6 @@ title: Badger
 
 A fast key-value DB using [dgraph-io/badger](https://github.com/dgraph-io/badger)
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 
 - [Signatures](#signatures)

@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/badger/v2
 
-go 1.19
+go 1.23.0
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5

@@ -10,8 +10,6 @@ title: Nats
 
 A NATS Key/Value storage driver.
 
-## Note: Requires Go 1.20 and above
-
 ### Table of Contents
 
 - [Signatures](#signatures)

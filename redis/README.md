@@ -9,8 +9,6 @@ title: Redis
 
 A Redis storage driver using [go-redis/redis](https://github.com/go-redis/redis).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 
 - [Signatures](#signatures)

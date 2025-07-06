@@ -9,8 +9,6 @@ title: Cloudflare KV
 
 A Cloudflare KV storage driver using [cloudflare/cloudflare-go](https://github.com/cloudflare/cloudflare-go).
 
-**Note: Requires Go 1.21 and above**
-
 ### Table of Contents
 
 - [Signatures](#signatures)

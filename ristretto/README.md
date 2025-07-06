@@ -9,8 +9,6 @@ title: Ristretto
 
 A Memory-bound storage driver using [`dgraph-io/ristretto`](https://github.com/dgraph-io/ristretto).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 
 - [Signatures](#signatures)

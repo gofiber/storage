@@ -9,8 +9,6 @@ title: MongoDB
 
 A MongoDB storage driver using [mongodb/mongo-go-driver](https://github.com/mongodb/mongo-go-driver).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
