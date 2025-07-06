@@ -254,6 +254,62 @@ func Test_Close(t *testing.T) {
 	require.NoError(t, testStore.Close())
 }
 
+func Test_GetPresignedUrl(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// Set object first
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	// Get presigned URL for download
+	url, err := testStore.GetPresignedUrl(key, 10*time.Minute, true)
+	require.NoError(t, err)
+	require.NotEmpty(t, url)
+
+	// Get presigned URL for view (not download)
+	url, err = testStore.GetPresignedUrl(key, 10*time.Minute, false)
+	require.NoError(t, err)
+	require.NotEmpty(t, url)
+}
+
+func Test_GetPresignedUrl_EmptyKey(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	url, err := testStore.GetPresignedUrl("", 10*time.Minute, true)
+	require.Error(t, err)
+	require.Empty(t, url)
+	require.EqualError(t, err, "the key value is required")
+}
+
+func Test_GetPresignedUrl_NotExistsKey(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	url, err := testStore.GetPresignedUrl("not-exists", 10*time.Minute, true)
+	require.NoError(t, err)
+	require.NotEmpty(t, url)
+}
+
+func Test_GetPresignedUrl_NotExistsBucket(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// random bucket name
+	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
+
+	url, err := testStore.GetPresignedUrl("john", 10*time.Minute, true)
+	require.Error(t, err)
+	require.Empty(t, url)
+	require.EqualError(t, err, "The specified bucket does not exist")
+}
+
 func Benchmark_Minio_Set(b *testing.B) {
 	testStore := newTestStore(b)
 	defer testStore.Close()

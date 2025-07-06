@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -154,23 +156,20 @@ func (s *Storage) Reset() error {
 	return errors.Join(errs...)
 }
 
-// GetPresignedURL generates a presigned GET URL for an object
-func (s *Storage) GetPresignedURL(key string, expiration time.Duration, isDownload bool) (string, error) {
+// GetPresignedUrl generates a presigned GET url for an object
+func (s *Storage) GetPresignedUrl(key string, expiration time.Duration, downloadUrl bool) (string, error) {
 	if len(key) == 0 {
 		return "", errors.New("the key value is required")
 	}
-
 	reqParams := make(url.Values)
-	if isDownload {
+	if downloadUrl {
 		reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", key))
 		reqParams.Set("Content-Type", "application/octet-stream")
 	}
-
 	presignedURL, err := s.minio.PresignedGetObject(s.ctx, s.cfg.Bucket, key, expiration, reqParams)
 	if err != nil {
 		return "", err
 	}
-
 	return presignedURL.String(), nil
 }
 
