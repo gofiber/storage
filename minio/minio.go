@@ -163,7 +163,7 @@ func (s *Storage) GetPresignedURL(key string, expiration time.Duration, isDownlo
 	}
 	reqParams := make(url.Values)
 	if downloadUrl {
-		reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", key))
+reqParams.Set("response-content-disposition", fmt.Sprintf("attachment; filename=\"%s\"", filepath.Base(key)))
 		reqParams.Set("Content-Type", "application/octet-stream")
 	}
 	presignedURL, err := s.minio.PresignedGetObject(s.ctx, s.cfg.Bucket, key, expiration, reqParams)
