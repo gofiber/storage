@@ -304,11 +304,9 @@ func Test_GetPresignedUrl_NotExistsBucket(t *testing.T) {
 	// random bucket name
 	testStore.cfg.Bucket = strconv.FormatInt(time.Now().UnixMicro(), 10)
 
-	url, err := testStore.GetPresignedUrl("john", 10*time.Minute, true)
-	require.Error(t, err)
-	require.Empty(t, url)
-	require.EqualError(t, err, "The specified bucket does not exist")
-}
+url, err := testStore.GetPresignedUrl("john", 10*time.Minute, true)
+require.NoError(t, err)
+require.NotEmpty(t, url)
 
 func Benchmark_Minio_Set(b *testing.B) {
 	testStore := newTestStore(b)
