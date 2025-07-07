@@ -25,7 +25,8 @@ updates:
                   - "github.com/testcontainers/testcontainers-go/modules/**"
           utils-modules:
               patterns:
-                  - "github.com/gofiber/utils/v2"
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
           fiber-modules:
               patterns:
                   - "github.com/gofiber/fiber/**"
