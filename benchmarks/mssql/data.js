@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751881857926,
+  "lastUpdate": 1751882464598,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -88,6 +88,102 @@ window.BENCHMARK_DATA = {
           {
             "name": "Benchmark_MSSQL_SetAndDelete - B/op",
             "value": 77794,
+            "unit": "B/op",
+            "extra": "237 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - allocs/op",
+            "value": 636,
+            "unit": "allocs/op",
+            "extra": "237 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "96ffeac813579e02494658d62f51246a8ec7a2a6",
+          "message": "Merge pull request #1804 from gofiber/dependabot/go_modules/mssql/github.com/microsoft/go-mssqldb-1.9.2\n\nchore(deps): bump github.com/microsoft/go-mssqldb from 1.8.1 to 1.9.2 in /mssql",
+          "timestamp": "2025-07-07T11:53:47+02:00",
+          "tree_id": "d9a596cc2d6eb5ea22ef608c74ce823718c0eacb",
+          "url": "https://github.com/gofiber/storage/commit/96ffeac813579e02494658d62f51246a8ec7a2a6"
+        },
+        "date": 1751882460531,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_MSSQL_Set",
+            "value": 2437576,
+            "unit": "ns/op\t   41178 B/op\t     332 allocs/op",
+            "extra": "482 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - ns/op",
+            "value": 2437576,
+            "unit": "ns/op",
+            "extra": "482 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - B/op",
+            "value": 41178,
+            "unit": "B/op",
+            "extra": "482 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Set - allocs/op",
+            "value": 332,
+            "unit": "allocs/op",
+            "extra": "482 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get",
+            "value": 1788834,
+            "unit": "ns/op\t   41137 B/op\t     335 allocs/op",
+            "extra": "648 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - ns/op",
+            "value": 1788834,
+            "unit": "ns/op",
+            "extra": "648 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - B/op",
+            "value": 41137,
+            "unit": "B/op",
+            "extra": "648 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_Get - allocs/op",
+            "value": 335,
+            "unit": "allocs/op",
+            "extra": "648 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete",
+            "value": 5199682,
+            "unit": "ns/op\t   79525 B/op\t     636 allocs/op",
+            "extra": "237 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - ns/op",
+            "value": 5199682,
+            "unit": "ns/op",
+            "extra": "237 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MSSQL_SetAndDelete - B/op",
+            "value": 79525,
             "unit": "B/op",
             "extra": "237 times\n4 procs"
           },
