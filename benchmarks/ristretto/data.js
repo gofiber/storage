@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744788342242,
+  "lastUpdate": 1751882387143,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -192,6 +192,102 @@ window.BENCHMARK_DATA = {
             "value": 6,
             "unit": "allocs/op",
             "extra": "1881328 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "84234671713e1e75e9f9c7eaaacc9f18f6c484e1",
+          "message": "Merge pull request #1569 from gofiber/add-withcontext",
+          "timestamp": "2025-07-07T11:44:47+02:00",
+          "tree_id": "7578250e12b0352776171d0651b265ba58951118",
+          "url": "https://github.com/gofiber/storage/commit/84234671713e1e75e9f9c7eaaacc9f18f6c484e1"
+        },
+        "date": 1751882383288,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Ristretto_Set",
+            "value": 317.6,
+            "unit": "ns/op\t     123 B/op\t       4 allocs/op",
+            "extra": "3750861 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - ns/op",
+            "value": 317.6,
+            "unit": "ns/op",
+            "extra": "3750861 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - B/op",
+            "value": 123,
+            "unit": "B/op",
+            "extra": "3750861 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Set - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "3750861 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get",
+            "value": 85.21,
+            "unit": "ns/op\t      18 B/op\t       1 allocs/op",
+            "extra": "14229655 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - ns/op",
+            "value": 85.21,
+            "unit": "ns/op",
+            "extra": "14229655 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - B/op",
+            "value": 18,
+            "unit": "B/op",
+            "extra": "14229655 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_Get - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "14229655 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete",
+            "value": 675.6,
+            "unit": "ns/op\t     219 B/op\t       6 allocs/op",
+            "extra": "1787942 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - ns/op",
+            "value": 675.6,
+            "unit": "ns/op",
+            "extra": "1787942 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - B/op",
+            "value": 219,
+            "unit": "B/op",
+            "extra": "1787942 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Ristretto_SetAndDelete - allocs/op",
+            "value": 6,
+            "unit": "allocs/op",
+            "extra": "1787942 times\n4 procs"
           }
         ]
       }
