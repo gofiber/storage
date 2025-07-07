@@ -26,3 +26,13 @@ updates:
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils/v2"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
