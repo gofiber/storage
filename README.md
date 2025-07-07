@@ -22,7 +22,7 @@ sidebar_position: 1
 
 Premade storage drivers that implement the [`Storage`](https://github.com/gofiber/storage/blob/main/storage.go) interface, designed to be used with various [Fiber middlewares](https://github.com/gofiber/fiber/tree/master/middleware).
 
-**Note:** All storages are tested with the latest two [Go version](https://go.dev/doc/devel/release#policy). Older Go versions may  also work, but are not guaranteed to be supported.
+**Note:** All storages are tested with the latest two [Go version](https://go.dev/doc/devel/release#policy). Older Go versions may also work, but are not guaranteed to be supported.
 
 ```go
 // Storage interface for communicating with different database/key-value
