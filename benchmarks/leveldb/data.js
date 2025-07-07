@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745688196839,
+  "lastUpdate": 1751882013817,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -192,6 +192,102 @@ window.BENCHMARK_DATA = {
             "value": 3,
             "unit": "allocs/op",
             "extra": "441018 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "84234671713e1e75e9f9c7eaaacc9f18f6c484e1",
+          "message": "Merge pull request #1569 from gofiber/add-withcontext",
+          "timestamp": "2025-07-07T11:44:47+02:00",
+          "tree_id": "7578250e12b0352776171d0651b265ba58951118",
+          "url": "https://github.com/gofiber/storage/commit/84234671713e1e75e9f9c7eaaacc9f18f6c484e1"
+        },
+        "date": 1751882009579,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Set",
+            "value": 2759,
+            "unit": "ns/op\t     323 B/op\t       3 allocs/op",
+            "extra": "452029 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Set - ns/op",
+            "value": 2759,
+            "unit": "ns/op",
+            "extra": "452029 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Set - B/op",
+            "value": 323,
+            "unit": "B/op",
+            "extra": "452029 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "452029 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Get",
+            "value": 490,
+            "unit": "ns/op\t     358 B/op\t      10 allocs/op",
+            "extra": "2687823 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Get - ns/op",
+            "value": 490,
+            "unit": "ns/op",
+            "extra": "2687823 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Get - B/op",
+            "value": 358,
+            "unit": "B/op",
+            "extra": "2687823 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Get - allocs/op",
+            "value": 10,
+            "unit": "allocs/op",
+            "extra": "2687823 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Delete",
+            "value": 2714,
+            "unit": "ns/op\t     296 B/op\t       3 allocs/op",
+            "extra": "446805 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Delete - ns/op",
+            "value": 2714,
+            "unit": "ns/op",
+            "extra": "446805 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Delete - B/op",
+            "value": 296,
+            "unit": "B/op",
+            "extra": "446805 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Delete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "446805 times\n4 procs"
           }
         ]
       }
