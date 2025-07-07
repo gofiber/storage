@@ -1,11 +1,13 @@
 package surrealdb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
-	"time"
 )
 
 // Storage interface that is implemented by storage providers
@@ -17,12 +19,6 @@ type Storage struct {
 }
 
 // model represents a key-value storage record used in SurrealDB.
-// It contains the key name, the stored byte value, and an optional expiration timestamp.
-//
-// Fields:
-//   - Key: the unique identifier for the stored item.
-//   - Body: the value stored as a byte slice (can represent any serialized data, such as JSON).
-//   - Exp: the expiration time as a Unix timestamp (0 means no expiration).
 type model struct {
 	Key  string `json:"key"`
 	Body []byte `json:"body"`
@@ -30,7 +26,6 @@ type model struct {
 }
 
 // New creates a new SurrealDB storage instance using the provided configuration.
-// Returns an error if the connection or authentication fails.
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 	db, err := surrealdb.New(cfg.ConnectionString)
@@ -67,6 +62,7 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
+// Get returns the value by key
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, errors.New("key is required")
@@ -86,6 +82,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return m.Body, nil
 }
 
+// GetWithContext dummy context support: calls Get ignoring ctx
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
+// Set sets a value by key with optional expiration
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) == 0 {
 		return errors.New("key is required")
@@ -96,7 +98,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expiresAt = time.Now().Add(exp).Unix()
 	}
 
-	// Upsert is used instead of Create to allow overriding the same key if it already exists.
 	_, err := surrealdb.Upsert[model](s.db, models.NewRecordID(s.table, key), &model{
 		Key:  key,
 		Body: val,
@@ -105,6 +106,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
+// SetWithContext dummy context support: calls Set ignoring ctx
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
+// Delete removes a key from storage
 func (s *Storage) Delete(key string) error {
 	if len(key) == 0 {
 		return errors.New("key is required")
@@ -114,20 +121,34 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
+// DeleteWithContext dummy context support: calls Delete ignoring ctx
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
+// Reset clears all keys in the storage table
 func (s *Storage) Reset() error {
 	_, err := surrealdb.Delete[[]model](s.db, models.Table(s.table))
 	return err
 }
 
+// ResetWithContext dummy context support: calls Reset ignoring ctx
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
+}
+
+// Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
 	close(s.stopGC)
 	return s.db.Close()
 }
 
+// Conn returns the underlying SurrealDB client
 func (s *Storage) Conn() *surrealdb.DB {
 	return s.db
 }
 
+// List returns all stored keys and values as JSON
 func (s *Storage) List() ([]byte, error) {
 	records, err := surrealdb.Select[[]model, models.Table](s.db, models.Table(s.table))
 	if err != nil {
@@ -148,6 +169,7 @@ func (s *Storage) List() ([]byte, error) {
 	return json.Marshal(data)
 }
 
+// gc runs periodic cleanup of expired keys
 func (s *Storage) gc() {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
@@ -162,6 +184,7 @@ func (s *Storage) gc() {
 	}
 }
 
+// cleanupExpired deletes expired keys from storage
 func (s *Storage) cleanupExpired() {
 	records, err := surrealdb.Select[[]model, models.Table](s.db, models.Table(s.table))
 	if err != nil {

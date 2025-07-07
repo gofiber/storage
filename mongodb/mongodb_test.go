@@ -66,6 +66,22 @@ func Test_MongoDB_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_MongoDB_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
 func Test_MongoDB_Set_Override(t *testing.T) {
 	var (
 		key = "john"
@@ -97,6 +113,26 @@ func Test_MongoDB_Get(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+}
+
+func Test_MongoDB_GetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
 }
 
 func Test_MongoDB_Set_Expiration(t *testing.T) {
@@ -159,6 +195,29 @@ func Test_MongoDB_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_MongoDB_DeleteWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_MongoDB_Reset(t *testing.T) {
 	val := []byte("doe")
 
@@ -181,6 +240,33 @@ func Test_MongoDB_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_MongoDB_ResetWithContext(t *testing.T) {
+	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_MongoDB_Close(t *testing.T) {

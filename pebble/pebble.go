@@ -1,6 +1,7 @@
 package pebble
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -39,8 +40,7 @@ func New(config ...Config) *Storage {
 	}
 }
 
-// // Implement the logic to retrieve the value for the given key from the storage provider
-// // Return nil, nil if the key does not exist
+// Get retrieves the value by key.
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
@@ -60,7 +60,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	var cache CacheType
 	err = json.Unmarshal(data, &cache)
-
 	if err != nil {
 		return nil, nil
 	}
@@ -71,18 +70,26 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		err = s.db.Delete([]byte(key), nil)
 		return nil, err
 	}
+
 	return cache.Data, nil
 }
 
-// // Implement the logic to store the given value for the given key in the storage provider
-// // Use the provided expiration value (0 means no expiration)
-// // Ignore empty key or value without returning an error
+// GetWithContext retrieves value by key (dummy context support)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
+// Set stores the given value with optional expiration
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
-	cache := CacheType{Data: []byte(val), Created: time.Now().Unix(), Expires: 0}
+	cache := CacheType{
+		Data:    val,
+		Created: time.Now().Unix(),
+		Expires: 0,
+	}
 
 	if exp > 0 {
 		cache.Expires = cache.Created + int64(exp.Seconds())
@@ -95,8 +102,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return s.db.Set([]byte(key), jsonString, s.writeOptions)
 }
 
-// // Implement the logic to delete the value for the given key from the storage provider
-// // Return no error if the key does not exist in the storage
+// SetWithContext sets value by key (dummy context support)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
+// Delete removes a value by key
 func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
@@ -104,26 +115,36 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete([]byte(key), s.writeOptions)
 }
 
+// DeleteWithContext deletes key (dummy context support)
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
+// Reset flushes the DB
 func (s *Storage) Reset() error {
 	return s.db.Flush()
 }
 
+// ResetWithContext resets storage (dummy context support)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
+}
+
+// Close closes the database
 func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-// // Return database client
+// Conn returns the database client
 func (s *Storage) Conn() *pebble.DB {
 	return s.db
 }
 
 func isValid(fp string) bool {
-	// Check if file already exists
 	if _, err := os.Stat(fp); err == nil {
 		return true
 	}
 
-	// Attempt to create it
 	var d []byte
 	err := os.WriteFile(fp, d, 0o600)
 	if err != nil {

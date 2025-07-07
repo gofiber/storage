@@ -79,6 +79,19 @@ func Test_Neo4jStore_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_Neo4jStore_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 0)
+	defer cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 10*time.Millisecond)
+	require.ErrorContains(t, err, context.DeadlineExceeded.Error())
+}
+
 func Test_Neo4jStore_Upsert(t *testing.T) {
 	var (
 		key = "john"

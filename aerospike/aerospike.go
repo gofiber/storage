@@ -1,6 +1,7 @@
 package aerospike
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -216,6 +217,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
+// GetWithContext gets value by key (dummy context support)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
@@ -242,6 +248,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return s.client.Put(writePolicy, k, bins)
 }
 
+// SetWithContext sets value by key (dummy context support)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
 // Delete key
 func (s *Storage) Delete(key string) error {
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
@@ -251,6 +262,11 @@ func (s *Storage) Delete(key string) error {
 
 	_, err = s.client.Delete(nil, k)
 	return err
+}
+
+// DeleteWithContext deletes key (dummy context support)
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
 }
 
 // Reset all keys
@@ -291,6 +307,11 @@ func (s *Storage) Reset() error {
 	}
 
 	return nil
+}
+
+// ResetWithContext resets all keys (dummy context support)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
 }
 
 // Close the storage

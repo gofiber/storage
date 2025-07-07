@@ -9,8 +9,6 @@ title: Bbolt
 
 A Bbolt storage driver using [etcd-io/bbolt](https://github.com/etcd-io/bbolt). Bolt is a pure Go key/value store inspired by [Howard Chu's](https://twitter.com/hyc_symas) [LMDB project](https://www.symas.com/symas-embedded-database-lmdb). The goal of the project is to provide a simple, fast, and reliable database for projects that don't require a full database server such as Postgres or MySQL.
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -22,12 +20,19 @@ A Bbolt storage driver using [etcd-io/bbolt](https://github.com/etcd-io/bbolt). 
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *bbolt.DB
 ```
+
+**Note:** The context methods are dummy methods and don't have any functionality, as Bbolt does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+
 ### Installation
 Bbolt is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash

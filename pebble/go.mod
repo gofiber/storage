@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/pebble/v2
 
-go 1.19
+go 1.23.0
 
 require (
 	github.com/cockroachdb/pebble v1.0.0
