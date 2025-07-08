@@ -60,6 +60,7 @@ jobs:
       - name: Run golangci-lint
         uses: reviewdog/action-golangci-lint@v2
         with:
+          golangci_lint_version: v2.2.1
           golangci_lint_flags: "--tests=false --timeout=5m"
           workdir: ${{ matrix.package }}
           fail_level: "warning"
