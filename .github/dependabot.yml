@@ -37,3 +37,24 @@ updates:
           golang-modules:
               patterns:
                   - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"
