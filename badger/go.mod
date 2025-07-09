@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/gofiber/utils/v2 v2.0.0-beta.9
+	github.com/gofiber/utils/v2 v2.0.0-beta.10
 	github.com/stretchr/testify v1.10.0
 )
 
