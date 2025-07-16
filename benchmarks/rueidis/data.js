@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751882072394,
+  "lastUpdate": 1752652955607,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -480,6 +480,102 @@ window.BENCHMARK_DATA = {
             "value": 3,
             "unit": "allocs/op",
             "extra": "4110 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eeb603cde2cf0e7eaf2dd1a6a8a912ff44f76e4a",
+          "message": "Merge pull request #1823 from gofiber/dependabot/go_modules/rueidis/github.com/redis/rueidis-1.0.63\n\nchore(deps): bump github.com/redis/rueidis from 1.0.62 to 1.0.63 in /rueidis",
+          "timestamp": "2025-07-16T10:01:02+02:00",
+          "tree_id": "e637fe1443237d840d700e6b63016be4c04e1a29",
+          "url": "https://github.com/gofiber/storage/commit/eeb603cde2cf0e7eaf2dd1a6a8a912ff44f76e4a"
+        },
+        "date": 1752652951239,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Rueidis_Set",
+            "value": 132084,
+            "unit": "ns/op\t     470 B/op\t       2 allocs/op",
+            "extra": "9060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - ns/op",
+            "value": 132084,
+            "unit": "ns/op",
+            "extra": "9060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - B/op",
+            "value": 470,
+            "unit": "B/op",
+            "extra": "9060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "9060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get",
+            "value": 139715,
+            "unit": "ns/op\t     602 B/op\t      11 allocs/op",
+            "extra": "8305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - ns/op",
+            "value": 139715,
+            "unit": "ns/op",
+            "extra": "8305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - B/op",
+            "value": 602,
+            "unit": "B/op",
+            "extra": "8305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "8305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete",
+            "value": 263756,
+            "unit": "ns/op\t     705 B/op\t       3 allocs/op",
+            "extra": "4021 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - ns/op",
+            "value": 263756,
+            "unit": "ns/op",
+            "extra": "4021 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - B/op",
+            "value": 705,
+            "unit": "B/op",
+            "extra": "4021 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "4021 times\n4 procs"
           }
         ]
       }
