@@ -1,10 +1,10 @@
 module github.com/gofiber/storage/badger/v2
 
-go 1.19
+go 1.23.0
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/gofiber/utils/v2 v2.0.0-beta.3
+	github.com/gofiber/utils/v2 v2.0.0-beta.13
 	github.com/stretchr/testify v1.10.0
 )
 
@@ -20,7 +20,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v23.5.26+incompatible // indirect
-	github.com/google/uuid v1.3.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

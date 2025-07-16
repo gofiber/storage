@@ -22,6 +22,8 @@ type Config struct {
 	KeyValueConfig jetstream.KeyValueConfig
 	// Wait for connection to be established, default: 250ms
 	WaitForConnection time.Duration
+	// Reset clears any existing keys in existing bucket default: false
+	Reset bool
 }
 
 // ConfigDefault is the default config

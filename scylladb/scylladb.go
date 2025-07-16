@@ -1,6 +1,7 @@
 package scylladb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -134,10 +135,10 @@ func (s *Storage) checkSchema(keyspace string) {
 	}
 }
 
-// Get retrieves a value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext retrieves a value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	var value []byte
-	if err := s.session.Query(s.selectQuery, key).Scan(&value); err != nil {
+	if err := s.session.Query(s.selectQuery, key).WithContext(ctx).Scan(&value); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, nil
 		}
@@ -146,23 +147,43 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return value, nil
 }
 
-// Set sets a value by key
-func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
+// Get retrieves a value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext sets a value by key with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
 	var expiration int
 	if expire != 0 {
 		expiration = int(expire.Round(time.Second).Seconds())
 	}
-	return s.session.Query(s.insertQuery, key, value, expiration).Exec()
+	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
+}
+
+// Set sets a value by key
+func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
+	return s.SetWithContext(context.Background(), key, value, expire)
+}
+
+// DeleteWithContext removes a value by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.session.Query(s.deleteQuery, key).WithContext(ctx).Exec()
 }
 
 // Delete removes a value by key
 func (s *Storage) Delete(key string) error {
-	return s.session.Query(s.deleteQuery, key).Exec()
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext resets all values with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.session.Query(s.resetQuery).WithContext(ctx).Exec()
 }
 
 // Reset resets all values
 func (s *Storage) Reset() error {
-	return s.session.Query(s.resetQuery).Exec()
+	return s.ResetWithContext(context.Background())
 }
 
 // Close closes the storage

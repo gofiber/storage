@@ -38,10 +38,10 @@ func Test_New_WithConfig(t *testing.T) {
 func Test_Set_Overwrite(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key"), []byte("value"), time.Second*1)
-	db.Set([]byte("key"), []byte("value2"), time.Second*1)
+	db.Set("key", []byte("value"), time.Second*1)
+	db.Set("key", []byte("value2"), time.Second*1)
 
-	value, err := db.Get([]byte("key"))
+	value, err := db.Get("key")
 	require.Nil(t, err)
 	require.Equal(t, []byte("value2"), value)
 
@@ -52,9 +52,9 @@ func Test_Set_Overwrite(t *testing.T) {
 func Test_Get_For0Second(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key"), []byte("value"), 0)
+	db.Set("key", []byte("value"), 0)
 
-	_, err := db.Get([]byte("key"))
+	_, err := db.Get("key")
 	require.Nil(t, err)
 
 	err = removeAllFiles("./fiber.leveldb")
@@ -64,19 +64,19 @@ func Test_Get_For0Second(t *testing.T) {
 func Test_Get_ForExpired100Millisecond(t *testing.T) {
 	db := New()
 
-	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond*100))
+	require.NoError(t, db.Set("key", []byte("value"), time.Millisecond*100))
 
 	// Anahtarın silinmesini bekle
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
-		value, err := db.Get([]byte("key"))
+		value, err := db.Get("key")
 		if err == nil && value == nil {
 			break
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	value, err := db.Get([]byte("key"))
+	value, err := db.Get("key")
 	require.Nil(t, err)
 	require.Nil(t, value)
 
@@ -87,12 +87,12 @@ func Test_Get_ForExpired100Millisecond(t *testing.T) {
 func Test_Delete_WhileThereIsData(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key"), []byte("value"), time.Second*1)
+	db.Set("key", []byte("value"), time.Second*1)
 
 	err := db.Delete("key")
 	require.Nil(t, err)
 
-	value, err := db.Get([]byte("key"))
+	value, err := db.Get("key")
 	require.Nil(t, err)
 	require.Nil(t, value)
 
@@ -104,21 +104,21 @@ func Test_Delete_WhileThereIsData(t *testing.T) {
 func Test_Reset(t *testing.T) {
 	db := New()
 
-	db.Set([]byte("key1"), []byte("value1"), time.Second*1)
-	db.Set([]byte("key2"), []byte("value2"), time.Second*1)
-	db.Set([]byte("key3"), []byte("value3"), time.Second*1)
+	db.Set("key1", []byte("value1"), time.Second*1)
+	db.Set("key2", []byte("value2"), time.Second*1)
+	db.Set("key3", []byte("value3"), time.Second*1)
 
 	require.NoError(t, db.Reset())
 
-	value, err := db.Get([]byte("key1"))
+	value, err := db.Get("key1")
 	require.Nil(t, err)
 	require.Nil(t, value)
 
-	value, err = db.Get([]byte("key2"))
+	value, err = db.Get("key2")
 	require.Nil(t, err)
 	require.Nil(t, value)
 
-	value, err = db.Get([]byte("key3"))
+	value, err = db.Get("key3")
 	require.Nil(t, err)
 	require.Nil(t, value)
 
@@ -144,7 +144,7 @@ func Test_GarbageCollection_AfterWorking(t *testing.T) {
 		GCInterval: time.Millisecond * 100,
 	})
 
-	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond*100))
+	require.NoError(t, db.Set("key", []byte("value"), time.Millisecond*100))
 
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {
@@ -171,7 +171,7 @@ func Test_GarbageCollection_BeforeWorking(t *testing.T) {
 	db := New(Config{
 		GCInterval: time.Second * 1,
 	})
-	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Second*1))
+	require.NoError(t, db.Set("key", []byte("value"), time.Second*1))
 
 	value, err := db.Conn().Get([]byte("key"), nil)
 	require.Nil(t, err)
@@ -186,7 +186,7 @@ func Test_GarbageCollection_Interval(t *testing.T) {
 	db := New(Config{
 		GCInterval: time.Hour, // Uzun aralık
 	})
-	require.NoError(t, db.Set([]byte("key"), []byte("value"), time.Millisecond))
+	require.NoError(t, db.Set("key", []byte("value"), time.Millisecond))
 
 	// GC çalışmadığı için değer hala var olmalı
 	deadline := time.Now().Add(time.Millisecond * 100)
@@ -225,7 +225,7 @@ func Benchmark_Set(b *testing.B) {
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
-	key := []byte("test_key")
+	key := "test_key"
 	value := []byte("test_value")
 
 	b.ResetTimer()
@@ -245,7 +245,7 @@ func Benchmark_Get(b *testing.B) {
 		_ = removeAllFiles("./fiber.leveldb")
 	}()
 
-	key := []byte("test_key")
+	key := "test_key"
 	value := []byte("test_value")
 	if err := db.Set(key, value, 0); err != nil {
 		b.Fatal(err)
@@ -269,7 +269,7 @@ func Benchmark_Delete(b *testing.B) {
 	}()
 
 	key := "test_key"
-	if err := db.Set([]byte(key), []byte("test_value"), 0); err != nil {
+	if err := db.Set(key, []byte("test_value"), 0); err != nil {
 		b.Fatal(err)
 	}
 

@@ -78,16 +78,13 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	var nsk *types.NoSuchKey
 
 	if len(key) <= 0 {
 		return nil, nil
 	}
-
-	ctx, cancel := s.requestContext()
-	defer cancel()
 
 	buf := manager.NewWriteAtBuffer([]byte{})
 
@@ -102,14 +99,19 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.GetWithContext(ctx, key)
+}
+
+// SetWithContext key with value and expiration time with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 {
 		return nil
 	}
-
-	ctx, cancel := s.requestContext()
-	defer cancel()
 
 	_, err := s.uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
@@ -120,14 +122,19 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete entry by key
-func (s *Storage) Delete(key string) error {
+// Set key with value and expiration time
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.SetWithContext(ctx, key, val, exp)
+}
+
+// DeleteWithContext deletes entry by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-
-	ctx, cancel := s.requestContext()
-	defer cancel()
 
 	_, err := s.svc.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &s.bucket,
@@ -137,11 +144,16 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// Reset all entries, including unexpired
-func (s *Storage) Reset() error {
+// Delete deletes entry by key
+func (s *Storage) Delete(key string) error {
 	ctx, cancel := s.requestContext()
 	defer cancel()
 
+	return s.DeleteWithContext(ctx, key)
+}
+
+// ResetWithContext resets all entries, including unexpired ones with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	paginator := s3.NewListObjectsV2Paginator(s.svc, &s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
 	})
@@ -171,6 +183,14 @@ func (s *Storage) Reset() error {
 	}
 
 	return nil
+}
+
+// Reset resets all entries, including unexpired ones
+func (s *Storage) Reset() error {
+	ctx, cancel := s.requestContext()
+	defer cancel()
+
+	return s.ResetWithContext(ctx)
 }
 
 // Close the database

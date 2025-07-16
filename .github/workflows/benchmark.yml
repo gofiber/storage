@@ -28,7 +28,7 @@ jobs:
       - name: Generate filters
         id: filter-setup
         run: |
-          filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+          filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
           echo "filters<<EOF" >> $GITHUB_OUTPUT
           echo "$filters" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -64,12 +64,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
-      - name: Install Memcached
-        if: ${{ matrix.package == 'memcache' }}
-        run: |
-          docker run -d -p 11211:11211 memcached:latest
+          node-version: '20'
 
       - name: Install Cloudflare Worker
         if: ${{ matrix.package == 'cloudflarekv' }}
@@ -97,6 +92,23 @@ jobs:
           redis-server --port 6379 &
           sleep 15
 
+      - name: Install MSSQL
+        if: ${{ matrix.package == 'mssql' }}
+        run: |
+          docker run -d --name mssql-server \
+            --publish 1433:1433 \
+            --env ACCEPT_EULA=Y \
+            --env SA_PASSWORD=MsSql!1234 \
+            --env MSSQL_DB=master \
+            --env MSSQL_USER=sa \
+            --env MSSQL_PASSWORD=MsSql!1234 \
+            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P MsSql!1234 -Q 'select 1' -b -o /dev/null" \
+            --health-interval 1s \
+            --health-timeout 30s \
+            --health-start-period 10s \
+            --health-retries 20 \
+            mcmoe/mssqldocker:latest
+
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
         run: |
@@ -112,10 +124,12 @@ jobs:
           TEST_ARANGODB_IMAGE: arangodb:latest
           TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
           TEST_CASSANDRA_IMAGE: "cassandra:latest"
+          TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
           TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.5.21
+          TEST_MEMCACHED_IMAGE: "memcached:latest"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
           TEST_MYSQL_IMAGE: "docker.io/mysql:9"
@@ -124,6 +138,8 @@ jobs:
           TEST_REDIS_IMAGE: "docker.io/redis:7"
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
           TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:latest"
+          TEST_VALKEY_IMAGE: "valkey/valkey:8"
+          COHERENCE_LOG_LEVEL: "ERROR"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
@@ -145,4 +161,4 @@ jobs:
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
-      
+
