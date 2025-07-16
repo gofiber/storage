@@ -83,6 +83,9 @@ func TestSetWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -95,6 +98,9 @@ func TestSetAndGetWithContext(t *testing.T) {
 		key = "john"
 		val = []byte("doe")
 	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -137,6 +143,9 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 }
 
 func TestDeleteWithContext(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
@@ -166,6 +175,9 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 }
 
 func TestResetWithContext(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
 
