@@ -28,8 +28,8 @@ func newTestStore(t testing.TB) *Storage {
 
 	ctx := context.Background()
 
-	// create a 2-node cluster
-	c, err := etcd.Run(ctx, img, etcd.WithNodes("etcd-1", "etcd-2"), etcd.WithClusterToken("test-cluster"))
+	// create a 1-node cluster
+	c, err := etcd.Run(ctx, img)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
