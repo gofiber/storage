@@ -3,6 +3,7 @@ package etcd
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +31,15 @@ func newTestStore(t testing.TB) *Storage {
 
 	// create a 1-node cluster
 	c, err := etcd.Run(ctx, img)
-	testcontainers.CleanupContainer(t, c)
+
+	// for benchmarks, we do not want to cleanup the container
+	switch t.(type) {
+	case *testing.B:
+		// do not cleanup the container for benchmarks
+	default:
+		testcontainers.CleanupContainer(t, c)
+	}
+
 	require.NoError(t, err)
 
 	hostPort, err := c.ClientEndpoint(ctx)
@@ -205,50 +214,86 @@ func TestGetConn_ReturnsNotNill(t *testing.T) {
 	require.True(t, testStore.Conn() != nil)
 }
 
+//
+// Benchmarking
+//
+// Please note that this is not thread-safe:
+// Each benchmark reuses the same etcd store instance,
+// setting and deleting keys between benchmarks.
+// If you add more benchamrks, make sure to delete the key after the benchmark.
+
+var (
+	benchmarkStore *Storage
+	benchmarkOnce  sync.Once
+)
+
+func getBenchmarkStore(b *testing.B) *Storage {
+	benchmarkOnce.Do(func() {
+		benchmarkStore = newTestStore(b)
+	})
+
+	return benchmarkStore
+}
+
 func Benchmark_Etcd_Set(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	key := "john1"
+	testStore := getBenchmarkStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Set(key, []byte("doe"), 0)
 	}
 
 	require.NoError(b, err)
+
+	// Clean up the key after benchmark
+	b.StopTimer()
+	_ = testStore.Delete(key)
+	b.StartTimer()
 }
 
 func Benchmark_Etcd_Get(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	key := "john2"
+	testStore := getBenchmarkStore(b)
 
-	err := testStore.Set("john", []byte("doe"), 0)
+	err := testStore.Set(key, []byte("doe"), 0)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = testStore.Get("john")
+		_, err = testStore.Get(key)
 	}
 
 	require.NoError(b, err)
+
+	// Clean up after benchmark
+	b.StopTimer()
+	_ = testStore.Delete(key)
+	b.StartTimer()
 }
 
 func Benchmark_Etcd_SetAndDelete(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+	key := "john3"
+	testStore := getBenchmarkStore(b)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	var err error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
+		_ = testStore.Set(key, []byte("doe"), 0)
+		err = testStore.Delete(key)
 	}
 
 	require.NoError(b, err)
+
+	// Clean up after benchmark
+	b.StopTimer()
+	_ = testStore.Delete(key)
+	b.StartTimer()
 }
