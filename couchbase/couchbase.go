@@ -1,6 +1,7 @@
 package couchbase
 
 import (
+	"context"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -43,8 +44,10 @@ func New(config ...Config) *Storage {
 	return &Storage{cb: cb, bucket: b}
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
-	out, err := s.bucket.DefaultCollection().Get(key, nil)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	out, err := s.bucket.DefaultCollection().Get(key, &gocb.GetOptions{
+		Context: ctx,
+	})
 	if err != nil {
 		switch e := err.(type) {
 		case *gocb.KeyValueError:
@@ -66,9 +69,14 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return value, nil
 }
 
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if _, err := s.bucket.DefaultCollection().Upsert(key, val, &gocb.UpsertOptions{
-		Expiry: exp,
+		Context: ctx,
+		Expiry:  exp,
 	}); err != nil {
 		return err
 	}
@@ -76,15 +84,31 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return nil
 }
 
-func (s *Storage) Delete(key string) error {
-	if _, err := s.bucket.DefaultCollection().Remove(key, nil); err != nil {
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if _, err := s.bucket.DefaultCollection().Remove(key, &gocb.RemoveOptions{
+		Context: ctx,
+	}); err != nil {
 		return err
 	}
 	return nil
 }
 
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.cb.Buckets().FlushBucket(s.bucket.Name(), &gocb.FlushBucketOptions{
+		Context: ctx,
+	})
+}
+
 func (s *Storage) Reset() error {
-	return s.cb.Buckets().FlushBucket(s.bucket.Name(), nil)
+	return s.ResetWithContext(context.Background())
 }
 
 func (s *Storage) Close() error {

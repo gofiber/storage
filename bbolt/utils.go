@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/gofiber/utils/v2"
 	"go.etcd.io/bbolt"
+	berrors "go.etcd.io/bbolt/errors"
 )
 
 func createBucket(cfg Config, conn *bbolt.DB) error {
@@ -17,7 +18,7 @@ func createBucket(cfg Config, conn *bbolt.DB) error {
 func removeBucket(cfg Config, conn *bbolt.DB) error {
 	return conn.Update(func(tx *bbolt.Tx) error {
 		err := tx.DeleteBucket(utils.UnsafeBytes(cfg.Bucket))
-		if errors.Is(err, bbolt.ErrBucketNotFound) {
+		if errors.Is(err, berrors.ErrBucketNotFound) {
 			return nil
 		}
 

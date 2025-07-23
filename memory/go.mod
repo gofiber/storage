@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/memory/v2
 
-go 1.19
+go 1.23.0
 
 require github.com/stretchr/testify v1.10.0
 

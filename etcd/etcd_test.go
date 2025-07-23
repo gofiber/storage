@@ -1,6 +1,7 @@
 package etcd
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -49,6 +50,36 @@ func TestSetAndGet_GetShouldReturn_SettedValueWithoutError(t *testing.T) {
 	require.Equal(t, val, []byte("fiber_test_value"))
 }
 
+func TestSetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestSetAndGetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, result)
+}
+
 func TestSetAndGet_GetShouldReturnNil_WhenTTLExpired(t *testing.T) {
 	err := testStore.Set("test", []byte("fiber_test_value"), 3*time.Second)
 	require.NoError(t, err)
@@ -72,6 +103,21 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteWithContext(t *testing.T) {
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, "test")
+	require.ErrorIs(t, err, context.Canceled)
+
+	val, err := testStore.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, val, []byte("fiber_test_value"))
+}
+
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 	err := testStore.Set("test", []byte("fiber_test_value"), 0)
 	require.NoError(t, err)
@@ -81,6 +127,21 @@ func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
 
 	_, err = testStore.Get("test")
 	require.NoError(t, err)
+}
+
+func TestResetWithContext(t *testing.T) {
+	err := testStore.Set("test", []byte("fiber_test_value"), 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	val, err := testStore.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, val, []byte("fiber_test_value"))
 }
 
 func TestClose_CloseShouldReturn_NoError(t *testing.T) {

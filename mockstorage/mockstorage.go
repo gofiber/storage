@@ -1,6 +1,7 @@
 package mockstorage
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -26,31 +27,26 @@ type Entry struct {
 
 // CustomFuncs allows injecting custom behaviors for testing.
 type CustomFuncs struct {
-	GetFunc    func(key string) ([]byte, error)
-	SetFunc    func(key string, val []byte, exp time.Duration) error
-	DeleteFunc func(key string) error
-	ResetFunc  func() error
-	CloseFunc  func() error
-	ConnFunc   func() map[string]Entry
-	KeysFunc   func() ([][]byte, error)
+	GetFunc           func(key string) ([]byte, error)
+	GetWithContext    func(ctx context.Context, key string) ([]byte, error)
+	SetFunc           func(key string, val []byte, exp time.Duration) error
+	SetWithContext    func(ctx context.Context, key string, val []byte, exp time.Duration) error
+	DeleteFunc        func(key string) error
+	DeleteWithContext func(ctx context.Context, key string) error
+	ResetFunc         func() error
+	ResetWithContext  func(ctx context.Context) error
+	CloseFunc         func() error
+	ConnFunc          func() map[string]Entry
+	KeysFunc          func() ([][]byte, error)
 }
 
 // New creates a new mock storage with optional configuration.
 func New(config ...Config) *Storage {
 	s := &Storage{
-		data: make(map[string]Entry),
-		custom: &CustomFuncs{
-			GetFunc:    nil,
-			SetFunc:    nil,
-			DeleteFunc: nil,
-			ResetFunc:  nil,
-			CloseFunc:  nil,
-			ConnFunc:   nil,
-			KeysFunc:   nil,
-		},
+		data:   make(map[string]Entry),
+		custom: &CustomFuncs{}, // default no-op
 	}
 
-	// If a config is provided and it has CustomFuncs, use them
 	if len(config) > 0 && config[0].CustomFuncs != nil {
 		s.custom = config[0].CustomFuncs
 	}
@@ -78,7 +74,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return e.Value, nil
 }
 
-// Set sets the value for a given key with an expiration time.
+// GetWithContext retrieves value by key using a context (functional or fallback)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.custom.GetWithContext != nil {
+		return s.custom.GetWithContext(ctx, key)
+	}
+	return s.Get(key)
+}
+
+// Set sets the value for a given key with expiration.
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if s.custom.SetFunc != nil {
 		return s.custom.SetFunc(key, val, exp)
@@ -96,6 +100,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return nil
 }
 
+// SetWithContext sets value using context.
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.custom.SetWithContext != nil {
+		return s.custom.SetWithContext(ctx, key, val, exp)
+	}
+	return s.Set(key, val, exp)
+}
+
 // Delete removes a key from the storage.
 func (s *Storage) Delete(key string) error {
 	if s.custom.DeleteFunc != nil {
@@ -104,12 +116,19 @@ func (s *Storage) Delete(key string) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	delete(s.data, key)
 	return nil
 }
 
-// Reset clears all keys from the storage.
+// DeleteWithContext deletes key using context.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.custom.DeleteWithContext != nil {
+		return s.custom.DeleteWithContext(ctx, key)
+	}
+	return s.Delete(key)
+}
+
+// Reset clears all keys.
 func (s *Storage) Reset() error {
 	if s.custom.ResetFunc != nil {
 		return s.custom.ResetFunc()
@@ -117,22 +136,27 @@ func (s *Storage) Reset() error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	s.data = make(map[string]Entry)
 	return nil
 }
 
-// Close closes the storage (no-op for mock).
+// ResetWithContext resets storage using context.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.custom.ResetWithContext != nil {
+		return s.custom.ResetWithContext(ctx)
+	}
+	return s.Reset()
+}
+
+// Close closes the mock storage (no-op).
 func (s *Storage) Close() error {
 	if s.custom.CloseFunc != nil {
 		return s.custom.CloseFunc()
 	}
-
-	// No resources to clean up in mock
 	return nil
 }
 
-// Conn returns the internal data map (for testing purposes).
+// Conn returns internal map.
 func (s *Storage) Conn() map[string]Entry {
 	if s.custom.ConnFunc != nil {
 		return s.custom.ConnFunc()
@@ -148,7 +172,7 @@ func (s *Storage) Conn() map[string]Entry {
 	return copyData
 }
 
-// Keys returns all keys in the storage.
+// Keys returns all keys.
 func (s *Storage) Keys() ([][]byte, error) {
 	if s.custom.KeysFunc != nil {
 		return s.custom.KeysFunc()
@@ -164,7 +188,7 @@ func (s *Storage) Keys() ([][]byte, error) {
 	return keys, nil
 }
 
-// SetCustomFuncs allows setting custom function implementations.
+// SetCustomFuncs allows runtime injection of function implementations.
 func (s *Storage) SetCustomFuncs(custom *CustomFuncs) {
 	s.custom = custom
 }

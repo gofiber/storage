@@ -1,6 +1,7 @@
 package ristretto
 
 import (
+	"context"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
@@ -52,6 +53,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return buf, nil
 }
 
+// GetWithContext gets the value by key (dummy context support)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Set stores the given value for the given key along
 // with an expiration value, time.Time{} means no expiration.
 // Empty key or value will be ignored without an error.
@@ -66,8 +72,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return nil
 }
 
+// SetWithContext sets value by key (dummy context support)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	return s.Set(key, val, exp)
+}
+
 // Delete deletes the value for the given key.
-// It returns no error if the storage does not contain the key,
 func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
@@ -76,10 +86,20 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-// Reset resets the storage and delete all keys.
+// DeleteWithContext deletes key (dummy context support)
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
+// Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
 	s.cache.Clear()
 	return nil
+}
+
+// ResetWithContext resets storage (dummy context support)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
 }
 
 // Close closes the storage and will stop any running garbage
@@ -89,7 +109,7 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// Return database client
+// Conn returns the database client
 func (s *Storage) Conn() *ristretto.Cache {
 	return s.cache
 }

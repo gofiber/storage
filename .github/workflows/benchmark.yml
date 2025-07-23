@@ -64,7 +64,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install Cloudflare Worker
         if: ${{ matrix.package == 'cloudflarekv' }}
@@ -86,6 +86,23 @@ jobs:
       - name: Install objectbox
         if: ${{ matrix.package == 'objectbox' }}
         run: echo "n" | bash <(curl -s https://raw.githubusercontent.com/objectbox/objectbox-go/main/install.sh)
+
+      - name: Install MSSQL
+        if: ${{ matrix.package == 'mssql' }}
+        run: |
+          docker run -d --name mssql-server \
+            --publish 1433:1433 \
+            --env ACCEPT_EULA=Y \
+            --env SA_PASSWORD=MsSql!1234 \
+            --env MSSQL_DB=master \
+            --env MSSQL_USER=sa \
+            --env MSSQL_PASSWORD=MsSql!1234 \
+            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P MsSql!1234 -Q 'select 1' -b -o /dev/null" \
+            --health-interval 1s \
+            --health-timeout 30s \
+            --health-start-period 10s \
+            --health-retries 20 \
+            mcmoe/mssqldocker:latest
 
       - name: Run Benchmarks
         working-directory: ${{ matrix.package }}
@@ -138,4 +155,4 @@ jobs:
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
 
-      
+

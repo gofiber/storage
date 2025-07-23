@@ -1,6 +1,7 @@
 package sqlite3
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -88,12 +89,12 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	row := s.db.QueryRow(s.sqlSelect, key)
+	row := s.db.QueryRowContext(ctx, s.sqlSelect, key)
 	// Add db response to data
 	var (
 		data       = []byte{}
@@ -113,8 +114,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext sets key with value and expiration time with context
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -123,24 +129,39 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
-	_, err := s.db.Exec(s.sqlInsert, key, val, expSeconds)
+	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds)
 	return err
 }
 
-// Delete entry by key
-func (s *Storage) Delete(key string) error {
+// Set sets key with value and expiration time
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext deletes entry by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
-	_, err := s.db.Exec(s.sqlDelete, key)
+	_, err := s.db.ExecContext(ctx, s.sqlDelete, key)
 	return err
 }
 
-// Reset all entries, including unexpired
-func (s *Storage) Reset() error {
-	_, err := s.db.Exec(s.sqlReset)
+// Delete deletes entry by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// ResetWithContext all entries, including unexpired ones with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
+}
+
+// Reset all entries, including unexpired ones
+func (s *Storage) Reset() error {
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database

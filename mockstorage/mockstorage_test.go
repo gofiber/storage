@@ -2,9 +2,12 @@ package mockstorage
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestStorageDefaultBehavior(t *testing.T) {
@@ -273,4 +276,154 @@ func TestStorageConnAndKeys(t *testing.T) {
 	if len(keys) != 1 || !bytes.Equal(keys[0], []byte("key1")) {
 		t.Errorf("Keys() = %v, want %v", keys, [][]byte{[]byte("key1")})
 	}
+}
+
+func TestGetWithContext(t *testing.T) {
+	store := New()
+
+	// fallback to Get
+	_ = store.Set("key1", []byte("val1"), 0)
+	val, err := store.GetWithContext(context.Background(), "key1")
+	if err != nil || !bytes.Equal(val, []byte("val1")) {
+		t.Errorf("GetWithContext fallback failed: got %v, err %v", val, err)
+	}
+
+	// custom override
+	store.SetCustomFuncs(&CustomFuncs{
+		GetWithContext: func(ctx context.Context, key string) ([]byte, error) {
+			if key == "override" {
+				return []byte("ctx-value"), nil
+			}
+			return nil, errors.New("not found")
+		},
+	})
+	val, err = store.GetWithContext(context.TODO(), "override")
+	if err != nil || !bytes.Equal(val, []byte("ctx-value")) {
+		t.Errorf("GetWithContext custom failed: got %v, err %v", val, err)
+	}
+}
+
+func TestSetWithContext(t *testing.T) {
+	store := New()
+
+	// fallback to Set
+	err := store.SetWithContext(context.TODO(), "key2", []byte("val2"), 0)
+	if err != nil {
+		t.Errorf("SetWithContext fallback failed: %v", err)
+	}
+	val, _ := store.Get("key2")
+	if !bytes.Equal(val, []byte("val2")) {
+		t.Errorf("SetWithContext fallback mismatch: got %v", val)
+	}
+
+	// custom override
+	store.SetCustomFuncs(&CustomFuncs{
+		SetWithContext: func(ctx context.Context, key string, val []byte, exp time.Duration) error {
+			if key == "readonly" {
+				return errors.New("forbidden")
+			}
+			return nil
+		},
+	})
+	err = store.SetWithContext(context.TODO(), "readonly", []byte("fail"), 0)
+	if err == nil || err.Error() != "forbidden" {
+		t.Errorf("SetWithContext custom override failed: err=%v", err)
+	}
+}
+
+func TestDeleteWithContext(t *testing.T) {
+	store := New()
+
+	// fallback to Delete
+	_ = store.Set("key3", []byte("val3"), 0)
+	err := store.DeleteWithContext(context.TODO(), "key3")
+	if err != nil {
+		t.Errorf("DeleteWithContext fallback failed: %v", err)
+	}
+	val, err := store.Get("key3")
+	if err == nil {
+		t.Errorf("expected deletion, but got value: %v", val)
+	}
+
+	// custom override
+	store.SetCustomFuncs(&CustomFuncs{
+		DeleteWithContext: func(ctx context.Context, key string) error {
+			if key == "undeletable" {
+				return errors.New("blocked")
+			}
+			return nil
+		},
+	})
+	err = store.DeleteWithContext(context.TODO(), "undeletable")
+	if err == nil || err.Error() != "blocked" {
+		t.Errorf("DeleteWithContext custom override failed: err=%v", err)
+	}
+}
+
+func TestResetWithContext(t *testing.T) {
+	store := New()
+
+	// fallback to Reset
+	_ = store.Set("key4", []byte("val4"), 0)
+	err := store.ResetWithContext(context.TODO())
+	if err != nil {
+		t.Errorf("ResetWithContext fallback failed: %v", err)
+	}
+	val, err := store.Get("key4")
+	if err == nil {
+		t.Errorf("expected reset to remove key, but got value: %v", val)
+	}
+
+	// custom override
+	store.SetCustomFuncs(&CustomFuncs{
+		ResetWithContext: func(ctx context.Context) error {
+			return errors.New("custom reset error")
+		},
+	})
+	err = store.ResetWithContext(context.Background())
+	if err == nil || err.Error() != "custom reset error" {
+		t.Errorf("ResetWithContext custom override failed: err=%v", err)
+	}
+}
+
+func Benchmark_Mockstorage_Set(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_Get(b *testing.B) {
+	testStore := New()
+	err := testStore.Set("john", []byte("doe"), 0)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}
+
+func Benchmark_Mockstorage_SetAndDelete(b *testing.B) {
+	testStore := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		_ = testStore.Set("john", []byte("doe"), 0)
+		err = testStore.Delete("john")
+	}
+
+	require.NoError(b, err)
 }

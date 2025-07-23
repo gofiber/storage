@@ -121,12 +121,12 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext gets value by key with context
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	res := s.col.FindOne(context.Background(), bson.M{"key": key})
+	res := s.col.FindOne(ctx, bson.M{"key": key})
 	item := s.acquireItem()
 
 	if err := res.Err(); err != nil {
@@ -149,11 +149,16 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.Value, nil
 }
 
-// Set key with value, replace if document exits
+// Get gets value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+// SetWithContext sets key with value, replace if document exits with context
 //
 // document will be remove automatically if exp is set, based on MongoDB TTL Indexes
 // Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -167,25 +172,43 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		item.Expiration = time.Now().Add(exp).UTC()
 	}
-	_, err := s.col.ReplaceOne(context.Background(), filter, item, options.Replace().SetUpsert(true))
+	_, err := s.col.ReplaceOne(ctx, filter, item, options.Replace().SetUpsert(true))
 
 	s.releaseItem(item)
 	return err
 }
 
-// Delete document by key
-func (s *Storage) Delete(key string) error {
+// Set sets key with value, replace if document exits
+//
+// document will be remove automatically if exp is set, based on MongoDB TTL Indexes
+// Set key with value
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext deletes document by key with context
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
 	}
-	_, err := s.col.DeleteOne(context.Background(), bson.M{"key": key})
+	_, err := s.col.DeleteOne(ctx, bson.M{"key": key})
 	return err
+}
+
+// Delete deletes document by key
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+// Reset all keys by drop collection with context
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.col.Drop(ctx)
 }
 
 // Reset all keys by drop collection
 func (s *Storage) Reset() error {
-	return s.col.Drop(context.Background())
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database

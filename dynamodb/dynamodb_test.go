@@ -60,6 +60,22 @@ func Test_DynamoDB_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_DynamoDB_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
 func Test_DynamoDB_Set_Override(t *testing.T) {
 	var (
 		key = "john"
@@ -93,6 +109,22 @@ func Test_DynamoDB_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
+func Test_DynamoDB_GetWithContext(t *testing.T) {
+	var (
+		key = "john"
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
+}
+
 func Test_DynamoDB_Get_NotExist(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
@@ -122,6 +154,29 @@ func Test_DynamoDB_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_DynamoDB_DeleteWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_DynamoDB_Reset(t *testing.T) {
 	val := []byte("doe")
 
@@ -144,6 +199,33 @@ func Test_DynamoDB_Reset(t *testing.T) {
 	result, err = testStore.Get("john2")
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_DynamoDB_ResetWithContext(t *testing.T) {
+	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_DynamoDB_Close(t *testing.T) {

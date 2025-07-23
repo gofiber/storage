@@ -9,8 +9,6 @@ title: Memcache
 
 A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradfitz/gomemcache).
 
-**Note: Requires Go 1.19 and above**
-
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
@@ -22,12 +20,18 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *mc.Client
 ```
+
+**Note:** The context methods are dummy methods and don't have any functionality, as Memcache does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
 
 ### Installation
 Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

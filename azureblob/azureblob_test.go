@@ -63,6 +63,26 @@ func Test_AzureBlob_Get(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
+func Test_AzureBlob_GetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	result, err := testStore.GetWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, len(result))
+}
+
 func Test_AzureBlob_Set(t *testing.T) {
 	var (
 		key = "john"
@@ -74,6 +94,22 @@ func Test_AzureBlob_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_AzureBlob_SetWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := testStore.SetWithContext(ctx, key, val, 0)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_AzureBlob_Delete(t *testing.T) {
@@ -99,6 +135,29 @@ func Test_AzureBlob_Delete(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_AzureBlob_DeleteWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.DeleteWithContext(ctx, key)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_AzureBlob_Override(t *testing.T) {
@@ -170,6 +229,33 @@ func Test_AzureBlob_Conn(t *testing.T) {
 	defer testStore.Close()
 
 	require.True(t, testStore.Conn() != nil)
+}
+
+func Test_AzureBlob_ResetWithContext(t *testing.T) {
+	val := []byte("doe")
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	err := testStore.Set("john1", val, 0)
+	require.NoError(t, err)
+
+	err = testStore.Set("john2", val, 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = testStore.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	result, err := testStore.Get("john1")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	result, err = testStore.Get("john2")
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_AzureBlob_Close(t *testing.T) {

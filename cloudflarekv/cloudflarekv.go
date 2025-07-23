@@ -55,8 +55,8 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
-	resp, err := s.api.GetWorkersKV(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	resp, err := s.api.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
 
 	if err != nil {
 		log.Printf("Error occur in GetWorkersKV: %v", err)
@@ -66,8 +66,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return resp, nil
 }
 
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	_, err := s.api.WriteWorkersKVEntry(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	_, err := s.api.WriteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.WriteWorkersKVEntryParams{
 		NamespaceID: s.namespaceID,
 		Key:         key,
 		Value:       val,
@@ -81,8 +85,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return nil
 }
 
-func (s *Storage) Delete(key string) error {
-	_, err := s.api.DeleteWorkersKVEntry(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	_, err := s.api.DeleteWorkersKVEntry(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntryParams{
 		NamespaceID: s.namespaceID,
 		Key:         key,
 	})
@@ -95,14 +103,18 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-func (s *Storage) Reset() error {
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	var (
 		cursor string
 		keys   []string
 	)
 
 	for {
-		resp, err := s.api.ListWorkersKVKeys(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
+		resp, err := s.api.ListWorkersKVKeys(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.ListWorkersKVsParams{
 			NamespaceID: s.namespaceID,
 			Cursor:      cursor,
 		})
@@ -119,7 +131,7 @@ func (s *Storage) Reset() error {
 			keys = append(keys, name)
 		}
 
-		_, err = s.api.DeleteWorkersKVEntries(context.Background(), cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
+		_, err = s.api.DeleteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
 			NamespaceID: s.namespaceID,
 			Keys:        keys,
 		})
@@ -138,6 +150,10 @@ func (s *Storage) Reset() error {
 	}
 
 	return nil
+}
+
+func (s *Storage) Reset() error {
+	return s.ResetWithContext(context.Background())
 }
 
 func (s *Storage) Close() error {

@@ -83,6 +83,21 @@ func Test_Connection(t *testing.T) {
 	defer client.Close()
 }
 
+func Test_SetWithContext(t *testing.T) {
+	client := newTestStore(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	defer client.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := client.SetWithContext(ctx, "somekey", []byte("somevalue"), 0)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
 func Test_Set(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
@@ -105,6 +120,25 @@ func Test_Set_With_Exp(t *testing.T) {
 
 	err := client.Set("setsomekeywithexp", []byte("somevalue"), time.Second*1)
 	require.NoError(t, err)
+}
+
+func Test_GetWithContext(t *testing.T) {
+	client := newTestStore(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	defer client.Close()
+
+	err := client.Set("somekey", []byte("somevalue"), 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	value, err := client.GetWithContext(ctx, "somekey")
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, []byte{}, value)
 }
 
 func Test_Get(t *testing.T) {
@@ -150,6 +184,29 @@ func Test_Get_With_Exp(t *testing.T) {
 	assert.Equal(t, []byte{}, value)
 }
 
+func Test_DeleteWithContext(t *testing.T) {
+	client := newTestStore(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+
+	defer client.Close()
+
+	err := client.Set("somekeytodelete", []byte("somevalue"), time.Second*5)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = client.DeleteWithContext(ctx, "somekeytodelete")
+	require.ErrorIs(t, err, context.Canceled)
+
+	value, err := client.Get("somekeytodelete")
+	require.NoError(t, err)
+	require.Equal(t, []byte("somevalue"), value)
+}
+
 func Test_Delete(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
@@ -169,6 +226,29 @@ func Test_Delete(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, value)
+}
+
+func Test_ResetWithContext(t *testing.T) {
+	client := newTestStore(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+
+	defer client.Close()
+
+	err := client.Set("testkey", []byte("somevalue"), 0)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = client.ResetWithContext(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	value, err := client.Get("testkey")
+	require.NoError(t, err)
+	require.Equal(t, []byte("somevalue"), value)
 }
 
 func Test_Reset(t *testing.T) {

@@ -4,14 +4,14 @@
 version: 2
 updates:
     - package-ecosystem: "github-actions"
-      open-pull-requests-limit: 15
+      open-pull-requests-limit: 30
       directory: "/"
       labels:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
     - package-ecosystem: "gomod"
-      open-pull-requests-limit: 15
+      open-pull-requests-limit: 30
       directories:
           - "**/*"
       labels:
@@ -25,4 +25,36 @@ updates:
                   - "github.com/testcontainers/testcontainers-go/modules/**"
           utils-modules:
               patterns:
-                  - "github.com/gofiber/utils/v2"
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"

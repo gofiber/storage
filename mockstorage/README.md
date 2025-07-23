@@ -10,8 +10,6 @@ title: MockStorage
 
 A mock storage implementation for Fiber. This storage is not persistent and is only used for testing purposes.
 
-**Note: Requires Go 1.21 and above**
-
 ## Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)

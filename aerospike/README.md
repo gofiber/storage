@@ -9,8 +9,6 @@ title: Aerospike
 
 An Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/aerospike-client-go](https://github.com/aerospike/aerospike-client-go).
 
-**Note: Requires Go 1.23 and above**
-
 ### Table of Contents
 
 - [Signatures](#signatures)
@@ -24,13 +22,19 @@ An Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) Conn() driver.Client
 func (s *Storage) GetSchemaInfo() *SchemaInfo
 ```
+
+**Note:** The context methods are dummy methods and don't have any functionality, as Aerospike does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
 
 ### Installation
 
