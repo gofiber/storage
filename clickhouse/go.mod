@@ -3,7 +3,7 @@ module github.com/gofiber/storage/clickhouse
 go 1.23.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.38.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.39.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.38.0
