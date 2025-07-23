@@ -24,11 +24,17 @@ An ObjectBox storage driver using [objectbox/objectbox-go](https://github.com/ob
 ```go
 func New(config ...Config) Storage // Creates a new ObjectBox storage instance
 func (s *Storage) Get(key string) ([]byte, error) // Retrieves a value by key
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error // Stores a value with an optional expiration
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error // Deletes a value by key
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error // Clears all entries from the storage
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error // Closes the storage connection
 ```
+
+**Note:** The context methods are dummy methods and don't have any functionality, as ObjectBox does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
 
 ### Installation
 

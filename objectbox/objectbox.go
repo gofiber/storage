@@ -1,6 +1,7 @@
 package objectbox
 
 import (
+	"context"
 	"time"
 
 	"github.com/objectbox/objectbox-go/objectbox"
@@ -50,6 +51,13 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
+// GetWithContext retrieves a value from storage by its key.
+// Returns nil if the key doesn't exist or has expired.
+// This is a dummy function and does not use the context.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	return s.Get(key)
+}
+
 // Get retrieves a value from storage by its key.
 // Returns nil if the key doesn't exist or has expired.
 func (s *Storage) Get(key string) ([]byte, error) {
@@ -73,6 +81,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	return caches[0].Value, nil
+}
+
+// SetWithContext stores a value in storage with the specified key and expiration.
+// If expiration is 0, the entry won't expire.
+// This is a dummy function and does not use the context.
+func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	return s.Set(key, value, exp)
 }
 
 // Set stores a value in storage with the specified key and expiration.
@@ -117,6 +132,12 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	})
 }
 
+// DeleteWithContext removes an entry from storage by its key.
+// This is a dummy function and does not use the context.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	return s.Delete(key)
+}
+
 // Delete removes an entry from storage by its key.
 func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
@@ -130,6 +151,12 @@ func (s *Storage) Delete(key string) error {
 	}
 
 	return nil
+}
+
+// ResetWithContext removes all entries from the storage.
+// This is a dummy function and does not use the context.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.Reset()
 }
 
 // Reset removes all entries from the storage.
@@ -160,7 +187,7 @@ func (s *Storage) gcTicker(interval time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-				s.gc()
+			s.gc()
 		case <-s.done:
 			return
 		}
