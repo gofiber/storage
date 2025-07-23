@@ -45,7 +45,7 @@ func New(config ...Config) *Storage {
 		done: make(chan struct{}),
 	}
 
-	go storage.cleanerTicker(cfg.CleanerInterval)
+	go storage.gcTicker(cfg.GCInterval)
 
 	return storage
 }
@@ -144,23 +144,23 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// cleanStorage removes all expired entries from the storage.
-func (s *Storage) cleanStorage() {
+// gc removes all expired entries from the storage.
+func (s *Storage) gc() {
 	_, _ = s.box.Query(
 		Cache_.ExpiresAt.NotEquals(0),
 		Cache_.ExpiresAt.LessThan(time.Now().Unix()),
 	).Remove()
 }
 
-// cleanerTicker runs a periodic cleanup of expired entries.
-func (s *Storage) cleanerTicker(interval time.Duration) {
+// gcTicker runs a periodic cleanup of expired entries.
+func (s *Storage) gcTicker(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			s.cleanStorage()
+				s.gc()
 		case <-s.done:
 			return
 		}

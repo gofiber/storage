@@ -63,7 +63,7 @@ store := objectbox.New(objectbox.Config{
     MaxSizeInKb:     1024 * 1024, // 1GB
     MaxReaders:      126,
     Reset:           false,
-    CleanerInterval: 60 * time.Second,
+    GCInterval: 60 * time.Second,
 })
 ```
 
@@ -91,10 +91,10 @@ type Config struct {
     // Optional, defaults to false
     Reset bool
 
-    // CleanerInterval sets the frequency for deleting expired keys.
+    // GCInterval sets the frequency for deleting expired keys.
     //
     // Optional, defaults to 60 seconds
-    CleanerInterval time.Duration
+    GCInterval time.Duration
 }
 ```
 
@@ -106,6 +106,6 @@ var DefaultConfig = Config{
     MaxSizeInKb:     1024 * 1024, // 1GB
     MaxReaders:      126,
     Reset:           false,
-    CleanerInterval: 60 * time.Second,
+    GCInterval: 60 * time.Second,
 }
 ```

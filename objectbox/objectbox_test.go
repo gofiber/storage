@@ -17,11 +17,11 @@ func createTestStore(t *testing.T) *Storage {
 	require.NoError(t, err)
 
 	store := New(Config{
-		Directory:       testDir,
-		Reset:           true,
-		MaxSizeInKb:     1024,
-		MaxReaders:      10,
-		CleanerInterval: 60 * time.Second,
+		Directory:   testDir,
+		Reset:       true,
+		MaxSizeInKb: 1024,
+		MaxReaders:  10,
+		GCInterval:  60 * time.Second,
 	})
 
 	t.Cleanup(func() {
@@ -40,11 +40,11 @@ func createBenchmarkStore(b *testing.B) *Storage {
 	require.NoError(b, err)
 
 	store := New(Config{
-		Directory:       testDir,
-		Reset:           true,
-		MaxSizeInKb:     1024,
-		MaxReaders:      10,
-		CleanerInterval: 60 * time.Second,
+		Directory:   testDir,
+		Reset:       true,
+		MaxSizeInKb: 1024,
+		MaxReaders:  10,
+		GCInterval:  60 * time.Second,
 	})
 
 	b.Cleanup(func() {
@@ -222,7 +222,7 @@ func Test_ObjectBox_Zero_Expiration(t *testing.T) {
 	require.Equal(t, value, got)
 }
 
-func Test_ObjectBox_Cleaner(t *testing.T) {
+func Test_ObjectBox_GC(t *testing.T) {
 	store := createTestStore(t)
 	// Set items with different expiration times
 	tests := []struct {
@@ -245,7 +245,7 @@ func Test_ObjectBox_Cleaner(t *testing.T) {
 	}
 
 	// Run cleanup
-	store.cleanStorage()
+	store.gc()
 
 	// Verify expired items are removed and valid ones remain
 	for _, tt := range tests {
@@ -302,4 +302,3 @@ func Benchmark_ObjectBox_SetAndDelete(b *testing.B) {
 	}
 	require.NoError(b, err)
 }
-

@@ -20,17 +20,17 @@ type Config struct {
 	// Optional, defaults to false
 	Reset bool
 
-	// CleanerInterval sets the frequency for deleting expired keys.
+	// GCInterval sets the frequency for garbage collection.
 	// Optional, defaults to 60 seconds
-	CleanerInterval time.Duration
+	GCInterval time.Duration
 }
 
 var DefaultConfig = Config{
-	Directory:       "objectbox_db",
-	MaxSizeInKb:     1024 * 1024, // 1GB
-	MaxReaders:      126,
-	Reset:           false,
-	CleanerInterval: 60 * time.Second,
+	Directory:   "objectbox_db",
+	MaxSizeInKb: 1024 * 1024, // 1GB
+	MaxReaders:  126,
+	Reset:       false,
+	GCInterval:  60 * time.Second,
 }
 
 // getConfig returns a Config struct, applying user-provided overrides to DefaultConfig.
@@ -49,8 +49,8 @@ func getConfig(config ...Config) Config {
 		if userConfig.MaxReaders != 0 {
 			cfg.MaxReaders = userConfig.MaxReaders
 		}
-		if userConfig.CleanerInterval != 0 {
-			cfg.CleanerInterval = userConfig.CleanerInterval
+		if userConfig.GCInterval != 0 {
+			cfg.GCInterval = userConfig.GCInterval
 		}
 
 		// For the boolean, we always take the user's value.
