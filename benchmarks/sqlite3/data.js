@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751882303112,
+  "lastUpdate": 1753428352130,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -384,6 +384,102 @@ window.BENCHMARK_DATA = {
             "value": 26,
             "unit": "allocs/op",
             "extra": "612 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "90c561c1bb25e0bc686bad2acbe8bc9b9dbe3675",
+          "message": "Merge pull request #1838 from gofiber/dependabot/go_modules/sqlite3/github.com/mattn/go-sqlite3-1.14.29\n\nchore(deps): bump github.com/mattn/go-sqlite3 from 1.14.28 to 1.14.29 in /sqlite3",
+          "timestamp": "2025-07-25T09:24:42+02:00",
+          "tree_id": "974d8dfecb4aab83911b23f2b503d2abb05bba0b",
+          "url": "https://github.com/gofiber/storage/commit/90c561c1bb25e0bc686bad2acbe8bc9b9dbe3675"
+        },
+        "date": 1753428347718,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_SQLite3_Set",
+            "value": 1600108,
+            "unit": "ns/op\t     522 B/op\t      14 allocs/op",
+            "extra": "760 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - ns/op",
+            "value": 1600108,
+            "unit": "ns/op",
+            "extra": "760 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - B/op",
+            "value": 522,
+            "unit": "B/op",
+            "extra": "760 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Set - allocs/op",
+            "value": 14,
+            "unit": "allocs/op",
+            "extra": "760 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get",
+            "value": 15900,
+            "unit": "ns/op\t     712 B/op\t      27 allocs/op",
+            "extra": "75937 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - ns/op",
+            "value": 15900,
+            "unit": "ns/op",
+            "extra": "75937 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - B/op",
+            "value": 712,
+            "unit": "B/op",
+            "extra": "75937 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_Get - allocs/op",
+            "value": 27,
+            "unit": "allocs/op",
+            "extra": "75937 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete",
+            "value": 2957704,
+            "unit": "ns/op\t     797 B/op\t      26 allocs/op",
+            "extra": "384 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - ns/op",
+            "value": 2957704,
+            "unit": "ns/op",
+            "extra": "384 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - B/op",
+            "value": 797,
+            "unit": "B/op",
+            "extra": "384 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SQLite3_SetAndDelete - allocs/op",
+            "value": 26,
+            "unit": "allocs/op",
+            "extra": "384 times\n4 procs"
           }
         ]
       }
