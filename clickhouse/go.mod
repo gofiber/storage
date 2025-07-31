@@ -3,7 +3,7 @@ module github.com/gofiber/storage/clickhouse
 go 1.23.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.39.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.40.1
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.38.0
@@ -23,7 +23,7 @@ require (
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.3.2+incompatible // indirect
+	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
