@@ -3,235 +3,260 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/surrealdb"
+	"fmt"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
+	surrealdbTestContainerRepo "github.com/testcontainers/testcontainers-go/modules/surrealdb"
 )
 
-var (
-	// surrealDb is the default image used for running surrealdb in tests.
-	surrealDb                   = "surrealdb/surrealdb:latest"
-	surrealDbImageEnvVar string = "TEST_SURREALDB_IMAGE"
-	surrealDbUser        string = "root"
-	surrealDbPass        string = "root"
+const (
+	defaultSurrealDBImage = "surrealdb/surrealdb:latest"
+	imageEnvVar           = "TEST_SURREALDB_IMAGE"
+	testUser              = "root"
+	testPass              = "root"
+	testNamespace         = "testns"
+	testDatabase          = "testdb"
+	defaultTable          = "fiber_storage"
 )
 
-func newTestStore(t testing.TB) *Storage {
-	t.Helper()
-	ctx := context.Background()
+type SurrealDBTestSuite struct {
+	suite.Suite
+	store     *Storage
+	container testcontainers.Container
+	ctx       context.Context
+}
 
-	img := surrealDb
-	if imgFromEnv := os.Getenv(surrealDbImageEnvVar); imgFromEnv != "" {
-		img = imgFromEnv
+func (s *SurrealDBTestSuite) SetupSuite() {
+	s.ctx = context.Background()
+
+	container, url := createSurrealDBContainer(s.ctx, s.T())
+	s.container = container
+	s.store = createStore(url)
+}
+
+func (s *SurrealDBTestSuite) TearDownSuite() {
+	if s.store != nil {
+		s.store.Close()
 	}
-	surrealdbContainer, err := surrealdb.Run(
-		ctx, img,
-		surrealdb.WithUsername(surrealDbUser),
-		surrealdb.WithPassword(surrealDbPass),
-	)
-	require.NoError(t, err)
-
-	testcontainers.CleanupContainer(t, surrealdbContainer)
-
-	url, err := surrealdbContainer.URL(ctx)
-	require.NoError(t, err)
-
-	return New(
-		Config{
-			ConnectionString: url,
-			Namespace:        "testns",
-			Database:         "testdb",
-			Username:         surrealDbUser,
-			Password:         surrealDbPass,
-			DefaultTable:     "fiber_storage",
-		},
-	)
+	if s.container != nil {
+		testcontainers.CleanupContainer(s.T(), s.container)
+	}
 }
 
-func Test_Surrealdb_Create(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("test", []byte("test12345"), 0)
-	require.NoError(t, err)
+func (s *SurrealDBTestSuite) SetupTest() {
+	err := s.store.Reset()
+	s.Require().NoError(err)
 }
 
-func Test_Surrealdb_CreateAndGet(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("test", []byte("test12345"), 0)
-	require.NoError(t, err)
-
-	get, err := testStore.Get("test")
-	require.NoError(t, err)
-	require.NotEmpty(t, get)
+func (s *SurrealDBTestSuite) TestCreate() {
+	s.setValue("test_key", []byte("test_value"), 0)
 }
 
-func Test_Surrealdb_ListTable(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	bytes, err := testStore.List()
-	require.NoError(t, err)
-	require.NotEmpty(t, bytes)
+func (s *SurrealDBTestSuite) TestCreateAndGet() {
+	s.setValue("test_key", []byte("test_value"), 0)
+	s.assertKeyHasValue("test_key", []byte("test_value"))
 }
 
-func Test_Surrealdb_Get_WithNoErr(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
+func (s *SurrealDBTestSuite) TestDelete() {
+	s.setValue("delete_me", []byte("delete_value"), 0)
+	s.assertKeyHasValue("delete_me", []byte("delete_value"))
 
-	err := testStore.Set("test", []byte("test1234"), 0)
-	require.NoError(t, err)
-
-	get, err := testStore.Get("test")
-	require.NoError(t, err)
-	require.NotEmpty(t, get)
+	err := s.store.Delete("delete_me")
+	s.Require().NoError(err)
+	s.assertKeyNotExists("delete_me")
 }
 
-func Test_Surrealdb_Delete(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("test", []byte("delete1234"), 0)
-	require.NoError(t, err)
-
-	err = testStore.Delete("test")
-	require.NoError(t, err)
-
-	val, err := testStore.Get("test")
-	require.NoError(t, err)
-	require.Nil(t, val)
+func (s *SurrealDBTestSuite) TestGetMissing() {
+	val, err := s.store.Get("non-existent-key")
+	s.Require().NoError(err)
+	s.Require().Nil(val)
 }
 
-func Test_Surrealdb_Flush(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
+func (s *SurrealDBTestSuite) TestReset() {
+	s.setValue("key1", []byte("value1"), 0)
+	s.setValue("key2", []byte("value2"), 0)
 
-	err := testStore.Set("test_key", []byte("test_value"), 0)
-	require.NoError(t, err)
+	s.assertKeyHasValue("key1", []byte("value1"))
+	s.assertKeyHasValue("key2", []byte("value2"))
 
-	val, err := testStore.Get("test_key")
-	require.NoError(t, err)
-	require.NotNil(t, val)
+	err := s.store.Reset()
+	s.Require().NoError(err)
 
-	err = testStore.Reset()
-	require.NoError(t, err)
-
-	val, err = testStore.Get("test_key")
-	require.NoError(t, err)
-	require.Nil(t, val)
+	s.assertKeyNotExists("key1")
+	s.assertKeyNotExists("key2")
 }
 
-func Test_Surrealdb_GetExpired(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
+func (s *SurrealDBTestSuite) TestList() {
+	testData := map[string][]byte{
+		"key1": []byte("value1"),
+		"key2": []byte("value2"),
+		"key3": []byte("value3"),
+	}
 
-	err := testStore.Set("temp", []byte("value"), 1*time.Second)
-	require.NoError(t, err)
+	for key, value := range testData {
+		s.setValue(key, value, 0)
+	}
 
-	require.Eventually(t, func() bool {
-		val, _ := testStore.Get("temp")
-		return val == nil
-	}, 3*time.Second, 100*time.Millisecond)
-	require.NoError(t, err)
-}
-
-func Test_Surrealdb_GetMissing(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	val, err := testStore.Get("non-existent-key")
-	require.NoError(t, err)
-	require.Nil(t, val)
-}
-
-func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	_ = testStore.Set("valid", []byte("123"), 0)
-
-	_ = testStore.Set("expired", []byte("456"), 1*time.Second)
-	time.Sleep(2 * time.Second)
-
-	data, err := testStore.List()
-	require.NoError(t, err)
+	data, err := s.store.List()
+	s.Require().NoError(err)
+	s.Assert().NotEmpty(data)
 
 	var result map[string][]byte
 	err = json.Unmarshal(data, &result)
-	require.NoError(t, err)
+	s.Require().NoError(err)
 
-	require.Contains(t, result, "valid")
-	require.NotContains(t, result, "expired")
+	for key, expectedValue := range testData {
+		s.Assert().Contains(result, key)
+		s.Assert().Equal(expectedValue, result[key])
+	}
 }
 
-func Test_Surrealdb_GarbageCollector_RemovesExpiredKeys(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
+func (s *SurrealDBTestSuite) TestGetExpired() {
+	s.setValue("temp_key", []byte("temp_value"), 500*time.Millisecond)
 
-	err := testStore.Set("temp_key", []byte("temp_value"), 1*time.Second)
-	require.NoError(t, err)
+	s.assertKeyHasValue("temp_key", []byte("temp_value"))
 
-	val, err := testStore.Get("temp_key")
-	require.NoError(t, err)
-	require.NotNil(t, val)
+	s.Eventually(func() bool {
+		val := s.getValue("temp_key")
+		return val == nil
+	}, 2*time.Second, 100*time.Millisecond, "Key should expire")
+}
+
+func (s *SurrealDBTestSuite) TestListSkipsExpiredKeys() {
+	s.setValue("permanent", []byte("perm_value"), 0)
+	s.setValue("temporary", []byte("temp_value"), 500*time.Millisecond)
 
 	time.Sleep(3 * time.Second)
 
-	require.Eventually(t, func() bool {
-		val, err = testStore.Get("temp_key")
-		require.NoError(t, err)
-		return val == nil
-	}, 3*time.Second, 300*time.Millisecond)
+	data, err := s.store.List()
+	s.Require().NoError(err)
+
+	var result map[string][]byte
+	err = json.Unmarshal(data, &result)
+	s.Require().NoError(err)
+
+	s.Assert().Contains(result, "permanent")
+	s.Assert().NotContains(result, "temporary")
 }
 
-func Benchmark_SurrealDB_Set(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var err error
-	for i := 0; i < b.N; i++ {
-		err = testStore.Set("john", []byte("doe"), 0)
-	}
-
-	require.NoError(b, err)
+func TestSurrealDBTestSuite(t *testing.T) {
+	suite.Run(t, new(SurrealDBTestSuite))
 }
 
-func Benchmark_SurrealDB_Get(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
-
-	err := testStore.Set("john", []byte("doe"), 0)
-	require.NoError(b, err)
+func BenchmarkSet(b *testing.B) {
+	store, cleanup := createBenchmarkStore(b)
+	defer cleanup()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = testStore.Get("john")
+		err := store.Set("benchmark_key", []byte("benchmark_value"), 0)
+		require.NoError(b, err)
 	}
-
-	require.NoError(b, err)
 }
 
-func Benchmark_SurrealDB_SetAndDelete(b *testing.B) {
-	testStore := newTestStore(b)
-	defer testStore.Close()
+func BenchmarkGet(b *testing.B) {
+	store, cleanup := createBenchmarkStore(b)
+	defer cleanup()
+
+	err := store.Set("benchmark_key", []byte("benchmark_value"), 0)
+	require.NoError(b, err)
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	var err error
+
 	for i := 0; i < b.N; i++ {
-		testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
+		_, err := store.Get("benchmark_key")
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkSetAndDelete(b *testing.B) {
+	store, cleanup := createBenchmarkStore(b)
+	defer cleanup()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		key := "bench_key_" + fmt.Sprint(i)
+		err := store.Set(key, []byte("bench_value"), 0)
+		require.NoError(b, err)
+
+		err = store.Delete(key)
+		require.NoError(b, err)
+	}
+}
+
+// Helper methods
+func createSurrealDBContainer(ctx context.Context, t require.TestingT) (testcontainers.Container, string) {
+	img := defaultSurrealDBImage
+	if envImg := os.Getenv(imageEnvVar); envImg != "" {
+		img = envImg
 	}
 
-	require.NoError(b, err)
+	container, err := surrealdbTestContainerRepo.Run(
+		ctx, img,
+		surrealdbTestContainerRepo.WithUsername(testUser),
+		surrealdbTestContainerRepo.WithPassword(testPass),
+	)
+	require.NoError(t, err)
+
+	url, err := container.URL(ctx)
+	require.NoError(t, err)
+
+	return container, url
+}
+
+func createBenchmarkStore(b *testing.B) (*Storage, func()) {
+	b.Helper()
+	ctx := context.Background()
+
+	container, url := createSurrealDBContainer(ctx, b)
+	store := createStore(url)
+
+	cleanup := func() {
+		store.Close()
+		testcontainers.CleanupContainer(b, container)
+	}
+
+	return store, cleanup
+}
+
+func createStore(url string) *Storage {
+	return New(Config{
+		ConnectionString: url,
+		Namespace:        testNamespace,
+		Database:         testDatabase,
+		Username:         testUser,
+		Password:         testPass,
+		DefaultTable:     defaultTable,
+	})
+}
+
+func (s *SurrealDBTestSuite) setValue(key string, value []byte, ttl time.Duration) {
+	err := s.store.Set(key, value, ttl)
+	s.Require().NoError(err)
+}
+
+func (s *SurrealDBTestSuite) getValue(key string) []byte {
+	val, err := s.store.Get(key)
+	s.Require().NoError(err)
+	return val
+}
+
+func (s *SurrealDBTestSuite) assertKeyHasValue(key string, expectedValue []byte) {
+	val := s.getValue(key)
+	s.Assert().Equal(expectedValue, val)
+}
+
+func (s *SurrealDBTestSuite) assertKeyNotExists(key string) {
+	val := s.getValue(key)
+	s.Assert().Nil(val)
 }
