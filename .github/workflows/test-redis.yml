@@ -22,7 +22,7 @@ jobs:
                     - '7'
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
 
             -   name: Setup Redis Cluster
                 uses: vishnudxb/redis-cluster@1.0.9
