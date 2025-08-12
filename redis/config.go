@@ -77,6 +77,12 @@ type Config struct {
 	//
 	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
 	PoolSize int
+
+	// IsClusterMode forces cluster mode even with single address.
+	// Useful for AWS ElastiCache Configuration Endpoints.
+	//
+	// Optional. Default is false
+	IsClusterMode bool
 }
 
 // ConfigDefault is the default config
@@ -95,6 +101,7 @@ var ConfigDefault = Config{
 	ClientName:       "",
 	SentinelUsername: "",
 	SentinelPassword: "",
+	IsClusterMode:    false,
 }
 
 // Helper function to set default values

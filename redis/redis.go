@@ -62,6 +62,7 @@ func New(config ...Config) *Storage {
 		Password:         cfg.Password,
 		TLSConfig:        cfg.TLSConfig,
 		PoolSize:         cfg.PoolSize,
+		IsClusterMode:    cfg.IsClusterMode,
 	})
 
 	// Test connection
