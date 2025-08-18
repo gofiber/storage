@@ -3,7 +3,7 @@ module github.com/gofiber/storage/bbolt/v2
 go 1.23.0
 
 require (
-	github.com/gofiber/utils/v2 v2.0.0-beta.14
+	github.com/gofiber/utils/v2 v2.0.0-rc.1
 	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.4.2
 )
