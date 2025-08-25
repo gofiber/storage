@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/neo4j v0.38.0
 )
