@@ -3,12 +3,10 @@ module github.com/gofiber/storage/redis/v3
 go 1.23.0
 
 require (
-	github.com/gofiber/storage/testhelpers/redis v0.0.0-00010101000000-000000000000
+	github.com/gofiber/storage/testhelpers/redis v0.0.0-20250822074218-ba2347199921
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/stretchr/testify v1.10.0
 )
-
-replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
