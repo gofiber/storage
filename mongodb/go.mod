@@ -3,7 +3,7 @@ module github.com/gofiber/storage/mongodb/v2
 go 1.23.0
 
 require (
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/mongodb v0.38.0
 	go.mongodb.org/mongo-driver v1.17.4

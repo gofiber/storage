@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/arangodb/go-driver v1.6.6
 	github.com/gofiber/utils/v2 v2.0.0-rc.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/arangodb v0.38.0
 )
