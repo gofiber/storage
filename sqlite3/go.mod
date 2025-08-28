@@ -3,7 +3,7 @@ module github.com/gofiber/storage/sqlite3/v2
 go 1.23.0
 
 require (
-	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.10.0
 )
 

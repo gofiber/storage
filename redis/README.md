@@ -86,6 +86,12 @@ store := redis.New(redis.Config{
 	Addrs:            []string{":6379", ":6380"},
 })
 
+// Initialize AWS ElastiCache Redis Cluster with Configuration Endpoint
+store := redis.New(redis.Config{
+	Addrs:         []string{"cluster.xxxxx.cache.amazonaws.com:6379"},
+	IsClusterMode: true,
+})
+
 // Create a client with support for TLS
 cer, err := tls.LoadX509KeyPair("./client.crt", "./client.key")
 if err != nil {
@@ -183,6 +189,12 @@ type Config struct {
 	//
 	// Optional. Default is 10 connections per every available CPU as reported by runtime.GOMAXPROCS.
 	PoolSize int
+
+	// IsClusterMode forces cluster mode even with single address.
+	// Useful for AWS ElastiCache Configuration Endpoints.
+	//
+	// Optional. Default is false
+	IsClusterMode bool
 }
 ```
 
@@ -203,6 +215,7 @@ var ConfigDefault = Config{
 	ClientName:            "",
 	SentinelUsername:      "",
 	SentinelPassword:      "",
+	IsClusterMode:         false,
 }
 ```
 
