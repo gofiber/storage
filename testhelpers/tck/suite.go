@@ -13,13 +13,21 @@ import (
 	"github.com/gofiber/storage"
 )
 
+// CreationHook defines when the store should be created.
+// Please see [PerSuite] and [PerTest] for more details.
 type CreationHook int
 
 const (
+	// PerTest defines that the store should be created per test.
 	PerTest CreationHook = iota
+
+	// PerSuite defines that the store should be created per suite.
 	PerSuite
 )
 
+// TCKSuite is the interface that must be implemented by the test suite.
+// It defines how to create a new store with a container.
+// The generic parameters are the storage type and the driver type returned by the Conn method.
 type TCKSuite[T storage.Storage, D any] interface {
 	NewStoreWithContainer() func(ctx context.Context, tb testing.TB) (T, testcontainers.Container, error)
 }
@@ -41,6 +49,9 @@ func New[T storage.Storage, D any](ctx context.Context, t *testing.T, tckSuite T
 	}, nil
 }
 
+// StorageTestSuite is the test suite for the storage.
+// It implements the [suite.Suite] interface and provides the necessary methods to test the storage.
+// The generic parameters are the storage type and the driver type returned by the Conn method.
 type StorageTestSuite[T storage.Storage, D any] struct {
 	suite.Suite
 	stats        *suite.SuiteInformation
@@ -53,6 +64,8 @@ type StorageTestSuite[T storage.Storage, D any] struct {
 	ctr          testcontainers.Container
 }
 
+// cleanup is a helper function to cleanup the store and container.
+// To avoid double closing the store, it checks if the store is already closed.
 func (s *StorageTestSuite[T, D]) cleanup() error {
 	t := s.T()
 	t.Log("🧹 Cleaning up store and container")
@@ -79,10 +92,14 @@ func (s *StorageTestSuite[T, D]) cleanup() error {
 // Hooks
 // ----------------------------------------------------------------------------
 
+// HandleStats is a hook that is called when the suite statistics are updated.
+// It is used to store the statistics for later use.
 func (s *StorageTestSuite[T, D]) HandleStats(_ string, stats *suite.SuiteInformation) {
 	s.stats = stats
 }
 
+// SetupSuite is a hook that is called when the suite is setup.
+// It is used to create the store and container, only if the creation hook is [PerSuite].
 func (s *StorageTestSuite[T, D]) SetupSuite() {
 	if s.creationHook == PerSuite {
 		t := s.T()
@@ -99,12 +116,16 @@ func (s *StorageTestSuite[T, D]) SetupSuite() {
 	}
 }
 
+// TearDownSuite is a hook that is called when the suite is torn down.
+// It is used to cleanup the store and container, only if the creation hook is [PerSuite].
 func (s *StorageTestSuite[T, D]) TearDownSuite() {
 	if s.creationHook == PerSuite {
 		s.Require().NoError(s.cleanup())
 	}
 }
 
+// SetupTest is a hook that is called when the test is setup.
+// It is used to create the store and container, only if the creation hook is [PerTest].
 func (s *StorageTestSuite[T, D]) SetupTest() {
 	if s.creationHook == PerTest {
 		t := s.T()
@@ -121,6 +142,8 @@ func (s *StorageTestSuite[T, D]) SetupTest() {
 	}
 }
 
+// TearDownTest is a hook that is called when the test is torn down.
+// It is used to cleanup the store and container, only if the creation hook is [PerTest].
 func (s *StorageTestSuite[T, D]) TearDownTest() {
 	if s.creationHook == PerTest {
 		s.Require().NoError(s.cleanup())
