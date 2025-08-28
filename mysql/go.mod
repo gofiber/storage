@@ -2,8 +2,14 @@ module github.com/gofiber/storage/mysql/v2
 
 go 1.23.0
 
+replace (
+	github.com/gofiber/storage => ../
+	github.com/gofiber/storage/testhelpers/tck => ../testhelpers/tck
+)
+
 require (
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/gofiber/storage/testhelpers/tck v1.0.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.38.0
@@ -30,6 +36,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/gofiber/storage v1.3.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
