@@ -132,15 +132,9 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_MYSQL_Conn(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	require.True(t, testStore.Conn() != nil)
-}
-
 func TestMySQLStorageTCK(t *testing.T) {
-	s, err := tck.New(context.Background(), t, &MySQLStorageTCK{}, tck.PerTest)
+	// The TCK needs the concrete type of the storage and the driver type returned by the Conn method.
+	s, err := tck.New[*Storage, *sql.DB](context.Background(), t, &MySQLStorageTCK{}, tck.PerTest)
 	require.NoError(t, err)
 
 	suite.Run(t, &s)
