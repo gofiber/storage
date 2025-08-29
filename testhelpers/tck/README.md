@@ -128,7 +128,7 @@ func mustStartExample(t testing.TB) *example.Container {
 ```go
 func TestExampleStorageTCK(t *testing.T) {
     // Create the TCK suite with proper generic type parameters
-    s, err := tck.New[*ExampleStorage, *ExampleDriver](
+    s, err := tck.New[*ExampleStorage, *ExampleDriver, *ExampleContainer](
         context.Background(), 
         t, 
         &ExampleStorageTCK{}, 
@@ -290,7 +290,7 @@ func mustStartYourStorage(t testing.TB) *YourContainer {
 }
 
 func TestYourStorageTCK(t *testing.T) {
-    s, err := tck.New[*Storage, YourDriverType](
+    s, err := tck.New[*Storage, YourDriverType, *YourContainer](
         context.Background(),
         t,
         &YourStorageTCK{},
