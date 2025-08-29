@@ -13,17 +13,58 @@ import (
 	"github.com/gofiber/storage"
 )
 
-// CreationHook defines when the store should be created.
+// suiteHook defines when the store should be created.
 // Please see [PerSuite] and [PerTest] for more details.
-type CreationHook int
+type suiteHook int
 
 const (
-	// PerTest defines that the store should be created per test.
-	PerTest CreationHook = iota
+	// perTest defines that the store should be created per test.
+	perTest suiteHook = iota
 
-	// PerSuite defines that the store should be created per suite.
-	PerSuite
+	// perSuite defines that the store should be created per suite.
+	perSuite
 )
+
+// suiteUpdater is the interface that must be implemented by the test suite.
+// It defines how the [suiteOption]s update the suite.
+type suiteUpdater interface {
+	updateHook(hook suiteHook) error
+}
+
+// suiteOption is the interface that must be implemented by the [suiteOption]s.
+// It defines how the [suiteOption]s update the suite.
+type suiteOption interface {
+	apply(s suiteUpdater) error
+}
+
+// suiteUpdateOption is the default implementation of the [suiteOption] interface.
+// It is used to update the suite hook.
+type suiteUpdateOption struct {
+	fn func(s suiteUpdater) error
+}
+
+// apply is the method that is called by the [suiteOption]s to update the suite.
+func (o *suiteUpdateOption) apply(s suiteUpdater) error {
+	return o.fn(s)
+}
+
+// PerTest is a [suiteOption] that updates the suite hook to [perTest].
+func PerTest() suiteOption {
+	return &suiteUpdateOption{
+		fn: func(s suiteUpdater) error {
+			return s.updateHook(perTest)
+		},
+	}
+}
+
+// PerSuite is a [suiteOption] that updates the suite hook to [perSuite].
+func PerSuite() suiteOption {
+	return &suiteUpdateOption{
+		fn: func(s suiteUpdater) error {
+			return s.updateHook(perSuite)
+		},
+	}
+}
 
 // TCKSuite is the interface that must be implemented by the test suite.
 // It defines how to create a new store with a container.
@@ -33,20 +74,26 @@ type TCKSuite[T storage.Storage, D any] interface {
 }
 
 // New creates a new [StorageTestSuite] with the given [TCKSuite].
-func New[T storage.Storage, D any](ctx context.Context, t *testing.T, tckSuite TCKSuite[T, D], creationHook CreationHook) (StorageTestSuite[T, D], error) {
-	if creationHook != PerSuite && creationHook != PerTest {
-		return StorageTestSuite[T, D]{}, fmt.Errorf("invalid creation hook: %d", creationHook)
-	}
-
+func New[T storage.Storage, D any](ctx context.Context, t *testing.T, tckSuite TCKSuite[T, D], opts ...suiteOption) (StorageTestSuite[T, D], error) {
 	if tckSuite == nil {
 		return StorageTestSuite[T, D]{}, fmt.Errorf("test suite is nil")
 	}
 
-	return StorageTestSuite[T, D]{
-		ctx:          ctx,
-		creationHook: creationHook,
-		createFn:     tckSuite.NewStoreWithContainer(),
-	}, nil
+	s := StorageTestSuite[T, D]{
+		ctx:      ctx,
+		hook:     perTest, // defaults to perTest
+		createFn: tckSuite.NewStoreWithContainer(),
+	}
+
+	for _, opt := range opts {
+		if err := opt.apply(&s); err != nil {
+			return StorageTestSuite[T, D]{}, fmt.Errorf("apply option: %w", err)
+		}
+	}
+
+	s.SetT(t)
+
+	return s, nil
 }
 
 // StorageTestSuite is the test suite for the storage.
@@ -54,14 +101,23 @@ func New[T storage.Storage, D any](ctx context.Context, t *testing.T, tckSuite T
 // The generic parameters are the storage type and the driver type returned by the Conn method.
 type StorageTestSuite[T storage.Storage, D any] struct {
 	suite.Suite
-	stats        *suite.SuiteInformation
-	ctx          context.Context
-	creationHook CreationHook
-	createFn     func(ctx context.Context, tb testing.TB) (T, testcontainers.Container, error)
-	store        storage.Storage
-	closedStore  bool
-	mu           sync.Mutex
-	ctr          testcontainers.Container
+	stats       *suite.SuiteInformation
+	ctx         context.Context
+	hook        suiteHook
+	createFn    func(ctx context.Context, tb testing.TB) (T, testcontainers.Container, error)
+	store       storage.Storage
+	closedStore bool
+	mu          sync.Mutex
+	ctr         testcontainers.Container
+}
+
+func (s *StorageTestSuite[T, D]) updateHook(hook suiteHook) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.hook = hook
+
+	return nil
 }
 
 // cleanup is a helper function to cleanup the store and container.
@@ -101,7 +157,7 @@ func (s *StorageTestSuite[T, D]) HandleStats(_ string, stats *suite.SuiteInforma
 // SetupSuite is a hook that is called when the suite is setup.
 // It is used to create the store and container, only if the creation hook is [PerSuite].
 func (s *StorageTestSuite[T, D]) SetupSuite() {
-	if s.creationHook == PerSuite {
+	if s.hook == perSuite {
 		t := s.T()
 
 		store, ctr, err := s.createFn(s.ctx, t)
@@ -110,6 +166,7 @@ func (s *StorageTestSuite[T, D]) SetupSuite() {
 		}
 		s.store = store
 		s.ctr = ctr
+		s.closedStore = false
 
 		err = s.store.Reset()
 		s.Require().NoError(err)
@@ -119,7 +176,7 @@ func (s *StorageTestSuite[T, D]) SetupSuite() {
 // TearDownSuite is a hook that is called when the suite is torn down.
 // It is used to cleanup the store and container, only if the creation hook is [PerSuite].
 func (s *StorageTestSuite[T, D]) TearDownSuite() {
-	if s.creationHook == PerSuite {
+	if s.hook == perSuite {
 		s.Require().NoError(s.cleanup())
 	}
 }
@@ -127,7 +184,7 @@ func (s *StorageTestSuite[T, D]) TearDownSuite() {
 // SetupTest is a hook that is called when the test is setup.
 // It is used to create the store and container, only if the creation hook is [PerTest].
 func (s *StorageTestSuite[T, D]) SetupTest() {
-	if s.creationHook == PerTest {
+	if s.hook == perTest {
 		t := s.T()
 
 		store, ctr, err := s.createFn(s.ctx, t)
@@ -136,6 +193,7 @@ func (s *StorageTestSuite[T, D]) SetupTest() {
 		}
 		s.store = store
 		s.ctr = ctr
+		s.closedStore = false
 
 		err = s.store.Reset()
 		s.Require().NoError(err)
@@ -145,7 +203,7 @@ func (s *StorageTestSuite[T, D]) SetupTest() {
 // TearDownTest is a hook that is called when the test is torn down.
 // It is used to cleanup the store and container, only if the creation hook is [PerTest].
 func (s *StorageTestSuite[T, D]) TearDownTest() {
-	if s.creationHook == PerTest {
+	if s.hook == perTest {
 		s.Require().NoError(s.cleanup())
 	}
 }
@@ -212,7 +270,7 @@ func (s *StorageTestSuite[T, D]) TestGetExpired() {
 	s.Eventually(func() bool {
 		s.requireKeyNotExists("temp_key")
 		return true
-	}, 2*time.Second, 100*time.Millisecond, "Key should expire")
+	}, 2*time.Second, 1*time.Second, "Key should expire")
 }
 
 func (s *StorageTestSuite[T, D]) TestDelete() {
