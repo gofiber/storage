@@ -50,7 +50,7 @@ type TCKSuite[T storage.Storage, D any, C testcontainers.Container] interface {
 - `D`: The driver type returned by `Conn()` method (e.g., `*sql.DB`)
 - `C`: The testcontainer type (e.g., `*mysql.MySQLContainer`)
 
-Please check that a Testcontainers module exists for the container type: visit [testcontainers website](https://testcontainers.com/modules/?language=go) for more information.
+Please verify that a suitable Testcontainers module exists for your container type. See the [Testcontainers modules catalog](https://testcontainers.com/modules/?language=go) for details.
 
 ### Test Execution Modes
 
@@ -59,7 +59,7 @@ The TCK supports two execution modes:
 - **PerTest** (default): Creates a new container and storage instance for each test
 - **PerSuite**: Creates one container and storage instance for the entire test suite
 
-## Implementation Guide: Example Example
+## Implementation Guide: Example
 
 Here's how to implement TCK tests for a new storage backend:
 
@@ -147,10 +147,10 @@ func TestExampleStorageTCK(t *testing.T) {
 
 ### 1. Generic Type Parameters
 
-When calling `tck.New()`, specify the correct types:
-- **First parameter** (`T`): Your storage pointer type (e.g., `*Storage`)
-- **Second parameter** (`D`): Driver type from `Conn()` method, or `any` if not applicable
-- **Third parameter** (`C`): Container type from `NewContainer()` method
+When calling `tck.New`, specify the correct type parameters:
+- `T`: Your storage pointer type (e.g., `*Storage`)
+- `D`: The driver type returned by `Conn()` (or `any` if not applicable)
+- `C`: The container type returned by `NewContainer()`
 
 ### 2. Error Handling
 
@@ -158,8 +158,7 @@ Always use `require.NoError(tb, err)` in your factory functions to ensure test f
 
 ### 3. Container Cleanup
 
-The TCK automatically handles container cleanup, but ensure your `mustStart*` functions call `testcontainers.CleanupContainer(t, container)`. This is important when you add new Test functions that are not part of the TCK.
-If they need a store (and its container), they must call `testcontainers.CleanupContainer(t, container)` to avoid having those containers running until the end of the test execution. At that time, Testcontainers' Ryuk prunes all containers for you, but you probably want to clean up the container immediately.
+The TCK handles container cleanup, but ensure your `mustStart*` helpers call `testcontainers.CleanupContainer(t, container)`. For ad‑hoc tests outside the TCK, call `CleanupContainer` to avoid leaving containers running until the test process exits. Although Ryuk will prune them, it’s better to clean up immediately.
 
 ### 4. Configuration
 
@@ -178,7 +177,7 @@ Always respect the provided `context.Context` in your factory functions, especia
 Use when you need complete isolation between tests:
 
 ```go
-s, err := tck.New[*Storage, *sql.DB](ctx, t, &MySQLStorageTCK{}, tck.PerTest())
+s, err := tck.New[*Storage, *sql.DB](ctx, t, &ExampleStorageTCK{}, tck.PerTest())
 ```
 
 **Pros:**
@@ -194,7 +193,7 @@ s, err := tck.New[*Storage, *sql.DB](ctx, t, &MySQLStorageTCK{}, tck.PerTest())
 Use when container startup is expensive and tests can share state:
 
 ```go
-s, err := tck.New[*Storage, *sql.DB](ctx, t, &MySQLStorageTCK{}, tck.PerSuite())
+s, err := tck.New[*Storage, *sql.DB](ctx, t, &ExampleStorageTCK{}, tck.PerSuite())
 ```
 
 **Pros:**
