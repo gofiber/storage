@@ -70,8 +70,16 @@ func PerSuite() suiteOption {
 // It defines how to create a new store with a container.
 // The generic parameters are the storage type, the driver type returned by the Conn method,
 // and the container type used to back the storage.
+//
+// IMPORTANT: The container type must exist as a Testcontainers module.
+// Please refer to the [testcontainers] package for more information.
 type TCKSuite[T storage.Storage, D any, C testcontainers.Container] interface {
+	// NewStore is a function that returns a new store.
+	// It is called by the [New] function to create a new store.
 	NewStore() func(ctx context.Context, tb testing.TB, ctr C) (T, error)
+
+	// NewContainer is a function that returns a new container.
+	// It is called by the [New] function to create a new container.
 	NewContainer() func(ctx context.Context, tb testing.TB) (C, error)
 }
 

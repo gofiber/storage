@@ -24,8 +24,12 @@ const (
 	mysqlDatabase    string = "fiber"
 )
 
+// MySQLStorageTCK is the test suite for the MySQL storage.
 type MySQLStorageTCK struct{}
 
+// NewStore is a function that returns a new MySQL storage.
+// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new MySQL storage
+// from the container created by the TCK.
 func (s *MySQLStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
 	return func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
 		conn, err := ctr.ConnectionString(ctx)
@@ -40,6 +44,9 @@ func (s *MySQLStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, ct
 	}
 }
 
+// NewContainer is a function that returns a new MySQL container.
+// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new MySQL container
+// for the MySQL storage.
 func (s *MySQLStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
 	return func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
 		return mustStartMySQL(tb), nil
