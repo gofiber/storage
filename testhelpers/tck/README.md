@@ -156,7 +156,7 @@ Always use `require.NoError(tb, err)` in your factory functions to ensure test f
 
 ### 3. Container Cleanup
 
-The TCK automatically handles container cleanup, but ensure your `mustStart*` functions call `testcontainers.CleanupContainer(t, container)`. This is immportant when you add new Test functions that are not part of the TCK.
+The TCK automatically handles container cleanup, but ensure your `mustStart*` functions call `testcontainers.CleanupContainer(t, container)`. This is important when you add new Test functions that are not part of the TCK.
 If they need a store (and its container), they must call `testcontainers.CleanupContainer(t, container)` to avoid having those containers running until the end of the test execution. At that time, Testcontainers' Ryuk prunes all containers for you, but you probably want to clean up the container immediately.
 
 ### 4. Configuration
