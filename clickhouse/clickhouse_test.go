@@ -83,6 +83,17 @@ func Test_Connection(t *testing.T) {
 	defer client.Close()
 }
 
+func Test_ClickhouseDB_Conn(t *testing.T) {
+	testStore := newTestStore(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	defer testStore.Close()
+
+	require.NotNil(t, testStore.Conn())
+}
+
 func Test_SetWithContext(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
