@@ -229,28 +229,25 @@ func (s *StorageTestSuite[T, D, C]) SetupTest() {
 		ctr, err := s.createContainerFn(s.ctx, t)
 		s.Require().NoError(err)
 		s.ctr = ctr
-
-		store, err := s.createStoreFn(s.ctx, t, ctr)
-		s.Require().NoError(err)
-
-		s.store = store
-		s.closedStore = false
-
-		err = s.store.Reset()
-		s.Require().NoError(err)
 	case perSuite:
-		// update the store with the container from the suite
-		// This prevents the error caused by closing the store
-		// in a test and using it in a different test of the
-		// same suite when the hook is [PerSuite].
-		store, err := s.createStoreFn(s.ctx, t, s.ctr)
-		s.Require().NoError(err)
-
-		s.store = store
-		s.closedStore = false
+		// do nothing
 	default:
 		s.T().Fatalf("invalid hook: %d", s.hook)
 	}
+
+	// update the store with the container from the suite
+	// This prevents the error caused by closing the store
+	// in a test and using it in a different test of the
+	// same suite when the hook is [PerSuite].
+	store, err := s.createStoreFn(s.ctx, t, s.ctr)
+	s.Require().NoError(err)
+
+	s.store = store
+	s.closedStore = false
+
+	// Reset the store to ensure it's in a clean state
+	err = s.store.Reset()
+	s.Require().NoError(err)
 }
 
 // TearDownTest is a hook that is called when the test is torn down.
