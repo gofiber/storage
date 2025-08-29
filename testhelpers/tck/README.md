@@ -74,10 +74,12 @@ type ExampleStorageTCK struct{}
 // from the container created by the TCK.
 func (s *ExampleStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, ctr *ExampleContainer) (*Storage, error) {
     return func(ctx context.Context, tb testing.TB, ctr *example.Container) (*Storage, error) {
+        // Use container APIs to get connection details
         conn, err := ctr.ConnectionString(ctx)
         require.NoError(tb, err)
 
         store := New(Config{
+            // Apply the storage-specific configuration
             ConnectionURI: conn,
             Reset:         true,
         })
