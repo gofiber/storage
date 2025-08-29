@@ -145,7 +145,7 @@ func TestMySQLStorageTCK(t *testing.T) {
 	s, err := tck.New[*Storage, *sql.DB](context.Background(), t, &MySQLStorageTCK{}, tck.PerTest())
 	require.NoError(t, err)
 
-	suite.Run(t, &s)
+	suite.Run(t, s)
 }
 
 func Benchmark_MYSQL_Set(b *testing.B) {

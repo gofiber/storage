@@ -76,9 +76,9 @@ type TCKSuite[T storage.Storage, D any, C testcontainers.Container] interface {
 }
 
 // New creates a new [StorageTestSuite] with the given [TCKSuite].
-func New[T storage.Storage, D any, C testcontainers.Container](ctx context.Context, t *testing.T, tckSuite TCKSuite[T, D, C], opts ...suiteOption) (StorageTestSuite[T, D, C], error) {
+func New[T storage.Storage, D any, C testcontainers.Container](ctx context.Context, t *testing.T, tckSuite TCKSuite[T, D, C], opts ...suiteOption) (*StorageTestSuite[T, D, C], error) {
 	if tckSuite == nil {
-		return StorageTestSuite[T, D, C]{}, fmt.Errorf("test suite is nil")
+		return nil, fmt.Errorf("test suite is nil")
 	}
 
 	s := StorageTestSuite[T, D, C]{
@@ -90,13 +90,13 @@ func New[T storage.Storage, D any, C testcontainers.Container](ctx context.Conte
 
 	for _, opt := range opts {
 		if err := opt.apply(&s); err != nil {
-			return StorageTestSuite[T, D, C]{}, fmt.Errorf("apply option: %w", err)
+			return nil, fmt.Errorf("apply option: %w", err)
 		}
 	}
 
 	s.SetT(t)
 
-	return s, nil
+	return &s, nil
 }
 
 // StorageTestSuite is the test suite for the storage.
