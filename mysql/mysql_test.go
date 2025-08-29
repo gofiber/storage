@@ -26,11 +26,9 @@ const (
 
 type MySQLStorageTCK struct{}
 
-func (s *MySQLStorageTCK) NewStoreWithContainer() func(ctx context.Context, tb testing.TB) (*Storage, testcontainers.Container, error) {
-	return func(ctx context.Context, tb testing.TB) (*Storage, testcontainers.Container, error) {
-		c := mustStartMySQL(tb)
-
-		conn, err := c.ConnectionString(ctx)
+func (s *MySQLStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
+	return func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
+		conn, err := ctr.ConnectionString(ctx)
 		require.NoError(tb, err)
 
 		store := New(Config{
@@ -38,7 +36,13 @@ func (s *MySQLStorageTCK) NewStoreWithContainer() func(ctx context.Context, tb t
 			Reset:         true,
 		})
 
-		return store, c, nil
+		return store, nil
+	}
+}
+
+func (s *MySQLStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
+	return func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
+		return mustStartMySQL(tb), nil
 	}
 }
 
@@ -48,7 +52,11 @@ func newTestStore(t testing.TB) *Storage {
 	ctx := context.Background()
 
 	suite := MySQLStorageTCK{}
-	store, _, err := suite.NewStoreWithContainer()(ctx, t)
+
+	ctr, err := suite.NewContainer()(ctx, t)
+	require.NoError(t, err)
+
+	store, err := suite.NewStore()(ctx, t, ctr)
 	require.NoError(t, err)
 
 	return store
