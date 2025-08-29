@@ -62,6 +62,13 @@ func newTestStore(t testing.TB) *Storage {
 	})
 }
 
+func Test_AeroSpikeDB_Conn(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NotNil(t, testStore.Conn())
+}
+
 // Test_AeroSpikeDB_Get tests the Get method
 func Test_AeroSpikeDB_Get(t *testing.T) {
 	var (
