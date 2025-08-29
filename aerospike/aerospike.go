@@ -189,7 +189,7 @@ func (s *Storage) updateSchema(schemaKey *aerospike.Key, version int, descriptio
 	return nil
 }
 
-// Return aerospike client
+// Conn returns the aerospike client
 func (s *Storage) Conn() *aerospike.Client {
 	return s.client
 }
