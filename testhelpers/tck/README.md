@@ -59,7 +59,7 @@ The TCK supports two execution modes:
 - **PerTest** (default): Creates a new container and storage instance for each test
 - **PerSuite**: Creates one container and storage instance for the entire test suite
 
-## Implementation Guide: MySQL Example
+## Implementation Guide: Example Example
 
 Here's how to implement TCK tests for a new storage backend:
 
@@ -86,12 +86,12 @@ func (s *ExampleStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, 
     }
 }
 
-// NewContainer is a function that returns a new MySQL container.
-// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new MySQL container
-// for the MySQL storage.
-func (s *MySQLStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
-    return func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
-        return mustStartMySQL(tb), nil
+// NewContainer is a function that returns a new Example container.
+// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new Example container
+// for the Example storage.
+func (s *ExampleStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB) (*example.Container, error) {
+    return func(ctx context.Context, tb testing.TB) (*example.Container, error) {
+        return mustStartExample(tb), nil
     }
 }
 ```
@@ -101,21 +101,19 @@ func (s *MySQLStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB
 Create a helper function to start your storage backend's container:
 
 ```go
-func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
-    img := mysqlImage
-    if imgFromEnv := os.Getenv(mysqlImageEnvVar); imgFromEnv != "" {
+func mustStartExample(t testing.TB) *example.Container {
+    img := exampleImage
+    if imgFromEnv := os.Getenv(exampleImageEnvVar); imgFromEnv != "" {
         img = imgFromEnv
     }
 
     ctx := context.Background()
 
-    c, err := mysql.Run(ctx, img,
-        mysql.WithPassword(mysqlPass),
-        mysql.WithUsername(mysqlUser),
-        mysql.WithDatabase(mysqlDatabase),
+    c, err := example.Run(ctx, img,
+        example.WithOptionA("valueA"),
+        example.WithOptionB("valueB"),
         testcontainers.WithWaitStrategy(
-            wait.ForListeningPort("3306/tcp"),
-            wait.ForLog("port: 3306  MySQL Community Server"),
+            wait.ForListeningPort("examplePort/tcp"),
         ),
     )
     testcontainers.CleanupContainer(t, c)
@@ -128,7 +126,7 @@ func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
 ### Step 3: Create and Run the TCK Test
 
 ```go
-func TestMySQLStorageTCK(t *testing.T) {
+func TestExampleStorageTCK(t *testing.T) {
     // Create the TCK suite with proper generic type parameters
     s, err := tck.New[*ExampleStorage, *ExampleDriver](
         context.Background(), 
