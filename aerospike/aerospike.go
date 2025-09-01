@@ -189,11 +189,6 @@ func (s *Storage) updateSchema(schemaKey *aerospike.Key, version int, descriptio
 	return nil
 }
 
-// Return aerospike client
-func (s *Storage) Conn() *aerospike.Client {
-	return s.client
-}
-
 // GetSchemaInfo returns the current schema information
 func (s *Storage) GetSchemaInfo() *SchemaInfo {
 	return s.schemaInfo
