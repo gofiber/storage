@@ -111,7 +111,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	return []byte(result.Value), nil
 }
 
-// Conn returns the clickhouse session
+// Return clickhouse session
 func (s *Storage) Conn() driver.Conn {
 	return s.session
 }
