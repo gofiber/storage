@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755518717707,
+  "lastUpdate": 1756883927041,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -1152,6 +1152,102 @@ window.BENCHMARK_DATA = {
             "value": 475,
             "unit": "allocs/op",
             "extra": "338 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d70a4fde7da8a2a9cb0e0a6edc8f1a993172060a",
+          "message": "Merge pull request #1889 from gofiber/dependabot/go_modules/neo4j/github.com/neo4j/neo4j-go-driver/v5-5.28.3\n\nchore(deps): bump github.com/neo4j/neo4j-go-driver/v5 from 5.28.2 to 5.28.3 in /neo4j",
+          "timestamp": "2025-09-03T09:17:45+02:00",
+          "tree_id": "7a1f256d7268570e052cdb045ef3b3cd17af74eb",
+          "url": "https://github.com/gofiber/storage/commit/d70a4fde7da8a2a9cb0e0a6edc8f1a993172060a"
+        },
+        "date": 1756883923124,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Neo4jStore_Set",
+            "value": 1203290,
+            "unit": "ns/op\t   13122 B/op\t     237 allocs/op",
+            "extra": "848 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Set - ns/op",
+            "value": 1203290,
+            "unit": "ns/op",
+            "extra": "848 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Set - B/op",
+            "value": 13122,
+            "unit": "B/op",
+            "extra": "848 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Set - allocs/op",
+            "value": 237,
+            "unit": "allocs/op",
+            "extra": "848 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Get",
+            "value": 1113437,
+            "unit": "ns/op\t   15524 B/op\t     290 allocs/op",
+            "extra": "932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Get - ns/op",
+            "value": 1113437,
+            "unit": "ns/op",
+            "extra": "932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Get - B/op",
+            "value": 15524,
+            "unit": "B/op",
+            "extra": "932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_Get - allocs/op",
+            "value": 290,
+            "unit": "allocs/op",
+            "extra": "932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_SetAndDelete",
+            "value": 3171671,
+            "unit": "ns/op\t   26291 B/op\t     474 allocs/op",
+            "extra": "340 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_SetAndDelete - ns/op",
+            "value": 3171671,
+            "unit": "ns/op",
+            "extra": "340 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_SetAndDelete - B/op",
+            "value": 26291,
+            "unit": "B/op",
+            "extra": "340 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Neo4jStore_SetAndDelete - allocs/op",
+            "value": 474,
+            "unit": "allocs/op",
+            "extra": "340 times\n4 procs"
           }
         ]
       }
