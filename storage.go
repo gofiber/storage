@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+type StorageWithConn[T any] interface {
+	// Conn returns a connection to the storage.
+	// Implementations should return a connection to the storage,
+	// using the proper driver for the storage.
+	Conn() T
+}
+
 // Storage interface for communicating with different database/key-value
 // providers. Visit https://github.com/gofiber/storage for more info.
 type Storage interface {
