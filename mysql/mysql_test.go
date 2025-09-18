@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/storage/testhelpers/tck"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -22,20 +24,49 @@ const (
 	mysqlDatabase    string = "fiber"
 )
 
+// MySQLStorageTCK is the test suite for the MySQL storage.
+type MySQLStorageTCK struct{}
+
+// NewStore is a function that returns a new MySQL storage.
+// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new MySQL storage
+// from the container created by the TCK.
+func (s *MySQLStorageTCK) NewStore() func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
+	return func(ctx context.Context, tb testing.TB, ctr *mysql.MySQLContainer) (*Storage, error) {
+		conn, err := ctr.ConnectionString(ctx)
+		require.NoError(tb, err)
+
+		store := New(Config{
+			ConnectionURI: conn,
+			Reset:         true,
+		})
+
+		return store, nil
+	}
+}
+
+// NewContainer is a function that returns a new MySQL container.
+// It implements the [tck.TCKSuite] interface, allowing the TCK to create a new MySQL container
+// for the MySQL storage.
+func (s *MySQLStorageTCK) NewContainer() func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
+	return func(ctx context.Context, tb testing.TB) (*mysql.MySQLContainer, error) {
+		return mustStartMySQL(tb), nil
+	}
+}
+
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
 	ctx := context.Background()
 
-	c := mustStartMySQL(t)
+	suite := MySQLStorageTCK{}
 
-	conn, err := c.ConnectionString(ctx)
+	ctr, err := suite.NewContainer()(ctx, t)
 	require.NoError(t, err)
 
-	return New(Config{
-		ConnectionURI: conn,
-		Reset:         true,
-	})
+	store, err := suite.NewStore()(ctx, t, ctr)
+	require.NoError(t, err)
+
+	return store
 }
 
 func mustStartMySQL(t testing.TB) *mysql.MySQLContainer {
@@ -77,222 +108,6 @@ func Test_MYSQL_New(t *testing.T) {
 	defer newConfigStore.Close()
 }
 
-func Test_MYSQL_Set(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-}
-
-func Test_MYSQL_SetWithContext(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.SetWithContext(ctx, key, val, 0)
-	require.ErrorIs(t, err, context.Canceled)
-}
-
-func Test_MYSQL_Set_Override(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-
-	err = testStore.Set(key, val, 0)
-	require.NoError(t, err)
-}
-
-func Test_MYSQL_Get(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-}
-
-func Test_MYSQL_GetWithContext(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	result, err := testStore.GetWithContext(ctx, key)
-	require.ErrorIs(t, err, context.Canceled)
-	require.Zero(t, len(result))
-}
-
-func Test_MYSQL_Set_Expiration(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-		exp = 1 * time.Second
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, exp)
-	require.NoError(t, err)
-
-	time.Sleep(1100 * time.Millisecond)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result), "Key should have expired")
-}
-
-func Test_MYSQL_Get_Expired(t *testing.T) {
-	key := "john"
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
-}
-
-func Test_MYSQL_Get_NotExist(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	result, err := testStore.Get("notexist")
-	require.NoError(t, err)
-	require.Zero(t, len(result))
-}
-
-func Test_MYSQL_Delete(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-
-	err = testStore.Delete(key)
-	require.NoError(t, err)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
-}
-
-func Test_MYSQL_DeleteWithContext(t *testing.T) {
-	var (
-		key = "john"
-		val = []byte("doe")
-	)
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set(key, val, 0)
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err = testStore.DeleteWithContext(ctx, key)
-	require.ErrorIs(t, err, context.Canceled)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-}
-
-func Test_MYSQL_Reset(t *testing.T) {
-	val := []byte("doe")
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("john1", val, 0)
-	require.NoError(t, err)
-
-	err = testStore.Set("john2", val, 0)
-	require.NoError(t, err)
-
-	err = testStore.Reset()
-	require.NoError(t, err)
-
-	result, err := testStore.Get("john1")
-	require.NoError(t, err)
-	require.Zero(t, len(result))
-
-	result, err = testStore.Get("john2")
-	require.NoError(t, err)
-	require.Zero(t, len(result))
-}
-
-func Test_MYSQL_ResetWithContext(t *testing.T) {
-	val := []byte("doe")
-
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("john1", val, 0)
-	require.NoError(t, err)
-
-	err = testStore.Set("john2", val, 0)
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err = testStore.ResetWithContext(ctx)
-	require.ErrorIs(t, err, context.Canceled)
-
-	result, err := testStore.Get("john1")
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-
-	result, err = testStore.Get("john2")
-	require.NoError(t, err)
-	require.Equal(t, val, result)
-}
-
 func Test_MYSQL_GC(t *testing.T) {
 	testVal := []byte("doe")
 
@@ -332,16 +147,12 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 	require.Equal(t, val, result)
 }
 
-func Test_MYSQL_Close(t *testing.T) {
-	testStore := newTestStore(t)
-	require.NoError(t, testStore.Close())
-}
+func TestMySQLStorageTCK(t *testing.T) {
+	// The TCK needs the concrete type of the storage and the driver type returned by the Conn method.
+	s, err := tck.New[*Storage, *sql.DB](context.Background(), t, &MySQLStorageTCK{}, tck.PerTest())
+	require.NoError(t, err)
 
-func Test_MYSQL_Conn(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	require.True(t, testStore.Conn() != nil)
+	suite.Run(t, s)
 }
 
 func Benchmark_MYSQL_Set(b *testing.B) {
