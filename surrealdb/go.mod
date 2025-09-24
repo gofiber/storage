@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/stretchr/testify v1.10.0
-	github.com/surrealdb/surrealdb.go v0.5.0
+	github.com/surrealdb/surrealdb.go v0.11.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/surrealdb v0.38.0
 )
