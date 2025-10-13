@@ -2,7 +2,6 @@ package rueidis
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/redis/rueidis"
@@ -12,9 +11,7 @@ var cacheTTL = time.Second
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	mu  sync.Mutex
-	db  rueidis.Client
-	cfg Config
+	db rueidis.Client
 }
 
 // New creates a new rueidis storage
@@ -48,7 +45,23 @@ func New(config ...Config) *Storage {
 		}
 	}
 
-	db, err := newRueidisClient(cfg)
+	db, err := rueidis.NewClient(rueidis.ClientOption{
+		Username:            cfg.Username,
+		Password:            cfg.Password,
+		ClientName:          cfg.ClientName,
+		SelectDB:            cfg.SelectDB,
+		InitAddress:         cfg.InitAddress,
+		TLSConfig:           cfg.TLSConfig,
+		CacheSizeEachConn:   cfg.CacheSizeEachConn,
+		RingScaleEachConn:   cfg.RingScaleEachConn,
+		ReadBufferEachConn:  cfg.ReadBufferEachConn,
+		WriteBufferEachConn: cfg.WriteBufferEachConn,
+		BlockingPoolSize:    cfg.BlockingPoolSize,
+		PipelineMultiplex:   cfg.PipelineMultiplex,
+		DisableRetry:        cfg.DisableRetry,
+		DisableCache:        cfg.DisableCache,
+		AlwaysPipelining:    cfg.AlwaysPipelining,
+	})
 	if err != nil {
 		if !cfg.DisableStartupCheck {
 			panic(err)
@@ -69,8 +82,7 @@ func New(config ...Config) *Storage {
 
 	// Create new store
 	return &Storage{
-		db:  db,
-		cfg: cfg,
+		db: db,
 	}
 }
 
@@ -79,11 +91,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	db, err := s.getClient()
-	if err != nil {
-		return nil, err
-	}
-	val, err := db.DoCache(ctx, db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
+	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
 	if err != nil && rueidis.IsRedisNil(err) {
 		return nil, nil
 	}
@@ -100,14 +108,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	db, err := s.getClient()
-	if err != nil {
-		return err
-	}
 	if exp > 0 {
-		return db.Do(ctx, db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
+		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
 	} else {
-		return db.Do(ctx, db.B().Set().Key(key).Value(string(val)).Build()).Error()
+		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
 	}
 }
 
@@ -121,11 +125,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	db, err := s.getClient()
-	if err != nil {
-		return err
-	}
-	return db.Do(ctx, db.B().Del().Key(key).Build()).Error()
+	return s.db.Do(ctx, s.db.B().Del().Key(key).Build()).Error()
 }
 
 // Delete deletes key by key
@@ -135,11 +135,7 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	db, err := s.getClient()
-	if err != nil {
-		return err
-	}
-	return db.Do(ctx, db.B().Flushdb().Build()).Error()
+	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
 }
 
 // Reset resets all keys
@@ -149,56 +145,15 @@ func (s *Storage) Reset() error {
 
 // Close the database
 func (s *Storage) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if s.db == nil {
 		return nil
 	}
 
 	s.db.Close()
-	s.db = nil
 	return nil
 }
 
 // Return database client
 func (s *Storage) Conn() rueidis.Client {
 	return s.db
-}
-
-func (s *Storage) getClient() (rueidis.Client, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.db != nil {
-		return s.db, nil
-	}
-
-	db, err := newRueidisClient(s.cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	s.db = db
-	return s.db, nil
-}
-
-func newRueidisClient(cfg Config) (rueidis.Client, error) {
-	return rueidis.NewClient(rueidis.ClientOption{
-		Username:            cfg.Username,
-		Password:            cfg.Password,
-		ClientName:          cfg.ClientName,
-		SelectDB:            cfg.SelectDB,
-		InitAddress:         cfg.InitAddress,
-		TLSConfig:           cfg.TLSConfig,
-		CacheSizeEachConn:   cfg.CacheSizeEachConn,
-		RingScaleEachConn:   cfg.RingScaleEachConn,
-		ReadBufferEachConn:  cfg.ReadBufferEachConn,
-		WriteBufferEachConn: cfg.WriteBufferEachConn,
-		BlockingPoolSize:    cfg.BlockingPoolSize,
-		PipelineMultiplex:   cfg.PipelineMultiplex,
-		DisableRetry:        cfg.DisableRetry,
-		DisableCache:        cfg.DisableCache,
-		AlwaysPipelining:    cfg.AlwaysPipelining,
-	})
 }
