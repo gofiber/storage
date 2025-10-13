@@ -61,6 +61,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// Time before deleting expired keys
 	//
 	// Optional. Default is 10 * time.Second
@@ -69,14 +74,15 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	ConnectionURI: "",
-	Host:          "127.0.0.1",
-	Port:          5432,
-	Database:      "fiber",
-	Table:         "fiber_storage",
-	SSLMode:       "disable",
-	Reset:         false,
-	GCInterval:    10 * time.Second,
+	ConnectionURI:       "",
+	Host:                "127.0.0.1",
+	Port:                5432,
+	Database:            "fiber",
+	Table:               "fiber_storage",
+	SSLMode:             "disable",
+	Reset:               false,
+	DisableStartupCheck: false,
+	GCInterval:          10 * time.Second,
 }
 
 func (c *Config) getDSN() string {

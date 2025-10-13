@@ -65,15 +65,17 @@ func New(config ...Config) *Storage {
 		IsClusterMode:    cfg.IsClusterMode,
 	})
 
-	// Test connection
-	if err := db.Ping(context.Background()).Err(); err != nil {
-		panic(err)
-	}
-
-	// Empty collection if Clear is true
-	if cfg.Reset {
-		if err := db.FlushDB(context.Background()).Err(); err != nil {
+	if !cfg.DisableStartupCheck {
+		// Test connection
+		if err := db.Ping(context.Background()).Err(); err != nil {
 			panic(err)
+		}
+
+		// Empty collection if Clear is true
+		if cfg.Reset {
+			if err := db.FlushDB(context.Background()).Err(); err != nil {
+				panic(err)
+			}
 		}
 	}
 

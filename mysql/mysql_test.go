@@ -108,6 +108,18 @@ func Test_MYSQL_New(t *testing.T) {
 	defer newConfigStore.Close()
 }
 
+func Test_MYSQL_New_DisableStartupCheck(t *testing.T) {
+	require.NotPanics(t, func() {
+		store := New(Config{
+			Host:                "127.0.0.1",
+			Port:                3308,
+			DisableStartupCheck: true,
+		})
+		require.NotNil(t, store)
+		defer store.Close()
+	})
+}
+
 func Test_MYSQL_GC(t *testing.T) {
 	testVal := []byte("doe")
 

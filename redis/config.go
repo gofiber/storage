@@ -68,6 +68,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// TLS Config to use. When set TLS will be negotiated.
 	//
 	// Optional. Default is nil
@@ -87,21 +92,22 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:             "127.0.0.1",
-	Port:             6379,
-	Username:         "",
-	Password:         "",
-	URL:              "",
-	Database:         0,
-	Reset:            false,
-	TLSConfig:        nil,
-	PoolSize:         10 * runtime.GOMAXPROCS(0),
-	Addrs:            []string{},
-	MasterName:       "",
-	ClientName:       "",
-	SentinelUsername: "",
-	SentinelPassword: "",
-	IsClusterMode:    false,
+	Host:                "127.0.0.1",
+	Port:                6379,
+	Username:            "",
+	Password:            "",
+	URL:                 "",
+	Database:            0,
+	Reset:               false,
+	DisableStartupCheck: false,
+	TLSConfig:           nil,
+	PoolSize:            10 * runtime.GOMAXPROCS(0),
+	Addrs:               []string{},
+	MasterName:          "",
+	ClientName:          "",
+	SentinelUsername:    "",
+	SentinelPassword:    "",
+	IsClusterMode:       false,
 }
 
 // Helper function to set default values

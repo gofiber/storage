@@ -127,6 +127,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// Time before deleting expired keys
 	//
 	// Optional. Default is 10 * time.Second
@@ -143,6 +148,7 @@ var ConfigDefault = Config{
 	Database:        "fiber",
 	Table:           "fiber_storage",
 	Reset:           false,
+	DisableStartupCheck: false,
 	GCInterval:      10 * time.Second,
 }
 ```

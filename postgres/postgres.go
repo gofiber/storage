@@ -68,43 +68,45 @@ func New(config ...Config) *Storage {
 		}
 	}
 
-	// Ping database
-	if err := db.Ping(context.Background()); err != nil {
-		panic(err)
-	}
+	if !cfg.DisableStartupCheck {
+		// Ping database
+		if err := db.Ping(context.Background()); err != nil {
+			panic(err)
+		}
 
-	// Parse out schema in config, if provided
-	schema := "public"
-	tableName := cfg.Table
-	if strings.Contains(cfg.Table, ".") {
-		schema = strings.Split(cfg.Table, ".")[0]
-		tableName = strings.Split(cfg.Table, ".")[1]
-	}
+		// Parse out schema in config, if provided
+		schema := "public"
+		tableName := cfg.Table
+		if strings.Contains(cfg.Table, ".") {
+			schema = strings.Split(cfg.Table, ".")[0]
+			tableName = strings.Split(cfg.Table, ".")[1]
+		}
 
-	// Drop table if set to true
-	if cfg.Reset {
-		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+		// Drop table if set to true
+		if cfg.Reset {
+			if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+				db.Close()
+				panic(err)
+			}
+		}
+
+		// Determine if table exists
+		tableExists := false
+		row := db.QueryRow(context.Background(), fmt.Sprintf(checkTableExistsQuery, schema, tableName))
+		var count int
+		if err := row.Scan(&count); err != nil {
 			db.Close()
 			panic(err)
 		}
-	}
+		tableExists = count > 0
 
-	// Determine if table exists
-	tableExists := false
-	row := db.QueryRow(context.Background(), fmt.Sprintf(checkTableExistsQuery, schema, tableName))
-	var count int
-	if err := row.Scan(&count); err != nil {
-		db.Close()
-		panic(err)
-	}
-	tableExists = count > 0
-
-	// Init database queries
-	if !tableExists {
-		for _, query := range initQuery {
-			if _, err := db.Exec(context.Background(), fmt.Sprintf(query, cfg.Table)); err != nil {
-				db.Close()
-				panic(err)
+		// Init database queries
+		if !tableExists {
+			for _, query := range initQuery {
+				if _, err := db.Exec(context.Background(), fmt.Sprintf(query, cfg.Table)); err != nil {
+					db.Close()
+					panic(err)
+				}
 			}
 		}
 	}
@@ -121,7 +123,9 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", cfg.Table),
 	}
 
-	store.checkSchema(cfg.Table)
+	if !cfg.DisableStartupCheck {
+		store.checkSchema(cfg.Table)
+	}
 
 	// Start garbage collector
 	go store.gcTicker()

@@ -30,14 +30,16 @@ func New(config ...Config) *Storage {
 	db.Timeout = cfg.timeout
 	db.MaxIdleConns = cfg.maxIdleConns
 
-	// Ping database to ensure a connection has been made
-	if err := db.Ping(); err != nil {
-		panic(err)
-	}
-
-	if cfg.Reset {
-		if err := db.DeleteAll(); err != nil {
+	if !cfg.DisableStartupCheck {
+		// Ping database to ensure a connection has been made
+		if err := db.Ping(); err != nil {
 			panic(err)
+		}
+
+		if cfg.Reset {
+			if err := db.DeleteAll(); err != nil {
+				panic(err)
+			}
 		}
 	}
 

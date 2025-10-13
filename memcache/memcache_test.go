@@ -178,6 +178,16 @@ func Test_Memcache_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Memcache_New_DisableStartupCheck(t *testing.T) {
+	require.NotPanics(t, func() {
+		store := New(Config{
+			Servers:             "127.0.0.1:11210",
+			DisableStartupCheck: true,
+		})
+		require.NotNil(t, store)
+	})
+}
+
 func Test_Memcache_Close(t *testing.T) {
 	testStore := newTestStore(t)
 	require.Nil(t, testStore.Close())

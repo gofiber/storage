@@ -15,6 +15,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// The socket read/write timeout.
 	//
 	// Optional. Default is 100 * time.Millisecond
@@ -31,9 +36,10 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Servers:      "127.0.0.1:11211",
-	timeout:      100 * time.Millisecond,
-	maxIdleConns: 2,
+	Servers:             "127.0.0.1:11211",
+	timeout:             100 * time.Millisecond,
+	maxIdleConns:        2,
+	DisableStartupCheck: false,
 }
 
 // Helper function to set default values
