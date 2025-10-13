@@ -63,10 +63,10 @@ func New(config ...Config) *Storage {
 		AlwaysPipelining:    cfg.AlwaysPipelining,
 	})
 	if err != nil {
-		if !cfg.DisableStartupCheck {
-			panic(err)
-		}
-	} else if !cfg.DisableStartupCheck {
+		panic(err)
+	}
+
+	if !cfg.DisableStartupCheck {
 		// Test connection
 		if err := db.Do(context.Background(), db.B().Ping().Build()).Error(); err != nil {
 			panic(err)

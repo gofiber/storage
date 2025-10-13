@@ -63,28 +63,26 @@ func New(config ...Config) *Storage {
 		db.SetConnMaxLifetime(cfg.connMaxLifetime)
 	}
 
-	if !cfg.DisableStartupCheck {
-		// Ping database to ensure a connection has been made
-		if err := db.Ping(); err != nil {
+	// Ping database to ensure a connection has been made
+	if err := db.Ping(); err != nil {
+		panic(err)
+	}
+
+	// Drop table if Clear set to true
+	if cfg.Reset {
+		query := fmt.Sprintf(dropQuery, cfg.Table)
+		if _, err = db.Exec(query); err != nil {
+			_ = db.Close()
 			panic(err)
 		}
+	}
 
-		// Drop table if Clear set to true
-		if cfg.Reset {
-			query := fmt.Sprintf(dropQuery, cfg.Table)
-			if _, err = db.Exec(query); err != nil {
-				_ = db.Close()
-				panic(err)
-			}
-		}
-
-		// Init database queries
-		for _, query := range initQuery {
-			query = fmt.Sprintf(query, cfg.Table)
-			if _, err := db.Exec(query); err != nil {
-				_ = db.Close()
-				panic(err)
-			}
+	// Init database queries
+	for _, query := range initQuery {
+		query = fmt.Sprintf(query, cfg.Table)
+		if _, err := db.Exec(query); err != nil {
+			_ = db.Close()
+			panic(err)
 		}
 	}
 
@@ -100,9 +98,7 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
-	if !cfg.DisableStartupCheck {
-		store.checkSchema(cfg.Table)
-	}
+	store.checkSchema(cfg.Table)
 
 	// Start garbage collector
 	go store.gcTicker()
