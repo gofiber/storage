@@ -179,15 +179,20 @@ type Config struct {
 	// Optional. The default is true
 	AlwaysPipelining bool
 
-	// Reset clears any existing keys in existing Collection
-	//
-	// Optional. Default is false
-	Reset bool
+        // Reset clears any existing keys in existing Collection
+        //
+        // Optional. Default is false
+        Reset bool
 
-	// CacheTTL TTL
-	//
-	// Optional. Default is time.Minute
-	CacheTTL time.Duration
+        // DisableStartupCheck skips the initial connection validation during New.
+        //
+        // Optional. Default is false
+        DisableStartupCheck bool
+
+        // CacheTTL TTL
+        //
+        // Optional. Default is time.Minute
+        CacheTTL time.Duration
 }
 ```
 
@@ -207,9 +212,10 @@ var ConfigDefault = Config{
 	BlockingPoolSize:    rueidis.DefaultPoolSize,
 	PipelineMultiplex:   2,
 	DisableRetry:        false,
-	DisableCache:        false,
-	AlwaysPipelining:    true,
-	Reset:               false,
-	CacheTTL:            time.Minute,
+        DisableCache:        false,
+        AlwaysPipelining:    true,
+        Reset:               false,
+        DisableStartupCheck: false,
+        CacheTTL:            time.Minute,
 }
 ```

@@ -49,6 +49,17 @@ func newTestStore(t testing.TB, opts ...testredis.Option) *Storage {
 	return New(newConfigFromContainer(t, opts...))
 }
 
+func Test_Rueidis_New_DisableStartupCheck(t *testing.T) {
+	require.NotPanics(t, func() {
+		store := New(Config{
+			InitAddress:         []string{"127.0.0.1:6390"},
+			DisableStartupCheck: true,
+		})
+		require.NotNil(t, store)
+		require.NoError(t, store.Close())
+	})
+}
+
 func Test_Rueidis_Set(t *testing.T) {
 	var (
 		key = "john"

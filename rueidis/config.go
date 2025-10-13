@@ -95,6 +95,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// CacheTTL TTL
 	//
 	// Optional. Default is time.Minute
@@ -120,6 +125,7 @@ var ConfigDefault = Config{
 	DisableCache:        false,
 	AlwaysPipelining:    true,
 	Reset:               false,
+	DisableStartupCheck: false,
 	CacheTTL:            time.Minute,
 }
 
@@ -192,6 +198,10 @@ func configDefault(config ...Config) Config {
 
 	if userConfig.Reset {
 		cfg.Reset = true
+	}
+
+	if userConfig.DisableStartupCheck {
+		cfg.DisableStartupCheck = true
 	}
 
 	return cfg

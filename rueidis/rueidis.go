@@ -67,15 +67,17 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Test connection
-	if err := db.Do(context.Background(), db.B().Ping().Build()).Error(); err != nil {
-		panic(err)
-	}
-
-	// Empty collection if Clear is true
-	if cfg.Reset {
-		if err := db.Do(context.Background(), db.B().Flushdb().Build()).Error(); err != nil {
+	if !cfg.DisableStartupCheck {
+		// Test connection
+		if err := db.Do(context.Background(), db.B().Ping().Build()).Error(); err != nil {
 			panic(err)
+		}
+
+		// Empty collection if Clear is true
+		if cfg.Reset {
+			if err := db.Do(context.Background(), db.B().Flushdb().Build()).Error(); err != nil {
+				panic(err)
+			}
 		}
 	}
 
