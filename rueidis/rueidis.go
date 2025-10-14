@@ -11,7 +11,8 @@ var cacheTTL = time.Second
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db rueidis.Client
+	db      rueidis.Client
+	initErr error
 }
 
 // New creates a new rueidis storage
@@ -63,6 +64,10 @@ func New(config ...Config) *Storage {
 		AlwaysPipelining:    cfg.AlwaysPipelining,
 	})
 	if err != nil {
+		if cfg.DisableStartupCheck {
+			return &Storage{initErr: err}
+		}
+
 		panic(err)
 	}
 
@@ -88,6 +93,9 @@ func New(config ...Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.db == nil {
+		return nil, s.initErr
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -105,6 +113,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets key with value with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.db == nil {
+		return s.initErr
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -122,6 +133,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext deletes key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.db == nil {
+		return s.initErr
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -135,6 +149,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.db == nil {
+		return s.initErr
+	}
 	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
 }
 

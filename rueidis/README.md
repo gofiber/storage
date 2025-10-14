@@ -185,6 +185,8 @@ type Config struct {
         Reset bool
 
         // DisableStartupCheck skips the initial connection validation during New.
+        // When true and client creation fails, New returns a Storage whose
+        // operations surface the initialization error instead of panicking.
         //
         // Optional. Default is false
         DisableStartupCheck bool
