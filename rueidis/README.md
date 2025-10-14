@@ -98,8 +98,8 @@ store = rueidis.New(rueidis.Config{
 ### Config
 ```go
 type Config struct {
-	// Server username
-	//
+        // Server username
+        //
 	// Optional. Default is ""
 	Username string
 
@@ -167,17 +167,17 @@ type Config struct {
 	// DisableRetry disables retrying read-only commands under network errors
 	//
 	// Optional. The default is False
-	DisableRetry bool
+        DisableRetry bool
 
-	// DisableCache falls back Client.DoCache/Client.DoMultiCache to Client.Do/Client.DoMulti
-	//
-	// Optional. The default is false
-	DisableCache bool
+        // DisableCache falls back Client.DoCache/Client.DoMultiCache to Client.Do/Client.DoMulti
+        //
+        // Optional. The default is false
+        DisableCache bool
 
-	// AlwaysPipelining makes rueidis.Client always pipeline redis commands even if they are not issued concurrently.
-	//
-	// Optional. The default is true
-	AlwaysPipelining bool
+        // AlwaysPipelining makes rueidis.Client always pipeline redis commands even if they are not issued concurrently.
+        //
+        // Optional. The default is true
+        AlwaysPipelining bool
 
         // Reset clears any existing keys in existing Collection
         //
@@ -201,19 +201,19 @@ type Config struct {
 ### Default Config
 ```go
 var ConfigDefault = Config{
-	Username:            "",
-	Password:            "",
-	ClientName:          "",
-	SelectDB:            0,
-	InitAddress:         []string{"127.0.0.1:6379"},
-	TLSConfig:           nil,
-	CacheSizeEachConn:   rueidis.DefaultCacheBytes,
-	RingScaleEachConn:   rueidis.DefaultRingScale,
-	ReadBufferEachConn:  rueidis.DefaultReadBuffer,
-	WriteBufferEachConn: rueidis.DefaultWriteBuffer,
-	BlockingPoolSize:    rueidis.DefaultPoolSize,
-	PipelineMultiplex:   2,
-	DisableRetry:        false,
+        Username:            "",
+        Password:            "",
+        ClientName:          "",
+        SelectDB:            0,
+        InitAddress:         []string{"127.0.0.1:6379"},
+        TLSConfig:           nil,
+        CacheSizeEachConn:   rueidis.DefaultCacheBytes,
+        RingScaleEachConn:   rueidis.DefaultRingScale,
+        ReadBufferEachConn:  rueidis.DefaultReadBuffer,
+        WriteBufferEachConn: rueidis.DefaultWriteBuffer,
+        BlockingPoolSize:    rueidis.DefaultPoolSize,
+        PipelineMultiplex:   2,
+        DisableRetry:        false,
         DisableCache:        false,
         AlwaysPipelining:    true,
         Reset:               false,
