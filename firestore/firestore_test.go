@@ -54,6 +54,15 @@ func newTestStore(t testing.TB) *Storage {
 	port, err := c.MappedPort(ctx, firestorePort)
 	require.NoError(t, err)
 
+	originalEnv := os.Getenv("FIRESTORE_EMULATOR_HOST")
+	t.Cleanup(func() {
+		if originalEnv != "" {
+			os.Setenv("FIRESTORE_EMULATOR_HOST", originalEnv)
+		} else {
+			os.Unsetenv("FIRESTORE_EMULATOR_HOST")
+		}
+	})
+
 	os.Setenv("FIRESTORE_EMULATOR_HOST", host+":"+port.Port())
 
 	return New(Config{
