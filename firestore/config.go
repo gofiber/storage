@@ -50,13 +50,10 @@ var ConfigDefault = Config{
 
 // configDefault is a helper function to set default values
 func configDefault(config ...Config) Config {
-	// Return default config if nothing provided
-	if len(config) < 1 {
-		return ConfigDefault
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
 	}
-
-	// Override default config
-	cfg := config[0]
 
 	// Validate required fields
 	if cfg.ProjectID == "" {

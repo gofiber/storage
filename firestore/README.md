@@ -22,7 +22,7 @@ A Firestore storage driver using [cloud.google.com/go/firestore](https://pkg.go.
 ### Signatures
 
 ```go
-func New(config ...Config) Storage
+func New(config ...Config) *Storage
 func NewFromConnection(client *firestore.Client, collection string) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
@@ -95,9 +95,11 @@ If you already have a Firestore client configured in your application, you can c
 ```go
 import (
 	"cloud.google.com/go/firestore"
+	"context"
 	firestorage "github.com/gofiber/storage/firestore/v2"
 )
 
+ctx := context.Background()
 client, err := firestore.NewClient(ctx, "my-gcp-project")
 if err != nil {
 	panic(err)

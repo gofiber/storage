@@ -39,7 +39,11 @@ func newTestStore(t testing.TB) *Storage {
 		ContainerRequest: req,
 		Started:          true,
 	})
-	testcontainers.CleanupContainer(t, c)
+	t.Cleanup(func() {
+		if err := c.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
+	})
 	require.NoError(t, err)
 
 	host, err := c.Host(ctx)

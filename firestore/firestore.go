@@ -11,11 +11,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,7 +32,7 @@ type Storage struct {
 type document struct {
 	Key       string    `firestore:"k"`
 	Value     []byte    `firestore:"v"`
-	ExpiresAt time.Time `firestore:"exp_at"`
+	ExpiresAt time.Time `firestore:"exp_at,omitempty"`
 }
 
 // New creates a new Firestore storage instance
@@ -197,14 +197,16 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 	for {
 		doc, err := docs.Next()
-		if err == io.EOF {
+		if err == iterator.Done {
 			break
 		}
 		if err != nil {
-			break
+			return fmt.Errorf("failed to iterate documents: %w", err)
 		}
 
-		_, _ = bulkWriter.Delete(doc.Ref)
+		if _, err := bulkWriter.Delete(doc.Ref); err != nil {
+			return fmt.Errorf("failed to schedule delete for doc %s: %w", doc.Ref.ID, err)
+		}
 	}
 
 	bulkWriter.Flush()
