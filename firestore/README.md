@@ -9,7 +9,7 @@ title: Firestore
 
 A Firestore storage driver using [cloud.google.com/go/firestore](https://pkg.go.dev/cloud.google.com/go/firestore).
 
-**Note:** If credentials not given, credentials are using from the environment variable `GOOGLE_APPLICATION_CREDENTIALS` or Application Default Credentials (ADC). If credentials given, credentials are using from config. Look at: [Google Cloud Authentication Guide](https://cloud.google.com/docs/authentication)
+**Note:** If no credentials are provided, the driver uses Application Default Credentials (ADC) or the `GOOGLE_APPLICATION_CREDENTIALS` environment variable. If credentials are provided via config (`Credentials` or `CredentialsPath`), those take precedence. See: [Google Cloud Authentication Guide](https://cloud.google.com/docs/authentication)
 
 ### Table of Contents
 

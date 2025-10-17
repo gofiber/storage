@@ -40,8 +40,10 @@ func newTestStore(t testing.TB) *Storage {
 		Started:          true,
 	})
 	t.Cleanup(func() {
-		if err := c.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
+		if c != nil {
+			if err := c.Terminate(ctx); err != nil {
+				t.Fatalf("failed to terminate container: %s", err)
+			}
 		}
 	})
 	require.NoError(t, err)
