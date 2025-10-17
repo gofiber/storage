@@ -318,11 +318,11 @@ func Benchmark_Firestore_SetAndDelete(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	var err error
+	var errSet, errDel error
 	for i := 0; i < b.N; i++ {
-		_ = testStore.Set("john", []byte("doe"), 0)
-		err = testStore.Delete("john")
+		errSet = testStore.Set("john", []byte("doe"), 0)
+		errDel = testStore.Delete("john")
 	}
-
-	require.NoError(b, err)
+	require.NoError(b, errSet)
+	require.NoError(b, errDel)
 }
