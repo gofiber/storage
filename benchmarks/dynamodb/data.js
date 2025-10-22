@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760685957098,
+  "lastUpdate": 1761117463512,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -5664,6 +5664,102 @@ window.BENCHMARK_DATA = {
             "value": 1017,
             "unit": "allocs/op",
             "extra": "126 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a262cfd3ae83108dcc2f9fb1f33fc4e010f8ac8a",
+          "message": "Merge pull request #1937 from gofiber/dependabot/go_modules/dynamodb/aws-modules-1befe993d4\n\nchore(deps): bump the aws-modules group across 1 directory with 2 updates",
+          "timestamp": "2025-10-22T09:15:41+02:00",
+          "tree_id": "6f809d16aeae154114963a1766720626f61275a5",
+          "url": "https://github.com/gofiber/storage/commit/a262cfd3ae83108dcc2f9fb1f33fc4e010f8ac8a"
+        },
+        "date": 1761117458888,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_DynamoDB_Set",
+            "value": 4054181,
+            "unit": "ns/op\t   42656 B/op\t     510 allocs/op",
+            "extra": "284 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - ns/op",
+            "value": 4054181,
+            "unit": "ns/op",
+            "extra": "284 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - B/op",
+            "value": 42656,
+            "unit": "B/op",
+            "extra": "284 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - allocs/op",
+            "value": 510,
+            "unit": "allocs/op",
+            "extra": "284 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get",
+            "value": 1481583,
+            "unit": "ns/op\t   44524 B/op\t     538 allocs/op",
+            "extra": "685 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - ns/op",
+            "value": 1481583,
+            "unit": "ns/op",
+            "extra": "685 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - B/op",
+            "value": 44524,
+            "unit": "B/op",
+            "extra": "685 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - allocs/op",
+            "value": 538,
+            "unit": "allocs/op",
+            "extra": "685 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete",
+            "value": 8203243,
+            "unit": "ns/op\t   85326 B/op\t    1017 allocs/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
+            "value": 8203243,
+            "unit": "ns/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
+            "value": 85326,
+            "unit": "B/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
+            "value": 1017,
+            "unit": "allocs/op",
+            "extra": "133 times\n4 procs"
           }
         ]
       }
