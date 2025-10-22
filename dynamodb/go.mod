@@ -6,8 +6,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.39.3
 	github.com/aws/aws-sdk-go-v2/config v1.31.13
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.17
-	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.15
-	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.51.1
+	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.16
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.52.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/dynamodb v0.38.0
