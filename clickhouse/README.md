@@ -2,6 +2,10 @@
 
 A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](https://github.com/ClickHouse/clickhouse-go).
 
+![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=clickhouse*)
+[![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
+![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-clickhouse.yml?label=Tests)
+
 ### Table of Contents
 
 - [Signatures](#signatures)
@@ -15,9 +19,13 @@ A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](
 ```go
 func New(config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *Session
 ```

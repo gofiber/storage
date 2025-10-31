@@ -17,9 +17,8 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db             *awsdynamodb.Client
-	table          string
-	requestTimeout time.Duration
+	db    *awsdynamodb.Client
+	table string
 }
 
 // "k" is used as table column name for the key.
@@ -44,7 +43,9 @@ func New(config Config) *Storage {
 	}
 
 	// Create db
-	sess := awsdynamodb.NewFromConfig(awscfg)
+	sess := awsdynamodb.NewFromConfig(awscfg, func(o *awsdynamodb.Options) {
+		o.BaseEndpoint = aws.String(cfg.Endpoint)
+	})
 
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -75,11 +76,8 @@ func New(config Config) *Storage {
 	return store
 }
 
-// Get value by key
-func (s *Storage) Get(key string) ([]byte, error) {
-	ctx, cancel := s.requestContext()
-	defer cancel()
-
+// GetWithContext retrieves the value associated with the given key using the provided context.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	k := make(map[string]types.AttributeValue)
 	k[keyAttrName] = &types.AttributeValueMemberS{
 		Value: key,
@@ -106,11 +104,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.V, err
 }
 
-// Set key with value
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	ctx, cancel := s.requestContext()
-	defer cancel()
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
 
+// Set key with value
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -132,11 +131,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// Delete entry by key
-func (s *Storage) Delete(key string) error {
-	ctx, cancel := s.requestContext()
-	defer cancel()
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
 
+// Delete entry by key
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
@@ -155,16 +155,21 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// Reset all entries, including unexpired
-func (s *Storage) Reset() error {
-	ctx, cancel := s.requestContext()
-	defer cancel()
+func (s *Storage) Delete(key string) error {
+	return s.DeleteWithContext(context.Background(), key)
+}
 
+// Reset all entries, including unexpired
+func (s *Storage) ResetWithContext(ctx context.Context) error {
 	deleteTableInput := awsdynamodb.DeleteTableInput{
 		TableName: &s.table,
 	}
 	_, err := s.db.DeleteTable(ctx, &deleteTableInput)
 	return err
+}
+
+func (s *Storage) Reset() error {
+	return s.ResetWithContext(context.Background())
 }
 
 // Close the database
@@ -173,8 +178,7 @@ func (s *Storage) Close() error {
 }
 
 func (s *Storage) createTable(cfg Config, describeTableInput awsdynamodb.DescribeTableInput) error {
-	ctx, cancel := s.requestContext()
-	defer cancel()
+	ctx := context.Background()
 
 	keyAttrType := "S" // For "string"
 	keyType := "HASH"  // As opposed to "RANGE"
@@ -223,32 +227,11 @@ func (s *Storage) createTable(cfg Config, describeTableInput awsdynamodb.Describ
 	return nil
 }
 
-// Context for making requests will timeout if a non-zero timeout is configured
-func (s *Storage) requestContext() (context.Context, context.CancelFunc) {
-	if s.requestTimeout > 0 {
-		return context.WithTimeout(context.Background(), s.requestTimeout)
-	}
-	return context.Background(), func() {}
-}
-
 func returnAWSConfig(cfg Config) (aws.Config, error) {
-	endpoint := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		if cfg.Endpoint != "" {
-			return aws.Endpoint{
-				PartitionID:       "aws",
-				URL:               cfg.Endpoint,
-				SigningRegion:     cfg.Region,
-				HostnameImmutable: true,
-			}, nil
-		}
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-	})
-
 	if cfg.Credentials != (Credentials{}) {
 		credentials := credentials.NewStaticCredentialsProvider(cfg.Credentials.AccessKey, cfg.Credentials.SecretAccessKey, "")
 		return awsconfig.LoadDefaultConfig(context.TODO(),
 			awsconfig.WithRegion(cfg.Region),
-			awsconfig.WithEndpointResolverWithOptions(endpoint),
 			awsconfig.WithCredentialsProvider(credentials),
 			awsconfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
@@ -258,7 +241,6 @@ func returnAWSConfig(cfg Config) (aws.Config, error) {
 
 	return awsconfig.LoadDefaultConfig(context.TODO(),
 		awsconfig.WithRegion(cfg.Region),
-		awsconfig.WithEndpointResolverWithOptions(endpoint),
 		awsconfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxAttempts(retry.NewStandard(), cfg.MaxAttempts)
 		}),

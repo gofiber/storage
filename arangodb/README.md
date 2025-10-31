@@ -6,12 +6,8 @@ title: ArangoDB
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=arangodb*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-arangodb.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 A ArangoDB storage driver using `arangodb/go-driver` and [arangodb/go-driver](https://github.com/arangodb/go-driver).
-
-**Note: Requires Go 1.19 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -23,9 +19,13 @@ A ArangoDB storage driver using `arangodb/go-driver` and [arangodb/go-driver](ht
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() driver.Client
@@ -35,7 +35,7 @@ ArangoDB is tested on the 2 last (1.14/1.15) [Go versions](https://golang.org/dl
 ```bash
 go mod init github.com/<user>/<repo>
 ```
-And then install the mysql implementation:
+And then install the arangodb implementation:
 ```bash
 go get github.com/gofiber/storage/arangodb/v2
 ```

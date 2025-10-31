@@ -1,0 +1,47 @@
+on:
+    push:
+        branches:
+            - master
+            - main
+        paths:
+            - 'valkey/**'
+    pull_request:
+        paths:
+            - 'valkey/**'
+            - '.github/workflows/test-valkey.yml'
+name: "Tests Valkey"
+jobs:
+    Tests:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - 1.23.x
+                    - 1.24.x
+                valkey:
+                    - '7'
+                    - '8'
+        steps:
+            -   name: Fetch Repository
+                uses: actions/checkout@v4
+
+            -   name: Setup Valkey Cluster
+                uses: vishnudxb/redis-cluster@1.0.9
+                with:
+                    master1-port: 7000
+                    master2-port: 7001
+                    master3-port: 7002
+                    slave1-port: 7003
+                    slave2-port: 7004
+                    slave3-port: 7005
+                    sleep-duration: 10
+
+            -   name: Install Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: '${{ matrix.go-version }}'
+
+            -   name: Run Test
+                env:
+                    TEST_VALKEY_IMAGE: "valkey/valkey:${{ matrix.valkey }}"
+                run: cd ./valkey && go test ./... -v -race

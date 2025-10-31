@@ -15,13 +15,9 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.19.x
-                    - 1.20.x
-                    - 1.21.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
-        -   name: Install Azurite
-            run: |
-                docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
         -   name: Fetch Repository
             uses: actions/checkout@v4
         -   name: Install Go
@@ -29,4 +25,6 @@ jobs:
             with:
                 go-version: '${{ matrix.go-version }}'
         -   name: Run Test
+            env:
+                TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
             run: cd ./azureblob && go test ./... -v -race

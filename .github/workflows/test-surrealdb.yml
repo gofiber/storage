@@ -1,0 +1,31 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'surrealdb/**'
+  pull_request:
+    paths:
+      - 'surrealdb/**'
+name: "Tests SurrealDB"
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.23.x
+          - 1.24.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ matrix.go-version }}'
+
+      - name: Run Test
+        env:
+          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:latest
+        run: cd ./surrealdb && go test ./... -v -race

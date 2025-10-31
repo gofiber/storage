@@ -6,14 +6,10 @@ title: Minio
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=minio*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-minio.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 ## Minio
 
 A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go).
-
-**Note: Requires Go 1.19 and above**
 
 ### Table of Contents
 - [Signatures](#signatures)
@@ -26,9 +22,13 @@ A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go)
 ```go
 func New(config ...Config) Storage
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Reset() error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) CheckBucket() error
 func (s *Storage) CreateBucket() error

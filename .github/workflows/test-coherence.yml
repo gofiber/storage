@@ -15,20 +15,16 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - 1.19.x
-          - 1.20.x
-          - 1.21.x
-          - 1.22.x
+          - 1.23.x
+          - 1.24.x
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
-      - name: Startup Coherence
-        run: |
-          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:23.09.2
-          sleep 30
-      -   name: Install Go
-          uses: actions/setup-go@v5
-          with:
-            go-version: '${{ matrix.go-version }}'
-      -   name: Run Test
-          run: cd ./coherence && COHERENCE_SESSION_DEBUG=true go clean -testcache && go test ./... -v -race
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
+        run: cd ./coherence && COHERENCE_SESSION_DEBUG=true go clean -testcache && go test ./... -v -race

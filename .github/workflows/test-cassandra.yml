@@ -1,0 +1,30 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'cassandra/**'
+  pull_request:
+    paths:
+      - 'cassandra/**'
+name: 'Tests Cassandra'
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.23.x
+          - 1.24.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_CASSANDRA_IMAGE: cassandra:latest
+        run: cd ./cassandra && go clean -testcache && go test ./... -v -race

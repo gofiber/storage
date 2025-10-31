@@ -22,22 +22,39 @@ sidebar_position: 1
 
 Premade storage drivers that implement the [`Storage`](https://github.com/gofiber/storage/blob/main/storage.go) interface, designed to be used with various [Fiber middlewares](https://github.com/gofiber/fiber/tree/master/middleware).
 
+**Note:** All storages are tested with the latest two [Go version](https://go.dev/doc/devel/release#policy). Older Go versions may also work, but are not guaranteed to be supported.
+
 ```go
 // Storage interface for communicating with different database/key-value
 // providers. Visit https://github.com/gofiber/storage for more info.
 type Storage interface {
+	// GetWithContext gets the value for the given key with a context.
+	// `nil, nil` is returned when the key does not exist
+	GetWithContext(ctx context.Context, key string) ([]byte, error)
+
 	// Get gets the value for the given key.
 	// `nil, nil` is returned when the key does not exist
 	Get(key string) ([]byte, error)
+
+	// SetWithContext stores the given value for the given key
+	// with an expiration value, 0 means no expiration.
+	SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 
 	// Set stores the given value for the given key along
 	// with an expiration value, 0 means no expiration.
 	// Empty key or value will be ignored without an error.
 	Set(key string, val []byte, exp time.Duration) error
 
+	// DeleteWithContext deletes the value for the given key with a context.
+	// It returns no error if the storage does not contain the key,
+	DeleteWithContext(ctx context.Context, key string) error
+
 	// Delete deletes the value for the given key.
 	// It returns no error if the storage does not contain the key,
 	Delete(key string) error
+
+	// ResetWithContext resets the storage and deletes all keys with a context.
+	ResetWithContext(ctx context.Context) error
 
 	// Reset resets the storage and delete all keys.
 	Reset() error
@@ -46,19 +63,22 @@ type Storage interface {
 	// collectors and open connections.
 	Close() error
 }
+
 ```
 
 ## 📑 Storage Implementations
-
+- [Aerospike](./aerospike/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Aerospike%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-aerospike.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [ArangoDB](./arangodb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+ArangoDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-arangodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [AzureBlob](./azureblob/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Azure+Blob%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-azureblob.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Badger](./badger/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Badger%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-badger.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Bbolt](./bbolt) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Bbolt%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-bbolt.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [Cassandra](./cassandra/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Cassandra%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cassandra.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [CloudflareKV](./cloudflarekv/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+CloudflareKV%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-cloudflarekv.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Coherence](./coherence/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Coherence%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-coherence.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Couchbase](./couchbase/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Couchbase%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-couchbase.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [DynamoDB](./dynamodb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+DynamoDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-dynamodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Etcd](./etcd/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Etcd%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-etcd.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [LevelDB](./leveldb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+LevelDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-leveldb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" alt="LevelDB Tests Status"/> </a>
 - [Memcache](./memcache/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Memcache%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-memcache.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Memory](./memory/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-memory.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Minio](./minio/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Minio%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-minio.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
@@ -67,6 +87,7 @@ type Storage interface {
 - [MSSQL](./mssql/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MSSQL%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-mssql.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [MySQL](./mysql/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+MySQL%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-mysql.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [NATS](./nats/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests%20Nats%20Driver%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-nats.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [Neo4j](./neo4j/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Neo4j%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-neo4j.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Pebble](./pebble/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Pebble%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-pebble.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Postgres](./postgres/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Postgres%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-postgres.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Redis](./redis/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Redis%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-redis.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
@@ -75,3 +96,5 @@ type Storage interface {
 - [ScyllaDB](./scylladb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+scylladb%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-scylladb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [SQLite3](./sqlite3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Sqlite3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-sqlite3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [ClickHouse](./clickhouse/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Clickhouse%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-clickhouse.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [Valkey](./valkey/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+valkey%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-valkey.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [SurrealDB](./surrealdb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+surrealdb%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-surrealdb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>

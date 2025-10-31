@@ -6,14 +6,13 @@ title: ScyllaDb
 ![Release](https://img.shields.io/github/v/tag/gofiber/storage?filter=scylladb*)
 [![Discord](https://img.shields.io/discord/704680098577514527?style=flat&label=%F0%9F%92%AC%20discord&color=00ACD7)](https://gofiber.io/discord)
 ![Test](https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-scylladb.yml?label=Tests)
-![Security](https://img.shields.io/github/actions/workflow/status/gofiber/storage/gosec.yml?label=Security)
-![Linter](https://img.shields.io/github/actions/workflow/status/gofiber/storage/linter.yml?label=Linter)
 
 # ScyllaDb
 
 A ScyllaDb storage engine for [Fiber](https://github.com/gofiber/fiber) using [gocql](https://github.com/scylladb/gocql).
 
 ### Table of Contents
+
 - [Signatures](#signatures)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -21,17 +20,23 @@ A ScyllaDb storage engine for [Fiber](https://github.com/gofiber/fiber) using [g
 - [Default Config](#default-config)
 
 ### Signatures
+
 ```go
 func New(config ...Config) Storage
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Get(key string) ([]byte, error)
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
 func (s *Storage) Set(key string, value []byte, expire time.Duration) error
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error
 func (s *Storage) Delete(key string) error
+func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Reset() error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *gocql.Session
 ```
 
 ### Installation
+
 ScyllaDb is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
@@ -162,6 +167,11 @@ type Config struct {
     //
     // Optional. Default is false
     Reset bool
+
+	// DisableInitialHostLookup disables the initial host lookup
+	//
+	// Optional. Default is false
+	DisableInitialHostLookup bool
 }
 ```
 
@@ -169,15 +179,16 @@ type Config struct {
 ```go
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-    Session:     nil,
-    Keyspace:    "fiber",
-    Hosts:       []string{"127.0.0.1"},
-    Username:    "",
-    Password:    "",
-    Port:        9042,
-    Table:       "fiber_storage",
-    Consistency: "LOCAL_ONE",
-    SslOpts:     nil,
-    Reset:       false,
+	Session:                  nil,
+	Keyspace:                 "fiber",
+	Hosts:                    []string{"127.0.0.1"},
+	Username:                 "",
+	Password:                 "",
+	Port:                     9042,
+	Table:                    "fiber_storage",
+	Consistency:              "LOCAL_ONE",
+	SslOpts:                  nil,
+	Reset:                    false,
+	DisableInitialHostLookup: false,
 }
 ```

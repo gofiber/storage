@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type Storage struct {
@@ -32,11 +32,11 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	item, err := s.db.Get(context.Background(), key)
+	item, err := s.db.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -48,18 +48,39 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.Kvs[0].Value, nil
 }
 
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
-	lease, err := s.db.Grant(context.Background(), int64(exp.Seconds()))
+	lease, err := s.db.Grant(ctx, int64(exp.Seconds()))
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Put(context.Background(), key, string(val), clientv3.WithLease(lease.ID))
+	_, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if len(key) <= 0 {
+		return nil
+	}
+
+	_, err := s.db.Delete(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -68,11 +89,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) Delete(key string) error {
-	if len(key) <= 0 {
-		return nil
-	}
+	return s.DeleteWithContext(context.Background(), key)
+}
 
-	_, err := s.db.Delete(context.Background(), key)
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	_, err := s.db.Delete(ctx, "", clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -81,12 +102,7 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) Reset() error {
-	_, err := s.db.Delete(context.Background(), "", clientv3.WithPrefix())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.ResetWithContext(context.Background())
 }
 
 func (s *Storage) Close() error {

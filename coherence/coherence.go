@@ -1,14 +1,15 @@
 package coherence
 
 /*
- * Copyright © 2023, 2024 Oracle and/or its affiliates.
+ * Copyright © 2023, 2025 Oracle and/or its affiliates.
  */
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	coh "github.com/oracle/coherence-go-client/coherence"
 	"time"
+
+	coh "github.com/oracle/coherence-go-client/v2/coherence"
 )
 
 const (
@@ -21,7 +22,6 @@ const (
 type Storage struct {
 	session    *coh.Session
 	namedCache coh.NamedCache[string, []byte]
-	ctx        context.Context
 }
 
 // Config defines configuration options for Coherence connection.
@@ -140,12 +140,11 @@ func newCoherenceStorage(session *coh.Session, cacheName string, nearCacheTimeou
 	return &Storage{
 		session:    session,
 		namedCache: nc,
-		ctx:        context.Background(),
 	}, nil
 }
 
-func (s *Storage) Get(key string) ([]byte, error) {
-	v, err := s.namedCache.Get(s.ctx, key)
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	v, err := s.namedCache.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -155,18 +154,34 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return *v, nil
 }
 
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
+}
+
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	_, err := s.namedCache.PutWithExpiry(ctx, key, val, exp)
+	return err
+}
+
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	_, err := s.namedCache.PutWithExpiry(s.ctx, key, val, exp)
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	_, err := s.namedCache.Remove(ctx, key)
 	return err
 }
 
 func (s *Storage) Delete(key string) error {
-	_, err := s.namedCache.Remove(s.ctx, key)
-	return err
+	return s.DeleteWithContext(context.Background(), key)
+}
+
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	return s.namedCache.Truncate(ctx)
 }
 
 func (s *Storage) Reset() error {
-	return s.namedCache.Truncate(s.ctx)
+	return s.ResetWithContext(context.Background())
 }
 
 func (s *Storage) Close() error {

@@ -22,6 +22,7 @@
 *.fasthttp.gz
 *.pprof
 *.workspace
+/tmp/
 
 # Dependencies
 /vendor/
@@ -30,5 +31,5 @@ vendor
 /Godeps/
 node_modules/
 
-# Go specific
-go.work*
+# Go workspace file
+go.work.sum

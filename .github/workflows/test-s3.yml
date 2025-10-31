@@ -15,12 +15,9 @@ jobs:
         strategy:
             matrix:
                 go-version:
-                    - 1.19.x
-                    - 1.20.x
-                    - 1.21.x
+                    - 1.23.x
+                    - 1.24.x
         steps:
-        -   name: Install MinIO
-            run:  docker run -d --restart always -p 9000:9000 --name storage-minio -e MINIO_ROOT_USER='minio-user' -e MINIO_ROOT_PASSWORD='minio-password' minio/minio server /data
         -   name: Fetch Repository
             uses: actions/checkout@v4
         -   name: Install Go
@@ -28,4 +25,6 @@ jobs:
             with:
                 go-version: '${{ matrix.go-version }}'
         -   name: Run Test
+            env:
+                TEST_MINIO_IMAGE: docker.io/minio/minio:latest
             run: cd ./s3 && go test ./... -v -race

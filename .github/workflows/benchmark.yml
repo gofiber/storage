@@ -17,67 +17,40 @@ permissions:
 
 name: Benchmark
 jobs:
-  Compare:
+  changes:
     runs-on: ubuntu-latest
-    services:
-      arangodb:
-        image: 'arangodb:latest'
-        env:
-          ARANGO_NO_AUTH: 1
-        ports:
-          - '8529:8529'
-      dynamodb:
-        image: 'amazon/dynamodb-local:latest'
-        ports:
-          - '8000:8000'
-      memcached:
-        image: 'memcached:latest'
-        ports:
-          - '11211:11211'
-      mongo:
-        image: 'mongo:latest'
-        ports:
-          - '27017:27017'
-      mssql:
-        image: 'mcmoe/mssqldocker:latest'
-        ports:
-          - '1433:1433'
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: MsSql!1234
-          MSSQL_DB: master
-          MSSQL_USER: sa
-          MSSQL_PASSWORD: MsSql!1234
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P $SA_PASSWORD -Q 'select 1' -b -o /dev/null"
-          --health-interval 1s
-          --health-timeout 30s
-          --health-start-period 10s
-          --health-retries 20
-      mysql:
-        image: 'mysql:latest'
-        env:
-          MYSQL_DATABASE: fiber
-          MYSQL_USER: username
-          MYSQL_PASSWORD: password
-          MYSQL_ROOT_PASSWORD: password
-        ports:
-          - '3306:3306'
-        options: >-
-          --health-cmd "mysqladmin ping" --health-interval 10s --health-timeout
-          5s --health-retries 5
-      postgres:
-        image: 'postgres:latest'
-        ports:
-          - '5432:5432'
-        env:
-          POSTGRES_DB: fiber
-          POSTGRES_USER: username
-          POSTGRES_PASSWORD: "pass#w%rd"
-        options: >-
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s
-          --health-retries 5
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Generate filters
+        id: filter-setup
+        run: |
+          filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+          echo "filters<<EOF" >> $GITHUB_OUTPUT
+          echo "$filters" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Filter changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: ${{ steps.filter-setup.outputs.filters }}
+    outputs:
+      packages: ${{ steps.filter.outputs.changes || '[]' }}
+
+  compare:
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: needs.changes.outputs.packages != '[]' # Ensure job runs only if there are changes
+    strategy:
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
+      fail-fast: false
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v4
@@ -86,29 +59,22 @@ jobs:
         uses: actions/setup-go@v5
         with:
           # NOTE: Keep this in sync with the version from go.mod
-          go-version: "1.21.x"
+          go-version: "1.23.x"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
-      - name: Install Azurite
-        run: |
-          docker run -d -p 10000:10000 mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0 --blobPort 10000
+          node-version: '20'
 
       - name: Install Cloudflare Worker
+        if: ${{ matrix.package == 'cloudflarekv' }}
         run : |
           .github/scripts/initialize-wrangler.sh
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
 
-      - name: Install Coherence
-        run: |
-          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
-          sleep 30
-
       - name: Install etcd
+        if: ${{ matrix.package == 'etcd' }}
         run: |
           docker run -d --name Etcd-server \
             --publish 2379:2379 \
@@ -117,70 +83,72 @@ jobs:
             --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
             bitnami/etcd:latest
 
-      - name: Install ScyllaDb
+      - name: Install MSSQL
+        if: ${{ matrix.package == 'mssql' }}
         run: |
-          docker run --name scylladb -p 9042:9042 -p 19042:19042 -p 9160:9160 -p 7000:7000 -p 7001:7001 -p 7199:7199 -p 9180:9180 -d scylladb/scylla:latest --broadcast-address 127.0.0.1 --listen-address 0.0.0.0 --broadcast-rpc-address 127.0.0.1
-          sleep 15 # Wait for ScyllaDb to initialize
-
-      - name: Setup Redis
-        uses: shogo82148/actions-setup-redis@v1
-        with:
-          redis-version: '7.x'
-          auto-start: 'false'
-
-      - name: Run Redis
-        run: |
-          redis-server --port 6379 &
-
-      - name: Run NATS
-        run: |
-          ./.github/scripts/gen-test-certs.sh
-          docker run -d --name nats-jetstream -p 4443:4443 -v ./nats/testdata:/testdata -v ./tls:/tls nats:latest --jetstream -c /testdata/nats-tls.conf
-          sleep 2
+          docker run -d --name mssql-server \
+            --publish 1433:1433 \
+            --env ACCEPT_EULA=Y \
+            --env SA_PASSWORD=MsSql!1234 \
+            --env MSSQL_DB=master \
+            --env MSSQL_USER=sa \
+            --env MSSQL_PASSWORD=MsSql!1234 \
+            --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P MsSql!1234 -Q 'select 1' -b -o /dev/null" \
+            --health-interval 1s \
+            --health-timeout 30s \
+            --health-start-period 10s \
+            --health-retries 20 \
+            mcmoe/mssqldocker:latest
 
       - name: Run Benchmarks
+        working-directory: ${{ matrix.package }}
         run: |
           set -o pipefail
-          for d in */ ; do
-            [[ $d == "tls/" ]] && continue
-            [[ $d == "node_modules/" ]] && continue
-
-            cd "$d"
-            echo "Bench dir: $d"
-            go test ./... -benchmem -run=^$ -bench . | tee -a ../output.txt
-            cd ..
-          done
+          echo "Bench dir: ${{ matrix.package }}"
+          go test ./... -timeout 900s -benchmem -run=^$ -bench . | tee -a output.txt
         shell: bash
         env:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
-          MYSQL_USERNAME: username
-          MYSQL_PASSWORD: password
-          MYSQL_DATABASE: fiber
-          POSTGRES_DATABASE: fiber
-          POSTGRES_USERNAME: username
-          POSTGRES_PASSWORD: "pass#w%rd"
+          TEST_AEROSPIKE_IMAGE: aerospike/aerospike-server:latest
+          TEST_ARANGODB_IMAGE: arangodb:latest
+          TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
+          TEST_CASSANDRA_IMAGE: "cassandra:latest"
+          TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
-          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.1.1"
-          TEST_MINIO_IMAGE: "docker.io/minio/minio:RELEASE.2024-08-17T01-24-54Z"
+          TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
+          TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
+          TEST_MEMCACHED_IMAGE: "memcached:latest"
+          TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
+          TEST_MONGODB_IMAGE: "docker.io/mongo:7"
+          TEST_MYSQL_IMAGE: "docker.io/mysql:9"
+          TEST_NATS_IMAGE: "nats:2-alpine"
+          TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+          TEST_REDIS_IMAGE: "docker.io/redis:7"
+          TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
+          TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:latest"
+          TEST_VALKEY_IMAGE: "valkey/valkey:8"
+          COHERENCE_LOG_LEVEL: "ERROR"
 
       - name: Get Previous Benchmark Results
         uses: actions/cache@v4
         with:
           path: ./cache
-          key: ${{ runner.os }}-benchmark
+          key: ${{ runner.os }}-benchmark-${{ matrix.package }}
 
       - name: Save Benchmark Results
         uses: benchmark-action/github-action-benchmark@v1.20.4
         with:
           tool: "go"
-          output-file-path: output.txt
+          output-file-path: ${{ matrix.package }}/output.txt
           github-token: ${{ secrets.BENCHMARK_TOKEN }}
-          benchmark-data-dir-path: "benchmarks"
+          benchmark-data-dir-path: "benchmarks/${{ matrix.package }}"
           alert-threshold: "300%"
           fail-on-alert: true
           comment-on-alert: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           #summary-always: ${{ github.event_name != 'push' && github.event_name != 'workflow_dispatch' }}
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+
+
