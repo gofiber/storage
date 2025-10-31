@@ -64,13 +64,19 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	var expire uint32
+// Copy both key and value to avoid unsafe reuse from sync.Pool
+// When Fiber uses pooled buffers, the underlying memory can be reused
+keyCopy := string([]byte(key))
+valCopy := make([]byte, len(val))
+copy(valCopy, val)
+
 	if exp != 0 {
 		expire = uint32(exp.Seconds()) + atomic.LoadUint32(&internal.Timestamp)
 	}
 
-	e := entry{val, expire}
+	e := entry{valCopy, expire}
 	s.mux.Lock()
-	s.db[key] = e
+	s.db[keyCopy] = e
 	s.mux.Unlock()
 	return nil
 }
