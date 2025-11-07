@@ -1,11 +1,11 @@
 module github.com/gofiber/storage/arangodb/v2
 
-go 1.23.0
+go 1.24.0
 
 require (
-	github.com/arangodb/go-driver v1.6.7
+	github.com/arangodb/go-driver v1.6.9
 	github.com/gofiber/utils/v2 v2.0.0-rc.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/arangodb v0.38.0
 )
@@ -61,7 +61,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	google.golang.org/grpc v1.70.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
