@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-20250822074218-ba2347199921
 	github.com/stretchr/testify v1.10.0
-	github.com/valkey-io/valkey-go v1.0.67
+	github.com/valkey-io/valkey-go v1.0.68
 )
 
 require (
