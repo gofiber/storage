@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/oracle/coherence-go-client/v2 v2.3.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 )
 
