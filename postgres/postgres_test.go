@@ -202,6 +202,18 @@ func TestNoCreateUser(t *testing.T) {
 	})
 
 }
+
+func Test_Postgres_New_DisableStartupCheck(t *testing.T) {
+	require.NotPanics(t, func() {
+		store := New(Config{
+			Host:                "127.0.0.1",
+			Port:                65432,
+			DisableStartupCheck: true,
+		})
+		require.NotNil(t, store)
+		defer store.Close()
+	})
+}
 func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
