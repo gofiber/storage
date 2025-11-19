@@ -5,6 +5,7 @@ on:
         branches:
             - master
             - main
+    workflow_dispatch:
 
 jobs:
     changes:
@@ -59,3 +60,4 @@ jobs:
               uses: ReneWerner87/release-drafter@6dec4ceb1fb86b6514f11a2e7a39e1dedce709d0
               with:
                   config: ${{ steps.generate-config.outputs.config }}
+
