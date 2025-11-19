@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'mssql/**'
+    workflow_dispatch:
+
 name: "Tests MSSQL"
 jobs:
     Tests:

@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - 'couchbase/**'
+  workflow_dispatch:
+
 name: "Tests Couchbase"
 jobs:
   Tests:

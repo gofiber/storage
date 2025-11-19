@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - 'surrealdb/**'
+  workflow_dispatch:
+
 name: "Tests SurrealDB"
 jobs:
   Tests:

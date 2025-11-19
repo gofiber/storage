@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'badger/**'
+    workflow_dispatch:
+
 name: "Tests Badger"
 jobs:
     Tests:

@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'memcache/**'
+    workflow_dispatch:
+
 name: "Tests Memcache"
 jobs:
     Tests:

@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - "pebble/**"
+  workflow_dispatch:
+
 name: "Tests pebble"
 jobs:
   Tests:

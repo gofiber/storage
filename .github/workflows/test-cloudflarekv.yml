@@ -11,6 +11,8 @@ on:
     paths:
       - 'cloudflarekv/**'
 
+  workflow_dispatch:
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

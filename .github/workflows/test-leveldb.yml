@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'leveldb/**'
+    workflow_dispatch:
+
 name: "Tests LevelDB"
 jobs:
     Tests:

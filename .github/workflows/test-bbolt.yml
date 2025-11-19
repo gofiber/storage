@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'bbolt/**'
+    workflow_dispatch:
+
 name: "Tests Bbolt"
 jobs:
     Tests:

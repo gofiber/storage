@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - 'coherence/**'
+  workflow_dispatch:
+
 name: "Tests Coherence"
 jobs:
   Tests:

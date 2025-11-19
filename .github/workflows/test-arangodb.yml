@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'arangodb/**'
+    workflow_dispatch:
+
 name: "Tests ArangoDB"
 jobs:
     Tests:

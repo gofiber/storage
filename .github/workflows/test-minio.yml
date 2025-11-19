@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'minio/**'
+    workflow_dispatch:
+
 name: "Tests Minio"
 jobs:
     Tests:

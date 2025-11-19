@@ -8,10 +8,12 @@ on:
     pull_request:
         paths:
             - 'aerospike/**'
+    workflow_dispatch:
+
 name: "Tests Aerospike"
 jobs:
     Tests:
-        runs-on: ubuntu-latest        
+        runs-on: ubuntu-latest
         strategy:
             matrix:
                 go-version:

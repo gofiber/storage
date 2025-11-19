@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'nats/**'
+    workflow_dispatch:
+
 name: "Tests Nats Driver"
 jobs:
     Tests:

@@ -19,6 +19,8 @@ on:
       - ".github/ISSUE_TEMPLATE/*.yml"
       - ".github/dependabot.yml"
 
+  workflow_dispatch:
+
 jobs:
   changes:
     runs-on: ubuntu-latest

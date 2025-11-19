@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - 'cassandra/**'
+  workflow_dispatch:
+
 name: 'Tests Cassandra'
 jobs:
   Tests:

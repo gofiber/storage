@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'testhelpers/redis/**'
+    workflow_dispatch:
+
 name: "Tests TestHelper Redis"
 jobs:
     Tests:

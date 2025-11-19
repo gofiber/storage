@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'mysql/**'
+    workflow_dispatch:
+
 name: "Tests MySQL"
 jobs:
     Tests:

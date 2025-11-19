@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'rueidis/**'
+    workflow_dispatch:
+
 name: "Tests Rueidis"
 jobs:
     Tests:

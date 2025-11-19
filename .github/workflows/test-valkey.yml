@@ -9,6 +9,8 @@ on:
         paths:
             - 'valkey/**'
             - '.github/workflows/test-valkey.yml'
+    workflow_dispatch:
+
 name: "Tests Valkey"
 jobs:
     Tests:

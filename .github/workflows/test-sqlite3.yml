@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'sqlite3/**'
+    workflow_dispatch:
+
 name: "Tests Sqlite3"
 jobs:
     Tests:

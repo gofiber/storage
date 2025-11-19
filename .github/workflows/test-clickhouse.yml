@@ -8,6 +8,8 @@ on:
   pull_request:
     paths:
       - 'clickhouse/**'
+  workflow_dispatch:
+
 name: 'Tests Clickhouse'
 jobs:
   Tests:

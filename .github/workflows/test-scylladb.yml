@@ -9,6 +9,8 @@ on:
     paths:
       - 'scylladb/**'
 
+  workflow_dispatch:
+
 name: "Tests ScyllaDb"
 
 jobs:
