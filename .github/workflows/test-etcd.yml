@@ -21,7 +21,7 @@ jobs:
                     - 1.24.x
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v5
+                uses: actions/checkout@v6
             -   name: Install etcd
                 run: |
                     docker run -d --name Etcd-server \
