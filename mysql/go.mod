@@ -10,7 +10,7 @@ replace (
 require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/storage/testhelpers/tck v1.0.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.38.0
 )
