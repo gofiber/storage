@@ -56,6 +56,9 @@ updates:
               patterns:
                   - "github.com/shirou/gopsutil"
                   - "github.com/shirou/gopsutil/**"
+          klauspost-modules:
+              patterns:
+                  - "github.com/klauspost/**"
           tklauser-modules:
               patterns:
                   - "github.com/tklauser/**"
