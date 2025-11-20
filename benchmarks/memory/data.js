@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1761911904691,
+  "lastUpdate": 1763657668089,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -432,6 +432,150 @@ window.BENCHMARK_DATA = {
             "value": 0,
             "unit": "allocs/op",
             "extra": "21659257 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e6d07112f62869e00fa027f7f85a984d4acb368",
+          "message": "Merge pull request #2000 from gofiber/dependabot/go_modules/aerospike/testify-modules-2ec82dedaf",
+          "timestamp": "2025-11-20T10:50:08+01:00",
+          "tree_id": "880dd783f33ef93ec7c7d19a51908b75834f5490",
+          "url": "https://github.com/gofiber/storage/commit/7e6d07112f62869e00fa027f7f85a984d4acb368"
+        },
+        "date": 1763657664210,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Memory_Set",
+            "value": 50.25,
+            "unit": "ns/op\t       8 B/op\t       2 allocs/op",
+            "extra": "24019060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - ns/op",
+            "value": 50.25,
+            "unit": "ns/op",
+            "extra": "24019060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - B/op",
+            "value": 8,
+            "unit": "B/op",
+            "extra": "24019060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "24019060 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get",
+            "value": 24.87,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "49426198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - ns/op",
+            "value": 24.87,
+            "unit": "ns/op",
+            "extra": "49426198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "49426198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "49426198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete",
+            "value": 81.58,
+            "unit": "ns/op\t       8 B/op\t       2 allocs/op",
+            "extra": "15191305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - ns/op",
+            "value": 81.58,
+            "unit": "ns/op",
+            "extra": "15191305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - B/op",
+            "value": 8,
+            "unit": "B/op",
+            "extra": "15191305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "15191305 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber",
+            "value": 0.6442,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - ns/op",
+            "value": 0.6442,
+            "unit": "ns/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default",
+            "value": 55.71,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "20627523 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - ns/op",
+            "value": 55.71,
+            "unit": "ns/op",
+            "extra": "20627523 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "20627523 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "20627523 times\n4 procs"
           }
         ]
       }
