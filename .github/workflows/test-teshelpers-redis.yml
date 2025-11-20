@@ -24,7 +24,7 @@ jobs:
                     - '7'
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
 
             -   name: Install Go
                 uses: actions/setup-go@v5
