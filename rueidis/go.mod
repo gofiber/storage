@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-00010101000000-000000000000
 	github.com/redis/rueidis v1.0.68
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
