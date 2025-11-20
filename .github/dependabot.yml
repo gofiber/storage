@@ -52,6 +52,15 @@ updates:
           go-logr-modules:
               patterns:
                   - "github.com/go-logr/**"
+          go-ole-modules:
+              patterns:
+                  - "github.com/go-ole/**"
+          go-redis-modules:
+              patterns:
+                  - "github.com/redis/go-redis/**"
+          grpc-gateway-modules:
+              patterns:
+                  - "github.com/grpc-ecosystem/grpc-gateway/**"
           shirou-modules:
               patterns:
                   - "github.com/shirou/gopsutil"
@@ -59,6 +68,9 @@ updates:
           klauspost-modules:
               patterns:
                   - "github.com/klauspost/**"
+          snappy-modules:
+              patterns:
+                  - "github.com/golang/snappy"
           tklauser-modules:
               patterns:
                   - "github.com/tklauser/**"
