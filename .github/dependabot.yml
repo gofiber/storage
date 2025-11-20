@@ -49,6 +49,9 @@ updates:
           ebitengine-modules:
               patterns:
                   - "github.com/ebitengine/**"
+          go-logr-modules:
+              patterns:
+                  - "github.com/go-logr/**"
           shirou-modules:
               patterns:
                   - "github.com/shirou/gopsutil"
