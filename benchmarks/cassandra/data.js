@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763658074824,
+  "lastUpdate": 1763661841828,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -960,6 +960,102 @@ window.BENCHMARK_DATA = {
             "value": 117,
             "unit": "allocs/op",
             "extra": "265 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "18c4294c8b21d9117b1eb4b296dbc911d31b262f",
+          "message": "Merge pull request #2165 from gofiber/dependabot/go_modules/aerospike/shirou-modules-9de9a86162",
+          "timestamp": "2025-11-20T11:41:10+01:00",
+          "tree_id": "dcd469172bf3efc3bc94dcb1f6d7020581615a5f",
+          "url": "https://github.com/gofiber/storage/commit/18c4294c8b21d9117b1eb4b296dbc911d31b262f"
+        },
+        "date": 1763661837859,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Cassandra_Set",
+            "value": 2044193,
+            "unit": "ns/op\t    4287 B/op\t      66 allocs/op",
+            "extra": "502 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - ns/op",
+            "value": 2044193,
+            "unit": "ns/op",
+            "extra": "502 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - B/op",
+            "value": 4287,
+            "unit": "B/op",
+            "extra": "502 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - allocs/op",
+            "value": 66,
+            "unit": "allocs/op",
+            "extra": "502 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get",
+            "value": 1996723,
+            "unit": "ns/op\t    3844 B/op\t      58 allocs/op",
+            "extra": "583 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - ns/op",
+            "value": 1996723,
+            "unit": "ns/op",
+            "extra": "583 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - B/op",
+            "value": 3844,
+            "unit": "B/op",
+            "extra": "583 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - allocs/op",
+            "value": 58,
+            "unit": "allocs/op",
+            "extra": "583 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete",
+            "value": 3885547,
+            "unit": "ns/op\t    7722 B/op\t     117 allocs/op",
+            "extra": "300 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - ns/op",
+            "value": 3885547,
+            "unit": "ns/op",
+            "extra": "300 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - B/op",
+            "value": 7722,
+            "unit": "B/op",
+            "extra": "300 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - allocs/op",
+            "value": 117,
+            "unit": "allocs/op",
+            "extra": "300 times\n4 procs"
           }
         ]
       }
