@@ -1,5 +1,4 @@
 name: Auto labeler
-
 on:
   issues:
     types: [opened, edited, milestoned]
@@ -13,7 +12,6 @@ permissions:
   pull-requests: write # for labeling pull requests (on: pull_request_target or on: pull_request)
   statuses: write # to generate status
   checks: write # to generate status
-
 jobs:
   labeler:
     runs-on: ubuntu-latest
@@ -25,4 +23,3 @@ jobs:
           # Use a PAT so that applying labels can trigger downstream workflows
           # (GITHUB_TOKEN updates do not emit additional workflow events).
           github-token: ${{ secrets.ISSUE_PR_TOKEN }}
-

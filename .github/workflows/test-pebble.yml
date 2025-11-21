@@ -9,7 +9,6 @@ on:
     paths:
       - "pebble/**"
   workflow_dispatch:
-
 name: "Tests pebble"
 jobs:
   Tests:
@@ -19,11 +18,11 @@ jobs:
           - 1.24.x
     runs-on: ubuntu-latest
     steps:
-    -   name: Fetch Repository
+      - name: Fetch Repository
         uses: actions/checkout@v6
-    -   name: Install Go
+      - name: Install Go
         uses: actions/setup-go@v6
         with:
-            go-version: '${{ matrix.go-version }}'
-    -   name: Test Pebble
+          go-version: '${{ matrix.go-version }}'
+      - name: Test Pebble
         run: cd ./pebble && go test ./... -v -race

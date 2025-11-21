@@ -1,31 +1,30 @@
 on:
-    push:
-        branches:
-            - master
-            - main
-        paths:
-            - 's3/**'
-    pull_request:
-        paths:
-            - 's3/**'
-    workflow_dispatch:
-
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 's3/**'
+  pull_request:
+    paths:
+      - 's3/**'
+  workflow_dispatch:
 name: "Tests S3"
 jobs:
-    Tests:
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                go-version:
-                    - 1.24.x
-        steps:
-        -   name: Fetch Repository
-            uses: actions/checkout@v6
-        -   name: Install Go
-            uses: actions/setup-go@v6
-            with:
-                go-version: '${{ matrix.go-version }}'
-        -   name: Run Test
-            env:
-                TEST_MINIO_IMAGE: docker.io/minio/minio:latest
-            run: cd ./s3 && go test ./... -v -race
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_MINIO_IMAGE: docker.io/minio/minio:latest
+        run: cd ./s3 && go test ./... -v -race

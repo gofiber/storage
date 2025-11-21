@@ -8,29 +8,22 @@ on:
   pull_request:
     paths:
       - 'scylladb/**'
-
   workflow_dispatch:
-
 name: "Tests ScyllaDb"
-
 jobs:
   Tests:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         go-version:
           - 1.24.x
-
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v6
-
       - name: Install Go
         uses: actions/setup-go@v6
         with:
           go-version: '${{ matrix.go-version }}'
-
       - name: Run Test
         env:
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"

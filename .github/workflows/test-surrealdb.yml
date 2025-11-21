@@ -9,7 +9,6 @@ on:
     paths:
       - 'surrealdb/**'
   workflow_dispatch:
-
 name: "Tests SurrealDB"
 jobs:
   Tests:
@@ -25,7 +24,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '${{ matrix.go-version }}'
-
       - name: Run Test
         env:
           TEST_SURREALDB_IMAGE: surrealdb/surrealdb:latest
