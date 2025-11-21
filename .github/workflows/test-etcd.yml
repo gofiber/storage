@@ -28,7 +28,7 @@ jobs:
                       --publish 2380:2380 \
                       --env ALLOW_NONE_AUTHENTICATION=yes \
                       --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
-                      bitnami/etcd:latest
+                      milvus-io/etcd:latest
 
             -   name: Install Go
                 uses: actions/setup-go@v6
