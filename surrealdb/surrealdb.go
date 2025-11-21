@@ -33,7 +33,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	if err = db.Use(cfg.Namespace, cfg.Database); err != nil {
+	if err = db.Use(context.Background(), cfg.Namespace, cfg.Database); err != nil {
 		panic(err)
 	}
 
@@ -42,12 +42,12 @@ func New(config ...Config) *Storage {
 		Password: cfg.Password,
 	}
 
-	token, err := db.SignIn(authData)
+	token, err := db.SignIn(context.Background(), authData)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = db.Authenticate(token); err != nil {
+	if err = db.Authenticate(context.Background(), token); err != nil {
 		panic(err)
 	}
 
@@ -69,7 +69,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	recordID := models.NewRecordID(s.table, key)
-	m, err := surrealdb.Select[model, models.RecordID](s.db, recordID)
+	m, err := surrealdb.Select[model](context.Background(), s.db, recordID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expiresAt = time.Now().Add(exp).Unix()
 	}
 
-	_, err := surrealdb.Upsert[model](s.db, models.NewRecordID(s.table, key), &model{
+	_, err := surrealdb.Upsert[model](context.Background(), s.db, models.NewRecordID(s.table, key), &model{
 		Key:  key,
 		Body: val,
 		Exp:  expiresAt,
@@ -117,7 +117,7 @@ func (s *Storage) Delete(key string) error {
 		return errors.New("key is required")
 	}
 
-	_, err := surrealdb.Delete[model](s.db, models.NewRecordID(s.table, key))
+	_, err := surrealdb.Delete[model](context.Background(), s.db, models.NewRecordID(s.table, key))
 	return err
 }
 
@@ -128,7 +128,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset clears all keys in the storage table
 func (s *Storage) Reset() error {
-	_, err := surrealdb.Delete[[]model](s.db, models.Table(s.table))
+	_, err := surrealdb.Delete[[]model](context.Background(), s.db, models.Table(s.table))
 	return err
 }
 
@@ -140,7 +140,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
 	close(s.stopGC)
-	return s.db.Close()
+	return s.db.Close(context.Background())
 }
 
 // Conn returns the underlying SurrealDB client
@@ -150,7 +150,7 @@ func (s *Storage) Conn() *surrealdb.DB {
 
 // List returns all stored keys and values as JSON
 func (s *Storage) List() ([]byte, error) {
-	records, err := surrealdb.Select[[]model, models.Table](s.db, models.Table(s.table))
+	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (s *Storage) gc() {
 
 // cleanupExpired deletes expired keys from storage
 func (s *Storage) cleanupExpired() {
-	records, err := surrealdb.Select[[]model, models.Table](s.db, models.Table(s.table))
+	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
 	if err != nil {
 		return
 	}

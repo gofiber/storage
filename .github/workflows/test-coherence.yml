@@ -9,7 +9,6 @@ on:
     paths:
       - 'coherence/**'
   workflow_dispatch:
-
 name: "Tests Coherence"
 jobs:
   Tests:
@@ -17,7 +16,6 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - 1.23.x
           - 1.24.x
     steps:
       - name: Fetch Repository

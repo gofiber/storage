@@ -1,5 +1,4 @@
 name: Golangci-Lint Check
-
 on:
   push:
     branches:
@@ -18,9 +17,7 @@ on:
       - LICENSE
       - ".github/ISSUE_TEMPLATE/*.yml"
       - ".github/dependabot.yml"
-
   workflow_dispatch:
-
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -29,7 +26,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
       - name: Generate filters
         id: filter-setup
         run: |
@@ -41,7 +37,6 @@ jobs:
           echo "$testhelpers_filters" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         shell: bash
-
       - name: Filter changes
         id: filter
         uses: dorny/paths-filter@v3
@@ -49,7 +44,6 @@ jobs:
           filters: ${{ steps.filter-setup.outputs.filters }}
     outputs:
       packages: ${{ steps.filter.outputs.changes || '[]' }}
-
   lint:
     needs: changes
     runs-on: ubuntu-latest
