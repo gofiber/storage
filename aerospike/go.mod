@@ -3,7 +3,7 @@ module github.com/gofiber/storage/aerospike
 go 1.24.0
 
 require (
-	github.com/aerospike/aerospike-client-go/v8 v8.2.2
+	github.com/aerospike/aerospike-client-go/v8 v8.4.2
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/aerospike v0.38.0
