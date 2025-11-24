@@ -74,6 +74,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
+	// Check if record exists
+	if m == nil {
+		return nil, nil
+	}
+
 	if m.Exp > 0 && time.Now().Unix() > m.Exp {
 		_ = s.Delete(key)
 		return nil, nil
