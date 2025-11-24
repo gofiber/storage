@@ -220,7 +220,7 @@ func TestGetConn_ReturnsNotNill(t *testing.T) {
 // Please note that this is not thread-safe:
 // Each benchmark reuses the same etcd store instance,
 // setting and deleting keys between benchmarks.
-// If you add more benchamrks, make sure to delete the key after the benchmark.
+// If you add more benchmarks, make sure to delete the key after the benchmark.
 
 var (
 	benchmarkStore *Storage
