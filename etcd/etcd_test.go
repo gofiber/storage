@@ -250,9 +250,7 @@ func Benchmark_Etcd_Set(b *testing.B) {
 	require.NoError(b, err)
 
 	// Clean up the key after benchmark
-	b.StopTimer()
-	_ = testStore.Delete(key)
-	b.StartTimer()
+	require.NoError(b, testStore.Delete(key))
 }
 
 func Benchmark_Etcd_Get(b *testing.B) {
@@ -272,9 +270,7 @@ func Benchmark_Etcd_Get(b *testing.B) {
 	require.NoError(b, err)
 
 	// Clean up after benchmark
-	b.StopTimer()
-	_ = testStore.Delete(key)
-	b.StartTimer()
+	require.NoError(b, testStore.Delete(key))
 }
 
 func Benchmark_Etcd_SetAndDelete(b *testing.B) {
