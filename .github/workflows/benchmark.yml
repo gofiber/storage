@@ -49,11 +49,19 @@ jobs:
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v6
+
       - name: Install Go
+        if: ${{ matrix.package != 'clickhouse' }}
         uses: actions/setup-go@v6
         with:
           # NOTE: Keep this in sync with the version from go.mod
           go-version: "1.24.x"
+      - name: Install Go (For clickhouse)
+        uses: actions/setup-go@v6
+        if: ${{ matrix.package == 'clickhouse' }}
+        with:
+          go-version: "1.25.x"
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:

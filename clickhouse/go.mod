@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/clickhouse
 
-go 1.24.0
+go 1.25.3
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.41.0
