@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'rueidis/**'
+    workflow_dispatch:
+
 name: "Tests Rueidis"
 jobs:
     Tests:
@@ -22,7 +24,7 @@ jobs:
                     - '7'
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v6
 
             -   name: Setup Redis Cluster
                 uses: vishnudxb/redis-cluster@1.0.9
@@ -36,7 +38,7 @@ jobs:
                     sleep-duration: 10
 
             -   name: Install Go
-                uses: actions/setup-go@v5
+                uses: actions/setup-go@v6
                 with:
                     go-version: '${{ matrix.go-version }}'
 

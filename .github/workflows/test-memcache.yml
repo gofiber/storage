@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'memcache/**'
+    workflow_dispatch:
+
 name: "Tests Memcache"
 jobs:
     Tests:
@@ -19,9 +21,9 @@ jobs:
                     - 1.24.x
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v6
             -   name: Install Go
-                uses: actions/setup-go@v5
+                uses: actions/setup-go@v6
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test

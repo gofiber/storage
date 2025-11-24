@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'sqlite3/**'
+    workflow_dispatch:
+
 name: "Tests Sqlite3"
 jobs:
     Tests:
@@ -19,9 +21,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v6
             -   name: Install Go
-                uses: actions/setup-go@v5
+                uses: actions/setup-go@v6
                 with:
                     go-version: '${{ matrix.go-version }}'
             -   name: Test SQLite3 - with -race check

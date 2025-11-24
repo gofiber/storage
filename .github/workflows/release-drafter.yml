@@ -5,6 +5,7 @@ on:
         branches:
             - master
             - main
+    workflow_dispatch:
 
 jobs:
     changes:
@@ -13,7 +14,7 @@ jobs:
             pull-requests: read
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Generate filters
               id: filter-setup
@@ -44,7 +45,7 @@ jobs:
                 package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
         steps:
             - name: Checkout repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
 
             - name: Generate dynamic config from template
               id: generate-config
@@ -59,3 +60,4 @@ jobs:
               uses: ReneWerner87/release-drafter@6dec4ceb1fb86b6514f11a2e7a39e1dedce709d0
               with:
                   config: ${{ steps.generate-config.outputs.config }}
+
