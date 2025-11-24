@@ -129,6 +129,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// If the expiration time has already passed, then return nil
 	if exp != 0 && exp <= time.Now().Unix() {
+		_, err := s.db.ExecContext(ctx, s.sqlDelete, key)
+		if err != nil {
+			return nil, fmt.Errorf("delete expired key: %w", err)
+		}
 		return nil, nil
 	}
 
