@@ -29,5 +29,5 @@ jobs:
                     go-version: '${{ matrix.go-version }}'
             -   name: Run Test
                 env:
-                    TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.5.21
+                    TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
                 run: cd ./etcd && go test ./... -v -race

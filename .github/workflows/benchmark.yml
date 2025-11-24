@@ -128,7 +128,7 @@ jobs:
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
-          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.5.21
+          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
           TEST_MEMCACHED_IMAGE: "memcached:latest"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
