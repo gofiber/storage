@@ -28,7 +28,7 @@ type model struct {
 // New creates a new SurrealDB storage instance using the provided configuration.
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
-	db, err := surrealdb.New(cfg.ConnectionString)
+	db, err := surrealdb.FromEndpointURLString(context.Background(), cfg.ConnectionString)
 	if err != nil {
 		panic(err)
 	}
