@@ -19,14 +19,13 @@ jobs:
           - 1.24.x
           - 1.25.x
     steps:
-      -   name: Fetch Repository
-          uses: actions/checkout@v6
-
-      -   name: Install Go
-          uses: actions/setup-go@v6
-          with:
-              go-version: '${{ matrix.go-version }}'
-      -   name: Run Test
-          env:
-              TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
-          run: cd ./etcd && go test ./... -v -race
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
+        run: cd ./etcd && go test ./... -v -race

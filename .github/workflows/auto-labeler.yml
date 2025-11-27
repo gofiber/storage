@@ -1,17 +1,15 @@
 name: auto-labeler
-
 on:
-    issues:
-        types: [opened, edited, milestoned]
-    pull_request_target:
-        types: [opened, edited, reopened, synchronize]
-    workflow_dispatch:
-
+  issues:
+    types: [opened, edited, milestoned]
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+  workflow_dispatch:
 jobs:
-    auto-labeler:
-        uses: gofiber/.github/.github/workflows/auto-labeler.yml@main
-        secrets:
-            github-token: ${{ secrets.ISSUE_PR_TOKEN }}
-        with:
-            config-path: .github/labeler.yml
-            config-repository: gofiber/.github
+  auto-labeler:
+    uses: gofiber/.github/.github/workflows/auto-labeler.yml@main
+    secrets:
+      github-token: ${{ secrets.ISSUE_PR_TOKEN }}
+    with:
+      config-path: .github/labeler.yml
+      config-repository: gofiber/.github
