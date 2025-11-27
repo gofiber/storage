@@ -3,7 +3,7 @@ module github.com/gofiber/storage/valkey
 go 1.24.0
 
 require (
-	github.com/gofiber/storage/testhelpers/redis v0.0.0-20251121011818-7435afb6bca2
+	github.com/gofiber/storage/testhelpers/redis v0.1.0
 	github.com/stretchr/testify v1.11.1
 	github.com/valkey-io/valkey-go v1.0.68
 )
