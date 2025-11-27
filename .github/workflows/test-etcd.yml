@@ -17,20 +17,16 @@ jobs:
       matrix:
         go-version:
           - 1.24.x
+          - 1.25.x
     steps:
-      - name: Fetch Repository
-        uses: actions/checkout@v6
-      - name: Install etcd
-        run: |
-          docker run -d --name Etcd-server \
-            --publish 2379:2379 \
-            --publish 2380:2380 \
-            --env ALLOW_NONE_AUTHENTICATION=yes \
-            --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
-            milvus-io/etcd:latest
-      - name: Install Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '${{ matrix.go-version }}'
-      - name: Run Test
-        run: cd ./etcd && go test ./... -v -race
+      -   name: Fetch Repository
+          uses: actions/checkout@v6
+
+      -   name: Install Go
+          uses: actions/setup-go@v6
+          with:
+              go-version: '${{ matrix.go-version }}'
+      -   name: Run Test
+          env:
+              TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
+          run: cd ./etcd && go test ./... -v -race
