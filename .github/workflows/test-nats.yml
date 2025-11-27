@@ -1,30 +1,30 @@
 on:
-    push:
-        branches:
-            - master
-            - main
-        paths:
-            - 'nats/**'
-    pull_request:
-        paths:
-            - 'nats/**'
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'nats/**'
+  pull_request:
+    paths:
+      - 'nats/**'
+  workflow_dispatch:
 name: "Tests Nats Driver"
 jobs:
-    Tests:
-        strategy:
-            matrix:
-                go-version:
-                    - 1.23.x
-                    - 1.24.x
-        runs-on: ubuntu-latest
-        steps:
-            -   name: Fetch Repository
-                uses: actions/checkout@v4
-            -   name: Install Go
-                uses: actions/setup-go@v5
-                with:
-                    go-version: '${{ matrix.go-version }}'
-            -   name: Test Nats
-                env:
-                    TEST_NATS_IMAGE: "nats:2-alpine"
-                run: cd ./nats && go test ./... -v -race
+  Tests:
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Test Nats
+        env:
+          TEST_NATS_IMAGE: "nats:2-alpine"
+        run: cd ./nats && go test ./... -v -race

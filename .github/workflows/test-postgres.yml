@@ -1,30 +1,30 @@
 on:
-    push:
-        branches:
-            - master
-            - main
-        paths:
-            - 'postgres/**'
-    pull_request:
-        paths:
-            - 'postgres/**'
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'postgres/**'
+  pull_request:
+    paths:
+      - 'postgres/**'
+  workflow_dispatch:
 name: "Tests Postgres"
 jobs:
-    Tests:
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                go-version:
-                    - 1.23.x
-                    - 1.24.x
-        steps:
-            -   name: Fetch Repository
-                uses: actions/checkout@v4
-            -   name: Install Go
-                uses: actions/setup-go@v5
-                with:
-                    go-version: '${{ matrix.go-version }}'
-            -   name: Run Test
-                env:
-                    TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
-                run: cd ./postgres && go test ./... -v -race
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+        run: cd ./postgres && go test ./... -v -race

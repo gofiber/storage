@@ -1,5 +1,4 @@
 name: Tests CloudflareKV
-
 on:
   push:
     branches:
@@ -10,34 +9,29 @@ on:
   pull_request:
     paths:
       - 'cloudflarekv/**'
-
+  workflow_dispatch:
 jobs:
   Tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-          go-version:
-              - 1.23.x
-              - 1.24.x
+        go-version:
+          - 1.24.x
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v6
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
-
       - name: Start Wrangler Dev
         run: |
           .github/scripts/initialize-wrangler.sh
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
-
       - name: Run Go Tests
         run: cd cloudflarekv && go test ./... -v -race
