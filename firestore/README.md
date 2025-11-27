@@ -47,7 +47,7 @@ go mod init github.com/<user>/<repo>
 And then install the firestore implementation:
 
 ```bash
-go get github.com/gofiber/storage/firestore/v2
+go get github.com/gofiber/storage/firestore
 ```
 
 ### Examples
@@ -55,7 +55,7 @@ go get github.com/gofiber/storage/firestore/v2
 Import the storage package.
 
 ```go
-import firestorage "github.com/gofiber/storage/firestore/v2"
+import firestorage "github.com/gofiber/storage/firestore"
 ```
 
 You can use the following possibilities to create a storage:
@@ -96,7 +96,7 @@ If you already have a Firestore client configured in your application, you can c
 import (
 	"cloud.google.com/go/firestore"
 	"context"
-	firestorage "github.com/gofiber/storage/firestore/v2"
+	firestorage "github.com/gofiber/storage/firestore"
 )
 
 ctx := context.Background()

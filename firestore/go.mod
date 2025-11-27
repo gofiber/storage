@@ -1,6 +1,6 @@
-module github.com/gofiber/storage/firestore/v2
+module github.com/gofiber/storage/firestore
 
-go 1.24.0
+go 1.25.0
 
 require (
 	cloud.google.com/go/firestore v1.14.0
