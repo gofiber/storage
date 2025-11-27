@@ -55,32 +55,32 @@ go get github.com/gofiber/storage/firestore/v2
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/firestore/v2"
+import firestorage "github.com/gofiber/storage/firestore/v2"
 ```
 
 You can use the following possibilities to create a storage:
 
 ```go
 // Initialize with Application Default Credentials
-store := firestore.New(firestore.Config{
+store := firestorage.New(firestorage.Config{
 	ProjectID: "my-gcp-project",
 })
 
 // Initialize with service account JSON file
-store := firestore.New(firestore.Config{
+store := firestorage.New(firestorage.Config{
 	ProjectID:       "my-gcp-project",
 	CredentialsPath: "/path/to/service-account-key.json",
 	Collection:      "sessions",
 })
 
 // Initialize with embedded credentials JSON
-store := firestore.New(firestore.Config{
+store := firestorage.New(firestorage.Config{
 	ProjectID:   "my-gcp-project",
 	Credentials: `{"type": "service_account", ...}`,
 })
 
 // Initialize with custom timeout
-store := firestore.New(firestore.Config{
+store := firestorage.New(firestorage.Config{
 	ProjectID:      "my-gcp-project",
 	Collection:     "fiber_storage",
 	RequestTimeout: 10 * time.Second,

@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -26,6 +27,8 @@ type Storage struct {
 	client     *firestore.Client
 	collection string
 	timeout    time.Duration
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
 // document represents the structure of a document in Firestore
@@ -55,10 +58,14 @@ func New(config ...Config) *Storage {
 		panic(fmt.Sprintf("firestore: unable to create client: %v", err))
 	}
 
+	storageCtx, storageCancel := context.WithCancel(context.Background())
+
 	storage := &Storage{
 		client:     client,
 		collection: cfg.Collection,
 		timeout:    cfg.RequestTimeout,
+		ctx:        storageCtx,
+		cancel:     storageCancel,
 	}
 
 	if cfg.Reset {
@@ -91,7 +98,6 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	doc, err := s.client.Collection(s.collection).Doc(key).Get(ctx)
 	if err != nil {
-		// Document not found is not an error in our interface
 		if status.Code(err) == codes.NotFound {
 			return nil, nil
 		}
@@ -104,11 +110,14 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if !data.ExpiresAt.IsZero() && time.Now().After(data.ExpiresAt) {
-		// Delete expired document asynchronously
 		go func() {
-			delCtx, cancel := context.WithTimeout(context.Background(), s.timeout)
+			delCtx, cancel := context.WithTimeout(s.ctx, s.timeout)
 			defer cancel()
-			_, _ = s.client.Collection(s.collection).Doc(key).Delete(delCtx)
+			if _, err := s.client.Collection(s.collection).Doc(key).Delete(delCtx); err != nil {
+				if err != context.Canceled && err != context.DeadlineExceeded {
+					log.Printf("firestore: failed to delete expired document %s: %v", key, err)
+				}
+			}
 		}()
 		return nil, nil
 	}
@@ -190,7 +199,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	}
 
 	bulkWriter := s.client.BulkWriter(ctx)
-	defer bulkWriter.End()
+	defer bulkWriter.Flush()
 
 	docs := s.client.Collection(s.collection).Documents(ctx)
 	defer docs.Stop()
@@ -209,12 +218,14 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		}
 	}
 
-	bulkWriter.Flush()
 	return nil
 }
 
 // Close the database
 func (s *Storage) Close() error {
+	if s.cancel != nil {
+		s.cancel()
+	}
 	if s.client == nil {
 		return nil
 	}
@@ -232,14 +243,31 @@ func NewFromConnection(client *firestore.Client, collection string) *Storage {
 		collection = ConfigDefault.Collection
 	}
 
+	storageCtx, storageCancel := context.WithCancel(context.Background())
+
 	return &Storage{
 		client:     client,
 		collection: collection,
 		timeout:    ConfigDefault.RequestTimeout,
+		ctx:        storageCtx,
+		cancel:     storageCancel,
 	}
 }
 
-// LoadCredentialsFromFile loads credentials from a file and returns as JSON string
+// LoadCredentialsFromFile loads credentials from a file and returns as JSON string.
+// This is a utility function for consumers of this package who need to load credentials
+// from a file path and pass them to the Config.Credentials field.
+//
+// Example:
+//
+//	credentials, err := firestore.LoadCredentialsFromFile("/path/to/service-account-key.json")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	store := firestore.New(firestore.Config{
+//		ProjectID:   "my-gcp-project",
+//		Credentials: credentials,
+//	})
 func LoadCredentialsFromFile(filepath string) (string, error) {
 	content, err := os.ReadFile(filepath)
 	if err != nil {
