@@ -134,7 +134,7 @@ jobs:
           path: ./cache
           key: ${{ runner.os }}-benchmark-${{ matrix.package }}
       - name: Save Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1.20.4
+        uses: benchmark-action/github-action-benchmark@v1.20.7
         with:
           tool: "go"
           output-file-path: ${{ matrix.package }}/output.txt
