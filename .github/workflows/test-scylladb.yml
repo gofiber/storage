@@ -9,6 +9,8 @@ on:
     paths:
       - 'scylladb/**'
 
+  workflow_dispatch:
+
 name: "Tests ScyllaDb"
 
 jobs:
@@ -23,10 +25,10 @@ jobs:
 
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '${{ matrix.go-version }}'
 

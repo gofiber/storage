@@ -8,6 +8,8 @@ on:
     pull_request:
         paths:
             - 'redis/**'
+    workflow_dispatch:
+
 name: "Tests Redis"
 jobs:
     Tests:
@@ -22,7 +24,7 @@ jobs:
                     - '7'
         steps:
             -   name: Fetch Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v6
 
             -   name: Setup Redis Cluster
                 uses: vishnudxb/redis-cluster@1.0.9
@@ -39,7 +41,7 @@ jobs:
                 run: sleep 15
 
             -   name: Install Go
-                uses: actions/setup-go@v5
+                uses: actions/setup-go@v6
                 with:
                     go-version: '${{ matrix.go-version }}'
 

@@ -23,7 +23,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate filters
         id: filter-setup
@@ -53,16 +53,16 @@ jobs:
       fail-fast: false
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # NOTE: Keep this in sync with the version from go.mod
-          go-version: "1.23.x"
+          go-version: "1.24.x"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -73,15 +73,24 @@ jobs:
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
 
-      - name: Install etcd
-        if: ${{ matrix.package == 'etcd' }}
+      - name: Install Coherence
+        if: ${{ matrix.package == 'coherence' }}
         run: |
-          docker run -d --name Etcd-server \
-            --publish 2379:2379 \
-            --publish 2380:2380 \
-            --env ALLOW_NONE_AUTHENTICATION=yes \
-            --env ETCD_ADVERTISE_CLIENT_URLS=http://etcd-server:2379 \
-            bitnami/etcd:latest
+          docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
+          sleep 30
+
+      - name: Setup Redis
+        if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: '7.x'
+          auto-start: 'false'
+
+      - name: Run Redis
+        if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
+        run: |
+          redis-server --port 6379 &
+          sleep 15
 
       - name: Install MSSQL
         if: ${{ matrix.package == 'mssql' }}
@@ -119,6 +128,7 @@ jobs:
           TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
           TEST_COUCHBASE_IMAGE: "couchbase:enterprise-7.6.5"
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
+          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
           TEST_MEMCACHED_IMAGE: "memcached:latest"
           TEST_MINIO_IMAGE: "docker.io/minio/minio:latest"
           TEST_MONGODB_IMAGE: "docker.io/mongo:7"
