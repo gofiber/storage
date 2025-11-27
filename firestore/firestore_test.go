@@ -8,50 +8,34 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	tcfirestore "github.com/testcontainers/testcontainers-go/modules/gcloud/firestore"
 )
 
 const (
-	firestoreImage              = "gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"
 	firestoreImageEnvVar string = "TEST_FIRESTORE_IMAGE"
-	firestorePort               = "8080/tcp"
 	projectID                   = "test-project"
 )
 
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	img := firestoreImage
+	ctx := context.Background()
+
+	img := "gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators"
 	if imgFromEnv := os.Getenv(firestoreImageEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
 
-	ctx := context.Background()
-
-	req := testcontainers.ContainerRequest{
-		Image:        img,
-		ExposedPorts: []string{firestorePort},
-		Cmd:          []string{"gcloud", "beta", "emulators", "firestore", "start", "--host-port=0.0.0.0:8080"},
-		WaitingFor:   wait.ForLog("Dev App Server is now running"),
-	}
-
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	t.Cleanup(func() {
-		if c != nil {
-			if err := c.Terminate(ctx); err != nil {
-				t.Errorf("failed to terminate container: %s", err)
-			}
-		}
-	})
+	c, err := tcfirestore.Run(ctx, img,
+		tcfirestore.WithProjectID(projectID),
+	)
+	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
 	host, err := c.Host(ctx)
 	require.NoError(t, err)
 
-	port, err := c.MappedPort(ctx, firestorePort)
+	port, err := c.MappedPort(ctx, "8080/tcp")
 	require.NoError(t, err)
 
 	originalEnv := os.Getenv("FIRESTORE_EMULATOR_HOST")
