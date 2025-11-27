@@ -9,7 +9,6 @@ on:
     paths:
       - 'couchbase/**'
   workflow_dispatch:
-
 name: "Tests Couchbase"
 jobs:
   Tests:
@@ -17,16 +16,15 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - 1.23.x
           - 1.24.x
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v6
-      -   name: Install Go
-          uses: actions/setup-go@v6
-          with:
-            go-version: '${{ matrix.go-version }}'
-      -   name: Run Test
-          env:
-            TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.6.5
-          run: cd ./couchbase && go test ./... -v -race
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.6.5
+        run: cd ./couchbase && go test ./... -v -race
