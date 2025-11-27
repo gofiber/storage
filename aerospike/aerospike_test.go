@@ -9,6 +9,7 @@ import (
 	"github.com/aerospike/aerospike-client-go/v8"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
+	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	tcaerospike "github.com/testcontainers/testcontainers-go/modules/aerospike"
 )
 
@@ -35,7 +36,13 @@ func startAerospikeContainer(t testing.TB, ctx context.Context) testcontainers.C
 	}
 
 	// Start container
-	ctr, err := tcaerospike.Run(ctx, image)
+	ctr, err := tcaerospike.Run(ctx, image,
+		testcontainers.WithStartupCommand(
+			testcontainers.NewRawCommand([]string{
+				"asinfo", "-v", "set-config:context=namespace;id=" + aerospikeNamespace + ";nsup-period=120",
+			}, tcexec.Multiplexed()),
+		),
+	)
 	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
 
