@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764260987318,
+  "lastUpdate": 1764313961445,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -1632,6 +1632,102 @@ window.BENCHMARK_DATA = {
             "value": 312,
             "unit": "allocs/op",
             "extra": "777 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "33a3c321799b0e146acd2830a535504c3da010fc",
+          "message": "Merge pull request #2282 from gofiber/dependabot/go_modules/etcd/testcontainers-modules-a4c6e449c1\n\nchore(deps): bump the testcontainers-modules group across 1 directory with 2 updates",
+          "timestamp": "2025-11-28T08:11:31+01:00",
+          "tree_id": "dd8f2861bd68c8d1ea1197390873fc791ce7862b",
+          "url": "https://github.com/gofiber/storage/commit/33a3c321799b0e146acd2830a535504c3da010fc"
+        },
+        "date": 1764313957455,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Etcd_Set",
+            "value": 1004657666,
+            "unit": "ns/op\t  452456 B/op\t    2824 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - ns/op",
+            "value": 1004657666,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - B/op",
+            "value": 452456,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Set - allocs/op",
+            "value": 2824,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get",
+            "value": 333584,
+            "unit": "ns/op\t    7419 B/op\t     111 allocs/op",
+            "extra": "3307 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - ns/op",
+            "value": 333584,
+            "unit": "ns/op",
+            "extra": "3307 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - B/op",
+            "value": 7419,
+            "unit": "B/op",
+            "extra": "3307 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_Get - allocs/op",
+            "value": 111,
+            "unit": "allocs/op",
+            "extra": "3307 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete",
+            "value": 1545618,
+            "unit": "ns/op\t   20598 B/op\t     312 allocs/op",
+            "extra": "768 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - ns/op",
+            "value": 1545618,
+            "unit": "ns/op",
+            "extra": "768 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - B/op",
+            "value": 20598,
+            "unit": "B/op",
+            "extra": "768 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Etcd_SetAndDelete - allocs/op",
+            "value": 312,
+            "unit": "allocs/op",
+            "extra": "768 times\n4 procs"
           }
         ]
       }
