@@ -67,6 +67,7 @@ type Storage interface {
 ```
 
 ## 📑 Storage Implementations
+
 - [Aerospike](./aerospike/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Aerospike%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-aerospike.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [ArangoDB](./arangodb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+ArangoDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-arangodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [AzureBlob](./azureblob/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Azure+Blob%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-azureblob.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
@@ -78,6 +79,7 @@ type Storage interface {
 - [Couchbase](./couchbase/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Couchbase%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-couchbase.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [DynamoDB](./dynamodb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+DynamoDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-dynamodb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Etcd](./etcd/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Etcd%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-etcd.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+- [Firestore](./firestore/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Firestore%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-firestore.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [LevelDB](./leveldb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+LevelDB%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-leveldb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" alt="LevelDB Tests Status"/> </a>
 - [Memcache](./memcache/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Memcache%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-memcache.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Memory](./memory/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Local+Storage%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-memory.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
