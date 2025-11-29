@@ -14,7 +14,7 @@ Import the helper and start a Redis container in your tests:
 
 ```go
 import (
-    testredis "github.com/klauspost/storage/testhelpers/redis"
+    testredis "github.com/gofiber/storage/testhelpers/redis"
 )
 
 func TestExample(t *testing.T) {
