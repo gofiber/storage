@@ -1,34 +1,32 @@
 on:
-    push:
-        branches:
-            - master
-            - main
-        paths:
-            - 'sqlite3/**'
-    pull_request:
-        paths:
-            - 'sqlite3/**'
-    workflow_dispatch:
-
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'sqlite3/**'
+  pull_request:
+    paths:
+      - 'sqlite3/**'
+  workflow_dispatch:
 name: "Tests Sqlite3"
 jobs:
-    Tests:
-        strategy:
-            matrix:
-                go-version:
-                    - 1.23.x
-                    - 1.24.x
-        runs-on: ubuntu-latest
-        steps:
-            -   name: Fetch Repository
-                uses: actions/checkout@v6
-            -   name: Install Go
-                uses: actions/setup-go@v6
-                with:
-                    go-version: '${{ matrix.go-version }}'
-            -   name: Test SQLite3 - with -race check
-                if: runner.os != 'Windows'
-                run: cd ./sqlite3 && go test ./... -v -race
-            -   name: Test SQLite3 - without -race check
-                if: runner.os == 'Windows'
-                run: cd ./sqlite3 && go test ./... -v
+  Tests:
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Test SQLite3 - with -race check
+        if: runner.os != 'Windows'
+        run: cd ./sqlite3 && go test ./... -v -race
+      - name: Test SQLite3 - without -race check
+        if: runner.os == 'Windows'
+        run: cd ./sqlite3 && go test ./... -v
