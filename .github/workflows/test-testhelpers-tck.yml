@@ -1,0 +1,29 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'testhelpers/tck/**'
+  pull_request:
+    paths:
+      - 'testhelpers/tck/**'
+  workflow_dispatch:
+name: "Tests TestHelper TCK"
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        working-directory: testhelpers/tck
+        run: go test ./... -v -race
