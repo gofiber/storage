@@ -22,6 +22,7 @@ jobs:
       matrix:
         go-version:
           - 1.24.x
+          - 1.25.x
     steps:
       - name: Fetch Repository
         uses: actions/checkout@v6
