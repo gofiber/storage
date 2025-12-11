@@ -318,9 +318,14 @@ func (s *StorageTestSuite[T, D, C]) TestGetExpired() {
 	s.setValueWithTTL("temp_key", []byte("temp_value"), 500*time.Millisecond)
 
 	s.Eventually(func() bool {
-		s.requireKeyNotExists("temp_key")
-		return true
-	}, 2*time.Second, 1*time.Second, "Key should expire")
+		val, err := s.store.Get("temp_key")
+		if err != nil {
+			s.T().Logf("Unexpected error while checking if key expired: %v", err)
+			return false
+		}
+		// Storage implementations should return nil/empty slice for expired/non-existent keys
+		return len(val) == 0
+	}, 2*time.Second, 100*time.Millisecond, "Key should expire")
 }
 
 func (s *StorageTestSuite[T, D, C]) TestDelete() {
