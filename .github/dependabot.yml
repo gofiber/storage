@@ -65,6 +65,9 @@ updates:
               patterns:
                   - "github.com/shirou/gopsutil"
                   - "github.com/shirou/gopsutil/**"
+          morikuni-modules:
+              patterns:
+                  - "github.com/morikuni/**"
           klauspost-modules:
               patterns:
                   - "github.com/klauspost/**"
