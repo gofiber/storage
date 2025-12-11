@@ -318,9 +318,12 @@ func (s *StorageTestSuite[T, D, C]) TestGetExpired() {
 	s.setValueWithTTL("temp_key", []byte("temp_value"), 500*time.Millisecond)
 
 	s.Eventually(func() bool {
-		s.requireKeyNotExists("temp_key")
-		return true
-	}, 2*time.Second, 1*time.Second, "Key should expire")
+		val, err := s.store.Get("temp_key")
+		if err != nil {
+			return false
+		}
+		return len(val) == 0
+	}, 2*time.Second, 100*time.Millisecond, "Key should expire")
 }
 
 func (s *StorageTestSuite[T, D, C]) TestDelete() {
