@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1765439841565,
+  "lastUpdate": 1766043795548,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -1248,6 +1248,102 @@ window.BENCHMARK_DATA = {
             "value": 4,
             "unit": "allocs/op",
             "extra": "5239 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "becbbc3dee9014d69ac94f79b915885f98838ddd",
+          "message": "Merge pull request #2293 from gofiber/dependabot/go_modules/aerospike/shirou-modules-2205efe4f5",
+          "timestamp": "2025-12-18T08:40:37+01:00",
+          "tree_id": "a76bae0f6a6534b4d530476e7ec1f956cb762de3",
+          "url": "https://github.com/gofiber/storage/commit/becbbc3dee9014d69ac94f79b915885f98838ddd"
+        },
+        "date": 1766043791472,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Memcache_Set",
+            "value": 125606,
+            "unit": "ns/op\t      35 B/op\t       3 allocs/op",
+            "extra": "9638 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - ns/op",
+            "value": 125606,
+            "unit": "ns/op",
+            "extra": "9638 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - B/op",
+            "value": 35,
+            "unit": "B/op",
+            "extra": "9638 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "9638 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get",
+            "value": 122780,
+            "unit": "ns/op\t      96 B/op\t       4 allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - ns/op",
+            "value": 122780,
+            "unit": "ns/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - B/op",
+            "value": 96,
+            "unit": "B/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_Get - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete",
+            "value": 245470,
+            "unit": "ns/op\t      51 B/op\t       4 allocs/op",
+            "extra": "4898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - ns/op",
+            "value": 245470,
+            "unit": "ns/op",
+            "extra": "4898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - B/op",
+            "value": 51,
+            "unit": "B/op",
+            "extra": "4898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memcache_SetAndDelete - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "4898 times\n4 procs"
           }
         ]
       }
