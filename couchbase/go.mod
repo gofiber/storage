@@ -21,7 +21,7 @@ require (
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/couchbase/gocbcore/v10 v10.8.1 // indirect
 	github.com/couchbase/gocbcoreps v0.1.4 // indirect
-	github.com/couchbase/goprotostellar v1.0.2 // indirect
+	github.com/couchbase/goprotostellar v1.0.5 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
