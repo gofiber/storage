@@ -30,8 +30,8 @@ github.com/couchbase/gocbcore/v10 v10.8.1 h1:i4SnH0DH9APGC4GS2vS2m+3u08V7oJwviam
 github.com/couchbase/gocbcore/v10 v10.8.1/go.mod h1:OWKfU9R5Nm5V3QZBtfdZl5qCfgxtxTqOgXiNr4pn9/c=
 github.com/couchbase/gocbcoreps v0.1.4 h1:/iZVHMpuEw3lyNz9mIahMQffJOurl/opXyOGads/JbI=
 github.com/couchbase/gocbcoreps v0.1.4/go.mod h1:hBFpDNPnRno6HH5cRXExhqXYRmTsFJlFHQx7vztcXPk=
-github.com/couchbase/goprotostellar v1.0.2 h1:yoPbAL9sCtcyZ5e/DcU5PRMOEFaJrF9awXYu3VPfGls=
-github.com/couchbase/goprotostellar v1.0.2/go.mod h1:5/yqVnZlW2/NSbAWu1hPJCFBEwjxgpe0PFFOlRixnp4=
+github.com/couchbase/goprotostellar v1.0.5 h1:pmR4H87zbYymIdTR1owyUZsfQ7NupkfCuNLW4FIPBhE=
+github.com/couchbase/goprotostellar v1.0.5/go.mod h1:X58ot5FRqlBTBkwG/oI4klunpu4MApjGktheqeRWQw0=
 github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8 h1:MQfvw4BiLTuyR69FuA5Kex+tXUeLkH+/ucJfVL1/hkM=
 github.com/couchbaselabs/gocaves/client v0.0.0-20250107114554-f96479220ae8/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=
 github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 h1:HU9DlAYYWR69jQnLN6cpg0fh0hxW/8d5hnglCXXjW78=
