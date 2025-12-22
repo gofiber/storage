@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/arangodb/go-driver v1.6.9
-	github.com/gofiber/utils/v2 v2.0.0-rc.4
+	github.com/gofiber/utils/v2 v2.0.0-rc.5
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/arangodb v0.40.0
