@@ -1,10 +1,10 @@
 module github.com/gofiber/storage/rueidis
 
-go 1.24.0
+go 1.24.9
 
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-20251121011818-7435afb6bca2
-	github.com/redis/rueidis v1.0.69
+	github.com/redis/rueidis v1.0.70
 	github.com/stretchr/testify v1.11.1
 )
 
