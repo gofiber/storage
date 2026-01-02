@@ -16,10 +16,14 @@ jobs:
       - name: Generate filters
         id: filter-setup
         run: |
-          filters=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
-          echo "filters<<EOF" >> $GITHUB_OUTPUT
-          echo "$filters" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            # Add filter for core package (root directory files)
+            filters="core: [\"*.go\", \"*.md\", \"go.mod\", \"go.sum\"]"
+            filters+=$'\n'
+            # Add filters for subdirectories
+            filters+=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+            echo "filters<<EOF" >> $GITHUB_OUTPUT
+            echo "$filters" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
         shell: bash
       - name: Filter changes
         id: filter
