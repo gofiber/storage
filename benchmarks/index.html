@@ -153,12 +153,90 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="data.js"></script>
 <script id="main-script">
     'use strict';
     (function () {
         // Colors from https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
         const colors = ['#00add8', '#dea584', '#f1e05a', '#000080', '#3572a5', '#f34b7d', '#a270ba', '#b07219', '#178600', '#38ff38', '#ff3838', '#333333', '#800000', '#FF5733', '#33FF57', '#E833FF', '#FF5733', '#5733FF', '#33A6FF', '#FF33E3', '#ff8133', '#FFFF33', '#33FFFF', '#FF3333', '#33FF33', '#3333FF'];
+
+        const benchmarkPrefixRegEx = /^\s*window\.BENCHMARK_DATA\s*=\s*/;
+        const downloadButton = document.getElementById('dl-button');
+        const mainElement = document.getElementById('main');
+
+        function escapeRegExp(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        async function fetchFolderList() {
+            try {
+                const response = await fetch('folders.json', {cache: 'no-cache'});
+                if (!response.ok) {
+                    throw new Error('folders.json missing');
+                }
+
+                const folders = await response.json();
+                return Array.isArray(folders) ? folders : [];
+            } catch (error) {
+                console.error('Could not load folder list', error);
+                return [];
+            }
+        }
+
+        function parseBenchmarkText(content) {
+            const jsonText = content.replace(benchmarkPrefixRegEx, '').replace(/;\s*$/, '').trim();
+            return JSON.parse(jsonText);
+        }
+
+        async function fetchBenchmarkData(path) {
+            const response = await fetch(path, {cache: 'no-cache'});
+            if (!response.ok) {
+                throw new Error(`${path} not found`);
+            }
+            return parseBenchmarkText(await response.text());
+        }
+
+        async function loadAndMergeBenchmarks(folders) {
+            const merged = {lastUpdate: 0, repoUrl: '', entries: {Benchmark: []}};
+
+            for (const folder of folders) {
+                try {
+                    const data = await fetchBenchmarkData(`${folder}/data.js`);
+                    if (!merged.repoUrl && data.repoUrl) {
+                        merged.repoUrl = data.repoUrl;
+                    }
+                    merged.lastUpdate = Math.max(merged.lastUpdate, data.lastUpdate || 0);
+
+                    if (Array.isArray(data?.entries?.Benchmark)) {
+                        merged.entries.Benchmark.push(...data.entries.Benchmark);
+                    }
+                } catch (error) {
+                    console.error(`Could not load benchmarks for "${folder}"`, error);
+                }
+            }
+
+            if (merged.entries.Benchmark.length === 0) {
+                try {
+                    return await fetchBenchmarkData('data.js');
+                } catch (error) {
+                    console.error('Fallback to root data.js failed', error);
+                }
+            }
+
+            return merged;
+        }
+
+        function derivePackages(benchmarkEntries) {
+            const set = new Set();
+            for (const entry of benchmarkEntries || []) {
+                for (const bench of entry?.benches || []) {
+                    const match = (bench.name || '').match(/Benchmark_([^_\\/]+)[_\\/]/i);
+                    if (match && match[1]) {
+                        set.add(match[1]);
+                    }
+                }
+            }
+            return Array.from(set);
+        }
 
         function addBench(map, name, result) {
             const arr = map.get(name);
@@ -170,12 +248,14 @@
         }
 
         function collectBenchesPerTestCase(entries, grouping) {
+            const pkgRegEx = window.pkgRegEx;
             const map = new Map();
             for (const entry of entries) {
                 const {commit, date, tool, benches} = entry;
                 for (const bench of benches) {
                     const result = {commit, date, tool, bench};
-                    if (grouping && pkgRegEx.test(bench.name)) {
+                    const hasGrouping = grouping && pkgRegEx && pkgRegEx.test(bench.name);
+                    if (hasGrouping) {
                         const pkgName = bench.name.match(pkgRegEx)[1];
                         bench.name = bench.name.replace(pkgRegEx, '_');
                         const pkgMap = map.get(bench.name) || new Map();
@@ -191,21 +271,25 @@
 
         function init(packages) {
             const data = window.BENCHMARK_DATA;
+            if (!data || !data.entries) {
+                throw new Error('No benchmark data available');
+            }
             // make a copy of the original data
-            let dataEntries = JSON.parse(JSON.stringify(data.entries));
-            dataEntries.Benchmark = dataEntries.Benchmark.map((item) => {
+            let dataEntries = JSON.parse(JSON.stringify(data.entries || {}));
+            const benchmarkEntries = Array.isArray(dataEntries.Benchmark) ? dataEntries.Benchmark : [];
+            dataEntries.Benchmark = benchmarkEntries.map((item) => {
                 item.benches = item.benches.filter((benchData) => benchData.unit.includes('ns/op'));
                 return item;
             });
 
             // Render header
-            document.getElementById('last-update').textContent = new Date(data.lastUpdate).toString();
+            document.getElementById('last-update').textContent = data.lastUpdate ? new Date(data.lastUpdate).toString() : 'Unknown';
             const repoLink = document.getElementById('repository-link');
-            repoLink.href = data.repoUrl;
-            repoLink.textContent = data.repoUrl;
+            repoLink.href = data.repoUrl || '#';
+            repoLink.textContent = data.repoUrl || 'Unknown';
 
             // Render footer
-            document.getElementById('dl-button').onclick = () => {
+            downloadButton.onclick = () => {
                 const dataUrl = 'data:,' + JSON.stringify(data, null, 2);
                 const a = document.createElement('a');
                 a.href = dataUrl;
@@ -220,20 +304,6 @@
             }));
         }
 
-        function fetchPackageNames(repoUrl) {
-            // GitHub Repository-URL
-            repoUrl = repoUrl.replace('github.com', 'api.github.com/repos') + '/contents';
-            // Fetch-Anfrage, um die Repository-Inhalte abzurufen
-            return fetch(repoUrl, {method: 'GET'})
-                .then(response => response.json())
-                .then(data => {
-                    return data.filter(item => item.type === 'dir' && item.name !== '.github').map((item => item.name));
-                })
-                .catch(error => {
-                    console.error('Fehler beim Abrufen der Daten:', error);
-                });
-        }
-
         function toDataSet(name, dataset, color) {
             return {
                 label: name,
@@ -245,13 +315,13 @@
         }
 
         function getColorForName(name) {
-            const pkgName = name.match(pkgRegEx)?.[1] || name;
+            const pkgName = (window.pkgRegEx ? name.match(window.pkgRegEx)?.[1] : null) || name;
             let colorIndex = window.packages.findIndex((p) => p.toLowerCase() === pkgName.toLowerCase());
             if (colorIndex === -1) {
                 colorIndex = 0;
             }
 
-            return colors[colorIndex];
+            return colors[colorIndex % colors.length];
         }
 
         function renderGraph(parent, name, dataset) {
@@ -356,14 +426,24 @@
             }
         }
 
-        window.grouping = true;
-        fetchPackageNames(window.BENCHMARK_DATA.repoUrl).then((packages) => {
-            window.packages = packages;
-            window.pkgRegEx = new RegExp('_(' + packages.join('|') + ')(/|_)', 'i');
-            renderAllChars(init(window.packages)); // Start
+        async function bootstrap() {
+            window.grouping = true;
+            const folders = await fetchFolderList();
+            window.BENCHMARK_DATA = await loadAndMergeBenchmarks(folders);
+            window.packages = derivePackages(window.BENCHMARK_DATA.entries?.Benchmark);
+            window.pkgRegEx = window.packages.length ? new RegExp('_(' + window.packages.map(escapeRegExp).join('|') + ')(?=_)', 'i') : null;
+            renderAllChars(init(window.packages));
+        }
+
+        bootstrap().catch((error) => {
+            console.error('Unable to render benchmark data', error);
+            mainElement.textContent = 'Failed to load benchmark data.';
         });
 
         document.querySelector('.switch-light').addEventListener('click', (event) => {
+            if (!window.BENCHMARK_DATA) {
+                return;
+            }
             window.grouping = event.currentTarget.querySelector('input').checked;
             renderAllChars(init(window.packages));
         });
