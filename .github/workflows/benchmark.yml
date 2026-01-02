@@ -146,3 +146,38 @@ jobs:
           #summary-always: ${{ github.event_name != 'push' && github.event_name != 'workflow_dispatch' }}
           auto-push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
           save-data-file: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+  update-folders:
+    needs: compare
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          token: ${{ secrets.BENCHMARK_TOKEN }}
+      - name: Update folders.json
+        run: |
+          mkdir -p benchmarks
+          if [ -d "benchmarks" ]; then
+            # Get all folder names in benchmarks directory
+            folders=$(find benchmarks -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0)) | sort')
+            echo "$folders" > benchmarks/folders.json
+            echo "Created folders.json with content:"
+            cat benchmarks/folders.json
+          else
+            echo "[]" > benchmarks/folders.json
+          fi
+        shell: bash
+      - name: Commit and Push folders.json
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add benchmarks/folders.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update benchmarks/folders.json"
+            git push
+          fi
+        shell: bash

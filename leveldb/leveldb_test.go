@@ -218,7 +218,7 @@ func Test_Close_Channel(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func Benchmark_Set(b *testing.B) {
+func Benchmark_LevelDb_Set(b *testing.B) {
 	db := New()
 	defer func() {
 		_ = db.Close()
@@ -238,7 +238,7 @@ func Benchmark_Set(b *testing.B) {
 	})
 }
 
-func Benchmark_Get(b *testing.B) {
+func Benchmark_LevelDb_Get(b *testing.B) {
 	db := New()
 	defer func() {
 		_ = db.Close()
@@ -261,7 +261,7 @@ func Benchmark_Get(b *testing.B) {
 	})
 }
 
-func Benchmark_Delete(b *testing.B) {
+func Benchmark_LevelDb_Delete(b *testing.B) {
 	db := New()
 	defer func() {
 		_ = db.Close()
