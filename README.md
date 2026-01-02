@@ -101,3 +101,6 @@ type Storage interface {
 - [SQLite3](./sqlite3/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+Sqlite3%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-sqlite3.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [SurrealDB](./surrealdb/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+surrealdb%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-surrealdb.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
 - [Valkey](./valkey/README.md) <a href="https://github.com/gofiber/storage/actions?query=workflow%3A%22Tests+valkey%22"> <img src="https://img.shields.io/github/actions/workflow/status/gofiber/storage/test-valkey.yml?branch=main&label=%F0%9F%A7%AA%20&style=flat&color=75C46B" /> </a>
+
+
+See the benchmarks under https://gofiber.github.io/storage/benchmarks
