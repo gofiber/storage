@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763657592997,
+  "lastUpdate": 1767376161976,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -384,6 +384,102 @@ window.BENCHMARK_DATA = {
             "value": 3,
             "unit": "allocs/op",
             "extra": "428011 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "distinct": true,
+          "id": "60dc4c4dc0b54ba04142e902a2856bbf37456014",
+          "message": "feat(benchmark): add update step for folders.json and rename benchmark functions",
+          "timestamp": "2026-01-02T18:48:30+01:00",
+          "tree_id": "633474454e93e2291b432c273fbeeb5c4f0bd1ae",
+          "url": "https://github.com/gofiber/storage/commit/60dc4c4dc0b54ba04142e902a2856bbf37456014"
+        },
+        "date": 1767376157996,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_LevelDb_Set",
+            "value": 2733,
+            "unit": "ns/op\t     320 B/op\t       3 allocs/op",
+            "extra": "458678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Set - ns/op",
+            "value": 2733,
+            "unit": "ns/op",
+            "extra": "458678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Set - B/op",
+            "value": 320,
+            "unit": "B/op",
+            "extra": "458678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "458678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Get",
+            "value": 446.7,
+            "unit": "ns/op\t     359 B/op\t       9 allocs/op",
+            "extra": "2769908 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Get - ns/op",
+            "value": 446.7,
+            "unit": "ns/op",
+            "extra": "2769908 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Get - B/op",
+            "value": 359,
+            "unit": "B/op",
+            "extra": "2769908 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Get - allocs/op",
+            "value": 9,
+            "unit": "allocs/op",
+            "extra": "2769908 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Delete",
+            "value": 2684,
+            "unit": "ns/op\t     300 B/op\t       3 allocs/op",
+            "extra": "440941 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Delete - ns/op",
+            "value": 2684,
+            "unit": "ns/op",
+            "extra": "440941 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Delete - B/op",
+            "value": 300,
+            "unit": "B/op",
+            "extra": "440941 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_LevelDb_Delete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "440941 times\n4 procs"
           }
         ]
       }
