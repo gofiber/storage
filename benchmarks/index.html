@@ -427,6 +427,10 @@
         }
 
         async function bootstrap() {
+            const groupingInput = document.querySelector('.switch-light input');
+            if (groupingInput) {
+                groupingInput.checked = true;
+            }
             window.grouping = true;
             const folders = await fetchFolderList();
             window.BENCHMARK_DATA = await loadAndMergeBenchmarks(folders);
