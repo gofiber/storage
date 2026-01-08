@@ -129,7 +129,7 @@ jobs:
           TEST_VALKEY_IMAGE: "valkey/valkey:8"
           COHERENCE_LOG_LEVEL: "ERROR"
       - name: Get Previous Benchmark Results
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark-${{ matrix.package }}
