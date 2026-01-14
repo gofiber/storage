@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768377467339,
+  "lastUpdate": 1768377583040,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2496,6 +2496,102 @@ window.BENCHMARK_DATA = {
             "value": 155,
             "unit": "allocs/op",
             "extra": "610 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "distinct": true,
+          "id": "a01817d47a2bb79f1136838c2a4faa2316e46c14",
+          "message": "docs: update README and CI configurations to reflect supported Go versions",
+          "timestamp": "2026-01-14T08:57:39+01:00",
+          "tree_id": "70101c3079b0284d0c2d4347012163cc30083b69",
+          "url": "https://github.com/gofiber/storage/commit/a01817d47a2bb79f1136838c2a4faa2316e46c14"
+        },
+        "date": 1768377578897,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Clickhouse_Set",
+            "value": 1346244,
+            "unit": "ns/op\t    6165 B/op\t     108 allocs/op",
+            "extra": "974 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - ns/op",
+            "value": 1346244,
+            "unit": "ns/op",
+            "extra": "974 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - B/op",
+            "value": 6165,
+            "unit": "B/op",
+            "extra": "974 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - allocs/op",
+            "value": 108,
+            "unit": "allocs/op",
+            "extra": "974 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get",
+            "value": 964678,
+            "unit": "ns/op\t    7861 B/op\t     146 allocs/op",
+            "extra": "1238 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - ns/op",
+            "value": 964678,
+            "unit": "ns/op",
+            "extra": "1238 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - B/op",
+            "value": 7861,
+            "unit": "B/op",
+            "extra": "1238 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - allocs/op",
+            "value": 146,
+            "unit": "allocs/op",
+            "extra": "1238 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete",
+            "value": 1964061,
+            "unit": "ns/op\t    8338 B/op\t     155 allocs/op",
+            "extra": "601 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - ns/op",
+            "value": 1964061,
+            "unit": "ns/op",
+            "extra": "601 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - B/op",
+            "value": 8338,
+            "unit": "B/op",
+            "extra": "601 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - allocs/op",
+            "value": 155,
+            "unit": "allocs/op",
+            "extra": "601 times\n4 procs"
           }
         ]
       }
