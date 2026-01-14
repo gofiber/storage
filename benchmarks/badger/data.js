@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768376584871,
+  "lastUpdate": 1768377476835,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2400,6 +2400,102 @@ window.BENCHMARK_DATA = {
             "value": 76,
             "unit": "allocs/op",
             "extra": "71575 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "32ff87fcb337f96d9fbe4432c5627ababe2e2461",
+          "message": "Merge pull request #2309 from gofiber/dependabot/go_modules/aerospike/klauspost-modules-a7c9063f57",
+          "timestamp": "2026-01-14T08:38:21+01:00",
+          "tree_id": "383901a6a88d23dfe0a101c3ed48e95d0041ede9",
+          "url": "https://github.com/gofiber/storage/commit/32ff87fcb337f96d9fbe4432c5627ababe2e2461"
+        },
+        "date": 1768377472645,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Badger_Set",
+            "value": 8676,
+            "unit": "ns/op\t    1478 B/op\t      38 allocs/op",
+            "extra": "138195 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - ns/op",
+            "value": 8676,
+            "unit": "ns/op",
+            "extra": "138195 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - B/op",
+            "value": 1478,
+            "unit": "B/op",
+            "extra": "138195 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Set - allocs/op",
+            "value": 38,
+            "unit": "allocs/op",
+            "extra": "138195 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get",
+            "value": 991.4,
+            "unit": "ns/op\t     416 B/op\t      12 allocs/op",
+            "extra": "1230932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - ns/op",
+            "value": 991.4,
+            "unit": "ns/op",
+            "extra": "1230932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - B/op",
+            "value": 416,
+            "unit": "B/op",
+            "extra": "1230932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_Get - allocs/op",
+            "value": 12,
+            "unit": "allocs/op",
+            "extra": "1230932 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete",
+            "value": 17641,
+            "unit": "ns/op\t    2944 B/op\t      76 allocs/op",
+            "extra": "63104 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - ns/op",
+            "value": 17641,
+            "unit": "ns/op",
+            "extra": "63104 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - B/op",
+            "value": 2944,
+            "unit": "B/op",
+            "extra": "63104 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Badger_SetAndDelete - allocs/op",
+            "value": 76,
+            "unit": "allocs/op",
+            "extra": "63104 times\n4 procs"
           }
         ]
       }
