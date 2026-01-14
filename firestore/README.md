@@ -38,7 +38,7 @@ func (s *Storage) Conn() *firestore.Client
 
 ### Installation
 
-Firestore is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Firestore is tested on the last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 
 ```bash
 go mod init github.com/<user>/<repo>
