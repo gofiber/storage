@@ -2,6 +2,8 @@ module github.com/gofiber/storage/valkey
 
 go 1.24.0
 
+replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
+
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.1.0
 	github.com/stretchr/testify v1.11.1
