@@ -2,6 +2,8 @@ module github.com/gofiber/storage/redis/v3
 
 go 1.24.0
 
+replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
+
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.1.0
 	github.com/redis/go-redis/v9 v9.17.2
