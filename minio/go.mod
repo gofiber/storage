@@ -3,7 +3,7 @@ module github.com/gofiber/storage/minio
 go 1.24.0
 
 require (
-	github.com/minio/minio-go/v7 v7.0.97
+	github.com/minio/minio-go/v7 v7.0.98
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.40.0
@@ -68,6 +68,7 @@ require (
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
