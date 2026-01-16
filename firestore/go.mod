@@ -3,7 +3,7 @@ module github.com/gofiber/storage/firestore
 go 1.25.0
 
 require (
-	cloud.google.com/go/firestore v1.20.0
+	cloud.google.com/go/firestore v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.40.0
