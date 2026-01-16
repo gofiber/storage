@@ -52,6 +52,10 @@ updates:
           go-logr-modules:
               patterns:
                   - "github.com/go-logr/**"
+          logrus-modules:
+              patterns:
+                  - "github.com/sirupsen/logrus"
+                  - "github.com/sirupsen/logrus/**"
           go-ole-modules:
               patterns:
                   - "github.com/go-ole/**"
