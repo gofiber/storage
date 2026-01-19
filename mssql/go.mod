@@ -3,7 +3,7 @@ module github.com/gofiber/storage/mssql/v2
 go 1.24.0
 
 require (
-	github.com/microsoft/go-mssqldb v1.9.5
+	github.com/microsoft/go-mssqldb v1.9.6
 	github.com/stretchr/testify v1.11.1
 )
 
