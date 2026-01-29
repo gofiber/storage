@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769066306015,
+  "lastUpdate": 1769671294663,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2592,6 +2592,102 @@ window.BENCHMARK_DATA = {
             "value": 189,
             "unit": "allocs/op",
             "extra": "388 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa3a97855d0da53ec0205aa676526e8756721fd1",
+          "message": "Merge pull request #2450 from gofiber/dependabot/go_modules/aerospike/grpc-gateway-modules-d980216198\n\nchore(deps): bump the grpc-gateway-modules group across 17 directories with 1 update",
+          "timestamp": "2026-01-29T08:17:06+01:00",
+          "tree_id": "c8f8fe99ce6c653abae810ef180d558605f471e6",
+          "url": "https://github.com/gofiber/storage/commit/fa3a97855d0da53ec0205aa676526e8756721fd1"
+        },
+        "date": 1769671290667,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_MYSQL_Set",
+            "value": 984176,
+            "unit": "ns/op\t    9760 B/op\t      97 allocs/op",
+            "extra": "1165 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - ns/op",
+            "value": 984176,
+            "unit": "ns/op",
+            "extra": "1165 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - B/op",
+            "value": 9760,
+            "unit": "B/op",
+            "extra": "1165 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Set - allocs/op",
+            "value": 97,
+            "unit": "allocs/op",
+            "extra": "1165 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get",
+            "value": 979447,
+            "unit": "ns/op\t    9732 B/op\t     104 allocs/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - ns/op",
+            "value": 979447,
+            "unit": "ns/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - B/op",
+            "value": 9732,
+            "unit": "B/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_Get - allocs/op",
+            "value": 104,
+            "unit": "allocs/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete",
+            "value": 2883107,
+            "unit": "ns/op\t   18961 B/op\t     189 allocs/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - ns/op",
+            "value": 2883107,
+            "unit": "ns/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - B/op",
+            "value": 18961,
+            "unit": "B/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MYSQL_SetAndDelete - allocs/op",
+            "value": 189,
+            "unit": "allocs/op",
+            "extra": "403 times\n4 procs"
           }
         ]
       }
