@@ -184,6 +184,13 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// DisableStartupCheck skips the initial connection validation during New.
+	// When true and client creation fails, New returns a Storage whose
+	// operations surface the initialization error instead of panicking.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
+
 	// CacheTTL TTL
 	//
 	// Optional. Default is time.Minute
@@ -210,6 +217,7 @@ var ConfigDefault = Config{
 	DisableCache:        false,
 	AlwaysPipelining:    true,
 	Reset:               false,
+	DisableStartupCheck: false,
 	CacheTTL:            time.Minute,
 }
 ```
