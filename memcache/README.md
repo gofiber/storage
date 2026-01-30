@@ -73,6 +73,11 @@ type Config struct {
 	//
 	// Optional. Default is false
 	Reset bool
+
+	// DisableStartupCheck skips the initial connection validation during New.
+	//
+	// Optional. Default is false
+	DisableStartupCheck bool
 }
 ```
 
@@ -80,5 +85,6 @@ type Config struct {
 ```go
 var ConfigDefault = Config{
 	Servers:      "127.0.0.1:11211",
+	DisableStartupCheck: false,
 }
 ```

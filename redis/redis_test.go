@@ -198,6 +198,19 @@ func Test_Redis_Delete(t *testing.T) {
 	require.Nil(t, keys)
 }
 
+func Test_Redis_New_DisableStartupCheck(t *testing.T) {
+	require.NotPanics(t, func() {
+		store := New(Config{
+			Host:                "127.0.0.1",
+			Port:                6390,
+			Addrs:               []string{"127.0.0.1:6390"},
+			DisableStartupCheck: true,
+		})
+		require.NotNil(t, store)
+		_ = store.Close()
+	})
+}
+
 func Test_Redis_DeleteWithContext(t *testing.T) {
 	var (
 		key = "john"
