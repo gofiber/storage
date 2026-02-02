@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769757407729,
+  "lastUpdate": 1770017585383,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -3744,6 +3744,102 @@ window.BENCHMARK_DATA = {
             "value": 69,
             "unit": "allocs/op",
             "extra": "1893 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53003ff57a666aa7b760e8b2b4bb1b93f6e09571",
+          "message": "Merge pull request #2460 from gofiber/dependabot/go_modules/nats/github.com/nats-io/nkeys-0.4.15\n\nchore(deps): bump github.com/nats-io/nkeys from 0.4.14 to 0.4.15 in /nats",
+          "timestamp": "2026-02-02T08:31:25+01:00",
+          "tree_id": "dc724e34432aa5f490b63cefcd954586a783c5b9",
+          "url": "https://github.com/gofiber/storage/commit/53003ff57a666aa7b760e8b2b4bb1b93f6e09571"
+        },
+        "date": 1770017580672,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Nats_Set",
+            "value": 283561,
+            "unit": "ns/op\t    2609 B/op\t      42 allocs/op",
+            "extra": "4126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Set - ns/op",
+            "value": 283561,
+            "unit": "ns/op",
+            "extra": "4126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Set - B/op",
+            "value": 2609,
+            "unit": "B/op",
+            "extra": "4126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Set - allocs/op",
+            "value": 42,
+            "unit": "allocs/op",
+            "extra": "4126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Get",
+            "value": 274024,
+            "unit": "ns/op\t    2252 B/op\t      39 allocs/op",
+            "extra": "4198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Get - ns/op",
+            "value": 274024,
+            "unit": "ns/op",
+            "extra": "4198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Get - B/op",
+            "value": 2252,
+            "unit": "B/op",
+            "extra": "4198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_Get - allocs/op",
+            "value": 39,
+            "unit": "allocs/op",
+            "extra": "4198 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_SetAndDelete",
+            "value": 556349,
+            "unit": "ns/op\t    4132 B/op\t      69 allocs/op",
+            "extra": "2173 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_SetAndDelete - ns/op",
+            "value": 556349,
+            "unit": "ns/op",
+            "extra": "2173 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_SetAndDelete - B/op",
+            "value": 4132,
+            "unit": "B/op",
+            "extra": "2173 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Nats_SetAndDelete - allocs/op",
+            "value": 69,
+            "unit": "allocs/op",
+            "extra": "2173 times\n4 procs"
           }
         ]
       }
