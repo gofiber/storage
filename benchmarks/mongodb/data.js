@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770017627731,
+  "lastUpdate": 1770017883035,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -3264,6 +3264,102 @@ window.BENCHMARK_DATA = {
             "value": 155,
             "unit": "allocs/op",
             "extra": "1620 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8bff5a354fb8012e046c7af091ef7ab317148fd2",
+          "message": "Merge pull request #2458 from gofiber/dependabot/go_modules/aerospike/shirou-modules-780478747e\n\nchore(deps): bump the shirou-modules group across 25 directories with 1 update",
+          "timestamp": "2026-02-02T08:32:06+01:00",
+          "tree_id": "a7e435370484fe153e24e8124efa1aa935a60a6a",
+          "url": "https://github.com/gofiber/storage/commit/8bff5a354fb8012e046c7af091ef7ab317148fd2"
+        },
+        "date": 1770017878181,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_MongoDB_Set",
+            "value": 343136,
+            "unit": "ns/op\t    6470 B/op\t      88 allocs/op",
+            "extra": "3399 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - ns/op",
+            "value": 343136,
+            "unit": "ns/op",
+            "extra": "3399 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - B/op",
+            "value": 6470,
+            "unit": "B/op",
+            "extra": "3399 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - allocs/op",
+            "value": 88,
+            "unit": "allocs/op",
+            "extra": "3399 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get",
+            "value": 317007,
+            "unit": "ns/op\t    7463 B/op\t      79 allocs/op",
+            "extra": "3723 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - ns/op",
+            "value": 317007,
+            "unit": "ns/op",
+            "extra": "3723 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - B/op",
+            "value": 7463,
+            "unit": "B/op",
+            "extra": "3723 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - allocs/op",
+            "value": 79,
+            "unit": "allocs/op",
+            "extra": "3723 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete",
+            "value": 716947,
+            "unit": "ns/op\t   11541 B/op\t     155 allocs/op",
+            "extra": "1664 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - ns/op",
+            "value": 716947,
+            "unit": "ns/op",
+            "extra": "1664 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - B/op",
+            "value": 11541,
+            "unit": "B/op",
+            "extra": "1664 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - allocs/op",
+            "value": 155,
+            "unit": "allocs/op",
+            "extra": "1664 times\n4 procs"
           }
         ]
       }
