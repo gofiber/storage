@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770017929054,
+  "lastUpdate": 1770108198319,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -3840,6 +3840,102 @@ window.BENCHMARK_DATA = {
             "value": 170,
             "unit": "allocs/op",
             "extra": "686 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "205fb777dcd9e87d8cee3d907d0346bf1a0f98a2",
+          "message": "Merge pull request #2462 from gofiber/dependabot/go_modules/aerospike/opentelemetry-modules-a50a55491e\n\nchore(deps): bump the opentelemetry-modules group across 25 directories with 6 updates",
+          "timestamp": "2026-02-03T09:39:34+01:00",
+          "tree_id": "02ec0069a8ab255423484ef50bce7e9703957bd4",
+          "url": "https://github.com/gofiber/storage/commit/205fb777dcd9e87d8cee3d907d0346bf1a0f98a2"
+        },
+        "date": 1770108194402,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Clickhouse_Set",
+            "value": 1353298,
+            "unit": "ns/op\t    6879 B/op\t     117 allocs/op",
+            "extra": "968 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - ns/op",
+            "value": 1353298,
+            "unit": "ns/op",
+            "extra": "968 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - B/op",
+            "value": 6879,
+            "unit": "B/op",
+            "extra": "968 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - allocs/op",
+            "value": 117,
+            "unit": "allocs/op",
+            "extra": "968 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get",
+            "value": 995151,
+            "unit": "ns/op\t    9404 B/op\t     164 allocs/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - ns/op",
+            "value": 995151,
+            "unit": "ns/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - B/op",
+            "value": 9404,
+            "unit": "B/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - allocs/op",
+            "value": 164,
+            "unit": "allocs/op",
+            "extra": "1196 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete",
+            "value": 1984695,
+            "unit": "ns/op\t    9408 B/op\t     170 allocs/op",
+            "extra": "600 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - ns/op",
+            "value": 1984695,
+            "unit": "ns/op",
+            "extra": "600 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - B/op",
+            "value": 9408,
+            "unit": "B/op",
+            "extra": "600 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - allocs/op",
+            "value": 170,
+            "unit": "allocs/op",
+            "extra": "600 times\n4 procs"
           }
         ]
       }
