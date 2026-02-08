@@ -64,6 +64,29 @@ func newTestStoreWithConfig(t testing.TB, cfg Config) *Storage {
 	return New(cfg)
 }
 
+func tablePersistence(t testing.TB, store *Storage, fullTableName string) string {
+	t.Helper()
+
+	schema := "public"
+	tableName := fullTableName
+	if strings.Contains(fullTableName, ".") {
+		parts := strings.SplitN(fullTableName, ".", 2)
+		schema = parts[0]
+		tableName = parts[1]
+	}
+
+	var persistence string
+	err := store.Conn().QueryRow(context.Background(), `
+		SELECT c.relpersistence::text
+		FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = $1 AND c.relname = $2;
+	`, schema, tableName).Scan(&persistence)
+	require.NoError(t, err)
+
+	return persistence
+}
+
 func TestNoCreateUser(t *testing.T) {
 	cfg := newTestConfig(t)
 
@@ -202,6 +225,28 @@ func TestNoCreateUser(t *testing.T) {
 	})
 
 }
+
+func Test_Postgres_DefaultTableIsLogged(t *testing.T) {
+	cfg := newTestConfig(t)
+	cfg.Table = "public.logged_table_" + strconv.Itoa(int(time.Now().UnixNano()))
+
+	store := newTestStoreWithConfig(t, cfg)
+	defer store.Close()
+
+	require.Equal(t, "p", tablePersistence(t, store, cfg.Table))
+}
+
+func Test_Postgres_UnloggedTable(t *testing.T) {
+	cfg := newTestConfig(t)
+	cfg.Table = "public.unlogged_table_" + strconv.Itoa(int(time.Now().UnixNano()))
+	cfg.Unlogged = true
+
+	store := newTestStoreWithConfig(t, cfg)
+	defer store.Close()
+
+	require.Equal(t, "u", tablePersistence(t, store, cfg.Table))
+}
+
 func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()

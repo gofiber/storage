@@ -33,18 +33,16 @@ var (
 		FROM information_schema.tables
 		WHERE table_schema = '%s'
 		AND table_name = '%s';`
-	initQuery = []string{
-		`CREATE TABLE %s (
+	createTableQuery = `CREATE %sTABLE %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
-		);`,
-		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
-	}
-	checkSchemaQuery = `SELECT column_name, data_type 
+		);`
+	createIndexQuery = `CREATE INDEX IF NOT EXISTS e ON %s (e);`
+	checkSchemaQuery = `SELECT column_name, data_type
 		FROM information_schema.columns
-		WHERE table_schema = '%s' 
-			AND table_name = '%s' 
+		WHERE table_schema = '%s'
+			AND table_name = '%s'
 			AND column_name IN ('k','v','e');`
 	checkSchemaTargetDataType = map[string]string{
 		"k": "character varying",
@@ -52,6 +50,14 @@ var (
 		"e": "bigint",
 	}
 )
+
+func createTableTypeClause(unlogged bool) string {
+	if unlogged {
+		return "UNLOGGED "
+	}
+
+	return ""
+}
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -101,8 +107,11 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	if !tableExists {
-		for _, query := range initQuery {
-			if _, err := db.Exec(context.Background(), fmt.Sprintf(query, cfg.Table)); err != nil {
+		for _, query := range []string{
+			fmt.Sprintf(createTableQuery, createTableTypeClause(cfg.Unlogged), cfg.Table),
+			fmt.Sprintf(createIndexQuery, cfg.Table),
+		} {
+			if _, err := db.Exec(context.Background(), query); err != nil {
 				db.Close()
 				panic(err)
 			}

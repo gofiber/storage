@@ -59,6 +59,7 @@ store := postgres.New(postgres.Config{
 	DB:              dbPool,
 	Table:           "fiber_storage",
 	Reset:           false,
+	Unlogged:        false,
 	GCInterval:      10 * time.Second,
 })
 ```
@@ -117,6 +118,13 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
+	// Unlogged creates the table as UNLOGGED.
+	// Applies only when the table is created.
+	//
+	// Optional. Default is false
+	// Warning: UNLOGGED tables are not crash-safe and are not replicated.
+	Unlogged bool
+
 	// Time before deleting expired keys
 	//
 	// Optional. Default is 10 * time.Second
@@ -135,6 +143,7 @@ var ConfigDefault = Config{
 	Table:         "fiber_storage",
 	SSLMode:       "disable",
 	Reset:         false,
+	Unlogged:      false,
 	GCInterval:    10 * time.Second,
 }
 ```
