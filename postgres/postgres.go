@@ -38,7 +38,7 @@ var (
 			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
 		);`
-	createIndexQuery = `CREATE INDEX IF NOT EXISTS e ON %s (e);`
+	createIndexQuery = `CREATE INDEX IF NOT EXISTS %s ON %s (e);`
 	checkSchemaQuery = `SELECT column_name, data_type
 		FROM information_schema.columns
 		WHERE table_schema = '%s'
@@ -86,10 +86,12 @@ func New(config ...Config) *Storage {
 		schema = strings.Split(cfg.Table, ".")[0]
 		tableName = strings.Split(cfg.Table, ".")[1]
 	}
+	fullTableName := pgx.Identifier([]string{schema, tableName}).Sanitize()
+	indexName := pgx.Identifier([]string{"idx_" + tableName + "_e"}).Sanitize()
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, fullTableName)); err != nil {
 			db.Close()
 			panic(err)
 		}
@@ -108,8 +110,8 @@ func New(config ...Config) *Storage {
 	// Init database queries
 	if !tableExists {
 		for _, query := range []string{
-			fmt.Sprintf(createTableQuery, createTableTypeClause(cfg.Unlogged), cfg.Table),
-			fmt.Sprintf(createIndexQuery, cfg.Table),
+			fmt.Sprintf(createTableQuery, createTableTypeClause(cfg.Unlogged), fullTableName),
+			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
 			if _, err := db.Exec(context.Background(), query); err != nil {
 				db.Close()
@@ -123,11 +125,11 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
-		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", cfg.Table),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", cfg.Table),
-		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", cfg.Table),
+		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, fullTableName),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", fullTableName),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", fullTableName),
+		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", fullTableName),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
 	store.checkSchema(cfg.Table)
