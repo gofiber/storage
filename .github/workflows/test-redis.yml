@@ -25,7 +25,7 @@ jobs:
       - name: Fetch Repository
         uses: actions/checkout@v6
       - name: Setup Redis Cluster
-        uses: vishnudxb/redis-cluster@1.0.9
+        uses: vishnudxb/redis-cluster@1.10.0
         with:
           master1-port: 7000
           master2-port: 7001
