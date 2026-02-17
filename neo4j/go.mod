@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/neo4j
+module github.com/gofiber/storage/neo4j/v3
 
 go 1.24.0
 
