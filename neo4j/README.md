@@ -45,7 +45,7 @@ go mod init github.com/<user>/<repo>
 And then install the neo4j implementation:
 
 ```bash
-go get github.com/gofiber/storage/neo4j
+go get github.com/gofiber/storage/neo4j/v3
 ```
 
 ### Examples
@@ -53,7 +53,7 @@ go get github.com/gofiber/storage/neo4j
 Import the storage package.
 
 ```go
-import "github.com/gofiber/storage/neo4j"
+import "github.com/gofiber/storage/neo4j/v3"
 ```
 
 You can use the following possibilities to create a storage:
