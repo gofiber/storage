@@ -35,7 +35,7 @@ var (
 		FROM information_schema.tables
 		WHERE table_schema = $1
 		AND table_name = $2;`
-	createTableQuery = `CREATE %sTABLE %s (
+	createTableQuery = `CREATE %s %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
@@ -53,12 +53,12 @@ var (
 	}
 )
 
-func createTableTypeClause(unlogged bool) string {
+func createTableType(unlogged bool) string {
 	if unlogged {
-		return "UNLOGGED "
+		return "UNLOGGED TABLE"
 	}
 
-	return ""
+	return "TABLE"
 }
 
 func buildIndexName(schema, tableName string) string {
@@ -117,7 +117,7 @@ func New(config ...Config) *Storage {
 	// Init database queries
 	if !tableExists {
 		for _, query := range []string{
-			fmt.Sprintf(createTableQuery, createTableTypeClause(cfg.Unlogged), fullTableName),
+			fmt.Sprintf(createTableQuery, createTableType(cfg.Unlogged), fullTableName),
 			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
 			if _, err := db.Exec(context.Background(), query); err != nil {
