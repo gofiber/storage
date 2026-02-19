@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771486466508,
+  "lastUpdate": 1771486957145,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -3936,6 +3936,102 @@ window.BENCHMARK_DATA = {
             "value": 179,
             "unit": "allocs/op",
             "extra": "3378 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "41519717a5842b3ece45cebee23daa223602c929",
+          "message": "Merge pull request #2499 from gofiber/dependabot/go_modules/couchbase/github.com/couchbase/gocbcore/v10-10.9.0\n\nchore(deps): bump github.com/couchbase/gocbcore/v10 from 10.8.1 to 10.9.0 in /couchbase",
+          "timestamp": "2026-02-19T08:34:44+01:00",
+          "tree_id": "9879aff8ab9bb5226b5dd418327c94a039323fd8",
+          "url": "https://github.com/gofiber/storage/commit/41519717a5842b3ece45cebee23daa223602c929"
+        },
+        "date": 1771486952477,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Couchbase_Set",
+            "value": 271474,
+            "unit": "ns/op\t    9608 B/op\t      95 allocs/op",
+            "extra": "4345 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - ns/op",
+            "value": 271474,
+            "unit": "ns/op",
+            "extra": "4345 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - B/op",
+            "value": 9608,
+            "unit": "B/op",
+            "extra": "4345 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - allocs/op",
+            "value": 95,
+            "unit": "allocs/op",
+            "extra": "4345 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get",
+            "value": 250427,
+            "unit": "ns/op\t    4303 B/op\t      89 allocs/op",
+            "extra": "5410 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - ns/op",
+            "value": 250427,
+            "unit": "ns/op",
+            "extra": "5410 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - B/op",
+            "value": 4303,
+            "unit": "B/op",
+            "extra": "5410 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - allocs/op",
+            "value": 89,
+            "unit": "allocs/op",
+            "extra": "5410 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete",
+            "value": 551159,
+            "unit": "ns/op\t   18812 B/op\t     184 allocs/op",
+            "extra": "2175 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - ns/op",
+            "value": 551159,
+            "unit": "ns/op",
+            "extra": "2175 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - B/op",
+            "value": 18812,
+            "unit": "B/op",
+            "extra": "2175 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - allocs/op",
+            "value": 184,
+            "unit": "allocs/op",
+            "extra": "2175 times\n4 procs"
           }
         ]
       }
