@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -59,6 +61,11 @@ func createTableTypeClause(unlogged bool) string {
 	return ""
 }
 
+func buildIndexName(schema, tableName string) string {
+	hash := sha256.Sum256([]byte(schema + "." + tableName + ".e"))
+	return "idx_e_" + hex.EncodeToString(hash[:6])
+}
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -87,7 +94,7 @@ func New(config ...Config) *Storage {
 		tableName = strings.Split(cfg.Table, ".")[1]
 	}
 	fullTableName := pgx.Identifier([]string{schema, tableName}).Sanitize()
-	indexName := pgx.Identifier([]string{"idx_" + tableName + "_e"}).Sanitize()
+	indexName := pgx.Identifier([]string{buildIndexName(schema, tableName)}).Sanitize()
 
 	// Drop table if set to true
 	if cfg.Reset {
