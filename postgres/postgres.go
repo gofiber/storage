@@ -31,8 +31,8 @@ var (
 	dropQuery             = `DROP TABLE IF EXISTS %s;`
 	checkTableExistsQuery = `SELECT COUNT(table_name)
 		FROM information_schema.tables
-		WHERE table_schema = '%s'
-		AND table_name = '%s';`
+		WHERE table_schema = $1
+		AND table_name = $2;`
 	createTableQuery = `CREATE %sTABLE %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 			v  BYTEA NOT NULL,
@@ -41,8 +41,8 @@ var (
 	createIndexQuery = `CREATE INDEX IF NOT EXISTS %s ON %s (e);`
 	checkSchemaQuery = `SELECT column_name, data_type
 		FROM information_schema.columns
-		WHERE table_schema = '%s'
-			AND table_name = '%s'
+		WHERE table_schema = $1
+			AND table_name = $2
 			AND column_name IN ('k','v','e');`
 	checkSchemaTargetDataType = map[string]string{
 		"k": "character varying",
@@ -99,7 +99,7 @@ func New(config ...Config) *Storage {
 
 	// Determine if table exists
 	tableExists := false
-	row := db.QueryRow(context.Background(), fmt.Sprintf(checkTableExistsQuery, schema, tableName))
+	row := db.QueryRow(context.Background(), checkTableExistsQuery, schema, tableName)
 	var count int
 	if err := row.Scan(&count); err != nil {
 		db.Close()
@@ -256,7 +256,7 @@ func (s *Storage) checkSchema(fullTableName string) {
 		tableName = strings.Split(fullTableName, ".")[1]
 	}
 
-	rows, err := s.db.Query(context.Background(), fmt.Sprintf(checkSchemaQuery, schema, tableName))
+	rows, err := s.db.Query(context.Background(), checkSchemaQuery, schema, tableName)
 	if err != nil {
 		panic(err)
 	}
