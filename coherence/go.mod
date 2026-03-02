@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/coherence
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/oracle/coherence-go-client/v2 v2.3.1
@@ -64,7 +64,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/grpc v1.79.1 // indirect
