@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -31,20 +33,18 @@ var (
 	dropQuery             = `DROP TABLE IF EXISTS %s;`
 	checkTableExistsQuery = `SELECT COUNT(table_name)
 		FROM information_schema.tables
-		WHERE table_schema = '%s'
-		AND table_name = '%s';`
-	initQuery = []string{
-		`CREATE TABLE %s (
+		WHERE table_schema = $1
+		AND table_name = $2;`
+	createTableQuery = `CREATE %s %s (
 			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
 			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
-		);`,
-		`CREATE INDEX IF NOT EXISTS e ON %s (e);`,
-	}
-	checkSchemaQuery = `SELECT column_name, data_type 
+		);`
+	createIndexQuery = `CREATE INDEX IF NOT EXISTS %s ON %s (e);`
+	checkSchemaQuery = `SELECT column_name, data_type
 		FROM information_schema.columns
-		WHERE table_schema = '%s' 
-			AND table_name = '%s' 
+		WHERE table_schema = $1
+			AND table_name = $2
 			AND column_name IN ('k','v','e');`
 	checkSchemaTargetDataType = map[string]string{
 		"k": "character varying",
@@ -52,6 +52,19 @@ var (
 		"e": "bigint",
 	}
 )
+
+func createTableType(unlogged bool) string {
+	if unlogged {
+		return "UNLOGGED TABLE"
+	}
+
+	return "TABLE"
+}
+
+func buildIndexName(schema, tableName string) string {
+	hash := sha256.Sum256([]byte(schema + "." + tableName + ".e"))
+	return "idx_e_" + hex.EncodeToString(hash[:6])
+}
 
 // New creates a new storage
 func New(config ...Config) *Storage {
@@ -80,10 +93,12 @@ func New(config ...Config) *Storage {
 		schema = strings.Split(cfg.Table, ".")[0]
 		tableName = strings.Split(cfg.Table, ".")[1]
 	}
+	fullTableName := pgx.Identifier([]string{schema, tableName}).Sanitize()
+	indexName := pgx.Identifier([]string{buildIndexName(schema, tableName)}).Sanitize()
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, fullTableName)); err != nil {
 			db.Close()
 			panic(err)
 		}
@@ -91,7 +106,7 @@ func New(config ...Config) *Storage {
 
 	// Determine if table exists
 	tableExists := false
-	row := db.QueryRow(context.Background(), fmt.Sprintf(checkTableExistsQuery, schema, tableName))
+	row := db.QueryRow(context.Background(), checkTableExistsQuery, schema, tableName)
 	var count int
 	if err := row.Scan(&count); err != nil {
 		db.Close()
@@ -101,8 +116,11 @@ func New(config ...Config) *Storage {
 
 	// Init database queries
 	if !tableExists {
-		for _, query := range initQuery {
-			if _, err := db.Exec(context.Background(), fmt.Sprintf(query, cfg.Table)); err != nil {
+		for _, query := range []string{
+			fmt.Sprintf(createTableQuery, createTableType(cfg.Unlogged), fullTableName),
+			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
+		} {
+			if _, err := db.Exec(context.Background(), query); err != nil {
 				db.Close()
 				panic(err)
 			}
@@ -114,11 +132,11 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
-		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, cfg.Table),
-		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", cfg.Table),
-		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", cfg.Table),
-		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", cfg.Table),
+		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, fullTableName),
+		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", fullTableName),
+		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", fullTableName),
+		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", fullTableName),
+		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
 	store.checkSchema(cfg.Table)
@@ -245,7 +263,7 @@ func (s *Storage) checkSchema(fullTableName string) {
 		tableName = strings.Split(fullTableName, ".")[1]
 	}
 
-	rows, err := s.db.Query(context.Background(), fmt.Sprintf(checkSchemaQuery, schema, tableName))
+	rows, err := s.db.Query(context.Background(), checkSchemaQuery, schema, tableName)
 	if err != nil {
 		panic(err)
 	}
