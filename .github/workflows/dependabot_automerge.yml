@@ -16,7 +16,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           running-workflow-name: wait_for_checks
-          check-regexp: Tests
+          check-regexp: "Tests|Golangci-Lint Check"
           repo-token: ${{ secrets.PR_TOKEN }}
           wait-interval: 10
   dependabot:
