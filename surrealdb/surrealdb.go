@@ -72,7 +72,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	recordID := models.NewRecordID(s.table, key)
 	m, err := surrealdb.Select[model](context.Background(), s.db, recordID)
 	if err != nil {
-		if isTableNotFoundError(err) {
+		if isTableNotFoundError(err, s.table) {
 			return nil, nil
 		}
 		return nil, err
@@ -161,7 +161,7 @@ func (s *Storage) Conn() *surrealdb.DB {
 func (s *Storage) List() ([]byte, error) {
 	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
 	if err != nil {
-		if isTableNotFoundError(err) {
+		if isTableNotFoundError(err, s.table) {
 			return json.Marshal(map[string][]byte{})
 		}
 		return nil, err
@@ -185,8 +185,17 @@ func (s *Storage) List() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func isTableNotFoundError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "does not exist")
+func isTableNotFoundError(err error, table string) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "table") || !strings.Contains(msg, "does not exist") {
+		return false
+	}
+
+	return table == "" || strings.Contains(msg, strings.ToLower(table))
 }
 
 // gc runs periodic cleanup of expired keys
@@ -207,7 +216,7 @@ func (s *Storage) gc() {
 // cleanupExpired deletes expired keys from storage
 func (s *Storage) cleanupExpired() {
 	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
-	if err != nil {
+	if err != nil || records == nil {
 		return
 	}
 	now := time.Now().Unix()
