@@ -20,7 +20,9 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	svc            *s3.Client
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	downloader     *manager.Downloader
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	uploader       *manager.Uploader
 	requestTimeout time.Duration
 	bucket         string
@@ -62,7 +64,9 @@ func New(config ...Config) *Storage {
 
 	storage := &Storage{
 		svc:            sess,
+		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 		downloader:     manager.NewDownloader(sess),
+		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 		uploader:       manager.NewUploader(sess),
 		requestTimeout: cfg.RequestTimeout,
 		bucket:         cfg.Bucket,
@@ -88,6 +92,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	buf := manager.NewWriteAtBuffer([]byte{})
 
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	_, err := s.downloader.Download(ctx, buf, &s3.GetObjectInput{
 		Bucket: &s.bucket,
 		Key:    aws.String(key),
@@ -113,6 +118,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	_, err := s.uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Key:    aws.String(key),

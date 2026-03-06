@@ -48,8 +48,10 @@ func New(config ...Config) *Storage {
 	var opts []option.ClientOption
 
 	if cfg.Credentials != "" {
+		//nolint:staticcheck // Needed to support raw service account JSON passed directly in config.
 		opts = append(opts, option.WithCredentialsJSON([]byte(cfg.Credentials)))
 	} else if cfg.CredentialsPath != "" {
+		//nolint:staticcheck // Needed to support explicit credentials file path in existing public API.
 		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsPath))
 	}
 
