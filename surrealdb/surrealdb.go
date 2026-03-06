@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/surrealdb/surrealdb.go"
@@ -71,6 +72,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	recordID := models.NewRecordID(s.table, key)
 	m, err := surrealdb.Select[model](context.Background(), s.db, recordID)
 	if err != nil {
+		if isTableNotFoundError(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -157,7 +161,14 @@ func (s *Storage) Conn() *surrealdb.DB {
 func (s *Storage) List() ([]byte, error) {
 	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
 	if err != nil {
+		if isTableNotFoundError(err) {
+			return json.Marshal(map[string][]byte{})
+		}
 		return nil, err
+	}
+
+	if records == nil {
+		return json.Marshal(map[string][]byte{})
 	}
 
 	data := make(map[string][]byte, len(*records))
@@ -172,6 +183,10 @@ func (s *Storage) List() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func isTableNotFoundError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "does not exist")
 }
 
 // gc runs periodic cleanup of expired keys
