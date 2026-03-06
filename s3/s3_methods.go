@@ -103,6 +103,7 @@ func (s *Storage) SetWithChecksum(key string, val []byte, checksum map[types.Che
 	ctx, cancel := s.requestContext()
 	defer cancel()
 
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	_, err := s.uploader.Upload(ctx, &poi)
 
 	return err

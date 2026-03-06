@@ -84,7 +84,9 @@ func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, erro
 		config.TLS = configuration.TLSConfig
 	}
 
+	//nolint:staticcheck // Keep backward-compatible debug hook until Logger migration is introduced.
 	if configuration.Debug && config.Debugf == nil {
+		//nolint:staticcheck // Keep backward-compatible debug hook until Logger migration is introduced.
 		config.Debugf = log.Printf
 	}
 
