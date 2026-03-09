@@ -1,9 +1,9 @@
 module github.com/gofiber/storage/minio
 
-go 1.24.0
+go 1.25
 
 require (
-	github.com/minio/minio-go/v7 v7.0.98
+	github.com/minio/minio-go/v7 v7.0.99
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.40.0
