@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/nats
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/mdelapenya/tlscert v0.2.0
@@ -62,7 +62,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	google.golang.org/grpc v1.79.2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

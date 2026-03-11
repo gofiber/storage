@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/rueidis
 
-go 1.24.9
+go 1.25.0
 
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-20251121011818-7435afb6bca2
@@ -62,6 +62,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
