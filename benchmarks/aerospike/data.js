@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774424762660,
+  "lastUpdate": 1775029852339,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -3166,6 +3166,102 @@ window.BENCHMARK_DATA = {
           {
             "name": "Benchmark_AeroSpikeDB_SetAndDelete - allocs/op",
             "value": 129952,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a98878e6527d76bfa4a5266b9de25c3a6c823d1",
+          "message": "Merge pull request #2583 from gofiber/dependabot/go_modules/aerospike/github.com/yuin/gopher-lua-1.1.2\n\nchore(deps): bump github.com/yuin/gopher-lua from 1.1.1 to 1.1.2 in /aerospike",
+          "timestamp": "2026-04-01T09:47:15+02:00",
+          "tree_id": "cc2c596c0b8dab874dc6b0de4079b50e587fc40f",
+          "url": "https://github.com/gofiber/storage/commit/4a98878e6527d76bfa4a5266b9de25c3a6c823d1"
+        },
+        "date": 1775029845657,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_AeroSpikeDB_Set",
+            "value": 15025173082,
+            "unit": "ns/op\t21059784 B/op\t  141332 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Set - ns/op",
+            "value": 15025173082,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Set - B/op",
+            "value": 21059784,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Set - allocs/op",
+            "value": 141332,
+            "unit": "allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Get",
+            "value": 130101,
+            "unit": "ns/op\t     993 B/op\t      13 allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Get - ns/op",
+            "value": 130101,
+            "unit": "ns/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Get - B/op",
+            "value": 993,
+            "unit": "B/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_Get - allocs/op",
+            "value": 13,
+            "unit": "allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_SetAndDelete",
+            "value": 10669815378,
+            "unit": "ns/op\t19435992 B/op\t  130314 allocs/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_SetAndDelete - ns/op",
+            "value": 10669815378,
+            "unit": "ns/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_SetAndDelete - B/op",
+            "value": 19435992,
+            "unit": "B/op",
+            "extra": "1 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AeroSpikeDB_SetAndDelete - allocs/op",
+            "value": 130314,
             "unit": "allocs/op",
             "extra": "1 times\n4 procs"
           }
