@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774941998599,
+  "lastUpdate": 1775117600099,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -4032,6 +4032,102 @@ window.BENCHMARK_DATA = {
             "value": 326,
             "unit": "allocs/op",
             "extra": "1282 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ab9618d78784181e3ce812b431b619d681a6122",
+          "message": "Merge pull request #2581 from gofiber/dependabot/go_modules/aerospike/shirou-modules-923a686534\n\nchore(deps): bump the shirou-modules group across 25 directories with 1 update",
+          "timestamp": "2026-04-02T10:05:16+02:00",
+          "tree_id": "69212eb027c67d66aa18fadaa159956866fbb483",
+          "url": "https://github.com/gofiber/storage/commit/3ab9618d78784181e3ce812b431b619d681a6122"
+        },
+        "date": 1775117595276,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_SurrealDB_Set",
+            "value": 450804,
+            "unit": "ns/op\t   11656 B/op\t     164 allocs/op",
+            "extra": "2560 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Set - ns/op",
+            "value": 450804,
+            "unit": "ns/op",
+            "extra": "2560 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Set - B/op",
+            "value": 11656,
+            "unit": "B/op",
+            "extra": "2560 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Set - allocs/op",
+            "value": 164,
+            "unit": "allocs/op",
+            "extra": "2560 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Get",
+            "value": 415985,
+            "unit": "ns/op\t   11560 B/op\t     162 allocs/op",
+            "extra": "2839 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Get - ns/op",
+            "value": 415985,
+            "unit": "ns/op",
+            "extra": "2839 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Get - B/op",
+            "value": 11560,
+            "unit": "B/op",
+            "extra": "2839 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_Get - allocs/op",
+            "value": 162,
+            "unit": "allocs/op",
+            "extra": "2839 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_SetAndDelete",
+            "value": 899309,
+            "unit": "ns/op\t   23218 B/op\t     326 allocs/op",
+            "extra": "1297 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_SetAndDelete - ns/op",
+            "value": 899309,
+            "unit": "ns/op",
+            "extra": "1297 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_SetAndDelete - B/op",
+            "value": 23218,
+            "unit": "B/op",
+            "extra": "1297 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_SurrealDB_SetAndDelete - allocs/op",
+            "value": 326,
+            "unit": "allocs/op",
+            "extra": "1297 times\n4 procs"
           }
         ]
       }
