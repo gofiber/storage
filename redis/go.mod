@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/redis/v3
 
-go 1.24.0
+go 1.25.0
 
 replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
 
@@ -52,8 +52,8 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
-	github.com/testcontainers/testcontainers-go v0.40.0 // indirect
-	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0 // indirect
+	github.com/testcontainers/testcontainers-go v0.41.0 // indirect
+	github.com/testcontainers/testcontainers-go/modules/redis v0.41.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect

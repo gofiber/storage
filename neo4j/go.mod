@@ -1,12 +1,12 @@
 module github.com/gofiber/storage/neo4j
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/neo4j v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go/modules/neo4j v0.41.0
 )
 
 require (

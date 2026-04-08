@@ -1,12 +1,12 @@
 module github.com/gofiber/storage/testhelpers/redis
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/redis v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go/modules/redis v0.41.0
 )
 
 require (

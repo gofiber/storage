@@ -1,13 +1,13 @@
 module github.com/gofiber/storage/arangodb/v2
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/arangodb/go-driver v1.6.9
 	github.com/gofiber/utils/v2 v2.0.2
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/arangodb v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go/modules/arangodb v0.41.0
 )
 
 require (

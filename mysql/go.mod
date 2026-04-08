@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/mysql/v2
 
-go 1.24.0
+go 1.25.0
 
 replace (
 	github.com/gofiber/storage => ../
@@ -11,8 +11,8 @@ require (
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/storage/testhelpers/tck v1.0.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/mysql v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go/modules/mysql v0.41.0
 )
 
 require (

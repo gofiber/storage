@@ -5,8 +5,8 @@ go 1.25.3
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.44.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.40.0
-	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.40.0
+	github.com/testcontainers/testcontainers-go v0.41.0
+	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.41.0
 )
 
 require (
