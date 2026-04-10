@@ -1,0 +1,29 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'parquet/**'
+  pull_request:
+    paths:
+      - 'parquet/**'
+  workflow_dispatch:
+name: "Tests Parquet"
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.24.x
+          - 1.25.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        run: cd ./parquet && go test ./... -v -race
