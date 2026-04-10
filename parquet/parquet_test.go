@@ -158,11 +158,21 @@ func Test_Parquet_Get_Empty_Key(t *testing.T) {
 func Test_Parquet_Set_Empty_Key(t *testing.T) {
 	err := testStore.Set("", []byte("value"), 0)
 	require.NoError(t, err)
+
+	// Empty key should not be stored
+	result, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_Parquet_Set_Empty_Value(t *testing.T) {
-	err := testStore.Set("key", []byte{}, 0)
+	err := testStore.Set("empty-val-key", []byte{}, 0)
 	require.NoError(t, err)
+
+	// Empty value should not be stored (consistent with other drivers)
+	result, err := testStore.Get("empty-val-key")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_Parquet_Delete_Empty_Key(t *testing.T) {
