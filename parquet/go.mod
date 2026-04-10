@@ -1,8 +1,6 @@
 module github.com/gofiber/storage/parquet/v2
 
-go 1.24.9
-
-toolchain go1.24.13
+go 1.25.0
 
 require (
 	github.com/parquet-go/parquet-go v0.29.0
