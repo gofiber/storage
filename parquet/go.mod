@@ -1,4 +1,4 @@
-module github.com/gofiber/storage/parquet/v2
+module github.com/gofiber/storage/parquet
 
 go 1.25.0
 

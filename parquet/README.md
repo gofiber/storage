@@ -38,13 +38,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the parquet implementation:
 ```bash
-go get github.com/gofiber/storage/parquet/v2
+go get github.com/gofiber/storage/parquet
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/parquet/v2"
+import "github.com/gofiber/storage/parquet"
 ```
 
 You can use the following possibilities to create a storage:
