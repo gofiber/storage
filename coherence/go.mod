@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/coherence
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/oracle/coherence-go-client/v2 v2.3.1
