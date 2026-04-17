@@ -18,10 +18,10 @@ updates:
       allow:
           - dependency-type: "all"
       directories:
-          - "/a*/**"
-          - "/b*/**"
-          - "/c*/**"
-          - "/d*/**"
+          - "/a*"
+          - "/b*"
+          - "/c*"
+          - "/d*"
       labels:
           - "🤖 Dependencies"
       schedule:
@@ -107,16 +107,16 @@ updates:
       allow:
           - dependency-type: "all"
       directories:
-          - "/e*/**"
-          - "/f*/**"
-          - "/g*/**"
-          - "/h*/**"
-          - "/i*/**"
-          - "/j*/**"
-          - "/k*/**"
-          - "/l*/**"
-          - "/m*/**"
-          - "/n*/**"
+          - "/e*"
+          - "/f*"
+          - "/g*"
+          - "/h*"
+          - "/i*"
+          - "/j*"
+          - "/k*"
+          - "/l*"
+          - "/m*"
+          - "/n*"
       labels:
           - "🤖 Dependencies"
       schedule:
@@ -202,18 +202,19 @@ updates:
       allow:
           - dependency-type: "all"
       directories:
-          - "/o*/**"
-          - "/p*/**"
-          - "/q*/**"
-          - "/r*/**"
-          - "/s*/**"
-          - "/t*/**"
-          - "/u*/**"
-          - "/v*/**"
-          - "/w*/**"
-          - "/x*/**"
-          - "/y*/**"
-          - "/z*/**"
+          - "/o*"
+          - "/p*"
+          - "/q*"
+          - "/r*"
+          - "/s*"
+          - "/t*"
+          - "/t*/*"
+          - "/u*"
+          - "/v*"
+          - "/w*"
+          - "/x*"
+          - "/y*"
+          - "/z*"
       labels:
           - "🤖 Dependencies"
       schedule:
