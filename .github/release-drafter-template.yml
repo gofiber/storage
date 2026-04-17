@@ -10,13 +10,17 @@ categories:
     - title: '🚀 New'
       labels:
           - '✏️ Feature'
+          - '📝 Proposal'
     - title: '🧹 Updates'
       labels:
           - '🧹 Updates'
-          - '🤖 Dependencies'
+          - '⚡️ Performance'
     - title: '🐛 Fixes'
       labels:
           - '☢️ Bug'
+    - title: '🛠️ Maintenance'
+      labels:
+          - '🤖 Dependencies'
     - title: '📚 Documentation'
       labels:
           - '📒 Documentation'
@@ -28,19 +32,17 @@ exclude-contributors:
 version-resolver:
     major:
         labels:
-            - 'major'
             - '❗ BreakingChange'
     minor:
         labels:
-            - 'minor'
             - '✏️ Feature'
     patch:
         labels:
-            - 'patch'
             - '📒 Documentation'
             - '☢️ Bug'
             - '🤖 Dependencies'
             - '🧹 Updates'
+            - '⚡️ Performance'
     default: patch
 template: |
     $CHANGES
