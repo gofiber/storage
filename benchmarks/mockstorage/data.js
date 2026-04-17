@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763657733967,
+  "lastUpdate": 1776414849795,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -192,6 +192,102 @@ window.BENCHMARK_DATA = {
             "value": 1,
             "unit": "allocs/op",
             "extra": "18719695 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c73243543df958265fc7620333eef13e1062fb3b",
+          "message": "Merge pull request #2631 from gofiber/copilot/update-minimum-go-version",
+          "timestamp": "2026-04-17T10:30:02+02:00",
+          "tree_id": "d918cb66def9a6201f6b9dfc129b9abbcc868c81",
+          "url": "https://github.com/gofiber/storage/commit/c73243543df958265fc7620333eef13e1062fb3b"
+        },
+        "date": 1776414844707,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Mockstorage_Set",
+            "value": 35.8,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "33361779 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - ns/op",
+            "value": 35.8,
+            "unit": "ns/op",
+            "extra": "33361779 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "33361779 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "33361779 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get",
+            "value": 18.96,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "64455606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - ns/op",
+            "value": 18.96,
+            "unit": "ns/op",
+            "extra": "64455606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "64455606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "64455606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete",
+            "value": 74.83,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "16156143 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - ns/op",
+            "value": 74.83,
+            "unit": "ns/op",
+            "extra": "16156143 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "16156143 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "16156143 times\n4 procs"
           }
         ]
       }
