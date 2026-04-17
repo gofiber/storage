@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776324516940,
+  "lastUpdate": 1776414855898,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -4800,6 +4800,102 @@ window.BENCHMARK_DATA = {
             "value": 13,
             "unit": "allocs/op",
             "extra": "2852 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c73243543df958265fc7620333eef13e1062fb3b",
+          "message": "Merge pull request #2631 from gofiber/copilot/update-minimum-go-version",
+          "timestamp": "2026-04-17T10:30:02+02:00",
+          "tree_id": "d918cb66def9a6201f6b9dfc129b9abbcc868c81",
+          "url": "https://github.com/gofiber/storage/commit/c73243543df958265fc7620333eef13e1062fb3b"
+        },
+        "date": 1776414851481,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Postgres_Set",
+            "value": 236106,
+            "unit": "ns/op\t     306 B/op\t       8 allocs/op",
+            "extra": "4816 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - ns/op",
+            "value": 236106,
+            "unit": "ns/op",
+            "extra": "4816 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - B/op",
+            "value": 306,
+            "unit": "B/op",
+            "extra": "4816 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - allocs/op",
+            "value": 8,
+            "unit": "allocs/op",
+            "extra": "4816 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get",
+            "value": 211061,
+            "unit": "ns/op\t     572 B/op\t      11 allocs/op",
+            "extra": "5079 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - ns/op",
+            "value": 211061,
+            "unit": "ns/op",
+            "extra": "5079 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - B/op",
+            "value": 572,
+            "unit": "B/op",
+            "extra": "5079 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "5079 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete",
+            "value": 464338,
+            "unit": "ns/op\t     501 B/op\t      13 allocs/op",
+            "extra": "2455 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - ns/op",
+            "value": 464338,
+            "unit": "ns/op",
+            "extra": "2455 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - B/op",
+            "value": 501,
+            "unit": "B/op",
+            "extra": "2455 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - allocs/op",
+            "value": 13,
+            "unit": "allocs/op",
+            "extra": "2455 times\n4 procs"
           }
         ]
       }
