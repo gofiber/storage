@@ -1,0 +1,40 @@
+name: Weekly release
+
+on:
+  schedule:
+    - cron: '0 8 * * 4'
+  workflow_dispatch:
+    inputs:
+      draft-tags:
+        description: >
+          Tags or package names to publish, comma-separated (e.g.
+          "redis,postgres" or "redis/v3.4.3"). Matched as substrings.
+          Empty = all.
+        type: string
+        default: ''
+      dry-run:
+        description: Show diff but do not publish.
+        type: boolean
+        default: false
+      delay:
+        description: Minutes between module publishes (default 2).
+        type: number
+        default: 2
+
+concurrency:
+  group: weekly-release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: write
+
+jobs:
+  release:
+    uses: gofiber/.github/.github/workflows/weekly-release.yml@main
+    with:
+      repo-type: multi
+      dry-run: ${{ inputs.dry-run || false }}
+      draft-tags: ${{ inputs.draft-tags || '' }}
+      publish-delay-minutes: ${{ inputs.delay || 2 }}
