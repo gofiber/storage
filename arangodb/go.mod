@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/arangodb/v2
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/arangodb/go-driver v1.6.9

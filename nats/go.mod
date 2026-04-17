@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/nats
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/mdelapenya/tlscert v0.2.0

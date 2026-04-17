@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/valkey
 
-go 1.24.9
+go 1.25.0
 
 replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
 
