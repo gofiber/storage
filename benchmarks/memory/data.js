@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1763657668089,
+  "lastUpdate": 1776414846814,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -576,6 +576,150 @@ window.BENCHMARK_DATA = {
             "value": 0,
             "unit": "allocs/op",
             "extra": "20627523 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c73243543df958265fc7620333eef13e1062fb3b",
+          "message": "Merge pull request #2631 from gofiber/copilot/update-minimum-go-version",
+          "timestamp": "2026-04-17T10:30:02+02:00",
+          "tree_id": "d918cb66def9a6201f6b9dfc129b9abbcc868c81",
+          "url": "https://github.com/gofiber/storage/commit/c73243543df958265fc7620333eef13e1062fb3b"
+        },
+        "date": 1776414840716,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Memory_Set (github.com/gofiber/storage/memory/v2)",
+            "value": 52.98,
+            "unit": "ns/op\t       8 B/op\t       2 allocs/op",
+            "extra": "19588724 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set (github.com/gofiber/storage/memory/v2) - ns/op",
+            "value": 52.98,
+            "unit": "ns/op",
+            "extra": "19588724 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set (github.com/gofiber/storage/memory/v2) - B/op",
+            "value": 8,
+            "unit": "B/op",
+            "extra": "19588724 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Set (github.com/gofiber/storage/memory/v2) - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "19588724 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get (github.com/gofiber/storage/memory/v2)",
+            "value": 28.45,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "40944781 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get (github.com/gofiber/storage/memory/v2) - ns/op",
+            "value": 28.45,
+            "unit": "ns/op",
+            "extra": "40944781 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get (github.com/gofiber/storage/memory/v2) - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "40944781 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_Get (github.com/gofiber/storage/memory/v2) - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "40944781 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete (github.com/gofiber/storage/memory/v2)",
+            "value": 99.83,
+            "unit": "ns/op\t       8 B/op\t       2 allocs/op",
+            "extra": "11919408 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete (github.com/gofiber/storage/memory/v2) - ns/op",
+            "value": 99.83,
+            "unit": "ns/op",
+            "extra": "11919408 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete (github.com/gofiber/storage/memory/v2) - B/op",
+            "value": 8,
+            "unit": "B/op",
+            "extra": "11919408 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Memory_SetAndDelete (github.com/gofiber/storage/memory/v2) - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "11919408 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber (github.com/gofiber/storage/memory/v2/internal)",
+            "value": 0.3025,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber (github.com/gofiber/storage/memory/v2/internal) - ns/op",
+            "value": 0.3025,
+            "unit": "ns/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber (github.com/gofiber/storage/memory/v2/internal) - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/fiber (github.com/gofiber/storage/memory/v2/internal) - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "1000000000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default (github.com/gofiber/storage/memory/v2/internal)",
+            "value": 36.32,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "32797719 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default (github.com/gofiber/storage/memory/v2/internal) - ns/op",
+            "value": 36.32,
+            "unit": "ns/op",
+            "extra": "32797719 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default (github.com/gofiber/storage/memory/v2/internal) - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "32797719 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CalculateTimestamp/default (github.com/gofiber/storage/memory/v2/internal) - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "32797719 times\n4 procs"
           }
         ]
       }
