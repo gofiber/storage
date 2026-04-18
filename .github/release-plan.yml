@@ -3,8 +3,6 @@
 # No ordering constraints — all backends are independent.
 # Everything is auto-discovered from existing draft releases.
 
-repo-type: multi
-
 waves:
   - name: backends
     auto-discover: true

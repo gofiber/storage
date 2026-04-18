@@ -18,8 +18,8 @@ on:
         default: false
       delay:
         description: Minutes between module publishes (default 2).
-        type: number
-        default: 2
+        type: string
+        default: '2'
 
 concurrency:
   group: weekly-release-${{ github.repository }}
@@ -38,3 +38,5 @@ jobs:
       dry-run: ${{ inputs.dry-run || false }}
       draft-tags: ${{ inputs.draft-tags || '' }}
       publish-delay-minutes: ${{ inputs.delay || '2' }}
+    secrets:
+      dispatch-token: ${{ secrets.DISPATCH_TOKEN }}
