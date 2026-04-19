@@ -1,4 +1,5 @@
 name: Release Drafter (All)
+
 on:
     push:
         branches:
@@ -16,27 +17,28 @@ jobs:
             contents: read
             pull-requests: read
         steps:
-            -   name: Checkout repository
-                uses: actions/checkout@v6
-            -   name: Generate filters
-                id: filter-setup
-                run: |
-                    # Add filter for core package (root directory files)
-                    filters="core: [\"*.go\", \"*.md\", \"go.mod\", \"go.sum\"]"
-                    filters+=$'\n'
-                    # Add filters for subdirectories
-                    filters+=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
-                    echo "filters<<EOF" >> $GITHUB_OUTPUT
-                    echo "$filters" >> $GITHUB_OUTPUT
-                    echo "EOF" >> $GITHUB_OUTPUT
-                shell: bash
-            -   name: Filter changes
-                id: filter
-                uses: dorny/paths-filter@v4
-                with:
-                    filters: ${{ steps.filter-setup.outputs.filters }}
+            - name: Checkout repository
+              uses: actions/checkout@v6
+            - name: Generate filters
+              id: filter-setup
+              run: |
+                  # Add filter for core package (root directory files)
+                  filters="core: [\"*.go\", \"*.md\", \"go.mod\", \"go.sum\"]"
+                  filters+=$'\n'
+                  # Add filters for subdirectories
+                  filters+=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
+                  echo "filters<<EOF" >> $GITHUB_OUTPUT
+                  echo "$filters" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+              shell: bash
+            - name: Filter changes
+              id: filter
+              uses: dorny/paths-filter@v4
+              with:
+                  filters: ${{ steps.filter-setup.outputs.filters }}
         outputs:
             packages: ${{ steps.filter.outputs.changes || '[]' }}
+
     release-drafter:
         needs: changes
         runs-on: ubuntu-latest
@@ -45,25 +47,19 @@ jobs:
         permissions:
             contents: write
             pull-requests: read
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         strategy:
             matrix:
                 package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
         steps:
-            -   name: Checkout repository
-                uses: actions/checkout@v6
+            - name: Checkout repository
+              uses: actions/checkout@v6
 
-            -   name: Generate dynamic config from template
-                id: generate-config
-                run: |
-                    folder="${{ matrix.package }}"
-                    sed "s|{{FOLDER}}|$folder|g" .github/release-drafter-template.yml > .github/release-drafter-$folder.yml
-                    echo "config<<EOF" >> $GITHUB_OUTPUT
-                    cat .github/release-drafter-$folder.yml >> $GITHUB_OUTPUT
-                    echo "EOF" >> $GITHUB_OUTPUT
-            -   name: Use dynamic release-drafter configuration
-                uses: ReneWerner87/release-drafter@1e213032283aaa6d64a8df087c4587a2ff531582
-                with:
-                    config: ${{ steps.generate-config.outputs.config }}
-                    disable-autolabeler: true
+            - name: Generate dynamic config from template
+              run: |
+                  sed "s|{{FOLDER}}|${{ matrix.package }}|g" \
+                      .github/release-drafter-template.yml > .github/release-drafter-parsed.yml
+
+            - name: Run release drafter
+              uses: release-drafter/release-drafter@v7
+              with:
+                  config-name: file:release-drafter-parsed.yml
