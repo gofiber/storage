@@ -61,7 +61,7 @@ jobs:
             - name: Generate config from shared template
               run: |
                   sed "s|{{MODULE}}|${{ matrix.package }}|g" \
-                      .github/release-drafter-module.yml > release-drafter-parsed.yml
+                      .github/release-drafter-module.yml > .github/release-drafter-parsed.yml
 
             - name: Run release drafter
               uses: release-drafter/release-drafter@v7
