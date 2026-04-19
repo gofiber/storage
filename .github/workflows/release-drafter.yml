@@ -51,13 +51,17 @@ jobs:
             matrix:
                 package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
         steps:
-            - name: Checkout repository
+            - name: Checkout shared config
               uses: actions/checkout@v6
+              with:
+                  repository: gofiber/.github
+                  sparse-checkout: .github/release-drafter-module.yml
+                  sparse-checkout-cone-mode: false
 
-            - name: Generate dynamic config from template
+            - name: Generate config from shared template
               run: |
-                  sed "s|{{FOLDER}}|${{ matrix.package }}|g" \
-                      .github/release-drafter-template.yml > .github/release-drafter-parsed.yml
+                  sed "s|{{MODULE}}|${{ matrix.package }}|g" \
+                      .github/release-drafter-module.yml > release-drafter-parsed.yml
 
             - name: Run release drafter
               uses: release-drafter/release-drafter@v7
