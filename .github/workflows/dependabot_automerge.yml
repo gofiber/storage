@@ -15,7 +15,7 @@ jobs:
         uses: poseidon/wait-for-status-checks@v0.6.0
         with:
           token: ${{ secrets.PR_TOKEN }}
-          match_pattern: Tests|Golangci-Lint
+          match_pattern: Tests|Linter
           interval: 10
           timeout: 600
   dependabot:
