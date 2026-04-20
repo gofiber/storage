@@ -2,7 +2,7 @@ name: Weekly release
 
 on:
   schedule:
-    - cron: '0 8 * * 4'
+    - cron: '0 8 * * 2'
   workflow_dispatch:
     inputs:
       draft-tags:
