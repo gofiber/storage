@@ -1,34 +1,34 @@
-name: 'Sync docs'
+name: Sync docs
+
 on:
   push:
-    branches:
-      - master
-      - main
-    paths:
-      - '**/*.md'
+    branches: [main, master]
+    paths: ['**/*.md']
   release:
     types: [published]
   repository_dispatch:
     types: [sync-docs]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'push = sync current docs, release-all = version snapshots for all latest module releases'
+        type: choice
+        options: [push, release-all]
+        default: push
+
 jobs:
-  sync-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-      - name: Install JQ
-        run: sudo apt-get install jq
-      - name: Sync docs
-        run: ./.github/scripts/sync_docs.sh
-        env:
-          EVENT: ${{ github.event_name == 'repository_dispatch' && 'push' || github.event_name }}
-          TAG_NAME: ${{ github.event_name == 'repository_dispatch' && '' || github.ref_name }}
-          TOKEN: ${{ secrets.DOC_SYNC_TOKEN }}
+  sync:
+    uses: gofiber/.github/.github/workflows/sync-docs.yml@main
+    with:
+      repo-type: multi
+      destination-dir: docs/storage
+      version-file: storage_versions.json
+      docusaurus-command: npm run docusaurus -- docs:version:storage
+      commit-url: https://github.com/gofiber/storage
+      event-mode: >-
+        ${{ github.event_name == 'workflow_dispatch' && inputs.mode
+        || github.event_name == 'repository_dispatch' && 'push'
+        || github.event_name }}
+      tag-name: ${{ github.ref_name }}
+    secrets:
+      doc-sync-token: ${{ secrets.DOC_SYNC_TOKEN }}
