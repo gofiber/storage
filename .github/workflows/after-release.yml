@@ -3,9 +3,14 @@ name: After Release
 on:
   release:
     types: [published]
+  repository_dispatch:
+    types: [after-release]
 
 jobs:
   notify:
+    # Skip per-module release events from weekly automation (bot actor).
+    # Weekly release dispatches 'after-release' once after all modules.
+    if: github.event_name != 'release' || github.actor != 'github-actions[bot]'
     uses: gofiber/.github/.github/workflows/after-release.yml@main
     with:
       repos: |

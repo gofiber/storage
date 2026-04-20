@@ -2,7 +2,16 @@
 #
 # No ordering constraints — all backends are independent.
 # Everything is auto-discovered from existing draft releases.
+#
+# After all modules are published, 'after-release' is dispatched once.
+# The after-release.yml workflow defines which repos to notify.
 
 waves:
   - name: backends
     auto-discover: true
+
+post-release:
+  - action: dispatch
+    event: after-release
+  - action: dispatch
+    event: sync-docs
