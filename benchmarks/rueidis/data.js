@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776429757415,
+  "lastUpdate": 1776671641312,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -4224,6 +4224,102 @@ window.BENCHMARK_DATA = {
             "value": 3,
             "unit": "allocs/op",
             "extra": "3403 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c677c9225a01c36de776d5f6faea50ff80c58f1b",
+          "message": "Merge pull request #2643 from gofiber/dependabot/go_modules/postgres/opentelemetry-modules-6c591870ba\n\nchore(deps): bump the opentelemetry-modules group across 7 directories with 6 updates",
+          "timestamp": "2026-04-20T09:49:57+02:00",
+          "tree_id": "0209c9fc3ef5ba4ee1e5dd7eb562f8f4c8e6b98f",
+          "url": "https://github.com/gofiber/storage/commit/c677c9225a01c36de776d5f6faea50ff80c58f1b"
+        },
+        "date": 1776671636842,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Rueidis_Set",
+            "value": 149089,
+            "unit": "ns/op\t     419 B/op\t       2 allocs/op",
+            "extra": "6770 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - ns/op",
+            "value": 149089,
+            "unit": "ns/op",
+            "extra": "6770 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - B/op",
+            "value": 419,
+            "unit": "B/op",
+            "extra": "6770 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Set - allocs/op",
+            "value": 2,
+            "unit": "allocs/op",
+            "extra": "6770 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get",
+            "value": 164186,
+            "unit": "ns/op\t     607 B/op\t      11 allocs/op",
+            "extra": "7365 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - ns/op",
+            "value": 164186,
+            "unit": "ns/op",
+            "extra": "7365 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - B/op",
+            "value": 607,
+            "unit": "B/op",
+            "extra": "7365 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_Get - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "7365 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete",
+            "value": 300021,
+            "unit": "ns/op\t     779 B/op\t       3 allocs/op",
+            "extra": "3636 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - ns/op",
+            "value": 300021,
+            "unit": "ns/op",
+            "extra": "3636 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - B/op",
+            "value": 779,
+            "unit": "B/op",
+            "extra": "3636 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Rueidis_SetAndDelete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "3636 times\n4 procs"
           }
         ]
       }
