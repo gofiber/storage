@@ -25,7 +25,6 @@ permissions:
 
 jobs:
   lint:
-    uses: gofiber/.github/.github/workflows/go-lint.yml@main
+    uses: gofiber/.github/.github/workflows/go-lint-multi.yml@main
     with:
-      repo-type: multi
       golangci-lint-args: "--tests=false --timeout=5m"
