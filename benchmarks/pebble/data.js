@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777360908451,
+  "lastUpdate": 1777447196553,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2976,6 +2976,102 @@ window.BENCHMARK_DATA = {
             "value": 3,
             "unit": "allocs/op",
             "extra": "2828 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44dbce6039fd546cb9d0af64f3cc4d9760f33495",
+          "message": "Merge pull request #2667 from gofiber/dependabot/go_modules/pebble/github.com/getsentry/sentry-go-0.46.1\n\nchore(deps): bump github.com/getsentry/sentry-go from 0.46.0 to 0.46.1 in /pebble",
+          "timestamp": "2026-04-29T09:18:23+02:00",
+          "tree_id": "45b8d5be4415a862e11f060811746d09a9a0b5b6",
+          "url": "https://github.com/gofiber/storage/commit/44dbce6039fd546cb9d0af64f3cc4d9760f33495"
+        },
+        "date": 1777447189409,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Pebble_Set",
+            "value": 314080,
+            "unit": "ns/op\t     144 B/op\t       3 allocs/op",
+            "extra": "3643 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - ns/op",
+            "value": 314080,
+            "unit": "ns/op",
+            "extra": "3643 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - B/op",
+            "value": 144,
+            "unit": "B/op",
+            "extra": "3643 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Set - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "3643 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get",
+            "value": 1610,
+            "unit": "ns/op\t     280 B/op\t       7 allocs/op",
+            "extra": "758485 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - ns/op",
+            "value": 1610,
+            "unit": "ns/op",
+            "extra": "758485 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - B/op",
+            "value": 280,
+            "unit": "B/op",
+            "extra": "758485 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_Get - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "758485 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete",
+            "value": 616446,
+            "unit": "ns/op\t      99 B/op\t       3 allocs/op",
+            "extra": "1773 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - ns/op",
+            "value": 616446,
+            "unit": "ns/op",
+            "extra": "1773 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - B/op",
+            "value": 99,
+            "unit": "B/op",
+            "extra": "1773 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Pebble_SetAndDelete - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "1773 times\n4 procs"
           }
         ]
       }
