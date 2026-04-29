@@ -10,6 +10,10 @@ on:
       - 's3/**'
   workflow_dispatch:
 name: "Tests S3"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

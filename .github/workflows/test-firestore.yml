@@ -9,6 +9,10 @@ on:
     paths:
       - "firestore/**"
 name: "Tests Firestore"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

@@ -10,6 +10,10 @@ on:
       - 'arangodb/**'
   workflow_dispatch:
 name: "Tests ArangoDB"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

@@ -10,6 +10,10 @@ on:
       - 'dynamodb/**'
   workflow_dispatch:
 name: "Tests DynamoDB"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

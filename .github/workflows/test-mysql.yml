@@ -10,6 +10,10 @@ on:
       - 'mysql/**'
   workflow_dispatch:
 name: "Tests MySQL"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

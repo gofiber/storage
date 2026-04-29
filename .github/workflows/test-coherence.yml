@@ -10,6 +10,10 @@ on:
       - 'coherence/**'
   workflow_dispatch:
 name: "Tests Coherence"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

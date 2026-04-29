@@ -10,6 +10,10 @@ on:
       - 'badger/**'
   workflow_dispatch:
 name: "Tests Badger"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     strategy:

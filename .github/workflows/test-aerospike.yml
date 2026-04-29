@@ -10,6 +10,10 @@ on:
       - 'aerospike/**'
   workflow_dispatch:
 name: "Tests Aerospike"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

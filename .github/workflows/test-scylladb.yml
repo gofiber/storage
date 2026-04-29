@@ -10,6 +10,10 @@ on:
       - 'scylladb/**'
   workflow_dispatch:
 name: "Tests ScyllaDb"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

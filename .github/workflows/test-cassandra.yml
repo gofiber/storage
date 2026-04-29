@@ -10,6 +10,10 @@ on:
       - 'cassandra/**'
   workflow_dispatch:
 name: 'Tests Cassandra'
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

@@ -10,6 +10,10 @@ on:
       - 'neo4j/**'
   workflow_dispatch:
 name: "Tests Neo4j"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

@@ -10,6 +10,10 @@ on:
       - 'testhelpers/redis/**'
   workflow_dispatch:
 name: "Tests TestHelper Redis"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

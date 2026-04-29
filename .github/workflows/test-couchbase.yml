@@ -10,6 +10,10 @@ on:
       - 'couchbase/**'
   workflow_dispatch:
 name: "Tests Couchbase"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

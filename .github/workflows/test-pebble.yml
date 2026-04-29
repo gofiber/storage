@@ -10,6 +10,10 @@ on:
       - "pebble/**"
   workflow_dispatch:
 name: "Tests pebble"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     strategy:

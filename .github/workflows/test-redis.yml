@@ -10,6 +10,10 @@ on:
       - 'redis/**'
   workflow_dispatch:
 name: "Tests Redis"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

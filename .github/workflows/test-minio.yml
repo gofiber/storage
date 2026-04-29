@@ -10,6 +10,10 @@ on:
       - 'minio/**'
   workflow_dispatch:
 name: "Tests Minio"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

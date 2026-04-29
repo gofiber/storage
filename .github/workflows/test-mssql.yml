@@ -10,6 +10,10 @@ on:
       - 'mssql/**'
   workflow_dispatch:
 name: "Tests MSSQL"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

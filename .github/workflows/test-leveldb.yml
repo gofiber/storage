@@ -10,6 +10,10 @@ on:
       - 'leveldb/**'
   workflow_dispatch:
 name: "Tests LevelDB"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     strategy:

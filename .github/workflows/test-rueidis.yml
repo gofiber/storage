@@ -10,6 +10,10 @@ on:
       - 'rueidis/**'
   workflow_dispatch:
 name: "Tests Rueidis"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

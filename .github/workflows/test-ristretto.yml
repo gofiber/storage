@@ -10,6 +10,10 @@ on:
       - 'ristretto/**'
   workflow_dispatch:
 name: "Tests Ristretto"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

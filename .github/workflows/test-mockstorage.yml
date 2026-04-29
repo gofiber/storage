@@ -10,6 +10,10 @@ on:
       - 'mockstorage/**'
   workflow_dispatch:
 name: "Tests Local Storage"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     strategy:

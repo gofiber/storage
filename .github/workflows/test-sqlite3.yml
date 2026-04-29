@@ -10,6 +10,10 @@ on:
       - 'sqlite3/**'
   workflow_dispatch:
 name: "Tests Sqlite3"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     strategy:

@@ -10,6 +10,10 @@ on:
       - 'memcache/**'
   workflow_dispatch:
 name: "Tests Memcache"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest

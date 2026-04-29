@@ -11,6 +11,10 @@ on:
       - '.github/workflows/test-valkey.yml'
   workflow_dispatch:
 name: "Tests Valkey"
+
+permissions:
+  contents: read
+
 jobs:
   Tests:
     runs-on: ubuntu-latest
