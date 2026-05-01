@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777534007485,
+  "lastUpdate": 1777623838740,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -6816,6 +6816,102 @@ window.BENCHMARK_DATA = {
             "value": 330,
             "unit": "allocs/op",
             "extra": "214 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6252f68c3528bfbeae62906507fc2a84d908658",
+          "message": "Merge pull request #2676 from gofiber/dependabot/go_modules/etcd/klauspost-modules-f435730af8\n\nchore(deps): bump the klauspost-modules group across 8 directories with 1 update",
+          "timestamp": "2026-05-01T10:13:18+02:00",
+          "tree_id": "5b810d45709b0a2d581ee43c3755e100444c422d",
+          "url": "https://github.com/gofiber/storage/commit/c6252f68c3528bfbeae62906507fc2a84d908658"
+        },
+        "date": 1777623833837,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Firestore_Set",
+            "value": 2559819,
+            "unit": "ns/op\t   12362 B/op\t     174 allocs/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Set - ns/op",
+            "value": 2559819,
+            "unit": "ns/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Set - B/op",
+            "value": 12362,
+            "unit": "B/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Set - allocs/op",
+            "value": 174,
+            "unit": "allocs/op",
+            "extra": "403 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Get",
+            "value": 1785273,
+            "unit": "ns/op\t   13757 B/op\t     189 allocs/op",
+            "extra": "627 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Get - ns/op",
+            "value": 1785273,
+            "unit": "ns/op",
+            "extra": "627 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Get - B/op",
+            "value": 13757,
+            "unit": "B/op",
+            "extra": "627 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_Get - allocs/op",
+            "value": 189,
+            "unit": "allocs/op",
+            "extra": "627 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_SetAndDelete",
+            "value": 5108895,
+            "unit": "ns/op\t   23369 B/op\t     329 allocs/op",
+            "extra": "222 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_SetAndDelete - ns/op",
+            "value": 5108895,
+            "unit": "ns/op",
+            "extra": "222 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_SetAndDelete - B/op",
+            "value": 23369,
+            "unit": "B/op",
+            "extra": "222 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Firestore_SetAndDelete - allocs/op",
+            "value": 329,
+            "unit": "allocs/op",
+            "extra": "222 times\n4 procs"
           }
         ]
       }
