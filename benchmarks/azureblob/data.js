@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777622752986,
+  "lastUpdate": 1777622804176,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -4128,6 +4128,102 @@ window.BENCHMARK_DATA = {
             "value": 316,
             "unit": "allocs/op",
             "extra": "290 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5620a76a25f75b4cb317d598c7a6b7ceaa05fde8",
+          "message": "Merge pull request #2674 from gofiber/dependabot/go_modules/aerospike/klauspost-modules-591fe66ca5\n\nchore(deps): bump the klauspost-modules group across 9 directories with 1 update",
+          "timestamp": "2026-05-01T10:04:21+02:00",
+          "tree_id": "a7283ff84294b5974fb742fdd046bc29ad3c7c8a",
+          "url": "https://github.com/gofiber/storage/commit/5620a76a25f75b4cb317d598c7a6b7ceaa05fde8"
+        },
+        "date": 1777622797117,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_AzureBlob_Set",
+            "value": 2203542,
+            "unit": "ns/op\t   13835 B/op\t     182 allocs/op",
+            "extra": "529 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - ns/op",
+            "value": 2203542,
+            "unit": "ns/op",
+            "extra": "529 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - B/op",
+            "value": 13835,
+            "unit": "B/op",
+            "extra": "529 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Set - allocs/op",
+            "value": 182,
+            "unit": "allocs/op",
+            "extra": "529 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get",
+            "value": 1555573,
+            "unit": "ns/op\t   14813 B/op\t     228 allocs/op",
+            "extra": "810 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - ns/op",
+            "value": 1555573,
+            "unit": "ns/op",
+            "extra": "810 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - B/op",
+            "value": 14813,
+            "unit": "B/op",
+            "extra": "810 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_Get - allocs/op",
+            "value": 228,
+            "unit": "allocs/op",
+            "extra": "810 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete",
+            "value": 3249030,
+            "unit": "ns/op\t   25509 B/op\t     316 allocs/op",
+            "extra": "350 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - ns/op",
+            "value": 3249030,
+            "unit": "ns/op",
+            "extra": "350 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - B/op",
+            "value": 25509,
+            "unit": "B/op",
+            "extra": "350 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_AzureBlob_SetAndDelete - allocs/op",
+            "value": 316,
+            "unit": "allocs/op",
+            "extra": "350 times\n4 procs"
           }
         ]
       }
