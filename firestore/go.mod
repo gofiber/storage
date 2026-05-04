@@ -8,7 +8,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.42.0
 	google.golang.org/api v0.277.0
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.0
 )
 
 require (
