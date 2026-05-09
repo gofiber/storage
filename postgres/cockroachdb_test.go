@@ -35,8 +35,8 @@ func newCockroachDBTestConfig(t testing.TB) Config {
 		tccockroachdb.WithDatabase(cockroachdbDatabase),
 		tccockroachdb.WithInsecure(),
 	)
-	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
+	testcontainers.CleanupContainer(t, c)
 
 	// ConnectionString() returns a stdlib registered key, not compatible with pgxpool.
 	// Use ConnectionConfig() to extract host/port/database and build a plain DSN.
