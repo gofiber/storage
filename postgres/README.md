@@ -9,6 +9,8 @@ title: Postgres
 
 A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 
+> **CockroachDB** is also supported. Since CockroachDB is wire-compatible with PostgreSQL, this driver works with CockroachDB without any changes. Simply point the connection string to your CockroachDB instance.
+
 ### Table of Contents
 
 - [Signatures](#signatures)
