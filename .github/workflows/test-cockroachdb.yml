@@ -1,0 +1,35 @@
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'cockroachdb/**'
+  pull_request:
+    paths:
+      - 'cockroachdb/**'
+  workflow_dispatch:
+name: "Tests CockroachDB"
+
+permissions:
+  contents: read
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - 1.25.x
+          - 1.26.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@v6
+      - name: Install Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '${{ matrix.go-version }}'
+      - name: Run Test
+        env:
+          TEST_COCKROACHDB_IMAGE: "cockroachdb/cockroach:latest-v23.2"
+        run: cd ./cockroachdb && go test ./... -v -race
