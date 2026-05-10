@@ -21,7 +21,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Generate filters
         id: filter-setup
         run: |
@@ -32,7 +32,7 @@ jobs:
         shell: bash
       - name: Filter changes
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         with:
           filters: ${{ steps.filter-setup.outputs.filters }}
     outputs:
@@ -48,15 +48,15 @@ jobs:
       fail-fast: false
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Install Go
         if: ${{ matrix.package != 'clickhouse' }}
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           # NOTE: Keep this in sync with the version from go.mod
           go-version: "1.25.x"
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '24'
       - name: Install Cloudflare Worker
@@ -72,7 +72,7 @@ jobs:
           sleep 30
       - name: Setup Redis
         if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        uses: shogo82148/actions-setup-redis@v1
+        uses: shogo82148/actions-setup-redis@bd623e2f740257df88cb670bdd279f3a9182f828 # v1
         with:
           redis-version: '7.x'
           auto-start: 'false'
@@ -129,12 +129,12 @@ jobs:
           TEST_VALKEY_IMAGE: "valkey/valkey:8"
           COHERENCE_LOG_LEVEL: "ERROR"
       - name: Get Previous Benchmark Results
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark-${{ matrix.package }}
       - name: Save Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1.22.1
+        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372 # v1.22.1
         with:
           tool: "go"
           output-file-path: ${{ matrix.package }}/output.txt
@@ -152,7 +152,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout gh-pages
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: gh-pages
           token: ${{ secrets.BENCHMARK_TOKEN }}
