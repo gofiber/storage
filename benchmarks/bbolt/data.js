@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776687181483,
+  "lastUpdate": 1778489677714,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -2400,6 +2400,102 @@ window.BENCHMARK_DATA = {
             "value": 86,
             "unit": "allocs/op",
             "extra": "2635 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5ba2f5ed8665e8fd07a2c8a8f7d2a8574c5b5c20",
+          "message": "Merge pull request #2698 from gofiber/dependabot/go_modules/aerospike/golang-modules-3357935b4c\n\nchore(deps): bump the golang-modules group across 11 directories with 5 updates",
+          "timestamp": "2026-05-11T10:51:42+02:00",
+          "tree_id": "167885d530631647b1a0e122731353d965d8e5de",
+          "url": "https://github.com/gofiber/storage/commit/5ba2f5ed8665e8fd07a2c8a8f7d2a8574c5b5c20"
+        },
+        "date": 1778489673463,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Bbolt_Set",
+            "value": 211439,
+            "unit": "ns/op\t    6298 B/op\t      43 allocs/op",
+            "extra": "5342 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - ns/op",
+            "value": 211439,
+            "unit": "ns/op",
+            "extra": "5342 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - B/op",
+            "value": 6298,
+            "unit": "B/op",
+            "extra": "5342 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Set - allocs/op",
+            "value": 43,
+            "unit": "allocs/op",
+            "extra": "5342 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get",
+            "value": 465.5,
+            "unit": "ns/op\t     480 B/op\t       7 allocs/op",
+            "extra": "2593479 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - ns/op",
+            "value": 465.5,
+            "unit": "ns/op",
+            "extra": "2593479 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - B/op",
+            "value": 480,
+            "unit": "B/op",
+            "extra": "2593479 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_Get - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "2593479 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete",
+            "value": 380038,
+            "unit": "ns/op\t   12577 B/op\t      86 allocs/op",
+            "extra": "3187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - ns/op",
+            "value": 380038,
+            "unit": "ns/op",
+            "extra": "3187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - B/op",
+            "value": 12577,
+            "unit": "B/op",
+            "extra": "3187 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Bbolt_SetAndDelete - allocs/op",
+            "value": 86,
+            "unit": "allocs/op",
+            "extra": "3187 times\n4 procs"
           }
         ]
       }
