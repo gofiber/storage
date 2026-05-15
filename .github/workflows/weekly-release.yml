@@ -20,6 +20,22 @@ on:
         description: Minutes between module publishes (default 2).
         type: string
         default: '2'
+      low-priority-cooldown-weeks:
+        description: >
+          Override central low-priority cooldown (weeks). Empty uses
+          central default (3). Set '0' to release low-priority drafts
+          immediately.
+        type: string
+        default: ''
+      low-priority-sections:
+        description: >
+          Override central low-priority section list (comma-separated
+          keywords). Empty uses central default
+          ('Maintenance,Documentation'). Regardless of this setting,
+          Dependabot github_actions bumps are filtered out so drafts
+          made of only those never publish.
+        type: string
+        default: ''
 
 concurrency:
   group: weekly-release-${{ github.repository }}
@@ -38,5 +54,7 @@ jobs:
       dry-run: ${{ inputs.dry-run || false }}
       draft-tags: ${{ inputs.draft-tags || '' }}
       publish-delay-minutes: ${{ inputs.delay || '2' }}
+      low-priority-cooldown-weeks: ${{ inputs.low-priority-cooldown-weeks || '' }}
+      low-priority-sections: ${{ inputs.low-priority-sections || '' }}
     secrets:
       dispatch-token: ${{ secrets.DISPATCH_TOKEN }}
