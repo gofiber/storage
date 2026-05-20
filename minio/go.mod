@@ -2,6 +2,12 @@ module github.com/gofiber/storage/minio
 
 go 1.25.0
 
+// The github.com/go-ini/ini repository declares itself as gopkg.in/ini.v1.
+// minio-go/v7/pkg/credentials imports it via the GitHub path; redirect to the
+// canonical module so Dependabot can resolve and update it. The replace target
+// version matches the upstream pin from minio-go/v7 to avoid drift.
+replace github.com/go-ini/ini => gopkg.in/ini.v1 v1.67.0
+
 require (
 	github.com/minio/minio-go/v7 v7.1.0
 	github.com/stretchr/testify v1.11.1
