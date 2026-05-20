@@ -11,8 +11,10 @@ updates:
       schedule:
           interval: "daily"
 
-    # gomod split by alphabet ranges to reduce group PR size
-    # a-d ~11 modules | e-n ~12 modules | o-z ~12 modules
+    # gomod split into fine-grained directory blocks to keep grouped PR commit
+    # messages well below the GitHub commit-message truncation limit. Each block
+    # covers at most ~9 directories so dependabot/fetch-metadata can always
+    # parse the YAML trailer in the head commit (see dependabot/fetch-metadata#666).
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
       allow:
@@ -20,6 +22,91 @@ updates:
       directories:
           - "/a*"
           - "/b*"
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+      groups:
+          testcontainers-modules:
+              patterns:
+                  - "github.com/testcontainers/testcontainers-go"
+                  - "github.com/testcontainers/testcontainers-go/modules/**"
+          utils-modules:
+              patterns:
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          ebitengine-modules:
+              patterns:
+                  - "github.com/ebitengine/**"
+          go-logr-modules:
+              patterns:
+                  - "github.com/go-logr/**"
+          logrus-modules:
+              patterns:
+                  - "github.com/sirupsen/logrus"
+                  - "github.com/sirupsen/logrus/**"
+          go-ole-modules:
+              patterns:
+                  - "github.com/go-ole/**"
+          go-redis-modules:
+              patterns:
+                  - "github.com/redis/go-redis/**"
+          grpc-gateway-modules:
+              patterns:
+                  - "github.com/grpc-ecosystem/grpc-gateway/**"
+          shirou-modules:
+              patterns:
+                  - "github.com/shirou/gopsutil"
+                  - "github.com/shirou/gopsutil/**"
+          morikuni-modules:
+              patterns:
+                  - "github.com/morikuni/**"
+          klauspost-modules:
+              patterns:
+                  - "github.com/klauspost/**"
+          snappy-modules:
+              patterns:
+                  - "github.com/golang/snappy"
+          tklauser-modules:
+              patterns:
+                  - "github.com/tklauser/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"
+
+    - package-ecosystem: "gomod"
+      open-pull-requests-limit: 15
+      allow:
+          - dependency-type: "all"
+      directories:
           - "/c*"
           - "/d*"
       labels:
@@ -115,6 +202,91 @@ updates:
           - "/j*"
           - "/k*"
           - "/l*"
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+      groups:
+          testcontainers-modules:
+              patterns:
+                  - "github.com/testcontainers/testcontainers-go"
+                  - "github.com/testcontainers/testcontainers-go/modules/**"
+          utils-modules:
+              patterns:
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          ebitengine-modules:
+              patterns:
+                  - "github.com/ebitengine/**"
+          go-logr-modules:
+              patterns:
+                  - "github.com/go-logr/**"
+          logrus-modules:
+              patterns:
+                  - "github.com/sirupsen/logrus"
+                  - "github.com/sirupsen/logrus/**"
+          go-ole-modules:
+              patterns:
+                  - "github.com/go-ole/**"
+          go-redis-modules:
+              patterns:
+                  - "github.com/redis/go-redis/**"
+          grpc-gateway-modules:
+              patterns:
+                  - "github.com/grpc-ecosystem/grpc-gateway/**"
+          shirou-modules:
+              patterns:
+                  - "github.com/shirou/gopsutil"
+                  - "github.com/shirou/gopsutil/**"
+          morikuni-modules:
+              patterns:
+                  - "github.com/morikuni/**"
+          klauspost-modules:
+              patterns:
+                  - "github.com/klauspost/**"
+          snappy-modules:
+              patterns:
+                  - "github.com/golang/snappy"
+          tklauser-modules:
+              patterns:
+                  - "github.com/tklauser/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"
+
+    - package-ecosystem: "gomod"
+      open-pull-requests-limit: 15
+      allow:
+          - dependency-type: "all"
+      directories:
           - "/m*"
           - "/n*"
       labels:
@@ -206,9 +378,179 @@ updates:
           - "/p*"
           - "/q*"
           - "/r*"
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+      groups:
+          testcontainers-modules:
+              patterns:
+                  - "github.com/testcontainers/testcontainers-go"
+                  - "github.com/testcontainers/testcontainers-go/modules/**"
+          utils-modules:
+              patterns:
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          ebitengine-modules:
+              patterns:
+                  - "github.com/ebitengine/**"
+          go-logr-modules:
+              patterns:
+                  - "github.com/go-logr/**"
+          logrus-modules:
+              patterns:
+                  - "github.com/sirupsen/logrus"
+                  - "github.com/sirupsen/logrus/**"
+          go-ole-modules:
+              patterns:
+                  - "github.com/go-ole/**"
+          go-redis-modules:
+              patterns:
+                  - "github.com/redis/go-redis/**"
+          grpc-gateway-modules:
+              patterns:
+                  - "github.com/grpc-ecosystem/grpc-gateway/**"
+          shirou-modules:
+              patterns:
+                  - "github.com/shirou/gopsutil"
+                  - "github.com/shirou/gopsutil/**"
+          morikuni-modules:
+              patterns:
+                  - "github.com/morikuni/**"
+          klauspost-modules:
+              patterns:
+                  - "github.com/klauspost/**"
+          snappy-modules:
+              patterns:
+                  - "github.com/golang/snappy"
+          tklauser-modules:
+              patterns:
+                  - "github.com/tklauser/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"
+
+    - package-ecosystem: "gomod"
+      open-pull-requests-limit: 15
+      allow:
+          - dependency-type: "all"
+      directories:
           - "/s*"
           - "/t*"
           - "/t*/*"
+      labels:
+          - "🤖 Dependencies"
+      schedule:
+          interval: "daily"
+      groups:
+          testcontainers-modules:
+              patterns:
+                  - "github.com/testcontainers/testcontainers-go"
+                  - "github.com/testcontainers/testcontainers-go/modules/**"
+          utils-modules:
+              patterns:
+                  - "github.com/gofiber/utils"
+                  - "github.com/gofiber/utils/**"
+          fiber-modules:
+              patterns:
+                  - "github.com/gofiber/fiber/**"
+          fasthttp-modules:
+              patterns:
+                  - "github.com/valyala/fasthttp"
+                  - "github.com/valyala/fasthttp/**"
+          golang-modules:
+              patterns:
+                  - "golang.org/x/**"
+          aws-modules:
+              patterns:
+                  - "github.com/aws/**"
+          azure-modules:
+              patterns:
+                  - "github.com/Azure/**"
+          ebitengine-modules:
+              patterns:
+                  - "github.com/ebitengine/**"
+          go-logr-modules:
+              patterns:
+                  - "github.com/go-logr/**"
+          logrus-modules:
+              patterns:
+                  - "github.com/sirupsen/logrus"
+                  - "github.com/sirupsen/logrus/**"
+          go-ole-modules:
+              patterns:
+                  - "github.com/go-ole/**"
+          go-redis-modules:
+              patterns:
+                  - "github.com/redis/go-redis/**"
+          grpc-gateway-modules:
+              patterns:
+                  - "github.com/grpc-ecosystem/grpc-gateway/**"
+          shirou-modules:
+              patterns:
+                  - "github.com/shirou/gopsutil"
+                  - "github.com/shirou/gopsutil/**"
+          morikuni-modules:
+              patterns:
+                  - "github.com/morikuni/**"
+          klauspost-modules:
+              patterns:
+                  - "github.com/klauspost/**"
+          snappy-modules:
+              patterns:
+                  - "github.com/golang/snappy"
+          tklauser-modules:
+              patterns:
+                  - "github.com/tklauser/**"
+          docker-modules:
+              patterns:
+                  - "github.com/docker/**"
+                  - "github.com/containerd/**"
+                  - "github.com/distribution/**"
+                  - "github.com/moby/**"
+          google-modules:
+              patterns:
+                  - "google.golang.org/**"
+          opentelemetry-modules:
+              patterns:
+                  - "go.opentelemetry.io/**"
+          testify-modules:
+              patterns:
+                  - "github.com/stretchr/testify"
+
+    - package-ecosystem: "gomod"
+      open-pull-requests-limit: 15
+      allow:
+          - dependency-type: "all"
+      directories:
           - "/u*"
           - "/v*"
           - "/w*"
