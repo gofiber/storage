@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778489724517,
+  "lastUpdate": 1779348126043,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -1344,6 +1344,102 @@ window.BENCHMARK_DATA = {
             "value": 316,
             "unit": "allocs/op",
             "extra": "246 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da0b44136fc69bc28a96f167856cbc291e3423b5",
+          "message": "Merge pull request #2729 from gofiber/dependabot/go_modules/cloudflarekv/github.com/cloudflare/cloudflare-go-0.117.0\n\nchore(deps): bump github.com/cloudflare/cloudflare-go from 0.116.0 to 0.117.0 in /cloudflarekv",
+          "timestamp": "2026-05-21T09:20:35+02:00",
+          "tree_id": "70698432152187e1200698e4319692879bb6e351",
+          "url": "https://github.com/gofiber/storage/commit/da0b44136fc69bc28a96f167856cbc291e3423b5"
+        },
+        "date": 1779348120734,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_CloudflareKV_Set",
+            "value": 4141844,
+            "unit": "ns/op\t   19137 B/op\t     161 allocs/op",
+            "extra": "252 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Set - ns/op",
+            "value": 4141844,
+            "unit": "ns/op",
+            "extra": "252 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Set - B/op",
+            "value": 19137,
+            "unit": "B/op",
+            "extra": "252 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Set - allocs/op",
+            "value": 161,
+            "unit": "allocs/op",
+            "extra": "252 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Get",
+            "value": 1661944,
+            "unit": "ns/op\t   50782 B/op\t      70 allocs/op",
+            "extra": "714 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Get - ns/op",
+            "value": 1661944,
+            "unit": "ns/op",
+            "extra": "714 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Get - B/op",
+            "value": 50782,
+            "unit": "B/op",
+            "extra": "714 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_Get - allocs/op",
+            "value": 70,
+            "unit": "allocs/op",
+            "extra": "714 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_SetAndDelete",
+            "value": 20426857,
+            "unit": "ns/op\t   38632 B/op\t     317 allocs/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_SetAndDelete - ns/op",
+            "value": 20426857,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_SetAndDelete - B/op",
+            "value": 38632,
+            "unit": "B/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_CloudflareKV_SetAndDelete - allocs/op",
+            "value": 317,
+            "unit": "allocs/op",
+            "extra": "100 times\n4 procs"
           }
         ]
       }
