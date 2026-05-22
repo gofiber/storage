@@ -35,8 +35,9 @@ var (
 		FROM information_schema.tables
 		WHERE table_schema = $1
 		AND table_name = $2;`
-	createTableQuery = `CREATE %s %s (
-			k  VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+	migrateKeyColumnQuery = `ALTER TABLE %s ALTER COLUMN k TYPE TEXT;`
+	createTableQuery      = `CREATE %s %s (
+			k  TEXT PRIMARY KEY NOT NULL DEFAULT '',
 			v  BYTEA NOT NULL,
 			e  BIGINT NOT NULL DEFAULT '0'
 		);`
@@ -47,7 +48,7 @@ var (
 			AND table_name = $2
 			AND column_name IN ('k','v','e');`
 	checkSchemaTargetDataType = map[string]string{
-		"k": "character varying",
+		"k": "text",
 		"v": "bytea",
 		"e": "bigint",
 	}
@@ -121,6 +122,21 @@ func New(config ...Config) *Storage {
 			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
 			if _, err := db.Exec(context.Background(), query); err != nil {
+				db.Close()
+				panic(err)
+			}
+		}
+	} else {
+		// Migrate existing tables: widen k from VARCHAR(64) to TEXT.
+		var kDataType string
+		const kTypeQuery = `SELECT data_type FROM information_schema.columns
+			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
+		if err := db.QueryRow(context.Background(), kTypeQuery, schema, tableName).Scan(&kDataType); err != nil {
+			db.Close()
+			panic(err)
+		}
+		if kDataType == "character varying" {
+			if _, err := db.Exec(context.Background(), fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
 				db.Close()
 				panic(err)
 			}
