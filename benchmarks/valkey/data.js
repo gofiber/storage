@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778657131814,
+  "lastUpdate": 1779435834408,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -4896,6 +4896,102 @@ window.BENCHMARK_DATA = {
             "value": 1,
             "unit": "allocs/op",
             "extra": "4888 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "03cb05848daf54c989670e0a031768378ae20058",
+          "message": "Merge pull request #2735 from gofiber/dependabot/go_modules/valkey/golang-modules-d4124cc10d\n\nchore(deps): bump the golang-modules group across 1 directory with 2 updates",
+          "timestamp": "2026-05-22T09:30:15+02:00",
+          "tree_id": "ec3e3d9c32dbe30371e580a8394e0d1ba895d0b1",
+          "url": "https://github.com/gofiber/storage/commit/03cb05848daf54c989670e0a031768378ae20058"
+        },
+        "date": 1779435828935,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Valkey_Set",
+            "value": 117097,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "9255 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - ns/op",
+            "value": 117097,
+            "unit": "ns/op",
+            "extra": "9255 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "9255 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "9255 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get",
+            "value": 123191,
+            "unit": "ns/op\t     512 B/op\t      11 allocs/op",
+            "extra": "9298 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - ns/op",
+            "value": 123191,
+            "unit": "ns/op",
+            "extra": "9298 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - B/op",
+            "value": 512,
+            "unit": "B/op",
+            "extra": "9298 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "9298 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete",
+            "value": 234695,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "5157 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - ns/op",
+            "value": 234695,
+            "unit": "ns/op",
+            "extra": "5157 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "5157 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "5157 times\n4 procs"
           }
         ]
       }
