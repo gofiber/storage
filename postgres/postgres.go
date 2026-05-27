@@ -131,13 +131,17 @@ func New(config ...Config) *Storage {
 		var kDataType string
 		const kTypeQuery = `SELECT data_type FROM information_schema.columns
 			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
-		if err := db.QueryRow(context.Background(), kTypeQuery, schema, tableName).Scan(&kDataType); err != nil {
-			db.Close()
+		if err := db.QueryRow(context.Background(), kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			if cfg.DB == nil {
+				db.Close()
+			}
 			panic(err)
 		}
 		if kDataType == "character varying" {
 			if _, err := db.Exec(context.Background(), fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
-				db.Close()
+				if cfg.DB == nil {
+					db.Close()
+				}
 				panic(err)
 			}
 		}
