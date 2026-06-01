@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780323901600,
+  "lastUpdate": 1780324080066,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -6720,6 +6720,102 @@ window.BENCHMARK_DATA = {
             "value": 344,
             "unit": "allocs/op",
             "extra": "1060 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac23eebf1203ffba441ab337c6f08f7c46b619ca",
+          "message": "Merge pull request #2771 from gofiber/dependabot/go_modules/arangodb/utils-modules-acef4b4ad7\n\nchore(deps): bump the utils-modules group across 3 directories with 1 update",
+          "timestamp": "2026-06-01T16:10:49+02:00",
+          "tree_id": "dcb585e49a38c80422c2140de8273f4daaf4f1d5",
+          "url": "https://github.com/gofiber/storage/commit/ac23eebf1203ffba441ab337c6f08f7c46b619ca"
+        },
+        "date": 1780324074720,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_ArangoDB_Set",
+            "value": 767144,
+            "unit": "ns/op\t   17374 B/op\t     229 allocs/op",
+            "extra": "1549 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Set - ns/op",
+            "value": 767144,
+            "unit": "ns/op",
+            "extra": "1549 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Set - B/op",
+            "value": 17374,
+            "unit": "B/op",
+            "extra": "1549 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Set - allocs/op",
+            "value": 229,
+            "unit": "allocs/op",
+            "extra": "1549 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get",
+            "value": 703132,
+            "unit": "ns/op\t   16704 B/op\t     226 allocs/op",
+            "extra": "1606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - ns/op",
+            "value": 703132,
+            "unit": "ns/op",
+            "extra": "1606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - B/op",
+            "value": 16704,
+            "unit": "B/op",
+            "extra": "1606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_Get - allocs/op",
+            "value": 226,
+            "unit": "allocs/op",
+            "extra": "1606 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete",
+            "value": 1139194,
+            "unit": "ns/op\t   26059 B/op\t     344 allocs/op",
+            "extra": "1036 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - ns/op",
+            "value": 1139194,
+            "unit": "ns/op",
+            "extra": "1036 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - B/op",
+            "value": 26059,
+            "unit": "B/op",
+            "extra": "1036 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_ArangoDB_SetAndDelete - allocs/op",
+            "value": 344,
+            "unit": "allocs/op",
+            "extra": "1036 times\n4 procs"
           }
         ]
       }
