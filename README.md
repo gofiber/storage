@@ -104,3 +104,9 @@ type Storage interface {
 
 
 See the benchmarks under https://gofiber.github.io/storage/benchmarks
+
+## ☕ Supporters
+
+Fiber is an open-source project that runs on donations to pay the bills, e.g., our domain name, hosting, and serverless infrastructure. If you want to support Fiber, please become a [GitHub Sponsor](https://github.com/sponsors/gofiber).
+
+<!-- sponsors --><!-- sponsors -->
