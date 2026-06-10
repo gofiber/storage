@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'scylladb/**'
   pull_request:
     paths:
       - 'scylladb/**'

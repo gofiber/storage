@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'testhelpers/redis/**'
   pull_request:
     paths:
       - 'testhelpers/redis/**'

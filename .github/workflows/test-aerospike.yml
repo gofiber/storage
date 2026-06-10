@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'aerospike/**'
   pull_request:
     paths:
       - 'aerospike/**'

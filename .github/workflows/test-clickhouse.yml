@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'clickhouse/**'
   pull_request:
     paths:
       - 'clickhouse/**'

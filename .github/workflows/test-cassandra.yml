@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'cassandra/**'
   pull_request:
     paths:
       - 'cassandra/**'

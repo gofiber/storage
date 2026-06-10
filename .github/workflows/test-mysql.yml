@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'mysql/**'
   pull_request:
     paths:
       - 'mysql/**'

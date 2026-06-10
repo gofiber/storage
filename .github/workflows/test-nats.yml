@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'nats/**'
   pull_request:
     paths:
       - 'nats/**'

@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'coherence/**'
   pull_request:
     paths:
       - 'coherence/**'

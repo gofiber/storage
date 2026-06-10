@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'memcache/**'
   pull_request:
     paths:
       - 'memcache/**'

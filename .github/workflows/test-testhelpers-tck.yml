@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'testhelpers/tck/**'
   pull_request:
     paths:
       - 'testhelpers/tck/**'
