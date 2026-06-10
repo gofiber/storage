@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'surrealdb/**'
   pull_request:
     paths:
       - 'surrealdb/**'
@@ -31,5 +29,5 @@ jobs:
           go-version: '${{ matrix.go-version }}'
       - name: Run Test
         env:
-          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:latest
+          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:v2
         run: cd ./surrealdb && go test ./... -v -race

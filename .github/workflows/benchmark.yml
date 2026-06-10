@@ -125,7 +125,7 @@ jobs:
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
           TEST_REDIS_IMAGE: "docker.io/redis:7"
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
-          TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:latest"
+          TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:v2"
           TEST_VALKEY_IMAGE: "valkey/valkey:8"
           COHERENCE_LOG_LEVEL: "ERROR"
       - name: Get Previous Benchmark Results
