@@ -7,12 +7,17 @@ on:
             - main
     workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
     contents: read
 
 jobs:
     changes:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         permissions:
             contents: read
             pull-requests: read

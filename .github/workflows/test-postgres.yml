@@ -9,12 +9,17 @@ on:
   workflow_dispatch:
 name: "Tests Postgres"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   Tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version:
@@ -27,6 +32,7 @@ jobs:
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: '${{ matrix.go-version }}'
+          cache-dependency-path: postgres/go.sum
       - name: Run Test
         env:
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
