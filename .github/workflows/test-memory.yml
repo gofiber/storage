@@ -7,7 +7,7 @@ on:
     paths:
       - 'memory/**'
   workflow_dispatch:
-name: "Tests Local Storage"
+name: "Tests Memory"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

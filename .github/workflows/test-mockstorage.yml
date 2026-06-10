@@ -7,7 +7,7 @@ on:
     paths:
       - 'mockstorage/**'
   workflow_dispatch:
-name: "Tests Local Storage"
+name: "Tests MockStorage"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
