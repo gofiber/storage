@@ -3,13 +3,15 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'minio/**'
   pull_request:
     paths:
       - 'minio/**'
   workflow_dispatch:
 name: "Tests Minio"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -17,6 +19,7 @@ permissions:
 jobs:
   Tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version:
@@ -24,11 +27,12 @@ jobs:
           - 1.26.x
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Install Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: '${{ matrix.go-version }}'
+          cache-dependency-path: minio/go.sum
       - name: Run Test
         env:
           TEST_MINIO_IMAGE: docker.io/minio/minio:latest

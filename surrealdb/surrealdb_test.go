@@ -13,7 +13,9 @@ import (
 
 var (
 	// surrealDb is the default image used for running surrealdb in tests.
-	surrealDb                   = "surrealdb/surrealdb:latest"
+	// Pinned to v2: SurrealDB v3 no longer creates namespaces/databases
+	// implicitly on USE, which the storage implementation relies on.
+	surrealDb                   = "surrealdb/surrealdb:v2"
 	surrealDbImageEnvVar string = "TEST_SURREALDB_IMAGE"
 	surrealDbUser        string = "root"
 	surrealDbPass        string = "root"

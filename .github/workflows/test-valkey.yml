@@ -3,8 +3,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'valkey/**'
   pull_request:
     paths:
       - 'valkey/**'
@@ -12,12 +10,17 @@ on:
   workflow_dispatch:
 name: "Tests Valkey"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   Tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version:
@@ -28,7 +31,7 @@ jobs:
           - '8'
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Setup Valkey Cluster
         uses: vishnudxb/redis-cluster@e29c352fa58527003afc982e96db437c0c49e6aa # 1.10.0
         with:
@@ -43,6 +46,7 @@ jobs:
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: '${{ matrix.go-version }}'
+          cache-dependency-path: valkey/go.sum
       - name: Run Test
         env:
           TEST_VALKEY_IMAGE: "valkey/valkey:${{ matrix.valkey }}"

@@ -3,13 +3,15 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'sqlite3/**'
   pull_request:
     paths:
       - 'sqlite3/**'
   workflow_dispatch:
 name: "Tests Sqlite3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -22,13 +24,15 @@ jobs:
           - 1.25.x
           - 1.26.x
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Fetch Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Install Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: '${{ matrix.go-version }}'
+          cache-dependency-path: sqlite3/go.sum
       - name: Test SQLite3 - with -race check
         if: runner.os != 'Windows'
         run: cd ./sqlite3 && go test ./... -v -race
