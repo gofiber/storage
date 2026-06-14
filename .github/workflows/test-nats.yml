@@ -36,4 +36,9 @@ jobs:
       - name: Test Nats
         env:
           TEST_NATS_IMAGE: "nats:2-alpine"
-        run: cd ./nats && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./nats
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

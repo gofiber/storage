@@ -37,4 +37,9 @@ jobs:
         env:
           TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
           TEST_COCKROACHDB_IMAGE: "cockroachdb/cockroach:latest-v23.2"
-        run: cd ./postgres && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./postgres
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

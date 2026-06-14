@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: bbolt/go.sum
       - name: Run Test
-        run: cd ./bbolt && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./bbolt
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

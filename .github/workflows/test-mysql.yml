@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_MYSQL_IMAGE: docker.io/mysql:9
-        run: cd ./mysql && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./mysql
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

@@ -43,4 +43,9 @@ jobs:
           cd cloudflarekv && npx wrangler dev &
           npx wait-on tcp:8787
       - name: Run Go Tests
-        run: cd cloudflarekv && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: cloudflarekv
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

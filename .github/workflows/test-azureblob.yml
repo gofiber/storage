@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_AZURITE_IMAGE: mcr.microsoft.com/azure-storage/azurite:latest
-        run: cd ./azureblob && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./azureblob
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

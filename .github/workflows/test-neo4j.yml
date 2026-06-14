@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: neo4j/go.sum
       - name: Run Test
-        run: cd ./neo4j && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./neo4j
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_CLICKHOUSE_IMAGE: clickhouse/clickhouse-server:23-alpine
-        run: cd ./clickhouse && go clean -testcache && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./clickhouse
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

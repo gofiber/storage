@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: memory/go.sum
       - name: Test Memory
-        run: cd ./memory && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./memory
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

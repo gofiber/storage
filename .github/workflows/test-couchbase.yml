@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.6.5
-        run: cd ./couchbase && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./couchbase
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

@@ -41,4 +41,9 @@ jobs:
       - name: Run Test
         env:
           TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
-        run: cd ./dynamodb && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./dynamodb
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

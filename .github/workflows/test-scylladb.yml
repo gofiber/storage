@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
-        run: cd ./scylladb && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./scylladb
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

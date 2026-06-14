@@ -47,8 +47,13 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: mssql/go.sum
       - name: Run Test
-        run: cd ./mssql && go test ./... -v -race
         env:
           MSSQL_DATABASE: master
           MSSQL_USERNAME: sa
           MSSQL_PASSWORD: MsSql!1234
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./mssql
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

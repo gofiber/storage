@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: leveldb/go.sum
       - name: Test LevelDB
-        run: cd ./leveldb && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./leveldb
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

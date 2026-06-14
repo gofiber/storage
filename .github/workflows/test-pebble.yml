@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: pebble/go.sum
       - name: Test Pebble
-        run: cd ./pebble && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./pebble
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

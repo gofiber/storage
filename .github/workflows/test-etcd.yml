@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
-        run: cd ./etcd && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./etcd
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

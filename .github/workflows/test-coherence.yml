@@ -36,4 +36,10 @@ jobs:
       - name: Run Test
         env:
           TEST_COHERENCE_IMAGE: "ghcr.io/oracle/coherence-ce:25.03.1-graal"
-        run: cd ./coherence && COHERENCE_SESSION_DEBUG=true go clean -testcache && go test ./... -v -race
+          COHERENCE_SESSION_DEBUG: "true"
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./coherence
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

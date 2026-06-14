@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: badger/go.sum
       - name: Test Badger
-        run: cd ./badger && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./badger
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

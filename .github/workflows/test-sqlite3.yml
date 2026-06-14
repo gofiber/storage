@@ -35,7 +35,17 @@ jobs:
           cache-dependency-path: sqlite3/go.sum
       - name: Test SQLite3 - with -race check
         if: runner.os != 'Windows'
-        run: cd ./sqlite3 && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./sqlite3
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1
       - name: Test SQLite3 - without -race check
         if: runner.os == 'Windows'
-        run: cd ./sqlite3 && go test ./... -v
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./sqlite3
+          packages: ./...
+          rerun-fails: '2'
+          args: -count=1

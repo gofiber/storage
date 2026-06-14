@@ -34,4 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: ristretto/go.sum
       - name: Run Test
-        run: cd ./ristretto && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./ristretto
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

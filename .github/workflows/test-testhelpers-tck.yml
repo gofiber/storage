@@ -34,5 +34,9 @@ jobs:
           go-version: '${{ matrix.go-version }}'
           cache-dependency-path: testhelpers/tck/go.sum
       - name: Run Test
-        working-directory: testhelpers/tck
-        run: go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: testhelpers/tck
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

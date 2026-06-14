@@ -49,4 +49,9 @@ jobs:
       - name: Run Test
         env:
           TEST_REDIS_IMAGE: "docker.io/redis:${{ matrix.redis }}"
-        run: cd ./rueidis && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./rueidis
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

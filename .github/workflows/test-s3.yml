@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_MINIO_IMAGE: docker.io/minio/minio:latest
-        run: cd ./s3 && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./s3
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1

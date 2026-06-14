@@ -36,4 +36,9 @@ jobs:
       - name: Run Test
         env:
           TEST_MEMCACHED_IMAGE: "memcached:latest"
-        run: cd ./memcache && go test ./... -v -race
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./memcache
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1
