@@ -146,7 +146,7 @@ func Start(t testing.TB, img string, opts ...Option) *Container {
 		require.NoError(t, err)
 
 		ctr.Host = host
-		ctr.Port = port.Int()
+		ctr.Port = int(port.Num())
 	}
 
 	if config.UseAddress {
