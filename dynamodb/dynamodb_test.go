@@ -2,18 +2,23 @@ package dynamodb
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/dynamodb"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
 	// dynamoDBImage is the default image used for running DynamoDB in tests.
 	dynamoDBImage              = "amazon/dynamodb-local:latest"
 	dynamoDBImageEnvVar string = "TEST_DYNAMODB_IMAGE"
+	// dynamoDBPort is the port DynamoDB local listens on inside the container.
+	dynamoDBPort = "8000/tcp"
 )
 
 func newTestStore(t testing.TB) *Storage {
@@ -26,17 +31,52 @@ func newTestStore(t testing.TB) *Storage {
 
 	ctx := context.Background()
 
-	c, err := dynamodb.Run(ctx, img, dynamodb.WithDisableTelemetry())
+	// The module's default wait strategy only waits for the TCP port to open.
+	// DynamoDB local (a Java process) accepts connections before it is ready to
+	// serve API calls and resets those early requests ("connection reset by
+	// peer"). Wait until it actually answers HTTP requests so New does not race
+	// the container startup.
+	c, err := dynamodb.Run(ctx, img,
+		dynamodb.WithDisableTelemetry(),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort(dynamoDBPort),
+			wait.ForHTTP("/").
+				WithPort(dynamoDBPort).
+				WithStartupTimeout(60*time.Second).
+				// DynamoDB local replies to any plain HTTP request once it is
+				// serving, so a non-5xx status means the API is up.
+				WithStatusCodeMatcher(func(status int) bool {
+					return status > 0 && status < http.StatusInternalServerError
+				}),
+		),
+	)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
 	hostPort, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
+	return newStore(t, "http://"+hostPort)
+}
+
+// newStore builds a Storage from the given endpoint. New panics on any
+// connection error (the public API has no error return), so a transient
+// container hiccup would crash the whole test binary and defeat gotestsum's
+// --rerun-fails. Recover here and turn it into a normal test failure that can
+// be retried instead.
+func newStore(t testing.TB, endpoint string) (s *Storage) {
+	t.Helper()
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("dynamodb: New panicked while connecting to %s: %v", endpoint, r)
+		}
+	}()
+
 	return New(
 		Config{
 			Table:    "fiber_storage",
-			Endpoint: "http://" + hostPort,
+			Endpoint: endpoint,
 			Region:   "us-east-1",
 			Credentials: Credentials{
 				AccessKey:       "dummy",
