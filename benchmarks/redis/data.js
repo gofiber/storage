@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781466482591,
+  "lastUpdate": 1781570852993,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -6048,6 +6048,102 @@ window.BENCHMARK_DATA = {
             "value": 16,
             "unit": "allocs/op",
             "extra": "5644 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f21ff95a050fac07762076468cf7112c00621d45",
+          "message": "Merge pull request #2721 from gofiber/dependabot/go_modules/postgres/testcontainers-modules-2ee54215db\n\nchore(deps): bump the testcontainers-modules group across 3 directories with 4 updates",
+          "timestamp": "2026-06-16T02:45:01+02:00",
+          "tree_id": "af62e7e05dbde615ff5209153b0185623a9a96bb",
+          "url": "https://github.com/gofiber/storage/commit/f21ff95a050fac07762076468cf7112c00621d45"
+        },
+        "date": 1781570845322,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Redis_Set",
+            "value": 145715,
+            "unit": "ns/op\t     278 B/op\t       9 allocs/op",
+            "extra": "9446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - ns/op",
+            "value": 145715,
+            "unit": "ns/op",
+            "extra": "9446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - B/op",
+            "value": 278,
+            "unit": "B/op",
+            "extra": "9446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - allocs/op",
+            "value": 9,
+            "unit": "allocs/op",
+            "extra": "9446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get",
+            "value": 139933,
+            "unit": "ns/op\t     205 B/op\t       7 allocs/op",
+            "extra": "8126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - ns/op",
+            "value": 139933,
+            "unit": "ns/op",
+            "extra": "8126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - B/op",
+            "value": 205,
+            "unit": "B/op",
+            "extra": "8126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "8126 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete",
+            "value": 277868,
+            "unit": "ns/op\t     494 B/op\t      16 allocs/op",
+            "extra": "4003 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - ns/op",
+            "value": 277868,
+            "unit": "ns/op",
+            "extra": "4003 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - B/op",
+            "value": 494,
+            "unit": "B/op",
+            "extra": "4003 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - allocs/op",
+            "value": 16,
+            "unit": "allocs/op",
+            "extra": "4003 times\n4 procs"
           }
         ]
       }
