@@ -11,7 +11,7 @@ import (
 )
 
 // Image is the default image used for running Redis in tests.
-const testImage = "docker.io/redis:7"
+const testImage = "public.ecr.aws/docker/library/redis:7"
 
 func TestStart(t *testing.T) {
 	t.Run("panics-if-image-is-not-set", func(t *testing.T) {
@@ -31,7 +31,7 @@ func TestStart(t *testing.T) {
 	})
 
 	t.Run("with-custom-image", func(t *testing.T) {
-		customImage := "docker.io/redis:6"
+		customImage := "public.ecr.aws/docker/library/redis:6"
 		ctr := Start(t, customImage)
 		require.True(t, strings.HasPrefix(ctr.URL, "redis://"))
 		require.Nil(t, ctr.TLSConfig)

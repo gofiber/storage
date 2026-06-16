@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: clickhouse/go.sum
       - name: Run Test
         env:
-          TEST_CLICKHOUSE_IMAGE: clickhouse/clickhouse-server:23-alpine
+          TEST_CLICKHOUSE_IMAGE: "clickhouse/clickhouse-server:23-alpine"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./clickhouse

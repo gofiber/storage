@@ -16,7 +16,7 @@ import (
 
 const (
 	// postgresImage is the default image used for running Postgres in tests.
-	postgresImage              = "docker.io/postgres:16-alpine"
+	postgresImage              = "public.ecr.aws/docker/library/postgres:16-alpine"
 	postgresImageEnvVar string = "TEST_POSTGRES_IMAGE"
 	postgresUser        string = "username"
 	postgresPass        string = "p4ssw0rd"

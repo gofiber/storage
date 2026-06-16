@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: couchbase/go.sum
       - name: Run Test
         env:
-          TEST_COUCHBASE_IMAGE: couchbase:enterprise-7.6.5
+          TEST_COUCHBASE_IMAGE: "public.ecr.aws/docker/library/couchbase:enterprise-7.6.5"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./couchbase

@@ -14,7 +14,7 @@ import (
 
 const (
 	// mongoDBImage is the default image used for running MongoDB in tests.
-	mongoDBImage              = "mongo:7"
+	mongoDBImage              = "public.ecr.aws/docker/library/mongo:7"
 	mongoDBImageEnvVar string = "TEST_MONGODB_IMAGE"
 	mongoDBUser        string = "mongo-user"
 	mongoDBPass        string = "mongo-password"

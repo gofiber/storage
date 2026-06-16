@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: surrealdb/go.sum
       - name: Run Test
         env:
-          TEST_SURREALDB_IMAGE: surrealdb/surrealdb:v2
+          TEST_SURREALDB_IMAGE: "surrealdb/surrealdb:v2"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./surrealdb

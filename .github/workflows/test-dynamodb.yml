@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 30
     services:
       mongo:
-        image: 'amazon/dynamodb-local:latest'
+        image: 'public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest'
         ports:
           - '8000:8000'
     strategy:
@@ -40,7 +40,7 @@ jobs:
           cache-dependency-path: dynamodb/go.sum
       - name: Run Test
         env:
-          TEST_DYNAMODB_IMAGE: amazon/dynamodb-local:latest
+          TEST_DYNAMODB_IMAGE: "public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./dynamodb

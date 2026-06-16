@@ -16,7 +16,7 @@ import (
 
 const (
 	// arangoDB is the default image used for running arangoDB in tests.
-	arangoDBImage       = "arangodb:latest"
+	arangoDBImage       = "public.ecr.aws/docker/library/arangodb:latest"
 	arangoDBImageEnvVar = "TEST_ARANGODB_IMAGE"
 	arangoDBPassword    = "test"
 )

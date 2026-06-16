@@ -14,7 +14,7 @@ import (
 
 const (
 	// couchbaseImage is the default image used for running couchbase in tests.
-	couchbaseImage              = "couchbase:enterprise-7.6.5"
+	couchbaseImage              = "public.ecr.aws/docker/library/couchbase:enterprise-7.6.5"
 	couchbaseImageEnvVar string = "TEST_COUCHBASE_IMAGE"
 	couchbaseUser        string = "default"
 	couchbasePass        string = "password"

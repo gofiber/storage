@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: mysql/go.sum
       - name: Run Test
         env:
-          TEST_MYSQL_IMAGE: docker.io/mysql:9
+          TEST_MYSQL_IMAGE: "public.ecr.aws/docker/library/mysql:9"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./mysql

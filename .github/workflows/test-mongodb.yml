@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: mongodb/go.sum
       - name: Run Test
         env:
-          TEST_MONGODB_IMAGE: docker.io/mongo:7
+          TEST_MONGODB_IMAGE: "public.ecr.aws/docker/library/mongo:7"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./mongodb

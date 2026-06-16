@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: cassandra/go.sum
       - name: Run Test
         env:
-          TEST_CASSANDRA_IMAGE: cassandra:latest
+          TEST_CASSANDRA_IMAGE: "public.ecr.aws/docker/library/cassandra:latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./cassandra

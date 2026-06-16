@@ -15,7 +15,7 @@ import (
 
 const (
 	// dynamoDBImage is the default image used for running DynamoDB in tests.
-	dynamoDBImage              = "amazon/dynamodb-local:latest"
+	dynamoDBImage              = "public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest"
 	dynamoDBImageEnvVar string = "TEST_DYNAMODB_IMAGE"
 	// dynamoDBPort is the port DynamoDB local listens on inside the container.
 	dynamoDBPort = "8000/tcp"

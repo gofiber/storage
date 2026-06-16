@@ -49,7 +49,7 @@ jobs:
           cache-dependency-path: valkey/go.sum
       - name: Run Test
         env:
-          TEST_VALKEY_IMAGE: "valkey/valkey:${{ matrix.valkey }}"
+          TEST_VALKEY_IMAGE: "public.ecr.aws/valkey/valkey:${{ matrix.valkey }}"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./valkey

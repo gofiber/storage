@@ -14,7 +14,7 @@ import (
 
 const (
 	// valkeyImage is the default image used for running Valkey in tests.
-	valkeyImage       = "valkey/valkey:8"
+	valkeyImage       = "public.ecr.aws/valkey/valkey:8"
 	valkeyImageEnvVar = "TEST_VALKEY_IMAGE"
 )
 

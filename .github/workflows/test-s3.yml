@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: s3/go.sum
       - name: Run Test
         env:
-          TEST_MINIO_IMAGE: docker.io/minio/minio:latest
+          TEST_MINIO_IMAGE: "quay.io/minio/minio:latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./s3

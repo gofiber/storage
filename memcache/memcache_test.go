@@ -13,7 +13,7 @@ import (
 
 const (
 	// memcachedImage is the default image used for running memcached in tests.
-	memcachedImage              = "memcached:latest"
+	memcachedImage              = "public.ecr.aws/docker/library/memcached:latest"
 	memcachedImageEnvVar string = "TEST_MEMCACHED_IMAGE"
 	memcachedPort               = "11211/tcp"
 )

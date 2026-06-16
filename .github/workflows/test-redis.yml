@@ -50,7 +50,7 @@ jobs:
           cache-dependency-path: redis/go.sum
       - name: Run Test
         env:
-          TEST_REDIS_IMAGE: "docker.io/redis:${{ matrix.redis }}"
+          TEST_REDIS_IMAGE: "public.ecr.aws/docker/library/redis:${{ matrix.redis }}"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./redis

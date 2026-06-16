@@ -16,7 +16,7 @@ import (
 
 const (
 	// cassandraImage is the default image used for running cassandra in tests.
-	cassandraImage              = "cassandra:latest"
+	cassandraImage              = "public.ecr.aws/docker/library/cassandra:latest"
 	cassandraImageEnvVar string = "TEST_CASSANDRA_IMAGE"
 	cassandraPort               = "9042/tcp"
 )

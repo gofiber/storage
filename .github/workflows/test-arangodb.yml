@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: arangodb/go.sum
       - name: Run Test
         env:
-          TEST_ARANGODB_IMAGE: arangodb:latest
+          TEST_ARANGODB_IMAGE: "public.ecr.aws/docker/library/arangodb:latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./arangodb

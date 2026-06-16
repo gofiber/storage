@@ -15,7 +15,7 @@ import (
 
 const (
 	// aerospikeImage is the default image used for running Aerospike in tests.
-	aerospikeImage              = "aerospike/aerospike-server:latest"
+	aerospikeImage              = "public.ecr.aws/docker/library/aerospike:latest"
 	aerospikeImageEnvVar string = "TEST_AEROSPIKE_IMAGE"
 	aerospikePort               = "3000/tcp"
 	fabricPort                  = "3001/tcp"

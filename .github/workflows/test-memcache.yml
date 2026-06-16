@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: memcache/go.sum
       - name: Run Test
         env:
-          TEST_MEMCACHED_IMAGE: "memcached:latest"
+          TEST_MEMCACHED_IMAGE: "public.ecr.aws/docker/library/memcached:latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./memcache

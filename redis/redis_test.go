@@ -13,7 +13,7 @@ import (
 
 const (
 	// redisImage is the default image used for running Redis in tests.
-	redisImage       = "docker.io/redis:7"
+	redisImage       = "public.ecr.aws/docker/library/redis:7"
 	redisImageEnvVar = "TEST_REDIS_IMAGE"
 )
 

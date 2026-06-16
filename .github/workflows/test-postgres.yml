@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: postgres/go.sum
       - name: Run Test
         env:
-          TEST_POSTGRES_IMAGE: "docker.io/postgres:16-alpine"
+          TEST_POSTGRES_IMAGE: "public.ecr.aws/docker/library/postgres:16-alpine"
           TEST_COCKROACHDB_IMAGE: "cockroachdb/cockroach:latest-v23.2"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:

@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: nats/go.sum
       - name: Test Nats
         env:
-          TEST_NATS_IMAGE: "nats:2-alpine"
+          TEST_NATS_IMAGE: "public.ecr.aws/docker/library/nats:2-alpine"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./nats

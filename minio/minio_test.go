@@ -15,7 +15,7 @@ import (
 
 const (
 	// minioImage is the default image used for running minio in tests.
-	minioImage              = "docker.io/minio/minio:latest"
+	minioImage              = "quay.io/minio/minio:latest"
 	minioImageEnvVar string = "TEST_MINIO_IMAGE"
 	minioUser        string = "minio-user"
 	minioPass        string = "minio-password"
