@@ -40,7 +40,7 @@ func newTestStore(t testing.TB) *Storage {
 
 	return New(Config{
 		Hosts: []string{connectionHost},
-		Port:  scyllaPort.Int(),
+		Port:  int(scyllaPort.Num()),
 		Reset: true,
 		// Disable initial host lookup in tests.
 		// See https://github.com/apache/cassandra-gocql-driver/issues/1020#issuecomment-362494859
