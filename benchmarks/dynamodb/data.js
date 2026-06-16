@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781591495888,
+  "lastUpdate": 1781595182328,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -14304,6 +14304,102 @@ window.BENCHMARK_DATA = {
             "value": 725,
             "unit": "allocs/op",
             "extra": "129 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "distinct": true,
+          "id": "b56bc1af54c05cf97ce3aa3731a64f095337afa3",
+          "message": "test: pull container images from no-auth mirrors to avoid Docker Hub rate limits\n\nCI test containers were pulled anonymously from Docker Hub, which hits the\nshared-IP anonymous rate limit on GitHub-hosted runners and caused\nintermittent \"context deadline exceeded\" / \"connection reset by peer\"\nfailures during container startup.\n\nMove the images to anonymous, no-login public mirrors:\n\n- Docker Official Images -> public.ecr.aws/docker/library/<name> (AWS mirror):\n  nats, redis, postgres, mysql, mongo, cassandra, couchbase, memcached,\n  arangodb, and aerospike (switched from the aerospike/aerospike-server\n  vendor repo to the official aerospike CE image).\n- dynamodb-local -> public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local\n- valkey -> public.ecr.aws/valkey/valkey\n- minio -> quay.io/minio/minio\n\nUpdated every reference: the test-*.yml workflow env vars, benchmark.yml,\nthe dynamodb service container, and the Go default image constants\n(redis in redis/rueidis/testhelpers, minio in minio/s3).\n\nclickhouse, cockroachdb, scylladb and surrealdb stay on Docker Hub because\nno anonymous off-Hub mirror exists for them; the much lower overall Hub pull\nvolume reduces their rate-limit exposure.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T09:29:15+02:00",
+          "tree_id": "ebd49644d81612781565d4c45781bd31d56dc6ec",
+          "url": "https://github.com/gofiber/storage/commit/b56bc1af54c05cf97ce3aa3731a64f095337afa3"
+        },
+        "date": 1781595177170,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_DynamoDB_Set",
+            "value": 3483743,
+            "unit": "ns/op\t   31852 B/op\t     364 allocs/op",
+            "extra": "326 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - ns/op",
+            "value": 3483743,
+            "unit": "ns/op",
+            "extra": "326 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - B/op",
+            "value": 31852,
+            "unit": "B/op",
+            "extra": "326 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - allocs/op",
+            "value": 364,
+            "unit": "allocs/op",
+            "extra": "326 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get",
+            "value": 1614661,
+            "unit": "ns/op\t   34455 B/op\t     393 allocs/op",
+            "extra": "620 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - ns/op",
+            "value": 1614661,
+            "unit": "ns/op",
+            "extra": "620 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - B/op",
+            "value": 34455,
+            "unit": "B/op",
+            "extra": "620 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - allocs/op",
+            "value": 393,
+            "unit": "allocs/op",
+            "extra": "620 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete",
+            "value": 7159629,
+            "unit": "ns/op\t   63297 B/op\t     725 allocs/op",
+            "extra": "142 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
+            "value": 7159629,
+            "unit": "ns/op",
+            "extra": "142 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
+            "value": 63297,
+            "unit": "B/op",
+            "extra": "142 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
+            "value": 725,
+            "unit": "allocs/op",
+            "extra": "142 times\n4 procs"
           }
         ]
       }
