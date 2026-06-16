@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780989414399,
+  "lastUpdate": 1781590046209,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -5472,6 +5472,102 @@ window.BENCHMARK_DATA = {
             "value": 1,
             "unit": "allocs/op",
             "extra": "3770 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "distinct": true,
+          "id": "62e7c0daf60a396a059ba18673afae6150425ca8",
+          "message": "valkey: run go mod tidy to fix CI\n\ngo.mod/go.sum were out of sync after testcontainers-go was bumped to\nv0.42.0, causing `go test` (-mod=readonly) to abort with\n\"updates to go.mod needed\" before any test ran.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T08:04:55+02:00",
+          "tree_id": "3462e42b664cf13eec617b6810955b4dc6ab6cc6",
+          "url": "https://github.com/gofiber/storage/commit/62e7c0daf60a396a059ba18673afae6150425ca8"
+        },
+        "date": 1781590042030,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Valkey_Set",
+            "value": 66298,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "18096 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - ns/op",
+            "value": 66298,
+            "unit": "ns/op",
+            "extra": "18096 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "18096 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Set - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "18096 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get",
+            "value": 68988,
+            "unit": "ns/op\t     512 B/op\t      11 allocs/op",
+            "extra": "17614 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - ns/op",
+            "value": 68988,
+            "unit": "ns/op",
+            "extra": "17614 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - B/op",
+            "value": 512,
+            "unit": "B/op",
+            "extra": "17614 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_Get - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "17614 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete",
+            "value": 132187,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "8952 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - ns/op",
+            "value": 132187,
+            "unit": "ns/op",
+            "extra": "8952 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "8952 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Valkey_SetAndDelete - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "8952 times\n4 procs"
           }
         ]
       }
