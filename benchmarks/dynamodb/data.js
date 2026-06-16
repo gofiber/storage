@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781162252419,
+  "lastUpdate": 1781591495888,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -14208,6 +14208,102 @@ window.BENCHMARK_DATA = {
             "value": 725,
             "unit": "allocs/op",
             "extra": "138 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "rene@gofiber.io",
+            "name": "René",
+            "username": "ReneWerner87"
+          },
+          "distinct": true,
+          "id": "261d9df24fbb8acd7b41585d0e2ab0d5cb439ade",
+          "message": "test(dynamodb): wait for container readiness to fix flaky panic\n\nThe DynamoDB tests intermittently failed with a panic during New():\n\n  panic: operation error DynamoDB: DescribeTable, exceeded maximum number\n  of attempts, 3, ... connection reset by peer\n\nThe testcontainers module only waits for the TCP port to open, but\nDynamoDB local (a Java process) accepts connections before it can serve\nAPI calls and resets those early requests. New() then panics, which\ncrashes the whole test binary and prevents gotestsum --rerun-fails from\nabsorbing the flake.\n\n- Wait for an HTTP response from DynamoDB local before building the store,\n  so the container is actually serving API calls.\n- Recover from New()'s panic in the test helper and turn it into a normal\n  test failure, so a residual transient error is retryable instead of\n  fatal.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-16T08:28:55+02:00",
+          "tree_id": "8cf5207dd39fa87b0f6b8439a9ffd82d6c066593",
+          "url": "https://github.com/gofiber/storage/commit/261d9df24fbb8acd7b41585d0e2ab0d5cb439ade"
+        },
+        "date": 1781591487923,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_DynamoDB_Set",
+            "value": 3785189,
+            "unit": "ns/op\t   31930 B/op\t     364 allocs/op",
+            "extra": "306 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - ns/op",
+            "value": 3785189,
+            "unit": "ns/op",
+            "extra": "306 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - B/op",
+            "value": 31930,
+            "unit": "B/op",
+            "extra": "306 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - allocs/op",
+            "value": 364,
+            "unit": "allocs/op",
+            "extra": "306 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get",
+            "value": 1747104,
+            "unit": "ns/op\t   34160 B/op\t     393 allocs/op",
+            "extra": "595 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - ns/op",
+            "value": 1747104,
+            "unit": "ns/op",
+            "extra": "595 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - B/op",
+            "value": 34160,
+            "unit": "B/op",
+            "extra": "595 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - allocs/op",
+            "value": 393,
+            "unit": "allocs/op",
+            "extra": "595 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete",
+            "value": 8075749,
+            "unit": "ns/op\t   63188 B/op\t     725 allocs/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
+            "value": 8075749,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
+            "value": 63188,
+            "unit": "B/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
+            "value": 725,
+            "unit": "allocs/op",
+            "extra": "129 times\n4 procs"
           }
         ]
       }
