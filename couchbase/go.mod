@@ -3,7 +3,7 @@ module github.com/gofiber/storage/couchbase/v2
 go 1.25.0
 
 require (
-	github.com/couchbase/gocb/v2 v2.12.3
+	github.com/couchbase/gocb/v2 v2.12.4
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/couchbase v0.42.0
