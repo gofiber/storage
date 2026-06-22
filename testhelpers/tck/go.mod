@@ -7,7 +7,7 @@ replace github.com/gofiber/storage => ../..
 require (
 	github.com/gofiber/storage v1.3.3
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.42.0
+	github.com/testcontainers/testcontainers-go v0.43.0
 )
 
 require (
