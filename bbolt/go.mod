@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gofiber/utils/v2 v2.1.0
 	github.com/stretchr/testify v1.11.1
-	go.etcd.io/bbolt v1.4.3
+	go.etcd.io/bbolt v1.5.0
 )
 
 require (
