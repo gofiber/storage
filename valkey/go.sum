@@ -106,8 +106,8 @@ github.com/tklauser/go-sysconf v0.4.0 h1:7H0uAN+7RkwWRaxhYXDLqa5V3LPrJeV8wmD9dRU
 github.com/tklauser/go-sysconf v0.4.0/go.mod h1:8mTNWyog7H+MpKijp4VmKJAd2bbYQ2zuUwkYRbUArPI=
 github.com/tklauser/numcpus v0.12.0 h1:NR85qdvHA9pFse3x3weVZ0r0ST8R6l5RHbZrlRaqob4=
 github.com/tklauser/numcpus v0.12.0/go.mod h1:ABHeXzJnr/qqwguhClkZKT1/8VABcYrsyUiUGobwWJg=
-github.com/valkey-io/valkey-go v1.0.75 h1:cfq9DODW2ntuUgyHJmFWb4/p+xpLpQB1t5SQyWM9uJ4=
-github.com/valkey-io/valkey-go v1.0.75/go.mod h1:6X581PhgfeMkJmyfjIsa2eFdq6dy3Qkkg9zwjM1p42M=
+github.com/valkey-io/valkey-go v1.0.76 h1:Rcown7FFseVhG9b0+4MWfMs4xWu8otPzHjrsK044ET4=
+github.com/valkey-io/valkey-go v1.0.76/go.mod h1:6X581PhgfeMkJmyfjIsa2eFdq6dy3Qkkg9zwjM1p42M=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
