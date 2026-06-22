@@ -11,8 +11,8 @@ replace github.com/go-ini/ini => gopkg.in/ini.v1 v1.67.0
 require (
 	github.com/minio/minio-go/v7 v7.2.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.42.0
-	github.com/testcontainers/testcontainers-go/modules/minio v0.42.0
+	github.com/testcontainers/testcontainers-go v0.43.0
+	github.com/testcontainers/testcontainers-go/modules/minio v0.43.0
 	github.com/valyala/bytebufferpool v1.0.0
 )
 
