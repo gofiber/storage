@@ -5,8 +5,8 @@ go 1.25.0
 require (
 	github.com/gocql/gocql v1.7.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.42.0
-	github.com/testcontainers/testcontainers-go/modules/scylladb v0.42.0
+	github.com/testcontainers/testcontainers-go v0.43.0
+	github.com/testcontainers/testcontainers-go/modules/scylladb v0.43.0
 )
 
 require (
