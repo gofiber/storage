@@ -79,7 +79,7 @@ jobs:
           sleep 30
       - name: Setup Redis
         if: ${{ matrix.package == 'rueidis' || matrix.package == 'valkey' }}
-        uses: shogo82148/actions-setup-redis@91ccba21831ee5c019643ffdc72378784f8c1180 # v1
+        uses: shogo82148/actions-setup-redis@81c3559f3be13c0fead88f562d48fa3a62e5fc93 # v1
         with:
           redis-version: '7.x'
           auto-start: 'false'
