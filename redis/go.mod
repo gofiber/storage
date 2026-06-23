@@ -6,7 +6,7 @@ replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
 
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.1.0
-	github.com/redis/go-redis/v9 v9.20.1
+	github.com/redis/go-redis/v9 v9.21.0
 	github.com/stretchr/testify v1.11.1
 )
 
