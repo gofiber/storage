@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781853876493,
+  "lastUpdate": 1782307613752,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -5568,6 +5568,102 @@ window.BENCHMARK_DATA = {
             "value": 212,
             "unit": "allocs/op",
             "extra": "289 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abaf2af7050bab882032355676078cac53bb3be9",
+          "message": "Merge pull request #2890 from gofiber/claude/storage-drivers-newwithcontext-66911o\n\n🔥 feat: add NewWithContext constructor to context-using storage drivers",
+          "timestamp": "2026-06-24T15:19:41+02:00",
+          "tree_id": "a80d14d8721d822d2fcc75c00205fafc887f0e2a",
+          "url": "https://github.com/gofiber/storage/commit/abaf2af7050bab882032355676078cac53bb3be9"
+        },
+        "date": 1782307607978,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Coherence_Set",
+            "value": 2110688,
+            "unit": "ns/op\t    5147 B/op\t     112 allocs/op",
+            "extra": "517 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - ns/op",
+            "value": 2110688,
+            "unit": "ns/op",
+            "extra": "517 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - B/op",
+            "value": 5147,
+            "unit": "B/op",
+            "extra": "517 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - allocs/op",
+            "value": 112,
+            "unit": "allocs/op",
+            "extra": "517 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get",
+            "value": 904.8,
+            "unit": "ns/op\t     301 B/op\t       5 allocs/op",
+            "extra": "1363632 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - ns/op",
+            "value": 904.8,
+            "unit": "ns/op",
+            "extra": "1363632 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - B/op",
+            "value": 301,
+            "unit": "B/op",
+            "extra": "1363632 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "1363632 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete",
+            "value": 4183490,
+            "unit": "ns/op\t    9642 B/op\t     212 allocs/op",
+            "extra": "262 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - ns/op",
+            "value": 4183490,
+            "unit": "ns/op",
+            "extra": "262 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - B/op",
+            "value": 9642,
+            "unit": "B/op",
+            "extra": "262 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - allocs/op",
+            "value": 212,
+            "unit": "allocs/op",
+            "extra": "262 times\n4 procs"
           }
         ]
       }
