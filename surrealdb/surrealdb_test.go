@@ -21,7 +21,7 @@ var (
 	surrealDbPass        string = "root"
 )
 
-func newTestStore(t testing.TB) *Storage {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 	ctx := context.Background()
 
@@ -41,16 +41,32 @@ func newTestStore(t testing.TB) *Storage {
 	url, err := surrealdbContainer.URL(ctx)
 	require.NoError(t, err)
 
-	return New(
-		Config{
-			ConnectionString: url,
-			Namespace:        "testns",
-			Database:         "testdb",
-			Username:         surrealDbUser,
-			Password:         surrealDbPass,
-			DefaultTable:     "fiber_storage",
-		},
-	)
+	return Config{
+		ConnectionString: url,
+		Namespace:        "testns",
+		Database:         "testdb",
+		Username:         surrealDbUser,
+		Password:         surrealDbPass,
+		DefaultTable:     "fiber_storage",
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+	return New(newTestConfig(t))
+}
+
+func Test_Surrealdb_NewWithContext(t *testing.T) {
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set("test", []byte("test12345"), 0)
+	require.NoError(t, err)
+
+	get, err := testStore.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, []byte("test12345"), get)
 }
 
 func Test_Surrealdb_Create(t *testing.T) {

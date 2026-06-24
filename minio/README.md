@@ -20,7 +20,8 @@ A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go)
 
 ### Signatures
 ```go
-func New(config ...Config) Storage
+func New(config ...Config) *Storage
+func NewWithContext(ctx context.Context, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -31,7 +32,9 @@ func (s *Storage) Reset() error
 func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) CheckBucket() error
+func (s *Storage) CheckBucketWithContext(ctx context.Context) error
 func (s *Storage) CreateBucket() error
+func (s *Storage) CreateBucketWithContext(ctx context.Context) error
 func (s *Storage) RemoveBucket() error
 func (s *Storage) Conn() *minio.Client
 ```

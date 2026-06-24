@@ -27,8 +27,14 @@ type item struct {
 	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
-// New creates a new MongoDB storage
+// New creates a new MongoDB storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new MongoDB storage, using ctx as the parent context
+// for the initialization operations (connect, ping, optional drop, index creation).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -56,16 +62,16 @@ func New(config ...Config) *Storage {
 	opt := options.Client().ApplyURI(dsn)
 
 	// Create and connect the mongo client in one step
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, opt)
+	client, err := mongo.Connect(timeoutCtx, opt)
 	if err != nil {
 		panic(err)
 	}
 
 	// verify that the client can connect
-	if err = client.Ping(context.Background(), nil); err != nil {
+	if err = client.Ping(ctx, nil); err != nil {
 		panic(err)
 	}
 
@@ -74,10 +80,15 @@ func New(config ...Config) *Storage {
 	col := db.Collection(cfg.Collection)
 
 	if cfg.Reset {
-		if err = col.Drop(context.Background()); err != nil {
+		if err = col.Drop(ctx); err != nil {
 			panic(err)
 		}
 	}
+
+	// Use a dedicated timeout for index creation so it is not starved by time
+	// already spent on connect/ping above.
+	indexCtx, indexCancel := context.WithTimeout(ctx, 20*time.Second)
+	defer indexCancel()
 
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
 	// more on https://docs.mongodb.com/manual/core/index-ttl/
@@ -92,7 +103,7 @@ func New(config ...Config) *Storage {
 		Options: options.Index().SetExpireAfterSeconds(0),
 	}
 
-	if _, err := col.Indexes().CreateOne(ctx, indexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(indexCtx, indexModel); err != nil {
 		panic(err)
 	}
 
@@ -105,7 +116,7 @@ func New(config ...Config) *Storage {
 		Options: options.Index().SetUnique(true),
 	}
 
-	if _, err := col.Indexes().CreateOne(ctx, keyIndexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(indexCtx, keyIndexModel); err != nil {
 		panic(err)
 	}
 

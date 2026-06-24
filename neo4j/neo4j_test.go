@@ -19,7 +19,10 @@ const (
 	neo4jReadyLog = "Bolt enabled on"
 )
 
-var testStore *Storage
+var (
+	testStore  *Storage
+	testConfig Config
+)
 
 // TestMain sets up and tears down the test container
 func TestMain(m *testing.M) {
@@ -53,12 +56,13 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Initialize Neo4j store with test container credentials
-	store := New(Config{
+	testConfig = Config{
 		Reset:    true,
 		URI:      uri,
 		Username: "neo4j",
 		Password: "pass#w*#d",
-	})
+	}
+	store := New(testConfig)
 
 	testStore = store
 
@@ -77,6 +81,28 @@ func Test_Neo4jStore_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_Neo4jStore_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	// Avoid the destructive reset on this shared container so the suite does
+	// not become order-dependent.
+	cfg := testConfig
+	cfg.Reset = false
+	store := NewWithContext(context.Background(), cfg)
+	require.NotNil(t, store)
+	defer store.Close()
+
+	err := store.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Neo4jStore_SetWithContext(t *testing.T) {

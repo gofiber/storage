@@ -16,7 +16,9 @@ const (
 	projectID                   = "test-project"
 )
 
-func newTestStore(t testing.TB) *Storage {
+// newTestConfig starts a firestore emulator testcontainer, points the
+// FIRESTORE_EMULATOR_HOST env var at it and returns the Config to use.
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	ctx := context.Background()
@@ -49,11 +51,17 @@ func newTestStore(t testing.TB) *Storage {
 
 	os.Setenv("FIRESTORE_EMULATOR_HOST", host+":"+port.Port())
 
-	return New(Config{
+	return Config{
 		ProjectID:  projectID,
 		Collection: "test_collection",
 		Reset:      true,
-	})
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return New(newTestConfig(t))
 }
 
 func Test_Firestore_Set(t *testing.T) {
@@ -67,6 +75,26 @@ func Test_Firestore_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_Firestore_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	cfg := newTestConfig(t)
+
+	testStore := NewWithContext(context.Background(), cfg)
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Firestore_SetWithContext(t *testing.T) {

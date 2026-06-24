@@ -23,7 +23,7 @@ const (
 	minioHealthPath         = "/minio/health/live"
 )
 
-func newTestStore(t testing.TB) *Storage {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	img := minioImage
@@ -48,16 +48,37 @@ func newTestStore(t testing.TB) *Storage {
 	conn, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
-	return New(
-		Config{
-			Bucket:   "fiber-bucket",
-			Endpoint: conn,
-			Credentials: Credentials{
-				AccessKeyID:     c.Username,
-				SecretAccessKey: c.Password,
-			},
+	return Config{
+		Bucket:   "fiber-bucket",
+		Endpoint: conn,
+		Credentials: Credentials{
+			AccessKeyID:     c.Username,
+			SecretAccessKey: c.Password,
 		},
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+	return New(newTestConfig(t))
+}
+
+func Test_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
 	)
+
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Get(t *testing.T) {

@@ -38,11 +38,18 @@ type document struct {
 	ExpiresAt time.Time `firestore:"exp_at,omitempty"`
 }
 
-// New creates a new Firestore storage instance
+// New creates a new Firestore storage instance using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new Firestore storage instance, using ctx as the
+// parent context for creating the client. The long-lived context the storage
+// uses for its own operations is independent of ctx.
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.RequestTimeout)
+	initCtx, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
 	defer cancel()
 
 	var opts []option.ClientOption
@@ -55,7 +62,7 @@ func New(config ...Config) *Storage {
 		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsPath))
 	}
 
-	client, err := firestore.NewClient(ctx, cfg.ProjectID, opts...)
+	client, err := firestore.NewClient(initCtx, cfg.ProjectID, opts...)
 	if err != nil {
 		panic(fmt.Sprintf("firestore: unable to create client: %v", err))
 	}

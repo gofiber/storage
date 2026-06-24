@@ -23,6 +23,7 @@ A Firestore storage driver using [cloud.google.com/go/firestore](https://pkg.go.
 
 ```go
 func New(config ...Config) *Storage
+func NewWithContext(ctx context.Context, config ...Config) *Storage
 func NewFromConnection(client *firestore.Client, collection string) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)

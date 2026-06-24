@@ -267,7 +267,7 @@ func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
 
 	// Call checkSchema with the wrong table
 	require.Panics(t, func() {
-		testStore.checkSchema("test_schema_table")
+		testStore.checkSchema(context.Background(), "test_schema_table")
 	})
 }
 
@@ -282,6 +282,24 @@ func Test_Postgres_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_Postgres_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Postgres_SetWithContext(t *testing.T) {

@@ -17,7 +17,7 @@ const (
 	azuriteImageEnvVar = "TEST_AZURITE_IMAGE"
 )
 
-func newTestStore(t testing.TB) *Storage {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	img := azuriteImage
@@ -27,14 +27,17 @@ func newTestStore(t testing.TB) *Storage {
 
 	ctx := context.Background()
 
-	c, err := azurite.Run(ctx, img)
+	// Allow newer azblob SDK API versions than the Azurite image natively
+	// supports; otherwise requests fail with InvalidHeaderValue (the API
+	// version is not supported by Azurite).
+	c, err := azurite.Run(ctx, img, testcontainers.WithCmdArgs("--skipApiVersionCheck"))
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
 	serviceURL, err := c.BlobServiceURL(ctx)
 	require.NoError(t, err)
 
-	return New(Config{
+	return Config{
 		Account:   azurite.AccountName,
 		Container: "test",
 		Endpoint:  serviceURL + "/" + azurite.AccountName,
@@ -43,7 +46,30 @@ func newTestStore(t testing.TB) *Storage {
 			Key:     azurite.AccountKey,
 		},
 		Reset: true,
-	})
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+	return New(newTestConfig(t))
+}
+
+func Test_AzureBlob_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_AzureBlob_Get(t *testing.T) {

@@ -15,8 +15,14 @@ type Storage struct {
 	table   string
 }
 
-// New returns a new [*Storage] given a [Config].
+// New returns a new [*Storage] given a [Config], using context.Background() for initialization.
 func New(configuration Config) (*Storage, error) {
+	return NewWithContext(context.Background(), configuration)
+}
+
+// NewWithContext returns a new [*Storage] given a [Config], using ctx for the
+// initialization operations (table creation, optional reset, and ping).
+func NewWithContext(ctx context.Context, configuration Config) (*Storage, error) {
 	cfg, engine, err := defaultConfig(configuration)
 	if err != nil {
 		return nil, err
@@ -26,8 +32,6 @@ func New(configuration Config) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	ctx := context.Background()
 
 	queryWithEngine := fmt.Sprintf(createTableString, engine)
 	if err := conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table)); err != nil {

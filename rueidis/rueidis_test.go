@@ -62,6 +62,24 @@ func Test_Rueidis_Set(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_Rueidis_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := NewWithContext(context.Background(), newConfigFromContainer(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+}
+
 func Test_Rueidis_SetWithContext(t *testing.T) {
 	var (
 		key = "john"

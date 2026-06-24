@@ -18,6 +18,7 @@ A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](
 
 ```go
 func New(config ...Config) (*Storage, error)
+func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error

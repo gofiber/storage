@@ -34,7 +34,14 @@ type model struct {
 }
 
 // New creates a new storage
+// New creates a new ArangoDB storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new ArangoDB storage, using ctx for the initialization
+// operations (database/collection lookup and creation, and optional reset).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -58,33 +65,36 @@ func New(config ...Config) *Storage {
 	// check if the database exists
 	// if not create it
 	// (it works only with admin privilege user)
-	exists, err := client.DatabaseExists(context.Background(), cfg.Database)
+	exists, err := client.DatabaseExists(ctx, cfg.Database)
 	if err != nil {
 		panic(err)
 	}
 	if !exists {
-		_, err = client.CreateDatabase(context.Background(), cfg.Database, nil)
+		_, err = client.CreateDatabase(ctx, cfg.Database, nil)
 		if err != nil {
 			panic(err)
 		}
 	}
-	database, err := client.Database(context.Background(), cfg.Database)
+	database, err := client.Database(ctx, cfg.Database)
 	if err != nil {
 		panic(err)
 	}
-	found, _ := database.CollectionExists(context.Background(), cfg.Collection)
+	found, err := database.CollectionExists(ctx, cfg.Collection)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create the collection if not exists
 	var collection driver.Collection
 	if !found {
 		// Create
-		collection, err = database.CreateCollection(context.Background(), cfg.Collection, &driver.CreateCollectionOptions{})
+		collection, err = database.CreateCollection(ctx, cfg.Collection, &driver.CreateCollectionOptions{})
 		if err != nil {
 			panic(err)
 		}
 	} else {
 		// Get the collection
-		collection, err = database.Collection(context.Background(), cfg.Collection)
+		collection, err = database.Collection(ctx, cfg.Collection)
 		if err != nil {
 			panic(err)
 		}
@@ -92,7 +102,7 @@ func New(config ...Config) *Storage {
 
 	// Truncate collection if Reset set to true
 	if cfg.Reset {
-		err = collection.Truncate(context.Background())
+		err = collection.Truncate(ctx)
 		if err != nil {
 			panic(err)
 		}

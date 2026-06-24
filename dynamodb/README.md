@@ -21,7 +21,8 @@ A DynamoDB storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-s
 
 ### Signatures
 ```go
-func New(config Config) Storage
+func New(config Config) *Storage
+func NewWithContext(ctx context.Context, config Config) *Storage
 
 
 func (s *Storage) Get(key string) ([]byte, error)
