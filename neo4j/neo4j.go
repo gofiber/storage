@@ -41,8 +41,14 @@ func newDriverWithContext(cfg neo4jConnConfig) (neo4j.DriverWithContext, error) 
 	return neo4j.NewDriverWithContext(cfg.URI, cfg.Auth, cfg.Configurations...)
 }
 
-// New creates a new storage
+// New creates a new Neo4j storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new Neo4j storage, using ctx for the initialization
+// operations (connectivity check, optional reset, and index creation).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -59,8 +65,6 @@ func New(config ...Config) *Storage {
 			log.Panicf("Unable to create connection pool: %v\n", err)
 		}
 	}
-
-	ctx := context.Background()
 
 	if err := db.VerifyConnectivity(ctx); err != nil {
 		log.Panicf("Unable to verify connection: %v\n", err)

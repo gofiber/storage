@@ -21,7 +21,9 @@ const (
 	dynamoDBPort = "8000/tcp"
 )
 
-func newTestStore(t testing.TB) *Storage {
+// newTestEndpoint starts a DynamoDB local testcontainer and returns the HTTP
+// endpoint to connect to it.
+func newTestEndpoint(t testing.TB) string {
 	t.Helper()
 
 	img := dynamoDBImage
@@ -56,7 +58,27 @@ func newTestStore(t testing.TB) *Storage {
 	hostPort, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
-	return newStore(t, "http://"+hostPort)
+	return "http://" + hostPort
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return newStore(t, newTestEndpoint(t))
+}
+
+// newTestConfig builds the Config used by the tests for the given endpoint.
+func newTestConfig(endpoint string) Config {
+	return Config{
+		Table:    "fiber_storage",
+		Endpoint: endpoint,
+		Region:   "us-east-1",
+		Credentials: Credentials{
+			AccessKey:       "dummy",
+			SecretAccessKey: "dummy",
+		},
+		Reset: true,
+	}
 }
 
 // newStore builds a Storage from the given endpoint. New panics on any
@@ -73,18 +95,7 @@ func newStore(t testing.TB, endpoint string) (s *Storage) {
 		}
 	}()
 
-	return New(
-		Config{
-			Table:    "fiber_storage",
-			Endpoint: endpoint,
-			Region:   "us-east-1",
-			Credentials: Credentials{
-				AccessKey:       "dummy",
-				SecretAccessKey: "dummy",
-			},
-			Reset: true,
-		},
-	)
+	return New(newTestConfig(endpoint))
 }
 
 func Test_DynamoDB_Set(t *testing.T) {
@@ -98,6 +109,26 @@ func Test_DynamoDB_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_DynamoDB_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	cfg := newTestConfig(newTestEndpoint(t))
+
+	testStore := NewWithContext(context.Background(), cfg)
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_DynamoDB_SetWithContext(t *testing.T) {

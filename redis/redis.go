@@ -20,8 +20,14 @@ func NewFromConnection(conn redis.UniversalClient) *Storage {
 	}
 }
 
-// New creates a new Redis storage instance.
+// New creates a new Redis storage instance using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new Redis storage instance, using ctx for the
+// initialization operations (connection test and optional reset).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -66,13 +72,13 @@ func New(config ...Config) *Storage {
 	})
 
 	// Test connection
-	if err := db.Ping(context.Background()).Err(); err != nil {
+	if err := db.Ping(ctx).Err(); err != nil {
 		panic(err)
 	}
 
 	// Empty collection if Clear is true
 	if cfg.Reset {
-		if err := db.FlushDB(context.Background()).Err(); err != nil {
+		if err := db.FlushDB(ctx).Err(); err != nil {
 			panic(err)
 		}
 	}

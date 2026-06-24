@@ -21,6 +21,7 @@ type Storage struct {
 	kv  jetstream.KeyValue
 	err error
 	cfg Config
+	ctx context.Context
 	mu  sync.RWMutex
 }
 
@@ -38,10 +39,15 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	ctx := s.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	var err error
 	s.kv, err = newNatsKV(
 		nc,
-		context.Background(),
+		ctx,
 		s.cfg.KeyValueConfig,
 	)
 	if err != nil {
@@ -111,13 +117,20 @@ func processUrlString(url string) []string {
 	return urls[:j]
 }
 
-// New creates a new nats kv storage
+// New creates a new nats kv storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new nats kv storage, using ctx for the key-value
+// bucket setup performed on connect (and reconnect).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
 	storage := &Storage{
 		cfg: cfg,
+		ctx: ctx,
 	}
 
 	// Set the nats options with default custom handlers

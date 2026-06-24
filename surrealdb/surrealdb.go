@@ -26,15 +26,21 @@ type model struct {
 	Exp  int64  `json:"exp"`
 }
 
-// New creates a new SurrealDB storage instance using the provided configuration.
+// New creates a new SurrealDB storage instance using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new SurrealDB storage instance, using ctx for the
+// initialization operations (connect, namespace selection, and authentication).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	cfg := configDefault(config...)
-	db, err := surrealdb.FromEndpointURLString(context.Background(), cfg.ConnectionString)
+	db, err := surrealdb.FromEndpointURLString(ctx, cfg.ConnectionString)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = db.Use(context.Background(), cfg.Namespace, cfg.Database); err != nil {
+	if err = db.Use(ctx, cfg.Namespace, cfg.Database); err != nil {
 		panic(err)
 	}
 
@@ -43,12 +49,12 @@ func New(config ...Config) *Storage {
 		Password: cfg.Password,
 	}
 
-	token, err := db.SignIn(context.Background(), authData)
+	token, err := db.SignIn(ctx, authData)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = db.Authenticate(context.Background(), token); err != nil {
+	if err = db.Authenticate(ctx, token); err != nil {
 		panic(err)
 	}
 

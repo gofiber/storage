@@ -21,7 +21,7 @@ const (
 	arangoDBPassword    = "test"
 )
 
-func newTestStore(t testing.TB) *Storage {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	img := arangoDBImage
@@ -46,12 +46,35 @@ func newTestStore(t testing.TB) *Storage {
 	iPort, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
-	return New(Config{
+	return Config{
 		Host:     host,
 		Port:     iPort,
 		Username: "root",
 		Password: arangoDBPassword,
-	})
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+	return New(newTestConfig(t))
+}
+
+func Test_ArangoDB_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_ArangoDB_Set(t *testing.T) {

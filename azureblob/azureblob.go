@@ -17,8 +17,14 @@ type Storage struct {
 	requestTimeout time.Duration
 }
 
-// New creates a new storage
+// New creates a new storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new storage, using ctx for the initialization
+// operations (container creation and optional reset).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configure(config...)
 	// Set the azure credentials
@@ -26,7 +32,7 @@ func New(config ...Config) *Storage {
 	handleError(err)
 	client, err := azblob.NewClientWithSharedKeyCredential(cfg.Endpoint, cred, nil)
 	handleError(err)
-	_, err = client.CreateContainer(context.TODO(), cfg.Container, nil)
+	_, err = client.CreateContainer(ctx, cfg.Container, nil)
 	if err != nil {
 		if !bloberror.HasCode(err, bloberror.ContainerAlreadyExists) {
 			panic(fmt.Sprintf("invalid config:, %v", err))
@@ -40,7 +46,7 @@ func New(config ...Config) *Storage {
 
 	// Reset all entries if set to true
 	if cfg.Reset {
-		if err := storage.Reset(); err != nil {
+		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}

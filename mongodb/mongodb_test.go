@@ -22,7 +22,7 @@ const (
 	mongoDBReadyLog           = "Waiting for connections"
 )
 
-func newTestStore(t testing.TB) *Storage {
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	img := mongoDBImage
@@ -47,10 +47,16 @@ func newTestStore(t testing.TB) *Storage {
 	conn, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
-	return New(Config{
+	return Config{
 		ConnectionURI: conn,
 		Reset:         true,
-	})
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return New(newTestConfig(t))
 }
 
 func Test_MongoDB_Set(t *testing.T) {
@@ -64,6 +70,24 @@ func Test_MongoDB_Set(t *testing.T) {
 
 	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
+}
+
+func Test_MongoDB_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	testStore := NewWithContext(context.Background(), newTestConfig(t))
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_MongoDB_SetWithContext(t *testing.T) {

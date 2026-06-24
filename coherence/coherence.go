@@ -55,8 +55,14 @@ var DefaultConfig = Config{
 	Reset:     false,
 }
 
-// New returns a new [Storage] given a [Config].
+// New returns a new [Storage] given a [Config], using context.Background() for initialization.
 func New(config ...Config) (*Storage, error) {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext returns a new [Storage] given a [Config], using ctx to create
+// the Coherence session.
+func NewWithContext(ctx context.Context, config ...Config) (*Storage, error) {
 	var (
 		cfg     = setupConfig(config...)
 		options = make([]func(session *coh.SessionOptions), 0)
@@ -82,7 +88,7 @@ func New(config ...Config) (*Storage, error) {
 	}
 
 	// create the Coherence session
-	session, err := coh.NewSession(context.Background(), options...)
+	session, err := coh.NewSession(ctx, options...)
 	if err != nil {
 		return nil, err
 	}

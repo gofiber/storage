@@ -14,8 +14,14 @@ type Storage struct {
 	db rueidis.Client
 }
 
-// New creates a new rueidis storage
+// New creates a new rueidis storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new rueidis storage, using ctx for the initialization
+// operations (connection test and optional reset).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -68,13 +74,13 @@ func New(config ...Config) *Storage {
 	}
 
 	// Test connection
-	if err := db.Do(context.Background(), db.B().Ping().Build()).Error(); err != nil {
+	if err := db.Do(ctx, db.B().Ping().Build()).Error(); err != nil {
 		panic(err)
 	}
 
 	// Empty collection if Clear is true
 	if cfg.Reset {
-		if err := db.Do(context.Background(), db.B().Flushdb().Build()).Error(); err != nil {
+		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
 			panic(err)
 		}
 	}

@@ -27,7 +27,9 @@ const (
 	clickhouseSuccessCode        = 200
 )
 
-func newTestStore(t testing.TB, cfg Config) *Storage {
+// newTestConfig starts a clickhouse testcontainer and returns the given config
+// populated with the connection details for that container.
+func newTestConfig(t testing.TB, cfg Config) Config {
 	t.Helper()
 
 	img := clickhouseImage
@@ -68,7 +70,13 @@ func newTestStore(t testing.TB, cfg Config) *Storage {
 	cfg.Password = clickhousePass
 	cfg.Database = clickhouseDB
 
-	client, err := New(cfg)
+	return cfg
+}
+
+func newTestStore(t testing.TB, cfg Config) *Storage {
+	t.Helper()
+
+	client, err := New(newTestConfig(t, cfg))
 	require.NoError(t, err)
 
 	return client
@@ -81,6 +89,26 @@ func Test_Connection(t *testing.T) {
 		Clean:  true,
 	})
 	defer client.Close()
+}
+
+func Test_Clickhouse_NewWithContext(t *testing.T) {
+	cfg := newTestConfig(t, Config{
+		Engine: Memory,
+		Table:  "test_table",
+		Clean:  true,
+	})
+
+	client, err := NewWithContext(context.Background(), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	defer client.Close()
+
+	err = client.Set("somekey", []byte("somevalue"), 0)
+	require.NoError(t, err)
+
+	value, err := client.Get("somekey")
+	require.NoError(t, err)
+	require.Equal(t, "somevalue", string(value))
 }
 
 func Test_SetWithContext(t *testing.T) {

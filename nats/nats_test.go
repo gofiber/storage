@@ -75,7 +75,9 @@ func createTLSCerts(t testing.TB) (*tlscert.Certificate, *tlscert.Certificate, *
 	return caCert, clientCert, natsCert
 }
 
-func newTestStore(t testing.TB) *Storage {
+// newTestConfig starts a NATS testcontainer with TLS configured and returns
+// the Config to connect to it.
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	ca, client, natsCert := createTLSCerts(t)
@@ -125,7 +127,7 @@ func newTestStore(t testing.TB) *Storage {
 	uri := fmt.Sprintf("nats://%s:%s", hostIP, mappedPort.Port())
 	require.NoError(t, err)
 
-	return New(Config{
+	return Config{
 		URLs: uri,
 		NatsOptions: []nats.Option{
 			nats.MaxReconnects(2),
@@ -138,7 +140,13 @@ func newTestStore(t testing.TB) *Storage {
 			Storage: jetstream.MemoryStorage,
 		},
 		Reset: true,
-	})
+	}
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return New(newTestConfig(t))
 }
 
 func Test_Storage_Nats_Set(t *testing.T) {
@@ -156,6 +164,26 @@ func Test_Storage_Nats_Set(t *testing.T) {
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
+}
+
+func Test_Storage_Nats_NewWithContext(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	cfg := newTestConfig(t)
+
+	testStore := NewWithContext(context.Background(), cfg)
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err := testStore.Set(key, val, 0)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
 }
 
 func Test_Storage_Nats_SetWithContext(t *testing.T) {

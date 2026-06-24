@@ -22,6 +22,7 @@ A NATS Key/Value storage driver.
 
 ```go
 func New(config ...Config) Storage
+func NewWithContext(ctx context.Context, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error

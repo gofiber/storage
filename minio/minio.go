@@ -22,8 +22,14 @@ type Storage struct {
 }
 
 // New creates a new storage
+// New creates a new minio storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
 
+// NewWithContext creates a new minio storage, using ctx for the initialization
+// operations (optional reset and bucket check/creation).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -44,16 +50,16 @@ func New(config ...Config) *Storage {
 
 	// Reset all entries if set to true
 	if cfg.Reset {
-		if err = storage.Reset(); err != nil {
+		if err = storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
 
 	// check bucket
-	err = storage.CheckBucket()
+	err = storage.CheckBucketWithContext(ctx)
 	if err != nil {
 		// create bucket
-		err = storage.CreateBucket()
+		err = storage.CreateBucketWithContext(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -175,7 +181,12 @@ func (s *Storage) Close() error {
 
 // CheckBucket Check to see if bucket already exists
 func (s *Storage) CheckBucket() error {
-	exists, err := s.minio.BucketExists(context.Background(), s.cfg.Bucket)
+	return s.CheckBucketWithContext(context.Background())
+}
+
+// CheckBucketWithContext Check to see if bucket already exists, using the provided context
+func (s *Storage) CheckBucketWithContext(ctx context.Context) error {
+	exists, err := s.minio.BucketExists(ctx, s.cfg.Bucket)
 	if !exists || err != nil {
 		return errors.New("the specified bucket does not exist")
 	}
@@ -184,7 +195,12 @@ func (s *Storage) CheckBucket() error {
 
 // CreateBucket Bucket not found so Make a new bucket
 func (s *Storage) CreateBucket() error {
-	return s.minio.MakeBucket(context.Background(), s.cfg.Bucket, minio.MakeBucketOptions{Region: s.cfg.Region})
+	return s.CreateBucketWithContext(context.Background())
+}
+
+// CreateBucketWithContext Bucket not found so Make a new bucket, using the provided context
+func (s *Storage) CreateBucketWithContext(ctx context.Context) error {
+	return s.minio.MakeBucket(ctx, s.cfg.Bucket, minio.MakeBucketOptions{Region: s.cfg.Region})
 }
 
 // RemoveBucket Bucket remove if bucket is empty

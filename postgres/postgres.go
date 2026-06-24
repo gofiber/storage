@@ -67,8 +67,14 @@ func buildIndexName(schema, tableName string) string {
 	return "idx_e_" + hex.EncodeToString(hash[:6])
 }
 
-// New creates a new storage
+// New creates a new storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
+	return NewWithContext(context.Background(), config...)
+}
+
+// NewWithContext creates a new storage, using ctx for the initialization
+// operations (connection pool creation, ping, and schema setup/reset).
+func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
@@ -76,14 +82,14 @@ func New(config ...Config) *Storage {
 	var err error
 	db := cfg.DB
 	if db == nil {
-		db, err = pgxpool.New(context.Background(), cfg.getDSN())
+		db, err = pgxpool.New(ctx, cfg.getDSN())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		}
 	}
 
 	// Ping database
-	if err := db.Ping(context.Background()); err != nil {
+	if err := db.Ping(ctx); err != nil {
 		panic(err)
 	}
 
@@ -99,7 +105,7 @@ func New(config ...Config) *Storage {
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err := db.Exec(context.Background(), fmt.Sprintf(dropQuery, fullTableName)); err != nil {
+		if _, err := db.Exec(ctx, fmt.Sprintf(dropQuery, fullTableName)); err != nil {
 			db.Close()
 			panic(err)
 		}
@@ -107,7 +113,7 @@ func New(config ...Config) *Storage {
 
 	// Determine if table exists
 	tableExists := false
-	row := db.QueryRow(context.Background(), checkTableExistsQuery, schema, tableName)
+	row := db.QueryRow(ctx, checkTableExistsQuery, schema, tableName)
 	var count int
 	if err := row.Scan(&count); err != nil {
 		db.Close()
@@ -121,7 +127,7 @@ func New(config ...Config) *Storage {
 			fmt.Sprintf(createTableQuery, createTableType(cfg.Unlogged), fullTableName),
 			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
-			if _, err := db.Exec(context.Background(), query); err != nil {
+			if _, err := db.Exec(ctx, query); err != nil {
 				db.Close()
 				panic(err)
 			}
@@ -131,14 +137,14 @@ func New(config ...Config) *Storage {
 		var kDataType string
 		const kTypeQuery = `SELECT data_type FROM information_schema.columns
 			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
-		if err := db.QueryRow(context.Background(), kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		if err := db.QueryRow(ctx, kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			if cfg.DB == nil {
 				db.Close()
 			}
 			panic(err)
 		}
 		if kDataType == "character varying" {
-			if _, err := db.Exec(context.Background(), fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
+			if _, err := db.Exec(ctx, fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
 				if cfg.DB == nil {
 					db.Close()
 				}

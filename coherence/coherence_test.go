@@ -116,6 +116,24 @@ func Test_Coherence_Set_And_Get(t *testing.T) {
 	require.NotNil(t, testStore.Conn())
 }
 
+func Test_Coherence_NewWithContext(t *testing.T) {
+	var val []byte
+
+	cfg := newTestConfig(t)
+
+	testStore, err := NewWithContext(context.Background(), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, testStore)
+	defer testStore.Close()
+
+	err = testStore.Set(key1, value1, 0)
+	require.NoError(t, err)
+
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+}
+
 func Test_Coherence_Set_And_GetWithContext(t *testing.T) {
 	var val []byte
 

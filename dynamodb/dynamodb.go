@@ -33,7 +33,14 @@ type table struct {
 }
 
 // New creates a new storage
+// New creates a new DynamoDB storage using context.Background() for initialization.
 func New(config Config) *Storage {
+	return NewWithContext(context.Background(), config)
+}
+
+// NewWithContext creates a new DynamoDB storage, using ctx as the parent context
+// for the initialization operations (table description and creation).
+func NewWithContext(ctx context.Context, config Config) *Storage {
 	// Set default config
 	cfg := configDefault(config)
 
@@ -47,7 +54,7 @@ func New(config Config) *Storage {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	describeTableInput := awsdynamodb.DescribeTableInput{
 		TableName: &cfg.Table,
@@ -64,7 +71,7 @@ func New(config Config) *Storage {
 	if err != nil {
 		var rnfe *types.ResourceNotFoundException
 		if errors.As(err, &rnfe) {
-			err := store.createTable(cfg, describeTableInput)
+			err := store.createTable(ctx, cfg, describeTableInput)
 			if err != nil {
 				panic(err)
 			}
@@ -177,9 +184,7 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-func (s *Storage) createTable(cfg Config, describeTableInput awsdynamodb.DescribeTableInput) error {
-	ctx := context.Background()
-
+func (s *Storage) createTable(ctx context.Context, cfg Config, describeTableInput awsdynamodb.DescribeTableInput) error {
 	keyAttrType := "S" // For "string"
 	keyType := "HASH"  // As opposed to "RANGE"
 
