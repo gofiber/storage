@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782198761555,
+  "lastUpdate": 1782307474917,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -6528,6 +6528,102 @@ window.BENCHMARK_DATA = {
             "value": 16,
             "unit": "allocs/op",
             "extra": "5455 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abaf2af7050bab882032355676078cac53bb3be9",
+          "message": "Merge pull request #2890 from gofiber/claude/storage-drivers-newwithcontext-66911o\n\n🔥 feat: add NewWithContext constructor to context-using storage drivers",
+          "timestamp": "2026-06-24T15:19:41+02:00",
+          "tree_id": "a80d14d8721d822d2fcc75c00205fafc887f0e2a",
+          "url": "https://github.com/gofiber/storage/commit/abaf2af7050bab882032355676078cac53bb3be9"
+        },
+        "date": 1782307464581,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Redis_Set",
+            "value": 133918,
+            "unit": "ns/op\t     278 B/op\t       9 allocs/op",
+            "extra": "9458 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - ns/op",
+            "value": 133918,
+            "unit": "ns/op",
+            "extra": "9458 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - B/op",
+            "value": 278,
+            "unit": "B/op",
+            "extra": "9458 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Set - allocs/op",
+            "value": 9,
+            "unit": "allocs/op",
+            "extra": "9458 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get",
+            "value": 128894,
+            "unit": "ns/op\t     205 B/op\t       7 allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - ns/op",
+            "value": 128894,
+            "unit": "ns/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - B/op",
+            "value": 205,
+            "unit": "B/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_Get - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "10000 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete",
+            "value": 265961,
+            "unit": "ns/op\t     494 B/op\t      16 allocs/op",
+            "extra": "4446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - ns/op",
+            "value": 265961,
+            "unit": "ns/op",
+            "extra": "4446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - B/op",
+            "value": 494,
+            "unit": "B/op",
+            "extra": "4446 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Redis_SetAndDelete - allocs/op",
+            "value": 16,
+            "unit": "allocs/op",
+            "extra": "4446 times\n4 procs"
           }
         ]
       }
