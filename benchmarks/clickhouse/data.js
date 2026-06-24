@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781853749427,
+  "lastUpdate": 1782307440872,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -7872,6 +7872,102 @@ window.BENCHMARK_DATA = {
             "value": 170,
             "unit": "allocs/op",
             "extra": "574 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abaf2af7050bab882032355676078cac53bb3be9",
+          "message": "Merge pull request #2890 from gofiber/claude/storage-drivers-newwithcontext-66911o\n\n🔥 feat: add NewWithContext constructor to context-using storage drivers",
+          "timestamp": "2026-06-24T15:19:41+02:00",
+          "tree_id": "a80d14d8721d822d2fcc75c00205fafc887f0e2a",
+          "url": "https://github.com/gofiber/storage/commit/abaf2af7050bab882032355676078cac53bb3be9"
+        },
+        "date": 1782307436252,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Clickhouse_Set",
+            "value": 1396950,
+            "unit": "ns/op\t    6970 B/op\t     117 allocs/op",
+            "extra": "966 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - ns/op",
+            "value": 1396950,
+            "unit": "ns/op",
+            "extra": "966 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - B/op",
+            "value": 6970,
+            "unit": "B/op",
+            "extra": "966 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set - allocs/op",
+            "value": 117,
+            "unit": "allocs/op",
+            "extra": "966 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get",
+            "value": 1010772,
+            "unit": "ns/op\t    9374 B/op\t     164 allocs/op",
+            "extra": "1168 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - ns/op",
+            "value": 1010772,
+            "unit": "ns/op",
+            "extra": "1168 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - B/op",
+            "value": 9374,
+            "unit": "B/op",
+            "extra": "1168 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Get - allocs/op",
+            "value": 164,
+            "unit": "allocs/op",
+            "extra": "1168 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete",
+            "value": 1987783,
+            "unit": "ns/op\t    9459 B/op\t     170 allocs/op",
+            "extra": "598 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - ns/op",
+            "value": 1987783,
+            "unit": "ns/op",
+            "extra": "598 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - B/op",
+            "value": 9459,
+            "unit": "B/op",
+            "extra": "598 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Clickhouse_Set_And_Delete - allocs/op",
+            "value": 170,
+            "unit": "allocs/op",
+            "extra": "598 times\n4 procs"
           }
         ]
       }
