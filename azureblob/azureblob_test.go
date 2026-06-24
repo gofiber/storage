@@ -27,7 +27,10 @@ func newTestConfig(t testing.TB) Config {
 
 	ctx := context.Background()
 
-	c, err := azurite.Run(ctx, img)
+	// Allow newer azblob SDK API versions than the Azurite image natively
+	// supports; otherwise requests fail with InvalidHeaderValue (the API
+	// version is not supported by Azurite).
+	c, err := azurite.Run(ctx, img, testcontainers.WithCmdArgs("--skipApiVersionCheck"))
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 

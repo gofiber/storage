@@ -207,7 +207,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	err = gob.NewDecoder(
 		bytes.NewBuffer(v.Value())).
 		Decode(&e)
-	if err != nil || e.Expiry <= time.Now().Unix() {
+	// Expiry == 0 means the entry never expires (see SetWithContext).
+	if err != nil || (e.Expiry != 0 && e.Expiry <= time.Now().Unix()) {
 		_ = kv.Delete(ctx, key)
 		return nil, nil
 	}
