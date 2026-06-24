@@ -39,8 +39,12 @@ func (s *Storage) connectHandler(nc *nats.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Fall back to a fresh context when the stored initialization context is
+	// absent or already done (e.g. its deadline elapsed before a later
+	// reconnect), so reconnect-time bucket setup is not blocked by an expired
+	// init context.
 	ctx := s.ctx
-	if ctx == nil {
+	if ctx == nil || ctx.Err() != nil {
 		ctx = context.Background()
 	}
 

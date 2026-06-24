@@ -211,6 +211,11 @@ func (s *Storage) createTable(ctx context.Context, cfg Config, describeTableInpu
 	// Typical table creation duration is 10 seconds.
 	if *cfg.WaitForTableCreation {
 		for try := 1; try < 16; try++ {
+			// Exit promptly if the caller's context is cancelled or its
+			// deadline has been exceeded, instead of sleeping and retrying.
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			describeTableOutput, err := s.db.DescribeTable(ctx, &describeTableInput)
 			if err != nil || describeTableOutput.Table.TableStatus == "CREATING" {
 				time.Sleep(1 * time.Second)
@@ -222,6 +227,9 @@ func (s *Storage) createTable(ctx context.Context, cfg Config, describeTableInpu
 		// Now handle error as such.
 		describeTableOutput, err := s.db.DescribeTable(ctx, &describeTableInput)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
 			return errors.New("dynamodb: the table couldn't be created")
 		}
 		if describeTableOutput.Table.TableStatus == "CREATING" {

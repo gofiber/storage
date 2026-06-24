@@ -79,7 +79,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	if err != nil {
 		panic(err)
 	}
-	found, _ := database.CollectionExists(ctx, cfg.Collection)
+	found, err := database.CollectionExists(ctx, cfg.Collection)
+	if err != nil {
+		panic(err)
+	}
 
 	// Create the collection if not exists
 	var collection driver.Collection

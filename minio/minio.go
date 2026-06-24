@@ -21,7 +21,11 @@ type Storage struct {
 	mu    sync.Mutex
 }
 
-// New creates a new storage
+// errBucketNotFound is returned by CheckBucketWithContext when the configured
+// bucket does not exist, as opposed to an operational error (auth, network,
+// context cancellation) where the bucket should not be (re)created.
+var errBucketNotFound = errors.New("the specified bucket does not exist")
+
 // New creates a new minio storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -58,9 +62,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// check bucket
 	err = storage.CheckBucketWithContext(ctx)
 	if err != nil {
-		// create bucket
-		err = storage.CreateBucketWithContext(ctx)
-		if err != nil {
+		// Only create the bucket when it is genuinely missing; surface any
+		// other (auth/network/context) error instead of masking it.
+		if !errors.Is(err, errBucketNotFound) {
+			panic(err)
+		}
+		if err = storage.CreateBucketWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
@@ -187,8 +194,11 @@ func (s *Storage) CheckBucket() error {
 // CheckBucketWithContext Check to see if bucket already exists, using the provided context
 func (s *Storage) CheckBucketWithContext(ctx context.Context) error {
 	exists, err := s.minio.BucketExists(ctx, s.cfg.Bucket)
-	if !exists || err != nil {
-		return errors.New("the specified bucket does not exist")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errBucketNotFound
 	}
 	return nil
 }

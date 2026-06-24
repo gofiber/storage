@@ -267,7 +267,7 @@ func Test_Should_Panic_On_Wrong_Schema(t *testing.T) {
 
 	// Call checkSchema with the wrong table
 	require.Panics(t, func() {
-		testStore.checkSchema("test_schema_table")
+		testStore.checkSchema(context.Background(), "test_schema_table")
 	})
 }
 

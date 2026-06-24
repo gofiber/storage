@@ -89,7 +89,11 @@ func Test_Neo4jStore_NewWithContext(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	store := NewWithContext(context.Background(), testConfig)
+	// Avoid the destructive reset on this shared container so the suite does
+	// not become order-dependent.
+	cfg := testConfig
+	cfg.Reset = false
+	store := NewWithContext(context.Background(), cfg)
 	require.NotNil(t, store)
 	defer store.Close()
 

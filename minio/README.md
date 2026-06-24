@@ -20,7 +20,7 @@ A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go)
 
 ### Signatures
 ```go
-func New(config ...Config) Storage
+func New(config ...Config) *Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)

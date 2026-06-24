@@ -85,6 +85,11 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
+	// Use a dedicated timeout for index creation so it is not starved by time
+	// already spent on connect/ping above.
+	indexCtx, indexCancel := context.WithTimeout(ctx, 20*time.Second)
+	defer indexCancel()
+
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
 	// more on https://docs.mongodb.com/manual/core/index-ttl/
 	indexModel := mongo.IndexModel{
@@ -98,7 +103,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		Options: options.Index().SetExpireAfterSeconds(0),
 	}
 
-	if _, err := col.Indexes().CreateOne(timeoutCtx, indexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(indexCtx, indexModel); err != nil {
 		panic(err)
 	}
 
@@ -111,7 +116,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		Options: options.Index().SetUnique(true),
 	}
 
-	if _, err := col.Indexes().CreateOne(timeoutCtx, keyIndexModel); err != nil {
+	if _, err := col.Indexes().CreateOne(indexCtx, keyIndexModel); err != nil {
 		panic(err)
 	}
 

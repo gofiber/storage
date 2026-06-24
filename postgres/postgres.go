@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -84,7 +83,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	if db == nil {
 		db, err = pgxpool.New(ctx, cfg.getDSN())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
+			panic(err)
 		}
 	}
 
@@ -165,7 +164,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
-	store.checkSchema(cfg.Table)
+	store.checkSchema(ctx, cfg.Table)
 
 	// Start garbage collector
 	go store.gcTicker()
@@ -281,7 +280,7 @@ func (s *Storage) gc(t time.Time) {
 	_, _ = s.db.Exec(context.Background(), s.sqlGC, t.Unix())
 }
 
-func (s *Storage) checkSchema(fullTableName string) {
+func (s *Storage) checkSchema(ctx context.Context, fullTableName string) {
 	schema := "public"
 	tableName := fullTableName
 	if strings.Contains(fullTableName, ".") {
@@ -289,7 +288,7 @@ func (s *Storage) checkSchema(fullTableName string) {
 		tableName = strings.Split(fullTableName, ".")[1]
 	}
 
-	rows, err := s.db.Query(context.Background(), checkSchemaQuery, schema, tableName)
+	rows, err := s.db.Query(ctx, checkSchemaQuery, schema, tableName)
 	if err != nil {
 		panic(err)
 	}
