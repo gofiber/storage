@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 30
     services:
       mongo:
-        image: 'public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest'
+        image: 'public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:3.3.0'
         ports:
           - '8000:8000'
     strategy:

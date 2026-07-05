@@ -22,7 +22,8 @@ jobs:
     timeout-minutes: 30
     services:
       mssql:
-        image: 'mcmoe/mssqldocker:latest'
+        # pinned by digest: unofficial single-maintainer image, tag :latest is mutable
+        image: 'mcmoe/mssqldocker@sha256:265c567f39f827d2e6e491e7704c4fc137235360a731875b3182d8c0c24ece44'
         ports:
           - '1433:1433'
         env:
