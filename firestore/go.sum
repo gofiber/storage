@@ -10,8 +10,8 @@ cloud.google.com/go/datastore v1.22.0 h1:FOyx2Ag6ibD2wFkz9S8EiNrmBugia8pQOfpyJxi
 cloud.google.com/go/datastore v1.22.0/go.mod h1:aopSX+Whx0lHspWWBj+AjWt68/zjYsPfDe3LjWtqZg8=
 cloud.google.com/go/firestore v1.22.0 h1:avooeboIq37vKXobrbPUFhFBxS/c3FqmWoX0xs8dO6E=
 cloud.google.com/go/firestore v1.22.0/go.mod h1:PaM4i7i7ruALSKmlpHXXZaPObcZw0W7ie5UOPr72iTU=
-cloud.google.com/go/longrunning v1.1.0 h1:qJ0R0IA8ONaRCNWTRPAS0iAmt1bj3TVgJ40z7ZGRslE=
-cloud.google.com/go/longrunning v1.1.0/go.mod h1:tH+A/6UvNypiPJWAQaKCsh+xiGbB23wUO8egwUXlD2E=
+cloud.google.com/go/longrunning v1.2.0 h1:WjYH3YHBGCxGJP9M4dWGHBfXr/cFIjMkNgWcJj7/iMM=
+cloud.google.com/go/longrunning v1.2.0/go.mod h1:5KMQALFGOCtFoi2xSOA1u3H7WKlhmckgiyFw7+LGQp0=
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
 github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 h1:He8afgbRMd7mFxO99hRNu+6tazq8nFF9lIwo9JFroBk=
