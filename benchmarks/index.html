@@ -5,6 +5,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- inline icon: keeps browsers from requesting a nonexistent /favicon.ico -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
   <title>Benchmarks</title>
   <style>
     :root {
@@ -268,13 +270,72 @@
       font-size: 12px;
       border-top: 1px solid var(--grid);
     }
+    #lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--page);
+      display: flex;
+      flex-direction: column;
+      padding: 12px 20px 20px;
+    }
+    #lightbox[hidden] { display: none; }
+    .lb-head {
+      display: flex;
+      align-items: baseline;
+      gap: 8px 12px;
+      flex-wrap: wrap;
+    }
+    .lb-head h2 {
+      font-size: 16px;
+      margin: 0;
+      word-break: break-word;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .lb-head .sub { color: var(--muted); font-size: 12px; }
+    .lb-head .tool-btn { min-width: 40px; }
+    .lb-chart {
+      flex: 1 1 auto;
+      min-height: 0;
+      margin-top: 10px;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+    }
+    .lb-chart.cols-2 { grid-template-columns: 1fr 1fr; }
+    .lb-chart.cols-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .lb-cell {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      min-width: 0;
+    }
+    .lb-cell .cap {
+      font-size: 12px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+    .lb-cell .cap .pkg { color: var(--muted); font-weight: 400; font-size: 11px; }
+    .lb-cell .holder { flex: 1 1 auto; position: relative; min-height: 0; }
+    @media (max-width: 560px) {
+      #lightbox { padding: 10px 12px 14px; }
+      .lb-chart { overflow-y: auto; }
+      .lb-chart.cols-2, .lb-chart.cols-4 { grid-template-columns: 1fr; grid-template-rows: none; }
+      .lb-chart.cols-2 .lb-cell, .lb-chart.cols-4 .lb-cell { min-height: 45vh; }
+    }
     @media (max-width: 560px) {
       header.page, #toolbar, main, footer { padding-left: 12px; padding-right: 12px; }
       .grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
-<body>
+<!-- data-layout is patched to "single" or "multi" by the benchmark-pages sync
+     step; "auto" (local previews) probes folders.json and falls back to data.js -->
+<body data-layout="multi">
   <header class="page">
     <h1>Benchmarks</h1>
     <span class="meta"><a id="repo-link" rel="noopener" href="#">repository</a></span>
@@ -301,6 +362,22 @@
   </div>
 
   <main id="main" hidden></main>
+
+  <div id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Enlarged benchmark chart">
+    <div class="lb-head">
+      <h2 id="lb-title"></h2>
+      <span class="sub" id="lb-sub"></span>
+      <span class="seg" id="lb-count" role="group" aria-label="Charts per view">
+        <button aria-pressed="true">1</button>
+        <button aria-pressed="false">2</button>
+        <button aria-pressed="false">4</button>
+      </span>
+      <button class="tool-btn" id="lb-prev" aria-label="Previous charts">&lsaquo;</button>
+      <button class="tool-btn" id="lb-next" aria-label="Next charts">&rsaquo;</button>
+      <button class="tool-btn" id="lb-close" aria-label="Close enlarged chart">&times;</button>
+    </div>
+    <div class="lb-chart" id="lb-chart"></div>
+  </div>
 
   <footer>
     Data collected by
@@ -626,16 +703,19 @@
 
       async function loadSources() {
         const detail = $('status-detail');
+        const layout = (document.body.dataset && document.body.dataset.layout) || 'auto';
         let folders = null;
-        try {
-          const res = await fetch('folders.json');
-          if (res.ok) {
-            const list = await res.json();
-            // an existing but empty folders.json means "no packages yet",
-            // not "single data.js layout"
-            if (Array.isArray(list)) folders = list;
-          }
-        } catch (err) { /* single data.js layout */ }
+        if (layout !== 'single') {
+          try {
+            const res = await fetch('folders.json');
+            if (res.ok) {
+              const list = await res.json();
+              // an existing but empty folders.json means "no packages yet",
+              // not "single data.js layout"
+              if (Array.isArray(list)) folders = list;
+            }
+          } catch (err) { /* single data.js layout */ }
+        }
 
         if (!folders) {
           try {
@@ -845,6 +925,77 @@
         observer.disconnect();
       }
 
+      /* ----- lightbox (enlarged charts with prev/next and 1/2/4 layout) ----- */
+      const lightbox = { boxes: [], index: -1, charts: [], count: 1, opener: null };
+
+      function destroyLightboxCharts() {
+        for (const chart of lightbox.charts) chart.destroy();
+        lightbox.charts = [];
+        $('lb-chart').replaceChildren();
+      }
+
+      function showLightboxCharts() {
+        const total = lightbox.boxes.length;
+        if (!total) return;
+        const count = Math.min(lightbox.count, total);
+        const start = lightbox.index;
+        destroyLightboxCharts();
+        const holder = $('lb-chart');
+        holder.className = 'lb-chart' + (count > 1 ? ' cols-' + (count === 2 ? '2' : '4') : '');
+        const shown = [];
+        for (let i = 0; i < count; i++) {
+          const box = lightbox.boxes[(start + i) % total];
+          const card = box.$card;
+          shown.push(box);
+          const cap = el('p', { class: 'cap' }, [el('span', { text: displayName(card.base) })]);
+          if (card.pkg) cap.appendChild(el('span', { class: 'pkg', text: card.pkg }));
+          const chartHolder = el('div', { class: 'holder' }, []);
+          holder.appendChild(el('div', { class: 'lb-cell' }, count > 1 ? [cap, chartHolder] : [chartHolder]));
+          const canvas = document.createElement('canvas');
+          canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', box.$label);
+          chartHolder.appendChild(canvas);
+          lightbox.charts.push(createChart(canvas, card, box.$variants));
+        }
+        const first = shown[0];
+        if (count === 1) {
+          $('lb-title').textContent = displayName(first.$card.base);
+          $('lb-sub').textContent = (first.$card.pkg ? first.$card.pkg + ' · ' : '') +
+            first.$variants.length + ' series · ' + state.metric + ' · ' +
+            (start + 1) + ' / ' + total;
+        } else {
+          $('lb-title').textContent = 'Benchmarks';
+          $('lb-sub').textContent = state.metric + ' · ' +
+            (start + 1) + '-' + (((start + count - 1) % total) + 1) + ' / ' + total;
+        }
+      }
+
+      function openLightbox(box, opener) {
+        lightbox.boxes = Array.from(document.querySelectorAll('.chart-box'));
+        lightbox.index = Math.max(0, lightbox.boxes.indexOf(box));
+        lightbox.opener = opener || null;
+        $('lightbox').hidden = false;
+        document.body.style.overflow = 'hidden';
+        showLightboxCharts();
+        $('lb-close').focus();
+      }
+
+      function closeLightbox() {
+        if ($('lightbox').hidden) return;
+        destroyLightboxCharts();
+        $('lightbox').hidden = true;
+        document.body.style.overflow = '';
+        if (lightbox.opener && lightbox.opener.isConnected) lightbox.opener.focus();
+      }
+
+      function stepLightbox(direction) {
+        const total = lightbox.boxes.length;
+        if (!total) return;
+        const step = Math.min(lightbox.count, total);
+        lightbox.index = ((lightbox.index + direction * step) % total + total) % total;
+        showLightboxCharts();
+      }
+
       /* ----- card / section rendering ----- */
       function renderTable(card, container) {
         const metric = state.metric;
@@ -907,6 +1058,8 @@
         const title = el('h3', null, []);
         title.appendChild(el('span', { class: 'name', text: displayName(card.base) }, []));
         if (delta) title.appendChild(deltaBadge(delta, state.metric));
+        const zoomBtn = el('button', { class: 'tbl-btn zoom', text: '⤢', 'aria-label': 'Enlarge chart for ' + displayName(card.base) });
+        title.appendChild(zoomBtn);
         const tblBtn = el('button', { class: 'tbl-btn', text: 'table', 'aria-label': 'Toggle data table for ' + displayName(card.base) });
         title.appendChild(tblBtn);
         const node = el('div', { class: 'card' }, [title]);
@@ -932,6 +1085,9 @@
             (chunks.length > 1 ? ', chart ' + (index + 1) + ' of ' + chunks.length : '');
           node.appendChild(box);
           observer.observe(box);
+        });
+        zoomBtn.addEventListener('click', function () {
+          openLightbox(node.querySelector('.chart-box'), zoomBtn);
         });
         return node;
       }
@@ -984,6 +1140,7 @@
       }
 
       function renderSections() {
+        closeLightbox();
         destroyAllCharts();
         const main = $('main');
         main.replaceChildren();
@@ -1165,6 +1322,26 @@
         $('toolbar').hidden = false;
         $('main').hidden = false;
         buildToolbar();
+
+        $('lb-close').addEventListener('click', closeLightbox);
+        $('lb-prev').addEventListener('click', function () { stepLightbox(-1); });
+        $('lb-next').addEventListener('click', function () { stepLightbox(1); });
+        for (const btn of $('lb-count').children) {
+          btn.addEventListener('click', function () {
+            const count = Number(btn.textContent);
+            if (lightbox.count === count) return;
+            lightbox.count = count;
+            for (const b of $('lb-count').children) b.setAttribute('aria-pressed', String(b === btn));
+            if (!$('lightbox').hidden) showLightboxCharts();
+          });
+        }
+        document.addEventListener('keydown', function (event) {
+          if ($('lightbox').hidden) return;
+          if (event.key === 'Escape') closeLightbox();
+          else if (event.key === 'ArrowLeft') stepLightbox(-1);
+          else if (event.key === 'ArrowRight') stepLightbox(1);
+        });
+
         renderSections();
 
         window.addEventListener('hashchange', function () {
