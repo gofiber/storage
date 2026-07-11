@@ -44,11 +44,21 @@ jobs:
         shell: bash
       - name: Filter changes
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
         with:
           filters: ${{ steps.filter-setup.outputs.filters }}
+      # A manual dispatch runs every package: publishes all benchmark data,
+      # deploys the shared page and seeds the PR-compare caches.
+      - name: List all packages
+        id: all-packages
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          packages=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | jq -R -s -c 'split("\n") | map(select(length > 0)) | sort')
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
     outputs:
-      packages: ${{ steps.filter.outputs.changes || '[]' }}
+      packages: ${{ github.event_name == 'workflow_dispatch' && steps.all-packages.outputs.packages || steps.filter.outputs.changes || '[]' }}
 
   compare:
     needs: changes
