@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776414849795,
+  "lastUpdate": 1783808408095,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
@@ -288,6 +288,100 @@ window.BENCHMARK_DATA = {
             "value": 1,
             "unit": "allocs/op",
             "extra": "16156143 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "René",
+            "username": "ReneWerner87",
+            "email": "rene@gofiber.io"
+          },
+          "committer": {
+            "name": "René",
+            "username": "ReneWerner87",
+            "email": "rene@gofiber.io"
+          },
+          "id": "c8a9eed8e8e373aee5729bad0bba65964430933f",
+          "message": "feat(benchmark): enhance benchmark page with delta indicators and sorting options",
+          "timestamp": "2026-07-11T22:15:52Z",
+          "url": "https://github.com/gofiber/storage/commit/c8a9eed8e8e373aee5729bad0bba65964430933f"
+        },
+        "date": 1783808407712,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Mockstorage_Set",
+            "value": 36.2,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "32539405 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - ns/op",
+            "value": 36.2,
+            "unit": "ns/op",
+            "extra": "32539405 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "32539405 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Set - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "32539405 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get",
+            "value": 19.37,
+            "unit": "ns/op\t       0 B/op\t       0 allocs/op",
+            "extra": "61782062 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - ns/op",
+            "value": 19.37,
+            "unit": "ns/op",
+            "extra": "61782062 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - B/op",
+            "value": 0,
+            "unit": "B/op",
+            "extra": "61782062 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_Get - allocs/op",
+            "value": 0,
+            "unit": "allocs/op",
+            "extra": "61782062 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete",
+            "value": 70.85,
+            "unit": "ns/op\t       3 B/op\t       1 allocs/op",
+            "extra": "16653264 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - ns/op",
+            "value": 70.85,
+            "unit": "ns/op",
+            "extra": "16653264 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - B/op",
+            "value": 3,
+            "unit": "B/op",
+            "extra": "16653264 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Mockstorage_SetAndDelete - allocs/op",
+            "value": 1,
+            "unit": "allocs/op",
+            "extra": "16653264 times\n4 procs"
           }
         ]
       }
