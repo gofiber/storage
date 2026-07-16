@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783810123591,
+  "lastUpdate": 1784186365529,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5fac639ed09d29164d9d98ce20791018f3a17666",
-          "message": "Merge pull request #2516 from gofiber/dependabot/go_modules/aerospike/opentelemetry-modules-2dc48bd7ec",
-          "timestamp": "2026-03-06T15:58:49+01:00",
-          "tree_id": "c439ed82ad3b65846815be1ef953b7735def51d6",
-          "url": "https://github.com/gofiber/storage/commit/5fac639ed09d29164d9d98ce20791018f3a17666"
-        },
-        "date": 1772810584370,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_Coherence_Set",
-            "value": 1793277,
-            "unit": "ns/op\t    4959 B/op\t     110 allocs/op",
-            "extra": "609 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Set - ns/op",
-            "value": 1793277,
-            "unit": "ns/op",
-            "extra": "609 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Set - B/op",
-            "value": 4959,
-            "unit": "B/op",
-            "extra": "609 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Set - allocs/op",
-            "value": 110,
-            "unit": "allocs/op",
-            "extra": "609 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Get",
-            "value": 771,
-            "unit": "ns/op\t     301 B/op\t       5 allocs/op",
-            "extra": "1531983 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Get - ns/op",
-            "value": 771,
-            "unit": "ns/op",
-            "extra": "1531983 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Get - B/op",
-            "value": 301,
-            "unit": "B/op",
-            "extra": "1531983 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_Get - allocs/op",
-            "value": 5,
-            "unit": "allocs/op",
-            "extra": "1531983 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_SetAndDelete",
-            "value": 3446959,
-            "unit": "ns/op\t    9408 B/op\t     207 allocs/op",
-            "extra": "313 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_SetAndDelete - ns/op",
-            "value": 3446959,
-            "unit": "ns/op",
-            "extra": "313 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_SetAndDelete - B/op",
-            "value": 9408,
-            "unit": "B/op",
-            "extra": "313 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Coherence_SetAndDelete - allocs/op",
-            "value": 207,
-            "unit": "allocs/op",
-            "extra": "313 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 212,
             "unit": "allocs/op",
             "extra": "289 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "32d2efbdb0fd1c85e815e8f5f0a7ad8d31ae0f14",
+          "message": "Merge pull request #2994 from gofiber/dependabot/go_modules/coherence/google-modules-72ee472a6f\n\nchore(deps): bump the google-modules group across 2 directories with 1 update",
+          "timestamp": "2026-07-16T09:15:03+02:00",
+          "tree_id": "8fad8e7d52ef777d85cf4927bab60594ee3752a9",
+          "url": "https://github.com/gofiber/storage/commit/32d2efbdb0fd1c85e815e8f5f0a7ad8d31ae0f14"
+        },
+        "date": 1784186365139,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Coherence_Set",
+            "value": 2104670,
+            "unit": "ns/op\t    5079 B/op\t     112 allocs/op",
+            "extra": "526 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - ns/op",
+            "value": 2104670,
+            "unit": "ns/op",
+            "extra": "526 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - B/op",
+            "value": 5079,
+            "unit": "B/op",
+            "extra": "526 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Set - allocs/op",
+            "value": 112,
+            "unit": "allocs/op",
+            "extra": "526 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get",
+            "value": 802.3,
+            "unit": "ns/op\t     301 B/op\t       5 allocs/op",
+            "extra": "1491795 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - ns/op",
+            "value": 802.3,
+            "unit": "ns/op",
+            "extra": "1491795 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - B/op",
+            "value": 301,
+            "unit": "B/op",
+            "extra": "1491795 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_Get - allocs/op",
+            "value": 5,
+            "unit": "allocs/op",
+            "extra": "1491795 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete",
+            "value": 4132141,
+            "unit": "ns/op\t    9896 B/op\t     212 allocs/op",
+            "extra": "258 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - ns/op",
+            "value": 4132141,
+            "unit": "ns/op",
+            "extra": "258 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - B/op",
+            "value": 9896,
+            "unit": "B/op",
+            "extra": "258 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Coherence_SetAndDelete - allocs/op",
+            "value": 212,
+            "unit": "allocs/op",
+            "extra": "258 times\n4 procs"
           }
         ]
       }
