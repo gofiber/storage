@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783810302432,
+  "lastUpdate": 1784186587412,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1dd9def94a0fcdcdc8397e50b76ed458d8516979",
-          "message": "Merge pull request #2634 from gofiber/dependabot/go_modules/azureblob/golang-modules-9d9b4877da\n\nchore(deps): bump the golang-modules group across 5 directories with 1 update",
-          "timestamp": "2026-04-17T14:51:47+02:00",
-          "tree_id": "312d46d3ffa56940285654c1a15d956ccd65a69e",
-          "url": "https://github.com/gofiber/storage/commit/1dd9def94a0fcdcdc8397e50b76ed458d8516979"
-        },
-        "date": 1776430752930,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_Couchbase_Set",
-            "value": 259357,
-            "unit": "ns/op\t    4756 B/op\t      98 allocs/op",
-            "extra": "5160 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Set - ns/op",
-            "value": 259357,
-            "unit": "ns/op",
-            "extra": "5160 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Set - B/op",
-            "value": 4756,
-            "unit": "B/op",
-            "extra": "5160 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Set - allocs/op",
-            "value": 98,
-            "unit": "allocs/op",
-            "extra": "5160 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Get",
-            "value": 206058,
-            "unit": "ns/op\t    4272 B/op\t      90 allocs/op",
-            "extra": "5145 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Get - ns/op",
-            "value": 206058,
-            "unit": "ns/op",
-            "extra": "5145 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Get - B/op",
-            "value": 4272,
-            "unit": "B/op",
-            "extra": "5145 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_Get - allocs/op",
-            "value": 90,
-            "unit": "allocs/op",
-            "extra": "5145 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_SetAndDelete",
-            "value": 432105,
-            "unit": "ns/op\t   17112 B/op\t     189 allocs/op",
-            "extra": "2605 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_SetAndDelete - ns/op",
-            "value": 432105,
-            "unit": "ns/op",
-            "extra": "2605 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_SetAndDelete - B/op",
-            "value": 17112,
-            "unit": "B/op",
-            "extra": "2605 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Couchbase_SetAndDelete - allocs/op",
-            "value": 189,
-            "unit": "allocs/op",
-            "extra": "2605 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 189,
             "unit": "allocs/op",
             "extra": "3357 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "32d2efbdb0fd1c85e815e8f5f0a7ad8d31ae0f14",
+          "message": "Merge pull request #2994 from gofiber/dependabot/go_modules/coherence/google-modules-72ee472a6f\n\nchore(deps): bump the google-modules group across 2 directories with 1 update",
+          "timestamp": "2026-07-16T09:15:03+02:00",
+          "tree_id": "8fad8e7d52ef777d85cf4927bab60594ee3752a9",
+          "url": "https://github.com/gofiber/storage/commit/32d2efbdb0fd1c85e815e8f5f0a7ad8d31ae0f14"
+        },
+        "date": 1784186586633,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Couchbase_Set",
+            "value": 288123,
+            "unit": "ns/op\t    9838 B/op\t      99 allocs/op",
+            "extra": "4112 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - ns/op",
+            "value": 288123,
+            "unit": "ns/op",
+            "extra": "4112 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - B/op",
+            "value": 9838,
+            "unit": "B/op",
+            "extra": "4112 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Set - allocs/op",
+            "value": 99,
+            "unit": "allocs/op",
+            "extra": "4112 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get",
+            "value": 257778,
+            "unit": "ns/op\t    4238 B/op\t      91 allocs/op",
+            "extra": "4666 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - ns/op",
+            "value": 257778,
+            "unit": "ns/op",
+            "extra": "4666 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - B/op",
+            "value": 4238,
+            "unit": "B/op",
+            "extra": "4666 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_Get - allocs/op",
+            "value": 91,
+            "unit": "allocs/op",
+            "extra": "4666 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete",
+            "value": 548534,
+            "unit": "ns/op\t   20093 B/op\t     190 allocs/op",
+            "extra": "1898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - ns/op",
+            "value": 548534,
+            "unit": "ns/op",
+            "extra": "1898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - B/op",
+            "value": 20093,
+            "unit": "B/op",
+            "extra": "1898 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Couchbase_SetAndDelete - allocs/op",
+            "value": 190,
+            "unit": "allocs/op",
+            "extra": "1898 times\n4 procs"
           }
         ]
       }
