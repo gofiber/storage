@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783875527435,
+  "lastUpdate": 1784531975399,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "02e237ea57cf0b5d605ffb5e8d39b56c6baf73a2",
-          "message": "Merge pull request #2541 from gofiber/dependabot/go_modules/mongodb/github.com/montanaflynn/stats-0.8.2\n\nchore(deps): bump github.com/montanaflynn/stats from 0.7.1 to 0.8.2 in /mongodb",
-          "timestamp": "2026-03-12T08:21:54+01:00",
-          "tree_id": "1b07adf475baa3bfa15342cdbba288ad4d79deb9",
-          "url": "https://github.com/gofiber/storage/commit/02e237ea57cf0b5d605ffb5e8d39b56c6baf73a2"
-        },
-        "date": 1773300213333,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_MongoDB_Set",
-            "value": 371408,
-            "unit": "ns/op\t    6469 B/op\t      88 allocs/op",
-            "extra": "3135 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Set - ns/op",
-            "value": 371408,
-            "unit": "ns/op",
-            "extra": "3135 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Set - B/op",
-            "value": 6469,
-            "unit": "B/op",
-            "extra": "3135 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Set - allocs/op",
-            "value": 88,
-            "unit": "allocs/op",
-            "extra": "3135 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Get",
-            "value": 335761,
-            "unit": "ns/op\t    7461 B/op\t      79 allocs/op",
-            "extra": "3518 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Get - ns/op",
-            "value": 335761,
-            "unit": "ns/op",
-            "extra": "3518 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Get - B/op",
-            "value": 7461,
-            "unit": "B/op",
-            "extra": "3518 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_Get - allocs/op",
-            "value": 79,
-            "unit": "allocs/op",
-            "extra": "3518 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_SetAndDelete",
-            "value": 760092,
-            "unit": "ns/op\t   11529 B/op\t     155 allocs/op",
-            "extra": "1566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_SetAndDelete - ns/op",
-            "value": 760092,
-            "unit": "ns/op",
-            "extra": "1566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_SetAndDelete - B/op",
-            "value": 11529,
-            "unit": "B/op",
-            "extra": "1566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_MongoDB_SetAndDelete - allocs/op",
-            "value": 155,
-            "unit": "allocs/op",
-            "extra": "1566 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 155,
             "unit": "allocs/op",
             "extra": "1730 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e044f756b027fce29ffd2d07e4c77597d2bf6036",
+          "message": "Merge pull request #3000 from gofiber/dependabot/go_modules/mongodb/github.com/montanaflynn/stats-0.12.2\n\nchore(deps): bump github.com/montanaflynn/stats from 0.12.1 to 0.12.2 in /mongodb",
+          "timestamp": "2026-07-20T09:16:07+02:00",
+          "tree_id": "4a6e66c67ca5538339f998a62703aa78c57d87a7",
+          "url": "https://github.com/gofiber/storage/commit/e044f756b027fce29ffd2d07e4c77597d2bf6036"
+        },
+        "date": 1784531974995,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_MongoDB_Set",
+            "value": 353212,
+            "unit": "ns/op\t    6473 B/op\t      88 allocs/op",
+            "extra": "3212 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - ns/op",
+            "value": 353212,
+            "unit": "ns/op",
+            "extra": "3212 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - B/op",
+            "value": 6473,
+            "unit": "B/op",
+            "extra": "3212 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Set - allocs/op",
+            "value": 88,
+            "unit": "allocs/op",
+            "extra": "3212 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get",
+            "value": 314791,
+            "unit": "ns/op\t    7465 B/op\t      79 allocs/op",
+            "extra": "3645 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - ns/op",
+            "value": 314791,
+            "unit": "ns/op",
+            "extra": "3645 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - B/op",
+            "value": 7465,
+            "unit": "B/op",
+            "extra": "3645 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_Get - allocs/op",
+            "value": 79,
+            "unit": "allocs/op",
+            "extra": "3645 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete",
+            "value": 745949,
+            "unit": "ns/op\t   11534 B/op\t     155 allocs/op",
+            "extra": "1633 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - ns/op",
+            "value": 745949,
+            "unit": "ns/op",
+            "extra": "1633 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - B/op",
+            "value": 11534,
+            "unit": "B/op",
+            "extra": "1633 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_MongoDB_SetAndDelete - allocs/op",
+            "value": 155,
+            "unit": "allocs/op",
+            "extra": "1633 times\n4 procs"
           }
         ]
       }
