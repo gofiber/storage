@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783810044792,
+  "lastUpdate": 1784619567539,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0fc5e9f686717b3577f8df1b5f5cdd36bd610fca",
-          "message": "Merge pull request #2521 from gofiber/dependabot/go_modules/aerospike/google-modules-a80e5cdd85",
-          "timestamp": "2026-03-06T15:57:43+01:00",
-          "tree_id": "8c954b1c7f715475a70b9a26cf613863aa154a3f",
-          "url": "https://github.com/gofiber/storage/commit/0fc5e9f686717b3577f8df1b5f5cdd36bd610fca"
-        },
-        "date": 1772810274709,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_Scylla_Set",
-            "value": 1367368,
-            "unit": "ns/op\t    3312 B/op\t      42 allocs/op",
-            "extra": "856 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Set - ns/op",
-            "value": 1367368,
-            "unit": "ns/op",
-            "extra": "856 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Set - B/op",
-            "value": 3312,
-            "unit": "B/op",
-            "extra": "856 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Set - allocs/op",
-            "value": 42,
-            "unit": "allocs/op",
-            "extra": "856 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Get",
-            "value": 1357915,
-            "unit": "ns/op\t    3253 B/op\t      42 allocs/op",
-            "extra": "848 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Get - ns/op",
-            "value": 1357915,
-            "unit": "ns/op",
-            "extra": "848 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Get - B/op",
-            "value": 3253,
-            "unit": "B/op",
-            "extra": "848 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_Get - allocs/op",
-            "value": 42,
-            "unit": "allocs/op",
-            "extra": "848 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_SetAndDelete",
-            "value": 2719935,
-            "unit": "ns/op\t    6426 B/op\t      81 allocs/op",
-            "extra": "429 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_SetAndDelete - ns/op",
-            "value": 2719935,
-            "unit": "ns/op",
-            "extra": "429 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_SetAndDelete - B/op",
-            "value": 6426,
-            "unit": "B/op",
-            "extra": "429 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Scylla_SetAndDelete - allocs/op",
-            "value": 81,
-            "unit": "allocs/op",
-            "extra": "429 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 82,
             "unit": "allocs/op",
             "extra": "430 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "180c54654872ec600b4e08efff0eab0db67b6b49",
+          "message": "Merge pull request #3018 from gofiber/dependabot/go_modules/s3/go-logr-modules-5a8707981d\n\nchore(deps): bump the go-logr-modules group across 5 directories with 1 update",
+          "timestamp": "2026-07-21T09:28:36+02:00",
+          "tree_id": "41452b895922bcb00e15dd264bd772e28915087d",
+          "url": "https://github.com/gofiber/storage/commit/180c54654872ec600b4e08efff0eab0db67b6b49"
+        },
+        "date": 1784619566622,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Scylla_Set",
+            "value": 1321434,
+            "unit": "ns/op\t    3309 B/op\t      42 allocs/op",
+            "extra": "888 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Set - ns/op",
+            "value": 1321434,
+            "unit": "ns/op",
+            "extra": "888 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Set - B/op",
+            "value": 3309,
+            "unit": "B/op",
+            "extra": "888 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Set - allocs/op",
+            "value": 42,
+            "unit": "allocs/op",
+            "extra": "888 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Get",
+            "value": 1337753,
+            "unit": "ns/op\t    3255 B/op\t      42 allocs/op",
+            "extra": "866 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Get - ns/op",
+            "value": 1337753,
+            "unit": "ns/op",
+            "extra": "866 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Get - B/op",
+            "value": 3255,
+            "unit": "B/op",
+            "extra": "866 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_Get - allocs/op",
+            "value": 42,
+            "unit": "allocs/op",
+            "extra": "866 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_SetAndDelete",
+            "value": 2642407,
+            "unit": "ns/op\t    6442 B/op\t      82 allocs/op",
+            "extra": "450 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_SetAndDelete - ns/op",
+            "value": 2642407,
+            "unit": "ns/op",
+            "extra": "450 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_SetAndDelete - B/op",
+            "value": 6442,
+            "unit": "B/op",
+            "extra": "450 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Scylla_SetAndDelete - allocs/op",
+            "value": 82,
+            "unit": "allocs/op",
+            "extra": "450 times\n4 procs"
           }
         ]
       }
