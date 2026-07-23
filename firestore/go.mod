@@ -42,7 +42,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/magiconair/properties v1.8.10 // indirect
+	github.com/magiconair/properties v1.18.11 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect
