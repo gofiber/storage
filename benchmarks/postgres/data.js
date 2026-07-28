@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783809950973,
+  "lastUpdate": 1785223292501,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7912fd4a025fe19b3710c0f0d99ce5fcb75e0da1",
-          "message": "Merge pull request #2587 from gofiber/dependabot/go_modules/aerospike/google-modules-d22e9361e5\n\nchore(deps): bump the google-modules group across 19 directories with 2 updates",
-          "timestamp": "2026-04-02T10:10:07+02:00",
-          "tree_id": "e1414222aff2b24784c8223fc87e4d5477bac041",
-          "url": "https://github.com/gofiber/storage/commit/7912fd4a025fe19b3710c0f0d99ce5fcb75e0da1"
-        },
-        "date": 1775117837812,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_Postgres_Set",
-            "value": 235978,
-            "unit": "ns/op\t     306 B/op\t       8 allocs/op",
-            "extra": "4768 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Set - ns/op",
-            "value": 235978,
-            "unit": "ns/op",
-            "extra": "4768 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Set - B/op",
-            "value": 306,
-            "unit": "B/op",
-            "extra": "4768 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Set - allocs/op",
-            "value": 8,
-            "unit": "allocs/op",
-            "extra": "4768 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Get",
-            "value": 211256,
-            "unit": "ns/op\t     572 B/op\t      11 allocs/op",
-            "extra": "5566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Get - ns/op",
-            "value": 211256,
-            "unit": "ns/op",
-            "extra": "5566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Get - B/op",
-            "value": 572,
-            "unit": "B/op",
-            "extra": "5566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_Get - allocs/op",
-            "value": 11,
-            "unit": "allocs/op",
-            "extra": "5566 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_SetAndDelete",
-            "value": 461624,
-            "unit": "ns/op\t     501 B/op\t      13 allocs/op",
-            "extra": "2622 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_SetAndDelete - ns/op",
-            "value": 461624,
-            "unit": "ns/op",
-            "extra": "2622 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_SetAndDelete - B/op",
-            "value": 501,
-            "unit": "B/op",
-            "extra": "2622 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Postgres_SetAndDelete - allocs/op",
-            "value": 13,
-            "unit": "allocs/op",
-            "extra": "2622 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 11,
             "unit": "allocs/op",
             "extra": "2779 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2988a2d2be3b2f5eb73bdecbe258c66a2c4b064c",
+          "message": "Merge pull request #3083 from gofiber/dependabot/go_modules/postgres/docker-modules-6338747331\n\nchore(deps): bump the docker-modules group across 3 directories with 2 updates",
+          "timestamp": "2026-07-28T09:16:48+02:00",
+          "tree_id": "099ce57cbc482ed022d271679d5201240f4a242c",
+          "url": "https://github.com/gofiber/storage/commit/2988a2d2be3b2f5eb73bdecbe258c66a2c4b064c"
+        },
+        "date": 1785223291659,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Postgres_Set",
+            "value": 96645,
+            "unit": "ns/op\t     258 B/op\t       7 allocs/op",
+            "extra": "13016 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - ns/op",
+            "value": 96645,
+            "unit": "ns/op",
+            "extra": "13016 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - B/op",
+            "value": 258,
+            "unit": "B/op",
+            "extra": "13016 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Set - allocs/op",
+            "value": 7,
+            "unit": "allocs/op",
+            "extra": "13016 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get",
+            "value": 82875,
+            "unit": "ns/op\t     524 B/op\t      10 allocs/op",
+            "extra": "14678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - ns/op",
+            "value": 82875,
+            "unit": "ns/op",
+            "extra": "14678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - B/op",
+            "value": 524,
+            "unit": "B/op",
+            "extra": "14678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_Get - allocs/op",
+            "value": 10,
+            "unit": "allocs/op",
+            "extra": "14678 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete",
+            "value": 188334,
+            "unit": "ns/op\t     404 B/op\t      11 allocs/op",
+            "extra": "5386 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - ns/op",
+            "value": 188334,
+            "unit": "ns/op",
+            "extra": "5386 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - B/op",
+            "value": 404,
+            "unit": "B/op",
+            "extra": "5386 times\n4 procs"
+          },
+          {
+            "name": "Benchmark_Postgres_SetAndDelete - allocs/op",
+            "value": 11,
+            "unit": "allocs/op",
+            "extra": "5386 times\n4 procs"
           }
         ]
       }
