@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785137687560,
+  "lastUpdate": 1785309444287,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7912fd4a025fe19b3710c0f0d99ce5fcb75e0da1",
-          "message": "Merge pull request #2587 from gofiber/dependabot/go_modules/aerospike/google-modules-d22e9361e5\n\nchore(deps): bump the google-modules group across 19 directories with 2 updates",
-          "timestamp": "2026-04-02T10:10:07+02:00",
-          "tree_id": "e1414222aff2b24784c8223fc87e4d5477bac041",
-          "url": "https://github.com/gofiber/storage/commit/7912fd4a025fe19b3710c0f0d99ce5fcb75e0da1"
-        },
-        "date": 1775117961776,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_Cassandra_Set",
-            "value": 2057373,
-            "unit": "ns/op\t    4234 B/op\t      65 allocs/op",
-            "extra": "564 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set - ns/op",
-            "value": 2057373,
-            "unit": "ns/op",
-            "extra": "564 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set - B/op",
-            "value": 4234,
-            "unit": "B/op",
-            "extra": "564 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set - allocs/op",
-            "value": 65,
-            "unit": "allocs/op",
-            "extra": "564 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Get",
-            "value": 2099403,
-            "unit": "ns/op\t    3787 B/op\t      55 allocs/op",
-            "extra": "561 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Get - ns/op",
-            "value": 2099403,
-            "unit": "ns/op",
-            "extra": "561 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Get - B/op",
-            "value": 3787,
-            "unit": "B/op",
-            "extra": "561 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Get - allocs/op",
-            "value": 55,
-            "unit": "allocs/op",
-            "extra": "561 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set_And_Delete",
-            "value": 4046352,
-            "unit": "ns/op\t    7679 B/op\t     114 allocs/op",
-            "extra": "290 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set_And_Delete - ns/op",
-            "value": 4046352,
-            "unit": "ns/op",
-            "extra": "290 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set_And_Delete - B/op",
-            "value": 7679,
-            "unit": "B/op",
-            "extra": "290 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_Cassandra_Set_And_Delete - allocs/op",
-            "value": 114,
-            "unit": "allocs/op",
-            "extra": "290 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 114,
             "unit": "allocs/op",
             "extra": "295 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9b43f0c9a964284a1d255fb5157751c2ce9a46a",
+          "message": "Merge pull request #3084 from gofiber/dependabot/go_modules/cassandra/docker-modules-9e805707d4\n\nchore(deps): bump the docker-modules group across 5 directories with 2 updates",
+          "timestamp": "2026-07-29T09:13:27+02:00",
+          "tree_id": "442f8b6d1bad6faacab13015520c44d80f71f587",
+          "url": "https://github.com/gofiber/storage/commit/d9b43f0c9a964284a1d255fb5157751c2ce9a46a"
+        },
+        "date": 1785309443817,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_Cassandra_Set",
+            "value": 1461146,
+            "unit": "ns/op\t    4262 B/op\t      65 allocs/op",
+            "extra": "706 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - ns/op",
+            "value": 1461146,
+            "unit": "ns/op",
+            "extra": "706 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - B/op",
+            "value": 4262,
+            "unit": "B/op",
+            "extra": "706 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set - allocs/op",
+            "value": 65,
+            "unit": "allocs/op",
+            "extra": "706 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get",
+            "value": 1410569,
+            "unit": "ns/op\t    3776 B/op\t      55 allocs/op",
+            "extra": "718 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - ns/op",
+            "value": 1410569,
+            "unit": "ns/op",
+            "extra": "718 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - B/op",
+            "value": 3776,
+            "unit": "B/op",
+            "extra": "718 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Get - allocs/op",
+            "value": 55,
+            "unit": "allocs/op",
+            "extra": "718 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete",
+            "value": 2787490,
+            "unit": "ns/op\t    7655 B/op\t     114 allocs/op",
+            "extra": "392 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - ns/op",
+            "value": 2787490,
+            "unit": "ns/op",
+            "extra": "392 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - B/op",
+            "value": 7655,
+            "unit": "B/op",
+            "extra": "392 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_Cassandra_Set_And_Delete - allocs/op",
+            "value": 114,
+            "unit": "allocs/op",
+            "extra": "392 times\n6 procs"
           }
         ]
       }
