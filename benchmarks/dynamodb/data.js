@@ -1,104 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785137570679,
+  "lastUpdate": 1785309402248,
   "repoUrl": "https://github.com/gofiber/storage",
   "entries": {
     "Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "rene@gofiber.io",
-            "name": "RW",
-            "username": "ReneWerner87"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "65dadfdee0a9980035b648b895ead5a256894ad3",
-          "message": "Merge pull request #2714 from gofiber/dependabot/go_modules/aerospike/google-modules-43ec5cd3e5\n\nchore(deps): bump the google-modules group across 7 directories with 1 update",
-          "timestamp": "2026-05-15T09:17:07+02:00",
-          "tree_id": "f606db910ee485b1531b558d9b47ee53bee02496",
-          "url": "https://github.com/gofiber/storage/commit/65dadfdee0a9980035b648b895ead5a256894ad3"
-        },
-        "date": 1778829542172,
-        "tool": "go",
-        "benches": [
-          {
-            "name": "Benchmark_DynamoDB_Set",
-            "value": 3053866,
-            "unit": "ns/op\t   31456 B/op\t     364 allocs/op",
-            "extra": "386 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Set - ns/op",
-            "value": 3053866,
-            "unit": "ns/op",
-            "extra": "386 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Set - B/op",
-            "value": 31456,
-            "unit": "B/op",
-            "extra": "386 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Set - allocs/op",
-            "value": 364,
-            "unit": "allocs/op",
-            "extra": "386 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Get",
-            "value": 1509864,
-            "unit": "ns/op\t   33719 B/op\t     393 allocs/op",
-            "extra": "679 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Get - ns/op",
-            "value": 1509864,
-            "unit": "ns/op",
-            "extra": "679 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Get - B/op",
-            "value": 33719,
-            "unit": "B/op",
-            "extra": "679 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_Get - allocs/op",
-            "value": 393,
-            "unit": "allocs/op",
-            "extra": "679 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_SetAndDelete",
-            "value": 6380011,
-            "unit": "ns/op\t   64056 B/op\t     725 allocs/op",
-            "extra": "164 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
-            "value": 6380011,
-            "unit": "ns/op",
-            "extra": "164 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
-            "value": 64056,
-            "unit": "B/op",
-            "extra": "164 times\n4 procs"
-          },
-          {
-            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
-            "value": 725,
-            "unit": "allocs/op",
-            "extra": "164 times\n4 procs"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2876,6 +2780,102 @@ window.BENCHMARK_DATA = {
             "value": 727,
             "unit": "allocs/op",
             "extra": "171 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rene@gofiber.io",
+            "name": "RW",
+            "username": "ReneWerner87"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9b43f0c9a964284a1d255fb5157751c2ce9a46a",
+          "message": "Merge pull request #3084 from gofiber/dependabot/go_modules/cassandra/docker-modules-9e805707d4\n\nchore(deps): bump the docker-modules group across 5 directories with 2 updates",
+          "timestamp": "2026-07-29T09:13:27+02:00",
+          "tree_id": "442f8b6d1bad6faacab13015520c44d80f71f587",
+          "url": "https://github.com/gofiber/storage/commit/d9b43f0c9a964284a1d255fb5157751c2ce9a46a"
+        },
+        "date": 1785309401790,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "Benchmark_DynamoDB_Set",
+            "value": 802937,
+            "unit": "ns/op\t   31995 B/op\t     365 allocs/op",
+            "extra": "1324 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - ns/op",
+            "value": 802937,
+            "unit": "ns/op",
+            "extra": "1324 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - B/op",
+            "value": 31995,
+            "unit": "B/op",
+            "extra": "1324 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Set - allocs/op",
+            "value": 365,
+            "unit": "allocs/op",
+            "extra": "1324 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get",
+            "value": 285306,
+            "unit": "ns/op\t   34315 B/op\t     394 allocs/op",
+            "extra": "3541 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - ns/op",
+            "value": 285306,
+            "unit": "ns/op",
+            "extra": "3541 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - B/op",
+            "value": 34315,
+            "unit": "B/op",
+            "extra": "3541 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_Get - allocs/op",
+            "value": 394,
+            "unit": "allocs/op",
+            "extra": "3541 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete",
+            "value": 1583557,
+            "unit": "ns/op\t   64886 B/op\t     727 allocs/op",
+            "extra": "648 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - ns/op",
+            "value": 1583557,
+            "unit": "ns/op",
+            "extra": "648 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - B/op",
+            "value": 64886,
+            "unit": "B/op",
+            "extra": "648 times\n6 procs"
+          },
+          {
+            "name": "Benchmark_DynamoDB_SetAndDelete - allocs/op",
+            "value": 727,
+            "unit": "allocs/op",
+            "extra": "648 times\n6 procs"
           }
         ]
       }
