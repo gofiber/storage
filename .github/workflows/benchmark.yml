@@ -69,6 +69,8 @@ jobs:
       fail-fast: false
     uses: gofiber/.github/.github/workflows/benchmark.yml@main
     with:
+      # stays on x64 while the org default is arm64: mcmoe/mssqldocker ships amd64 only
+      runs-on: blacksmith-2vcpu-ubuntu-2404
       working-directory: ${{ matrix.package }}
       benchmark-data-dir-path: benchmarks/${{ matrix.package }}
       # NOTE: clickhouse requires a newer Go than the org default (see 738edc85)
