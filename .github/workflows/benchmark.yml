@@ -77,8 +77,8 @@ jobs:
       go-version: ${{ matrix.package == 'clickhouse' && 'stable' || '1.25.x' }}
       go-test-flags: "-timeout 900s"
       alert-threshold: "300%"
-      # ~3 months of per-package publishes (24-27 in the last 90 days)
-      max-items-in-chart: 30
+      # ~9 months of per-package publishes (24-27 in the 90 days before 2026-07)
+      max-items-in-chart: 90
       setup-script: .github/scripts/benchmark-setup.sh
       # the update-pages job below syncs the page once after all matrix legs
       sync-pages: false
