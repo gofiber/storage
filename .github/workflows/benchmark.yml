@@ -67,6 +67,10 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages || '[]') }}
       fail-fast: false
+      # a full dispatch fires all 33 packages as one wave: ECR Public rate-limits
+      # the simultaneous image pulls (memcache, run 30631189965) and the legs
+      # collide pushing gh-pages; 8 at a time keeps both under the limits
+      max-parallel: 8
     uses: gofiber/.github/.github/workflows/benchmark.yml@main
     with:
       # stays on x64 while the org default is arm64: mcmoe/mssqldocker ships amd64 only
