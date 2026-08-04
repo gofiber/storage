@@ -1,16 +1,23 @@
 name: Tests CloudflareKV
 on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
   push:
     branches:
       - master
       - main
+    paths:
+      - 'cloudflarekv/**'
+      - '.github/workflows/test-cloudflarekv.yml'
   pull_request:
     paths:
       - 'cloudflarekv/**'
+      - '.github/workflows/test-cloudflarekv.yml'
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

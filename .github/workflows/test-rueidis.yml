@@ -1,16 +1,25 @@
 on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
   push:
     branches:
       - master
       - main
+    paths:
+      - 'rueidis/**'
+      - 'testhelpers/redis/**'
+      - '.github/workflows/test-rueidis.yml'
   pull_request:
     paths:
       - 'rueidis/**'
+      - 'testhelpers/redis/**'
+      - '.github/workflows/test-rueidis.yml'
   workflow_dispatch:
 name: "Tests Rueidis"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

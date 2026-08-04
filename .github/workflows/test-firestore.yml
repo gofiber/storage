@@ -1,16 +1,23 @@
 on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
   workflow_dispatch:
   push:
     branches:
       - master
       - main
+    paths:
+      - "firestore/**"
+      - ".github/workflows/test-firestore.yml"
   pull_request:
     paths:
       - "firestore/**"
+      - ".github/workflows/test-firestore.yml"
 name: "Tests Firestore"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

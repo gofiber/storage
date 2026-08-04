@@ -1,17 +1,25 @@
 on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
   push:
     branches:
       - master
       - main
+    paths:
+      - 'valkey/**'
+      - '.github/workflows/test-valkey.yml'
+      - 'testhelpers/redis/**'
   pull_request:
     paths:
       - 'valkey/**'
       - '.github/workflows/test-valkey.yml'
+      - 'testhelpers/redis/**'
   workflow_dispatch:
 name: "Tests Valkey"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:

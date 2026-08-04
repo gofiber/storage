@@ -1,16 +1,25 @@
 on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
   push:
     branches:
       - master
       - main
+    paths:
+      - 'redis/**'
+      - 'testhelpers/redis/**'
+      - '.github/workflows/test-redis.yml'
   pull_request:
     paths:
       - 'redis/**'
+      - 'testhelpers/redis/**'
+      - '.github/workflows/test-redis.yml'
   workflow_dispatch:
 name: "Tests Redis"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
