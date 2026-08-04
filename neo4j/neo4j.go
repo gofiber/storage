@@ -46,6 +46,9 @@ func newDriverWithContext(cfg neo4jConnConfig) (neo4j.DriverWithContext, error) 
 	return neo4j.NewDriverWithContext(cfg.URI, cfg.Auth, cfg.Configurations...)
 }
 
+// closeTimeout bounds the cleanup close performed when initialization fails.
+const closeTimeout = 10 * time.Second
+
 // New creates a new Neo4j storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -73,13 +76,16 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
-	// Closing runs on its own context: the caller's may be exactly what
-	// failed, and a done context would skip the close.
+	// Closing runs on its own bounded context: the caller's may be exactly
+	// what failed, so a done context would skip the close, and an unbounded
+	// one would hang here if the connection is stuck rather than refused.
 	closeOwned := func() {
 		if !ownsDB {
 			return
 		}
-		if err := db.Close(context.Background()); err != nil {
+		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		if err := db.Close(closeCtx); err != nil {
 			log.Printf("Error closing storage: %v\n", err)
 		}
 	}

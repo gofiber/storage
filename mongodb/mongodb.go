@@ -169,8 +169,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	// Copy before the item goes back to the pool, the caller keeps the value
-	// after this returns.
+	// Copy before the item goes back to the pool. Releasing only drops the
+	// driver's reference today, but the caller keeps this value for as long
+	// as it likes, so it must not alias anything the pool hands out again.
 	val := make([]byte, len(item.Value))
 	copy(val, item.Value)
 
@@ -257,6 +258,10 @@ func (s *Storage) acquireItem() *item {
 // Release item from pool
 func (s *Storage) releaseItem(item *item) {
 	if item != nil {
+		// ObjectID has to be cleared too: Get decodes into the pooled item, so
+		// leaving the identifier behind would carry another document's _id
+		// into the next Set that reuses this item.
+		item.ObjectID = primitive.ObjectID{}
 		item.Key = ""
 		item.Value = nil
 		item.Expiration = time.Time{}

@@ -30,6 +30,9 @@ type model struct {
 	Exp  int64  `json:"exp"`
 }
 
+// closeTimeout bounds the cleanup close performed when initialization fails.
+const closeTimeout = 10 * time.Second
+
 // New creates a new SurrealDB storage instance using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -45,9 +48,14 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	// Release the connection opened above rather than leaking it when a later
-	// step fails. Closing runs on its own context: the caller's may be exactly
-	// what failed, and a done context would skip the close.
-	closeOwned := func() { _ = db.Close(context.Background()) }
+	// step fails. Closing runs on its own bounded context: the caller's may be
+	// exactly what failed, so a done context would skip the close, and an
+	// unbounded one would hang here if the connection is stuck.
+	closeOwned := func() {
+		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		_ = db.Close(closeCtx)
+	}
 
 	if err = db.Use(ctx, cfg.Namespace, cfg.Database); err != nil {
 		closeOwned()
