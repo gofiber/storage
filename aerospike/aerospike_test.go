@@ -63,7 +63,7 @@ func newTestStore(t testing.TB) *Storage {
 	require.NoError(t, err)
 
 	return New(Config{
-		Hosts:     []*aerospike.Host{aerospike.NewHost(host, port.Int())},
+		Hosts:     []*aerospike.Host{aerospike.NewHost(host, int(port.Num()))},
 		Reset:     true,
 		Namespace: aerospikeNamespace,
 	})
