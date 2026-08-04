@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"time"
 
@@ -31,7 +30,7 @@ func New(config ...Config) *Storage {
 
 	db, err := pebble.Open(cfg.Path, &pebble.Options{})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	return &Storage{
@@ -47,35 +46,37 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 	data, closer, err := s.db.Get([]byte(key))
 	if err != nil {
+		// A missing key is not an error, every other failure is.
+		if errors.Is(err, pebble.ErrNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
-	if data == nil {
-		return nil, nil
-	}
-
-	if err := closer.Close(); err != nil {
-		log.Fatal(err)
-	}
-
+	// data is only valid until closer is closed, so decode it first.
 	var cache CacheType
 	err = json.Unmarshal(data, &cache)
+	if closeErr := closer.Close(); closeErr != nil {
+		return nil, closeErr
+	}
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	secs := time.Now().Unix()
 
 	if cache.Expires > 0 && cache.Expires <= secs {
-		err = s.db.Delete([]byte(key), nil)
-		return nil, err
+		return nil, s.db.Delete([]byte(key), s.writeOptions)
 	}
 
 	return cache.Data, nil
 }
 
-// GetWithContext retrieves value by key (dummy context support)
+// GetWithContext retrieves value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -92,7 +93,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	if exp > 0 {
-		cache.Expires = cache.Created + int64(exp.Seconds())
+		// Expiration is tracked with a one-second granularity, so round up:
+		// truncating would make any sub-second expiration immediate.
+		secs := int64(exp / time.Second)
+		if exp%time.Second != 0 {
+			secs++
+		}
+		cache.Expires = cache.Created + secs
 	}
 
 	jsonString, err := json.Marshal(cache)
@@ -102,8 +109,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return s.db.Set([]byte(key), jsonString, s.writeOptions)
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -115,18 +125,49 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete([]byte(key), s.writeOptions)
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
-// Reset flushes the DB
+// Reset deletes every key in the database
 func (s *Storage) Reset() error {
-	return s.db.Flush()
+	iter, err := s.db.NewIter(nil)
+	if err != nil {
+		return err
+	}
+
+	batch := s.db.NewBatch()
+	defer func() {
+		_ = batch.Close()
+	}()
+
+	for iter.First(); iter.Valid(); iter.Next() {
+		if err := batch.Delete(iter.Key(), nil); err != nil {
+			_ = iter.Close()
+			return err
+		}
+	}
+
+	if err := iter.Close(); err != nil {
+		return err
+	}
+
+	if batch.Empty() {
+		return nil
+	}
+
+	return batch.Commit(s.writeOptions)
 }
 
-// ResetWithContext resets storage (dummy context support)
+// ResetWithContext resets storage, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 

@@ -2,13 +2,22 @@ package bbolt
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/gofiber/utils/v2"
 	"go.etcd.io/bbolt"
 )
 
-// Storage interface that is implemented by storage providers
+// errBucketNotFound is returned when the configured bucket is missing, which
+// happens when it is dropped outside of this driver.
+var errBucketNotFound = errors.New("bbolt: bucket not found")
+
+// Storage interface that is implemented by storage providers.
+//
+// Note: bbolt has no notion of key expiration, so the exp argument of Set is
+// ignored and stored entries live until they are deleted or the storage is
+// reset.
 type Storage struct {
 	conn   *bbolt.DB
 	bucket string
@@ -55,16 +64,33 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	err := s.conn.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
-		value = b.Get(utils.UnsafeBytes(key))
+		if b == nil {
+			return errBucketNotFound
+		}
+
+		// The slice returned by Get points into the memory-mapped file and is
+		// only valid for the life of the transaction, so it has to be copied.
+		v := b.Get(utils.UnsafeBytes(key))
+		if v == nil {
+			return nil
+		}
+		value = make([]byte, len(v))
+		copy(value, v)
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return value, err
+	return value, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -76,12 +102,18 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
+		if b == nil {
+			return errBucketNotFound
+		}
 		return b.Put(utils.UnsafeBytes(key), value)
 	})
 }
 
-// SetWithContext sets key with value (dummy context support)
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, value, exp)
 }
 
@@ -93,27 +125,44 @@ func (s *Storage) Delete(key string) error {
 
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
+		if b == nil {
+			return errBucketNotFound
+		}
 		return b.Delete(utils.UnsafeBytes(key))
 	})
 }
 
-// DeleteWithContext deletes key by key (dummy context support)
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
 // Reset all entries
 func (s *Storage) Reset() error {
 	return s.conn.Update(func(tx *bbolt.Tx) error {
-		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
-		return b.ForEach(func(k, _ []byte) error {
-			return b.Delete(k)
-		})
+		bucket := utils.UnsafeBytes(s.bucket)
+		if tx.Bucket(bucket) == nil {
+			return errBucketNotFound
+		}
+
+		// Recreating the bucket is both cheaper and safer than deleting keys
+		// while iterating over the same bucket.
+		if err := tx.DeleteBucket(bucket); err != nil {
+			return err
+		}
+		_, err := tx.CreateBucket(bucket)
+		return err
 	})
 }
 
-// ResetWithContext resets all entries (dummy context support)
+// ResetWithContext resets all entries, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 

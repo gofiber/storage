@@ -1,6 +1,7 @@
 package pebble
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -60,6 +61,33 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	// Sub-second expirations are rounded up, they must not expire immediately.
+	err := testStore.Set(key, val, 20*time.Millisecond)
+	require.NoError(t, err)
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	require.NoError(t, testStore.Delete(key))
+}
+
+func Test_Pebble_Get_Missing(t *testing.T) {
+	result, err := testStore.Get("not-a-key")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Pebble_Delete(t *testing.T) {
@@ -68,14 +96,14 @@ func Test_Pebble_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 20)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Equal(t, "pebble: not found", err.Error())
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -91,11 +119,26 @@ func Test_Pebble_Reset(t *testing.T) {
 	err = testStore.Reset()
 	require.NoError(t, err)
 
-	_, err = testStore.Get("john1")
+	result, err := testStore.Get("john1")
 	require.NoError(t, err)
+	require.Zero(t, len(result))
 
-	_, err = testStore.Get("john2")
+	result, err = testStore.Get("john2")
 	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Pebble_WithContext_Canceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
 
 func Test_Pebble_Close(t *testing.T) {

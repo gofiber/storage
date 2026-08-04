@@ -50,11 +50,18 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	return buf, nil
+	// Return a copy so callers cannot mutate the cached entry in place.
+	val := make([]byte, len(buf))
+	copy(val, buf)
+
+	return val, nil
 }
 
-// GetWithContext gets the value by key (dummy context support)
+// GetWithContext gets the value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -65,15 +72,25 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	saved := s.cache.SetWithTTL(key, val, s.defaultCost, exp)
-	if !saved {
-		return nil
-	}
+
+	// Store a copy: the caller may reuse or mutate val once Set returns.
+	valCopy := make([]byte, len(val))
+	copy(valCopy, val)
+
+	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
+
+	// Ristretto applies writes asynchronously through a buffer. Wait for them
+	// to be applied so the value is visible to a Get that follows Set.
+	s.cache.Wait()
+
 	return nil
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -86,8 +103,11 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -97,8 +117,11 @@ func (s *Storage) Reset() error {
 	return nil
 }
 
-// ResetWithContext resets storage (dummy context support)
+// ResetWithContext resets storage, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 

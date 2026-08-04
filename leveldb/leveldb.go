@@ -3,6 +3,8 @@ package leveldb
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -19,6 +21,7 @@ type Storage struct {
 	db         *leveldb.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	closeOnce  sync.Once
 }
 
 // New creates a new memory storage
@@ -49,16 +52,22 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	data, err := s.db.Get([]byte(key), nil)
 	if err != nil {
-		return nil, nil
+		// A missing key is not an error, every other failure is.
+		if errors.Is(err, leveldb.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	var stored item
-	if err := json.Unmarshal(data, &stored); err != nil {
+	stored, ok := decode(data)
+	if !ok {
+		// Entry written by an older version of this driver, which stored
+		// values without an expiration envelope.
 		return data, nil
 	}
 
 	if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-		if err := s.Delete(string(key)); err != nil {
+		if err := s.Delete(key); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -67,8 +76,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return stored.Value, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -77,13 +89,10 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
-	if exp == 0 {
-		return s.db.Put([]byte(key), value, nil)
-	}
 
-	data := item{
-		Value:    value,
-		ExpireAt: time.Now().Add(exp),
+	data := item{Value: value}
+	if exp != 0 {
+		data.ExpireAt = time.Now().Add(exp)
 	}
 
 	encoded, err := json.Marshal(data)
@@ -93,8 +102,11 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	return s.db.Put([]byte(key), encoded, nil)
 }
 
-// SetWithContext sets key with value (dummy context support)
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, value, exp)
 }
 
@@ -107,36 +119,69 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete([]byte(key), nil)
 }
 
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.Delete(key)
+}
+
 // Reset all keys
 func (s *Storage) Reset() error {
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 
+	batch := new(leveldb.Batch)
 	for iter.Next() {
-		key := iter.Key()
-		if err := s.db.Delete(key, nil); err != nil {
-			return err
-		}
+		batch.Delete(iter.Key())
 	}
 
-	return iter.Error()
+	if err := iter.Error(); err != nil {
+		return err
+	}
+
+	if batch.Len() == 0 {
+		return nil
+	}
+
+	return s.db.Write(batch, nil)
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close the memory storage
+// Close the memory storage. It is safe to call Close more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{} // GC stop
-	close(s.done)
+	s.closeOnce.Do(func() {
+		close(s.done) // GC stop
+	})
 	return s.db.Close()
 }
 
 // Return database client
 func (s *Storage) Conn() *leveldb.DB {
 	return s.db
+}
+
+// decode reports whether data is an expiration envelope written by this driver
+// and, if so, returns it. Values stored by older versions of this driver are
+// raw payloads, which may themselves be valid JSON objects, so an envelope is
+// only accepted when it carries a value.
+func decode(data []byte) (item, bool) {
+	var stored item
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return item{}, false
+	}
+	if stored.Value == nil {
+		return item{}, false
+	}
+	return stored, true
 }
 
 // gc is a helper function to clean up expired keys
@@ -153,15 +198,12 @@ func (s *Storage) gc() {
 			batch := new(leveldb.Batch)
 
 			for iter.Next() {
-				key := iter.Key()
-				data := iter.Value()
-
-				var stored item
-				if err := json.Unmarshal(data, &stored); err != nil {
+				stored, ok := decode(iter.Value())
+				if !ok {
 					continue
 				}
 				if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-					batch.Delete(key)
+					batch.Delete(iter.Key())
 				}
 			}
 

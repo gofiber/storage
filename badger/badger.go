@@ -2,6 +2,8 @@ package badger
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
@@ -13,6 +15,7 @@ type Storage struct {
 	db         *badger.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	closeOnce  sync.Once
 }
 
 // New creates a new memory storage
@@ -67,15 +70,20 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return err
 	})
 	// If no value was found return false
-	if err == badger.ErrKeyNotFound {
+	if errors.Is(err, badger.ErrKeyNotFound) {
 		return nil, nil
 	}
-	return data, err
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-// GetWithContext gets value by key.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -95,9 +103,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	})
 }
 
-// SetWithContext sets key with value.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -112,9 +122,11 @@ func (s *Storage) Delete(key string) error {
 	})
 }
 
-// DeleteWithContext deletes key by key.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -123,15 +135,19 @@ func (s *Storage) Reset() error {
 	return s.db.DropAll()
 }
 
-// ResetWithContext resets all keys.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	return s.db.DropAll()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.Reset()
 }
 
-// Close the memory storage
+// Close the memory storage. It is safe to call Close more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
 	return s.db.Close()
 }
 

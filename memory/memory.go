@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,7 @@ type Storage struct {
 	db         map[string]entry
 	gcInterval time.Duration
 	done       chan struct{}
+	closeOnce  sync.Once
 }
 
 type entry struct {
@@ -53,14 +55,17 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-// Return a copy to prevent callers from mutating stored data
-valCopy := make([]byte, len(v.data))
-copy(valCopy, v.data)
-return valCopy, nil
+	// Return a copy to prevent callers from mutating stored data
+	valCopy := make([]byte, len(v.data))
+	copy(valCopy, v.data)
+	return valCopy, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -71,11 +76,12 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	var expire uint32
-// Copy both key and value to avoid unsafe reuse from sync.Pool
-// When Fiber uses pooled buffers, the underlying memory can be reused
-keyCopy := string([]byte(key))
-valCopy := make([]byte, len(val))
-copy(valCopy, val)
+
+	// Copy both key and value to avoid unsafe reuse from sync.Pool.
+	// When Fiber uses pooled buffers, the underlying memory can be reused.
+	keyCopy := strings.Clone(key)
+	valCopy := make([]byte, len(val))
+	copy(valCopy, val)
 
 	if exp != 0 {
 		expire = uint32(exp.Seconds()) + atomic.LoadUint32(&internal.Timestamp)
@@ -88,8 +94,11 @@ copy(valCopy, val)
 	return nil
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -104,8 +113,11 @@ func (s *Storage) Delete(key string) error {
 	return nil
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -118,14 +130,19 @@ func (s *Storage) Reset() error {
 	return nil
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close the memory storage
+// Close the memory storage. It is safe to call Close more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
 	return nil
 }
 
