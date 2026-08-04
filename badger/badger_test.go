@@ -1,9 +1,11 @@
 package badger
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -158,4 +160,44 @@ func Benchmark_Badger_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+// newTestStore returns a storage backed by a database of its own, so the test
+// does not depend on the lifecycle of the shared testStore.
+func newTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	return New(Config{
+		Database:      dir,
+		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		Reset:         true,
+	})
+}
+
+func Test_Badger_Close_Twice(t *testing.T) {
+	store := newTestStore(t)
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor block on the done channel.
+	require.NotPanics(t, func() {
+		_ = store.Close()
+	})
+}
+
+func Test_Badger_WithContext_Canceled(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := store.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
 }

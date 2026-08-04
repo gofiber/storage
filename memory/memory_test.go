@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -229,4 +230,52 @@ func Benchmark_Memory_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Storage_Memory_Close_Twice(t *testing.T) {
+	testStore := New()
+
+	require.NoError(t, testStore.Close())
+	// A second Close must neither panic nor block on the done channel.
+	require.NotPanics(t, func() {
+		_ = testStore.Close()
+	})
+}
+
+func Test_Storage_Memory_Get_Returns_Copy(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	val := []byte("doe")
+	require.NoError(t, testStore.Set("john", val, 0))
+
+	// Mutating the slice handed to Set must not corrupt the stored entry.
+	val[0] = 'X'
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// Mutating the slice returned by Get must not corrupt it either.
+	result[0] = 'X'
+
+	result, err = testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_Storage_Memory_WithContext_Canceled(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }

@@ -611,3 +611,25 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, val, "expected value to be nil after deletion")
 }
+
+func Test_Redis_SkipConnectionCheck(t *testing.T) {
+	// 127.0.0.1:1 is guaranteed to be closed, so New would panic on the
+	// initialization PING if the check was not skipped.
+	cfg := Config{
+		Host:                "127.0.0.1",
+		Port:                1,
+		SkipConnectionCheck: true,
+	}
+
+	var testStore *Storage
+	require.NotPanics(t, func() {
+		testStore = New(cfg)
+	}, "New must not panic when the connection check is skipped")
+
+	require.NotNil(t, testStore)
+	defer testStore.Close() //nolint:errcheck // the server is unreachable
+
+	// The connection error is reported by the first operation instead.
+	_, err := testStore.Get("foo")
+	require.Error(t, err, "an unreachable server must fail on use")
+}

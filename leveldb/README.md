@@ -33,7 +33,7 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as LevelDB does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** LevelDB has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 

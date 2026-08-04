@@ -71,9 +71,11 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		IsClusterMode:    cfg.IsClusterMode,
 	})
 
-	// Test connection
-	if err := db.Ping(ctx).Err(); err != nil {
-		panic(err)
+	// Test connection, unless the caller opted out of the check
+	if !cfg.SkipConnectionCheck {
+		if err := db.Ping(ctx).Err(); err != nil {
+			panic(err)
+		}
 	}
 
 	// Empty collection if Clear is true

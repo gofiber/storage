@@ -33,7 +33,9 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *pebble.DB
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as Pebble does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second.
+
+**Note:** Pebble has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 

@@ -83,25 +83,41 @@ type Config struct {
 	//
 	// Optional. Default is false
 	IsClusterMode bool
+
+	// SkipConnectionCheck disables the PING that New sends to the server while
+	// creating the storage.
+	//
+	// By default an unreachable server makes New panic, which is undesirable
+	// when Redis is an optional dependency, such as a cache that the
+	// application can survive without. With this option set New performs no
+	// network call at all and connection errors are reported by the first
+	// operation instead.
+	//
+	// Note that Reset still flushes the database, and still panics when that
+	// fails, because it is an explicit request rather than a health check.
+	//
+	// Optional. Default is false
+	SkipConnectionCheck bool
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:             "127.0.0.1",
-	Port:             6379,
-	Username:         "",
-	Password:         "",
-	URL:              "",
-	Database:         0,
-	Reset:            false,
-	TLSConfig:        nil,
-	PoolSize:         10 * runtime.GOMAXPROCS(0),
-	Addrs:            []string{},
-	MasterName:       "",
-	ClientName:       "",
-	SentinelUsername: "",
-	SentinelPassword: "",
-	IsClusterMode:    false,
+	Host:                "127.0.0.1",
+	Port:                6379,
+	Username:            "",
+	Password:            "",
+	URL:                 "",
+	Database:            0,
+	Reset:               false,
+	TLSConfig:           nil,
+	PoolSize:            10 * runtime.GOMAXPROCS(0),
+	Addrs:               []string{},
+	MasterName:          "",
+	ClientName:          "",
+	SentinelUsername:    "",
+	SentinelPassword:    "",
+	IsClusterMode:       false,
+	SkipConnectionCheck: false,
 }
 
 // Helper function to set default values

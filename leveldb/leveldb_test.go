@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -280,5 +281,70 @@ func Benchmark_LevelDb_Delete(b *testing.B) {
 				b.Fatal(err)
 			}
 		}
+	})
+}
+
+func Test_Get_JSONObjectValue(t *testing.T) {
+	db := New(Config{Path: "./testdb_json"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_json"))
+	}()
+
+	// A value that is itself a JSON object must not be mistaken for the
+	// expiration envelope this driver stores entries in.
+	val := []byte(`{"value":"not-an-envelope","expire_at":"nope"}`)
+
+	require.Nil(t, db.Set("json", val, 0))
+
+	result, err := db.Get("json")
+	require.Nil(t, err)
+	require.Equal(t, val, result)
+}
+
+func Test_DeleteWithContext(t *testing.T) {
+	db := New(Config{Path: "./testdb_delctx"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_delctx"))
+	}()
+
+	require.Nil(t, db.Set("john", []byte("doe"), 0))
+	require.Nil(t, db.DeleteWithContext(context.Background(), "john"))
+
+	result, err := db.Get("john")
+	require.Nil(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_WithContext_Canceled(t *testing.T) {
+	db := New(Config{Path: "./testdb_ctx"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_ctx"))
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, db.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := db.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, db.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, db.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Close_Twice(t *testing.T) {
+	db := New(Config{Path: "./testdb_close_twice"})
+	defer func() {
+		require.Nil(t, removeAllFiles("./testdb_close_twice"))
+	}()
+
+	require.Nil(t, db.Close())
+	// A second Close must neither panic nor block.
+	require.NotPanics(t, func() {
+		_ = db.Close()
 	})
 }
