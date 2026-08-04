@@ -17,6 +17,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *pgxpool.Pool
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -166,6 +167,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Create storage
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
@@ -268,15 +270,20 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close stops the garbage collector and closes the pool. It is safe to call
-// Close more than once.
+// Close stops the garbage collector and closes the pool, unless it was
+// supplied through Config.DB, which stays the caller's to close. It is safe
+// to call Close more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a pool that is being closed.
 		<-s.stopped
-		s.db.Close()
+		// A caller-supplied pool stays the caller's to close, other parts of
+		// their application may still be using it.
+		if s.ownsDB {
+			s.db.Close()
+		}
 	})
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         neo4j.DriverWithContext
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -56,10 +57,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection
+	// Select db connection. A caller-supplied driver stays the caller's to
+	// close, other parts of their application may still be using it.
 	var err error
 	db := cfg.DB
-	if db == nil {
+	ownsDB := db == nil
+	if ownsDB {
 		db, err = newDriverWithContext(neo4jConnConfig{
 			URI:            cfg.URI,
 			Auth:           cfg.Auth,
@@ -94,6 +97,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
@@ -220,8 +224,9 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close stops the garbage collector and closes the database. It is safe to
-// call Close more than once, every call reports the result of the single
+// Close stops the garbage collector and closes the driver, unless it was
+// supplied through Config.DB, which stays the caller's to close. It is safe
+// to call Close more than once, every call reports the result of the single
 // underlying close.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
@@ -229,7 +234,9 @@ func (s *Storage) Close() error {
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a driver that is being closed.
 		<-s.stopped
-		s.closeErr = s.db.Close(context.Background())
+		if s.ownsDB {
+			s.closeErr = s.db.Close(context.Background())
+		}
 	})
 	return s.closeErr
 }

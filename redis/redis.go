@@ -10,10 +10,15 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db redis.UniversalClient
+	db     redis.UniversalClient
+	ownsDB bool
 }
 
 // NewFromConnection creates a new instance of Storage using the provided Redis universal client.
+//
+// The client stays the caller's to close: Close stops using it but leaves it
+// open, since the point of this constructor is to share one client across an
+// application.
 func NewFromConnection(conn redis.UniversalClient) *Storage {
 	return &Storage{
 		db: conn,
@@ -89,7 +94,8 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create new store
 	return &Storage{
-		db: db,
+		db:     db,
+		ownsDB: true,
 	}
 }
 
@@ -151,8 +157,12 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close the database, unless the client was supplied to NewFromConnection, in
+// which case it stays the caller's to close.
 func (s *Storage) Close() error {
+	if !s.ownsDB {
+		return nil
+	}
 	return s.db.Close()
 }
 

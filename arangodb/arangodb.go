@@ -20,11 +20,10 @@ type Storage struct {
 	closeOnce  sync.Once
 
 	// Arango mandatory fields
-	connection    driver.Connection
-	client        driver.Client
-	collection    driver.Collection
-	bindingParams map[string]interface{}
-	config        Config
+	connection driver.Connection
+	client     driver.Client
+	collection driver.Collection
+	config     Config
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
 }
@@ -261,16 +260,16 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// execute query
-func (s *Storage) exec(ctx context.Context, query string) error {
-	// execute query
-	_, err := s.db.Query(ctx, query, s.bindingParams)
+// exec runs query with bindVars. The bind variables are passed in rather than
+// held on the Storage: shared between the collector and the caller they were
+// a data race, and the field was never initialized, so the collector's first
+// sweep wrote to a nil map and took the process down with it.
+func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
+	cursor, err := s.db.Query(ctx, query, bindVars)
 	if err != nil {
 		return err
 	}
-	// reset binding params
-	s.bindingParams = map[string]interface{}{}
-	return nil
+	return cursor.Close()
 }
 
 // Garbage collector to delete expired keys
@@ -293,9 +292,7 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			// set the expiration
-			s.bindingParams["exp"] = t.Unix()
-			_ = s.exec(ctx, s.aqlRemoveGC)
+			_ = s.exec(ctx, s.aqlRemoveGC, map[string]interface{}{"exp": t.Unix()})
 		}
 	}
 }

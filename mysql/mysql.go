@@ -14,6 +14,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *sql.DB
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -102,6 +103,7 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		gcInterval: cfg.GCInterval,
 		db:         db,
+		ownsDB:     ownsDB,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
@@ -207,16 +209,21 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close stops the garbage collector and closes the database. It is safe to
-// call Close more than once, every call reports the result of the single
-// underlying close.
+// Close stops the garbage collector and closes the database, unless the
+// connection was supplied through Config.Db, which stays the caller's to
+// close. It is safe to call Close more than once, every call reports the
+// result of the single underlying close.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a database that is being closed.
 		<-s.stopped
-		s.closeErr = s.db.Close()
+		// A caller-supplied connection stays the caller's to close, other
+		// parts of their application may still be using it.
+		if s.ownsDB {
+			s.closeErr = s.db.Close()
+		}
 	})
 	return s.closeErr
 }

@@ -230,6 +230,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return err
 	}
 
+	// A negative expiration means no expiration, which Aerospike spells with
+	// a dedicated sentinel. Zero keeps the configured default, which is what
+	// Config.Expiration is for.
+	if exp < 0 {
+		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
+		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
+	}
+
 	expiration := s.expiration
 	if exp > 0 {
 		expiration = exp
@@ -237,7 +245,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	// Convert to seconds with a minimum of 1, rounding up so that a
 	// sub-second expiration is not truncated away. Aerospike carries the TTL
-	// in a uint32, so a longer one is clamped to what that can hold.
+	// in a uint32 whose two highest values are the "never expire" and "do not
+	// update" sentinels, so stop just below them.
+	const maxTTL = math.MaxUint32 - 2
+
 	secs := int64(expiration / time.Second)
 	if expiration%time.Second != 0 {
 		secs++
@@ -245,8 +256,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	switch {
 	case secs < 1:
 		secs = 1
-	case secs > math.MaxUint32:
-		secs = math.MaxUint32
+	case secs > maxTTL:
+		secs = maxTTL
 	}
 	ttl := uint32(secs) //nolint:gosec // clamped to the uint32 range above
 
