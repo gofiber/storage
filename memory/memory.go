@@ -97,7 +97,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	valCopy := make([]byte, len(val))
 	copy(valCopy, val)
 
-	if exp != 0 {
+	if exp > 0 {
 		// Expiration is tracked with a one-second granularity. Round the
 		// deadline up rather than truncating the duration, which made any
 		// sub-second expiration immediate. Entries are therefore never

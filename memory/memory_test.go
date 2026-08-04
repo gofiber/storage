@@ -291,3 +291,16 @@ func Test_Storage_Memory_WithContext_Canceled(t *testing.T) {
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
+
+func Test_Storage_Memory_Set_Negative_Expiration(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	// A negative expiration means no expiration, it must not wrap into a
+	// far-future deadline nor expire the entry immediately.
+	require.NoError(t, testStore.Set("john", []byte("doe"), -time.Hour))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}

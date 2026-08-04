@@ -113,7 +113,9 @@ func expiration(exp time.Duration) int32 {
 	}
 
 	if secs > memcachedRelativeExpirationLimit {
-		unix := time.Now().Add(exp).Unix()
+		// Derive the stamp from the rounded seconds, not from exp, so the
+		// round-up above is not undone here.
+		unix := time.Now().Unix() + secs
 		if unix > math.MaxInt32 {
 			// The expiration field is 32 bit, this is the furthest point in
 			// the future memcached can express.

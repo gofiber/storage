@@ -16,9 +16,6 @@ import (
 // for an envelope.
 const envelopeVersion = 1
 
-// versionField is the JSON field envelopeVersion is stored under.
-const versionField = "_fiber_storage_v"
-
 // errUnknownEnvelope is returned when an entry carries an envelope version
 // this driver does not understand, which happens after a downgrade.
 var errUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
@@ -52,7 +49,10 @@ const resetBatchSize = 1000
 
 // data structure for storing items in the database
 type item struct {
-	Version  int       `json:"_fiber_storage_v"`
+	// Version is a pointer so that its absence, which marks an entry written
+	// before the version existed, can be told from a zero value without
+	// decoding the document a second time.
+	Version  *int      `json:"_fiber_storage_v"`
 	Value    []byte    `json:"value"`
 	ExpireAt time.Time `json:"expire_at"`
 }
@@ -140,7 +140,8 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
-	data := item{Version: envelopeVersion, Value: value}
+	version := envelopeVersion
+	data := item{Version: &version, Value: value}
 	if exp != 0 {
 		data.ExpireAt = time.Now().Add(exp)
 	}
@@ -235,33 +236,43 @@ func (s *Storage) Conn() *leveldb.DB {
 // decode classifies an entry read from the database and, when it is an
 // envelope this driver can read, returns its contents.
 func decode(data []byte) (item, envelopeKind) {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return item{}, envelopeNone
-	}
-
 	var stored item
 	if err := json.Unmarshal(data, &stored); err != nil {
 		return item{}, envelopeNone
 	}
 
-	if _, versioned := fields[versionField]; versioned {
-		if stored.Version != envelopeVersion {
+	if stored.Version != nil {
+		if *stored.Version != envelopeVersion {
 			return item{}, envelopeUnknown
 		}
 		return stored, envelopeEntry
 	}
 
-	// The unversioned envelope had exactly these two fields.
-	if len(fields) == 2 {
-		_, hasValue := fields["value"]
-		_, hasExpireAt := fields["expire_at"]
-		if hasValue && hasExpireAt {
-			return stored, envelopeEntry
-		}
+	// No version marker, so this is either a bare payload or the unversioned
+	// envelope earlier versions wrote. That envelope always carried a value,
+	// which rules out most payloads before the second, costlier pass.
+	if stored.Value == nil || !isUnversionedEnvelope(data) {
+		return item{}, envelopeNone
 	}
 
-	return item{}, envelopeNone
+	return stored, envelopeEntry
+}
+
+// isUnversionedEnvelope reports whether data has exactly the two fields the
+// envelope written by earlier versions of this driver had.
+func isUnversionedEnvelope(data []byte) bool {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return false
+	}
+	if len(fields) != 2 {
+		return false
+	}
+
+	_, hasValue := fields["value"]
+	_, hasExpireAt := fields["expire_at"]
+
+	return hasValue && hasExpireAt
 }
 
 // gc is a helper function to clean up expired keys

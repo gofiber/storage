@@ -153,8 +153,10 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// Ristretto documents Clear as not atomic and assumes no operation is in
+	// flight while it runs, so this takes the lock exclusively.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.closed {
 		return errClosed
