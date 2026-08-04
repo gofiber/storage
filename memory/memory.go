@@ -206,11 +206,21 @@ func (s *Storage) gc() {
 	}
 }
 
-// Conn returns database client
+// Conn returns a snapshot of the stored entries.
+//
+// It is a copy: handing out the live map let callers read it while the
+// garbage collector was writing to it, which is a data race. Writing to the
+// returned map does not affect the storage.
 func (s *Storage) Conn() map[string]entry {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
-	return s.db
+
+	db := make(map[string]entry, len(s.db))
+	for key, v := range s.db {
+		db[key] = v
+	}
+
+	return db
 }
 
 // Keys returns all the keys

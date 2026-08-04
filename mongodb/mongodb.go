@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -150,9 +151,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 	res := s.col.FindOne(ctx, bson.M{"key": key})
 	item := s.acquireItem()
+	defer s.releaseItem(item)
 
 	if err := res.Err(); err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
 		return nil, err
@@ -166,11 +168,13 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if !item.Expiration.IsZero() && !time.Now().Before(item.Expiration) {
 		return nil, nil
 	}
-	// // not safe?
-	// res := item.Val
-	// s.releaseItem(item)
-	// return res, nil
-	return item.Value, nil
+
+	// Copy before the item goes back to the pool, the caller keeps the value
+	// after this returns.
+	val := make([]byte, len(item.Value))
+	copy(val, item.Value)
+
+	return val, nil
 }
 
 // Get gets value by key

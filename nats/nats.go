@@ -204,11 +204,14 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	e := entry{}
-	err = gob.NewDecoder(
-		bytes.NewBuffer(v.Value())).
-		Decode(&e)
+	if err = gob.NewDecoder(bytes.NewBuffer(v.Value())).Decode(&e); err != nil {
+		// A value this driver cannot decode is a real failure. Reporting it as
+		// an expiry hid the error and deleted the data along with it.
+		return nil, fmt.Errorf("decode: %w", err)
+	}
+
 	// Expiry == 0 means the entry never expires (see SetWithContext).
-	if err != nil || (e.Expiry != 0 && e.Expiry <= time.Now().Unix()) {
+	if e.Expiry != 0 && e.Expiry <= time.Now().Unix() {
 		_ = kv.Delete(ctx, key)
 		return nil, nil
 	}

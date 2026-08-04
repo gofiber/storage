@@ -373,3 +373,20 @@ func Benchmark_Memory_Get_WithExpiration(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Storage_Memory_Conn_Returns_Snapshot(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	conn := testStore.Conn()
+	require.Len(t, conn, 1)
+
+	// The snapshot is the caller's, mutating it must not reach the storage.
+	delete(conn, "john")
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}

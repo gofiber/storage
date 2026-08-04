@@ -73,11 +73,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
+	// Closing runs on its own context: the caller's may be exactly what
+	// failed, and a done context would skip the close.
 	closeOwned := func() {
 		if !ownsDB {
 			return
 		}
-		if err := db.Close(ctx); err != nil {
+		if err := db.Close(context.Background()); err != nil {
 			log.Printf("Error closing storage: %v\n", err)
 		}
 	}

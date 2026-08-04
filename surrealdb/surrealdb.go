@@ -44,9 +44,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the connection opened above rather than leaking it when a
-	// later step fails.
-	closeOwned := func() { _ = db.Close(ctx) }
+	// Release the connection opened above rather than leaking it when a later
+	// step fails. Closing runs on its own context: the caller's may be exactly
+	// what failed, and a done context would skip the close.
+	closeOwned := func() { _ = db.Close(context.Background()) }
 
 	if err = db.Use(ctx, cfg.Namespace, cfg.Database); err != nil {
 		closeOwned()
@@ -102,7 +103,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if m.Exp > 0 && time.Now().Unix() > m.Exp {
-		_ = s.Delete(key)
+		_ = s.DeleteWithContext(ctx, key)
 		return nil, nil
 	}
 
