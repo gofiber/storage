@@ -268,3 +268,25 @@ func Test_Bbolt_Reset_Keeps_Bucket_Sequence(t *testing.T) {
 		return nil
 	}))
 }
+
+func Test_Bbolt_ReadOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fiber.db")
+
+	// Create the bucket with a writable storage first.
+	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
+	require.NoError(t, writable.Set("john", []byte("doe"), 0))
+	require.NoError(t, writable.Close())
+
+	// Opening read-only used to panic, because bucket creation needs a write
+	// transaction that a read-only database cannot start.
+	var store *Storage
+	require.NotPanics(t, func() {
+		store = New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true})
+	})
+	require.NotNil(t, store)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}

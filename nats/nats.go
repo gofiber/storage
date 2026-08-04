@@ -189,10 +189,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr := s.kv, s.err
 	s.mu.RUnlock()
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %v", s.err)
+		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
 	v, err := kv.Get(ctx, key)
@@ -231,10 +231,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr := s.kv, s.err
 	s.mu.RUnlock()
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %v", s.err)
+		return fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
 	// expiry
@@ -260,15 +260,18 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	// set
-	_, err = kv.Put(ctx, key, e.Bytes())
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		_, err := kv.Create(ctx, key, e.Bytes())
-		if err != nil {
+	if _, err = kv.Put(ctx, key, e.Bytes()); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return fmt.Errorf("put: %w", err)
+		}
+		// The inner error used to shadow this one, so a Create that succeeded
+		// still reported the ErrKeyNotFound that led here.
+		if _, err = kv.Create(ctx, key, e.Bytes()); err != nil {
 			return fmt.Errorf("create: %w", err)
 		}
 	}
 
-	return err
+	return nil
 }
 
 // Set key with value and expiry
@@ -283,11 +286,11 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr := s.kv, s.err
 	s.mu.RUnlock()
 
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %v", s.err)
+		return fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
 	return kv.Delete(ctx, key)
@@ -351,10 +354,10 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue) {
 // Return all the keys
 func (s *Storage) Keys() ([]string, error) {
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr := s.kv, s.err
 	s.mu.RUnlock()
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %v", s.err)
+		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
 	keyLister, err := kv.ListKeys(context.Background())

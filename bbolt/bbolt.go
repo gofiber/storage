@@ -45,6 +45,21 @@ func New(config ...Config) *Storage {
 	// when a later step fails.
 	closeOwned := func() { _ = conn.Close() }
 
+	// A read-only database cannot open the write transaction the two steps
+	// below need, so New panicked whenever ReadOnly was set. Check that the
+	// bucket is there instead.
+	if cfg.ReadOnly {
+		if err := checkBucket(cfg, conn); err != nil {
+			closeOwned()
+			panic(err)
+		}
+
+		return &Storage{
+			conn:   conn,
+			bucket: cfg.Bucket,
+		}
+	}
+
 	// Reset bucket if field selected
 	if cfg.Reset {
 		if err := removeBucket(cfg, conn); err != nil {

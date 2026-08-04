@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func removeAllFiles(dir string) error {
@@ -368,17 +367,16 @@ func Test_Get_LegacyEnvelope(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// The same envelope, already expired, must be reported as a miss and
-	// reclaimed, just like an envelope this version wrote.
+	// The same envelope, already expired, must be reported as a miss. Get does
+	// not delete it: LevelDB has no compare-and-delete, so removing it here
+	// could drop a value a concurrent Set had written. The collector reclaims
+	// it instead.
 	expired := []byte(`{"value":"ZG9l","expire_at":"2000-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("expired"), expired, nil))
 
 	result, err = db.Get("expired")
 	require.Nil(t, err)
 	require.Zero(t, len(result))
-
-	_, err = db.Conn().Get([]byte("expired"), nil)
-	require.ErrorIs(t, err, leveldb.ErrNotFound)
 }
 
 func Test_Get_UnknownEnvelopeVersion(t *testing.T) {

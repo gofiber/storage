@@ -130,10 +130,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return stored.Value, nil
 	}
 
-	if err := s.Delete(key); err != nil {
-		return nil, err
-	}
-
+	// Report the miss without deleting. LevelDB offers no compare-and-delete,
+	// so removing the key here would drop a value a concurrent Set had already
+	// written. The collector reclaims expired entries instead.
 	return nil, nil
 }
 
