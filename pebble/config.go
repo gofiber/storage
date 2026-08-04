@@ -10,14 +10,20 @@ type Config struct {
 
 	// WriteOptions are the options every write is issued with.
 	//
-	// Optional. Default is nil, which Pebble reads as a synchronous write.
+	// Pebble reads nil as a synchronous write, so by default every Set and
+	// Delete is flushed to disk before it returns. That is durable but slow,
+	// on the order of a disk flush per write. Pass &pebble.WriteOptions{} (or
+	// pebble.NoSync) to let Pebble buffer writes instead, at the cost of
+	// losing the most recent ones if the process dies.
+	//
+	// Optional. Default is nil.
 	WriteOptions *pebble.WriteOptions
 }
 
 var ConfigDefault = Config{
 	Path: "db",
-	// Left nil on purpose: Pebble treats nil as Sync, and a config that does
-	// not set WriteOptions must not end up more durable than the default one.
+	// Left nil on purpose, see the field documentation: a config that does not
+	// set WriteOptions must not end up more durable than the default one.
 	WriteOptions: nil,
 }
 

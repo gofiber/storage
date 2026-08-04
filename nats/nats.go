@@ -236,7 +236,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 	// expiry
 	var expSeconds int64
-	if exp != 0 {
+	if exp > 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
 	// encode

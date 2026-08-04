@@ -34,7 +34,7 @@ func (s *Storage) Conn() map[string]entry
 func (s *Storage) Keys() ([][]byte, error)
 ```
 
-**Note:** Expiration has a one-second granularity and is checked against a clock cached once per second, so an entry may outlive its expiration by up to two seconds. It is never dropped early, and an expiration shorter than a second is rounded up rather than being treated as immediate.
+**Note:** Expirations are stored with nanosecond precision, so an entry stays readable for exactly the duration given, no matter how short. Expired entries are reclaimed by a garbage collector that runs on `GCInterval`, but a `Get` never returns one that is past its expiration.
 
 **Note:** memory storage has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 

@@ -35,6 +35,8 @@ func (s *Storage) Conn() *pebble.DB
 
 **Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second.
 
+**Note:** `WriteOptions` defaults to `nil`, which Pebble reads as a synchronous write, so every `Set` and `Delete` is flushed to disk before it returns. Pass `&pebble.WriteOptions{}` to let Pebble buffer writes instead, which is far faster but loses the most recent writes if the process dies.
+
 **Note:** Pebble has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
@@ -76,15 +78,21 @@ store := pebble.New(pebble.Config{
 
 ```go
 type Config struct {
-	// Database name
+	// Path is the directory the database is stored in.
 	//
-	// Optional. Default is "./db"
+	// Optional. Default is "db"
 	Path string
 
-	// Pass write options during write operations
+	// WriteOptions are the options every write is issued with.
 	//
-	// Optional. Default is nil
-	WriteOptions &pebble.WriteOptions{}
+	// Pebble reads nil as a synchronous write, so by default every Set and
+	// Delete is flushed to disk before it returns. That is durable but slow,
+	// on the order of a disk flush per write. Pass &pebble.WriteOptions{} (or
+	// pebble.NoSync) to let Pebble buffer writes instead, at the cost of
+	// losing the most recent ones if the process dies.
+	//
+	// Optional. Default is nil.
+	WriteOptions *pebble.WriteOptions
 }
 ```
 
@@ -93,6 +101,6 @@ type Config struct {
 ```go
 var ConfigDefault = Config{
 	Path:         "db",
-	WriteOptions: &pebble.WriteOptions{},
+	WriteOptions: nil,
 }
 ```

@@ -210,7 +210,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expSeconds int64
-	if exp != 0 {
+	if exp > 0 {
 		expSeconds = time.Now().Add(exp).Unix()
 	}
 	_, err := s.db.Exec(ctx, s.sqlInsert, key, val, expSeconds, val, expSeconds)

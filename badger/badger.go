@@ -98,7 +98,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	entry := badger.NewEntry(utils.UnsafeBytes(key), val)
-	if exp != 0 {
+	if exp > 0 {
 		entry.WithTTL(exp)
 	}
 	return s.db.Update(func(tx *badger.Txn) error {

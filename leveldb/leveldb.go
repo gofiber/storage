@@ -142,7 +142,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 
 	version := envelopeVersion
 	data := item{Version: &version, Value: value}
-	if exp != 0 {
+	if exp > 0 {
 		data.ExpireAt = time.Now().Add(exp)
 	}
 

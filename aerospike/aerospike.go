@@ -230,7 +230,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	expiration := s.expiration
-	if exp != 0 {
+	if exp > 0 {
 		expiration = exp
 	}
 

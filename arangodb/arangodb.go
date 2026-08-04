@@ -171,7 +171,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expireAt int64
-	if exp != 0 {
+	if exp > 0 {
 		expireAt = time.Now().Add(exp).Unix()
 	}
 	valStr := utils.UnsafeString(val)

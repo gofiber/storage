@@ -61,9 +61,6 @@ func Test_Storage_Memory_Get(t *testing.T) {
 }
 
 // requireExpires polls until key is gone, or fails once within is exhausted.
-// Expirations are rounded up to the next whole second and the shared timestamp
-// the storage compares against is refreshed once a second, so a key may
-// outlive its expiration by up to two seconds.
 func requireExpires(t *testing.T, testStore *Storage, key string, within time.Duration) {
 	t.Helper()
 
@@ -303,4 +300,21 @@ func Test_Storage_Memory_Set_Negative_Expiration(t *testing.T) {
 	result, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_Storage_Memory_Set_Short_Expiration(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	// A short expiration must be honoured exactly, not rounded up to a whole
+	// second nor treated as immediate.
+	require.NoError(t, testStore.Set("john", []byte("doe"), 100*time.Millisecond))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	start := time.Now()
+	requireExpires(t, testStore, "john", time.Second)
+	require.Less(t, time.Since(start), 500*time.Millisecond, "a 100ms expiration must not outlive it by much")
 }

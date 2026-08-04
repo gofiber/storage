@@ -2,13 +2,9 @@ package memory
 
 import (
 	"context"
-	"math"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
-
-	"github.com/gofiber/storage/memory/v2/internal"
 )
 
 // Storage interface that is implemented by storage providers
@@ -24,17 +20,17 @@ type Storage struct {
 type entry struct {
 	data []byte
 
-	// expiry is the Unix second the entry expires at, rounded up, with 0
-	// meaning no expiration. Max value is 4294967295 -> Sun Feb 07 2106
-	// 06:28:15 GMT+0000.
-	//
-	// It is compared against internal.Timestamp, a cached clock refreshed
-	// once a second, so an entry can outlive its expiration by up to two
-	// seconds: one from rounding the deadline up, one from the cached clock
-	// trailing real time. It is never dropped early. Reading the real clock
-	// on every Get would halve the throughput of this storage, which is the
-	// reason the cached one exists.
-	expiry uint32
+	// expiry is the Unix nanosecond the entry expires at, with 0 meaning no
+	// expiration. Storing the exact deadline rather than a whole second keeps
+	// short expirations accurate: rounding to seconds and comparing against a
+	// clock refreshed once a second made a 100ms entry live for two seconds.
+	expiry int64
+}
+
+// expired reports whether e is past its expiration. The clock is only read
+// for entries that have one, so entries that never expire cost nothing.
+func (e entry) expired() bool {
+	return e.expiry != 0 && e.expiry <= time.Now().UnixNano()
 }
 
 // New creates a new memory storage
@@ -51,7 +47,6 @@ func New(config ...Config) *Storage {
 	}
 
 	// Start garbage collector
-	internal.StartTimeStampUpdater()
 	go store.gc()
 
 	return store
@@ -65,7 +60,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok || (v.expiry != 0 && v.expiry <= atomic.LoadUint32(&internal.Timestamp)) {
+	if !ok || v.expired() {
 		return nil, nil
 	}
 
@@ -89,7 +84,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 
-	var expire uint32
+	var expire int64
 
 	// Copy both key and value to avoid unsafe reuse from sync.Pool.
 	// When Fiber uses pooled buffers, the underlying memory can be reused.
@@ -97,20 +92,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	valCopy := make([]byte, len(val))
 	copy(valCopy, val)
 
+	// A negative expiration is not an expiration in the past, it means none,
+	// the same way the other drivers read it.
 	if exp > 0 {
-		// Expiration is tracked with a one-second granularity. Round the
-		// deadline up rather than truncating the duration, which made any
-		// sub-second expiration immediate. Entries are therefore never
-		// dropped early, see the expiry field for the cost of that.
-		deadline := time.Now().Add(exp)
-		secs := deadline.Unix()
-		if deadline.Nanosecond() != 0 {
-			secs++
-		}
-		if secs > math.MaxUint32 {
-			secs = math.MaxUint32
-		}
-		expire = uint32(secs) //nolint:gosec // clamped to MaxUint32 above
+		expire = time.Now().Add(exp).UnixNano()
 	}
 
 	e := entry{valCopy, expire}
@@ -186,19 +171,17 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			ts := atomic.LoadUint32(&internal.Timestamp)
 			expired = expired[:0]
 			s.mux.RLock()
 			for id, v := range s.db {
-				if v.expiry != 0 && v.expiry < ts {
+				if v.expired() {
 					expired = append(expired, id)
 				}
 			}
 			s.mux.RUnlock()
 			s.mux.Lock()
 			for i := range expired {
-				v := s.db[expired[i]]
-				if v.expiry != 0 && v.expiry <= ts {
+				if s.db[expired[i]].expired() {
 					delete(s.db, expired[i])
 				}
 			}
@@ -223,10 +206,9 @@ func (s *Storage) Keys() ([][]byte, error) {
 		return nil, nil
 	}
 
-	ts := atomic.LoadUint32(&internal.Timestamp)
 	keys := make([][]byte, 0, len(s.db))
 	for key, v := range s.db {
-		if v.expiry == 0 || v.expiry > ts {
+		if !v.expired() {
 			keys = append(keys, []byte(key))
 		}
 	}

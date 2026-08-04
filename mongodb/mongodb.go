@@ -180,7 +180,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	item.Key = key
 	item.Value = val
 
-	if exp != 0 {
+	if exp > 0 {
 		item.Expiration = time.Now().Add(exp).UTC()
 	}
 	_, err := s.col.ReplaceOne(ctx, filter, item, options.Replace().SetUpsert(true))
