@@ -3,6 +3,7 @@ package aerospike
 import (
 	"context"
 	"log"
+	"math"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
@@ -235,15 +236,19 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	// Convert to seconds with a minimum of 1, rounding up so that a
-	// sub-second expiration is not truncated away.
-	secs := expiration / time.Second
+	// sub-second expiration is not truncated away. Aerospike carries the TTL
+	// in a uint32, so a longer one is clamped to what that can hold.
+	secs := int64(expiration / time.Second)
 	if expiration%time.Second != 0 {
 		secs++
 	}
-	ttl := uint32(1)
-	if secs > 1 {
-		ttl = uint32(secs) //nolint:gosec // secs is positive and bounded by the caller
+	switch {
+	case secs < 1:
+		secs = 1
+	case secs > math.MaxUint32:
+		secs = math.MaxUint32
 	}
+	ttl := uint32(secs) //nolint:gosec // clamped to the uint32 range above
 
 	writePolicy := aerospike.NewWritePolicy(0, ttl)
 	bins := aerospike.BinMap{

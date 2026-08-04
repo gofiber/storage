@@ -34,6 +34,13 @@ func (e entry) expired() bool {
 	return e.expiry != 0 && e.expiry <= time.Now().UnixNano()
 }
 
+// expiredAt reports whether e is past its expiration as of now, given in Unix
+// nanoseconds. Sweeps over the whole map use it so they read the clock once
+// instead of once per entry.
+func (e entry) expiredAt(now int64) bool {
+	return e.expiry != 0 && e.expiry <= now
+}
+
 // New creates a new memory storage
 func New(config ...Config) *Storage {
 	// Set default config
@@ -179,17 +186,18 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
+			now := time.Now().UnixNano()
 			expired = expired[:0]
 			s.mux.RLock()
 			for id, v := range s.db {
-				if v.expired() {
+				if v.expiredAt(now) {
 					expired = append(expired, id)
 				}
 			}
 			s.mux.RUnlock()
 			s.mux.Lock()
 			for i := range expired {
-				if s.db[expired[i]].expired() {
+				if s.db[expired[i]].expiredAt(now) {
 					delete(s.db, expired[i])
 				}
 			}
@@ -214,9 +222,10 @@ func (s *Storage) Keys() ([][]byte, error) {
 		return nil, nil
 	}
 
+	now := time.Now().UnixNano()
 	keys := make([][]byte, 0, len(s.db))
 	for key, v := range s.db {
-		if !v.expired() {
+		if !v.expiredAt(now) {
 			keys = append(keys, []byte(key))
 		}
 	}

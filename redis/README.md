@@ -36,6 +36,8 @@ func (s *Storage) Conn() redis.UniversalClient
 func (s *Storage) Keys() ([][]byte, error)
 ```
 
+**Note:** An expiration at or below zero means no expiration, and clears any expiration the key already had. In particular a negative one is not passed through to go-redis, which would read it as its `KeepTTL` sentinel.
+
 ### Installation
 
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
