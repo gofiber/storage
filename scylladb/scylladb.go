@@ -19,6 +19,10 @@ type Storage struct {
 	insertQuery string
 	deleteQuery string
 	resetQuery  string
+
+	// ownsSession records whether this driver opened the session, a
+	// caller-supplied one stays the caller's to close.
+	ownsSession bool
 }
 
 var (
@@ -94,6 +98,7 @@ func New(config ...Config) *Storage {
 	// Create the storage
 	store := &Storage{
 		session:     session,
+		ownsSession: cfg.Session == nil,
 		tableName:   cfg.Table,
 		selectQuery: fmt.Sprintf(selectQuery, cfg.Keyspace, cfg.Table),
 		insertQuery: fmt.Sprintf(insertQuery, cfg.Keyspace, cfg.Table),
@@ -192,8 +197,12 @@ func (s *Storage) Reset() error {
 }
 
 // Close closes the storage
+// Close closes the session, unless it was supplied through Config.Session, in
+// which case it stays the caller's to close.
 func (s *Storage) Close() error {
-	s.session.Close()
+	if s.ownsSession {
+		s.session.Close()
+	}
 	return nil
 }
 

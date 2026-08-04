@@ -593,6 +593,9 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	t.Parallel()
 
 	connection := New(newConfigFromContainer(t))
+	// Close on a storage built from an existing client is a no-op by design,
+	// so the client stays this test's to close.
+	defer connection.Close() //nolint:errcheck // best effort cleanup
 
 	testStore := NewFromConnection(connection.Conn())
 	defer testStore.Close()

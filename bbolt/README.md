@@ -31,6 +31,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *bbolt.DB
 ```
 
+**Note:** If the configured bucket is dropped outside this driver, every method returns `ErrBucketNotFound`, which callers can match with `errors.Is`.
+
 **Note:** Bbolt has no notion of key expiration, so the `exp` argument of `Set` is ignored and stored entries live until they are deleted or the storage is reset.
 
 **Note:** Bbolt has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.

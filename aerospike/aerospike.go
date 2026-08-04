@@ -230,17 +230,18 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return err
 	}
 
-	// A negative expiration means no expiration, which Aerospike spells with
-	// a dedicated sentinel. Zero keeps the configured default, which is what
-	// Config.Expiration is for.
-	if exp < 0 {
-		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
-		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
+	// Zero keeps the configured default, which is what Config.Expiration is
+	// for; anything else, including a negative value, is the caller's.
+	expiration := s.expiration
+	if exp != 0 {
+		expiration = exp
 	}
 
-	expiration := s.expiration
-	if exp > 0 {
-		expiration = exp
+	// A negative expiration, from either source, means no expiration, which
+	// Aerospike spells with a dedicated sentinel.
+	if expiration < 0 {
+		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
+		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
 	}
 
 	// Convert to seconds with a minimum of 1, rounding up so that a

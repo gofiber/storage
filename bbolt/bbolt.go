@@ -10,9 +10,10 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// errBucketNotFound is returned when the configured bucket is missing, which
-// happens when it is dropped outside of this driver.
-var errBucketNotFound = errors.New("bbolt: bucket not found")
+// ErrBucketNotFound is returned when the configured bucket is missing, which
+// happens when it is dropped outside of this driver. It is exported so that
+// callers can tell it apart with errors.Is.
+var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 
 // Storage interface that is implemented by storage providers.
 //
@@ -68,7 +69,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	err := s.conn.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
-			return errBucketNotFound
+			return ErrBucketNotFound
 		}
 
 		// The slice returned by Get points into the memory-mapped file and is
@@ -106,7 +107,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
-			return errBucketNotFound
+			return ErrBucketNotFound
 		}
 		return b.Put(utils.UnsafeBytes(key), value)
 	})
@@ -129,7 +130,7 @@ func (s *Storage) Delete(key string) error {
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
-			return errBucketNotFound
+			return ErrBucketNotFound
 		}
 		return b.Delete(utils.UnsafeBytes(key))
 	})
@@ -148,7 +149,7 @@ func (s *Storage) Reset() error {
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
-			return errBucketNotFound
+			return ErrBucketNotFound
 		}
 
 		// Delete through the cursor, which bbolt supports while iterating.

@@ -204,3 +204,13 @@ func Benchmark_MYSQL_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_MySQL_Close_Twice(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.NoError(t, testStore.Close())
+	// A second Close must neither panic nor block on the done channel.
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
+}
