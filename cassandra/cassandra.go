@@ -365,10 +365,15 @@ func (s *Storage) Conn() *gocql.Session {
 // This method is not thread-safe and should not be called concurrently with other methods.
 // Close the storage. It is safe to call Close more than once, the session is
 // closed only on the first call: gocql panics on a double close.
-func (s *Storage) Close() {
+//
+// It returns an error so that *Storage satisfies the storage.Storage
+// interface, as this driver's own documentation already stated; gocql's own
+// Close reports nothing, so the error is always nil.
+func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		if s.session != nil {
 			s.session.Close()
 		}
 	})
+	return nil
 }

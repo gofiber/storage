@@ -158,7 +158,16 @@ func Test_Ristretto_Reset(t *testing.T) {
 }
 
 func Test_Ristretto_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	// A store of its own: closing the shared one would break the benchmarks
+	// below, which keep using it.
+	store := New()
+
+	require.Nil(t, store.Close())
+
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.Nil(t, store.Close())
+	})
 }
 
 func Test_Ristretto_Conn(t *testing.T) {

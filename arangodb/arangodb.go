@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/arangodb/go-driver"
@@ -25,10 +26,10 @@ type Storage struct {
 	stopped    chan struct{}
 	closeOnce  sync.Once
 
-	// mu guards closed. Operations take it for reading and Close for writing,
-	// so a call that starts before Close completes still runs to the end.
-	mu     sync.RWMutex
-	closed bool
+	// closed is checked by every operation. It is atomic rather than guarded
+	// by a mutex so that a call in flight, which is a full network round trip,
+	// does not hold a lock that Close and later calls would queue behind.
+	closed atomic.Bool
 
 	// Arango mandatory fields
 	connection driver.Connection
@@ -146,10 +147,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.closed {
+	if s.closed.Load() {
 		return nil, errClosed
 	}
 
@@ -192,10 +190,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.closed {
+	if s.closed.Load() {
 		return errClosed
 	}
 
@@ -248,10 +243,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.closed {
+	if s.closed.Load() {
 		return errClosed
 	}
 
@@ -266,10 +258,7 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with given context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.closed {
+	if s.closed.Load() {
 		return errClosed
 	}
 
@@ -295,11 +284,9 @@ func (s *Storage) Close() error {
 
 		// Mark the storage closed rather than clearing the connection fields:
 		// clearing them raced any Get or Set still in flight, turning a late
-		// call into a nil dereference. Taking the lock for writing waits for
-		// those calls to finish, and later ones get errClosed.
-		s.mu.Lock()
-		s.closed = true
-		s.mu.Unlock()
+		// call into a nil dereference. A call already past the check runs to
+		// completion, which is harmless here, and later ones get errClosed.
+		s.closed.Store(true)
 	})
 
 	return nil

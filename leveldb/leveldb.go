@@ -20,6 +20,10 @@ const envelopeVersion = 1
 // this driver does not understand, which happens after a downgrade.
 var errUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
 
+// errCorruptEnvelope is returned when an entry carries this driver's envelope
+// but not the value that is always written with it.
+var errCorruptEnvelope = errors.New("leveldb: entry is missing its value")
+
 // envelopeKind describes how an entry read from the database is encoded.
 type envelopeKind int
 
@@ -41,6 +45,10 @@ const (
 	// envelopeUnknown means the entry carries an envelope version this driver
 	// does not understand.
 	envelopeUnknown
+
+	// envelopeCorrupt means the entry carries this driver's envelope but not
+	// the value it always writes with it.
+	envelopeCorrupt
 )
 
 // resetBatchSize bounds how many deletions Reset buffers before flushing, so
@@ -112,6 +120,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return data, nil
 	case envelopeUnknown:
 		return nil, errUnknownEnvelope
+	case envelopeCorrupt:
+		return nil, errCorruptEnvelope
 	case envelopeEntry:
 	}
 
@@ -245,6 +255,11 @@ func decode(data []byte) (item, envelopeKind) {
 
 	if stored.Version != nil {
 		if *stored.Version == envelopeVersion {
+			// Set never stores an empty value, so an envelope without one did
+			// not come from this driver intact.
+			if stored.Value == nil {
+				return item{}, envelopeCorrupt
+			}
 			return stored, envelopeEntry
 		}
 		// A version this driver does not know, but only when the document

@@ -158,6 +158,10 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close the memory storage. It is safe to call Close more than once, every
 // call reports the result of the single underlying close.
+//
+// Close waits for the collector to return. Badger's RunValueLogGC takes no
+// context and cannot be interrupted, so a sweep already under way runs to
+// completion first; it is a bounded operation, not an open-ended one.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)

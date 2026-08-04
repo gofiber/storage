@@ -63,8 +63,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	// data is only valid until closer is closed, so decode it first.
 	var cache CacheType
 	err = json.Unmarshal(data, &cache)
+	// Report both when both fail: the decode error says the entry is corrupt,
+	// which is the more useful of the two.
 	if closeErr := closer.Close(); closeErr != nil {
-		return nil, closeErr
+		return nil, errors.Join(err, closeErr)
 	}
 	if err != nil {
 		return nil, err

@@ -458,3 +458,20 @@ func Test_Get_LegacyValueWithVersionField(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, raw, result)
 }
+
+func Test_Get_CorruptEnvelope(t *testing.T) {
+	db := New(Config{Path: "./testdb_corrupt"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_corrupt"))
+	}()
+
+	// Set never stores an empty value, so an envelope without one is corrupt
+	// and must be reported rather than read back as an ordinary miss.
+	corrupt := []byte(`{"_fiber_storage_v":1,"expire_at":"0001-01-01T00:00:00Z"}`)
+	require.Nil(t, db.Conn().Put([]byte("corrupt"), corrupt, nil))
+
+	result, err := db.Get("corrupt")
+	require.ErrorIs(t, err, errCorruptEnvelope)
+	require.Zero(t, len(result))
+}

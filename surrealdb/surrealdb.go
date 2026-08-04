@@ -189,7 +189,11 @@ func (s *Storage) Close() error {
 		// Wait for the collector to finish any sweep it started, it must not
 		// run against a database that is being closed.
 		<-s.stopped
-		s.closeErr = s.db.Close(context.Background())
+		// Bounded, so a stuck connection cannot hang the caller: the interface
+		// gives Close no context of its own.
+		ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		s.closeErr = s.db.Close(ctx)
 	})
 	return s.closeErr
 }
