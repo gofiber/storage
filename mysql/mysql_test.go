@@ -120,7 +120,7 @@ func Test_MYSQL_GC(t *testing.T) {
 
 	// The deadline is rounded up to a whole second, so collect as of a moment
 	// safely past it rather than as of now.
-	testStore.gc(time.Now().Add(2 * time.Second))
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, sql.ErrNoRows, err)
@@ -129,7 +129,7 @@ func Test_MYSQL_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	val, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, val)

@@ -243,6 +243,15 @@ func (s *Storage) Conn() neo4j.DriverWithContext {
 func (s *Storage) gcTicker() {
 	defer close(s.stopped)
 
+	// A sweep is abandoned when Close is called, so a query that stalls
+	// cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -250,12 +259,12 @@ func (s *Storage) gcTicker() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			s.gc(t)
+			s.gc(ctx, t)
 		}
 	}
 }
 
 // gc deletes all expired entries
-func (s *Storage) gc(t time.Time) {
-	_, _ = neo4j.ExecuteQuery(context.Background(), s.db, s.cypherGC, map[string]any{"exp": t.Unix()}, neo4j.EagerResultTransformer)
+func (s *Storage) gc(ctx context.Context, t time.Time) {
+	_, _ = neo4j.ExecuteQuery(ctx, s.db, s.cypherGC, map[string]any{"exp": t.Unix()}, neo4j.EagerResultTransformer)
 }

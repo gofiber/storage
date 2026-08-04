@@ -172,19 +172,39 @@ func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	// The deadline is stored in whole seconds and rounded up, so wait past it.
-	time.Sleep(2100 * time.Millisecond)
+	// Assert on the same store the key was written to: a second store starts
+	// out empty, so reading the expired key from one asserts nothing.
+	// The deadline is stored in whole seconds and rounded up, so the entry may
+	// outlive its expiration by up to a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_ArangoDB_Get_Expired(t *testing.T) {
-	key := "john"
-
 	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// Write the key here rather than relying on another test's store.
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get("john")
+		require.NoError(t, err)
+		if len(result) == 0 {
+			return
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_ArangoDB_Get_NotExist(t *testing.T) {

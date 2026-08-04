@@ -223,7 +223,7 @@ func Test_SQLite3_GC(t *testing.T) {
 	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now().Add(2 * time.Second))
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, sql.ErrNoRows, err)
@@ -232,7 +232,7 @@ func Test_SQLite3_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	val, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, val)

@@ -328,10 +328,18 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 
-	time.Sleep(4000 * time.Millisecond)
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// The deadline is stored in whole seconds and rounded up, so the entry may
+	// outlive its expiration by up to a second.
+	deadline := time.Now().Add(9 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	keys, err = testStore.Keys()
 	require.NoError(t, err)

@@ -200,10 +200,19 @@ func TestNoCreateUser(t *testing.T) {
 		)
 		err := limitedStore.Set(key, val, exp)
 		require.NoError(t, err)
-		time.Sleep(200 * time.Millisecond)
-		result, err := limitedStore.Get(key)
-		require.NoError(t, err)
-		require.Zero(t, len(result))
+
+		// The deadline is stored in whole seconds and rounded up, so the entry
+		// may outlive its expiration by up to a second.
+		deadline := time.Now().Add(4 * time.Second)
+		for {
+			result, err := limitedStore.Get(key)
+			require.NoError(t, err)
+			if len(result) == 0 {
+				break
+			}
+			require.False(t, time.Now().After(deadline), "key should have expired")
+			time.Sleep(100 * time.Millisecond)
+		}
 	})
 	t.Run("should get not exists", func(t *testing.T) {
 		result, err := limitedStore.Get("nonexistentkey")
@@ -520,7 +529,7 @@ func Test_Postgres_GC(t *testing.T) {
 
 	// The deadline is rounded up to a whole second, so collect as of a moment
 	// safely past it rather than as of now.
-	testStore.gc(time.Now().Add(2 * time.Second))
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 	row := testStore.db.QueryRow(context.Background(), testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, pgx.ErrNoRows, err)
@@ -529,7 +538,7 @@ func Test_Postgres_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	val, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, val)

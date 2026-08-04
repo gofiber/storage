@@ -91,11 +91,18 @@ func Test_CockroachDB_Set_Expiration(t *testing.T) {
 	err := testStore.Set("john", []byte("doe"), 1*time.Second)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
-
-	result, err := testStore.Get("john")
-	require.NoError(t, err)
-	require.Zero(t, len(result), "key should have expired")
+	// The deadline is stored in whole seconds and rounded up, so the entry may
+	// outlive its expiration by up to a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get("john")
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_CockroachDB_Get_NotExist(t *testing.T) {
@@ -150,7 +157,7 @@ func Test_CockroachDB_GC(t *testing.T) {
 
 	// The deadline is rounded up to a whole second, so collect as of a moment
 	// safely past it rather than as of now.
-	testStore.gc(time.Now().Add(2 * time.Second))
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 
 	row := testStore.db.QueryRow(context.Background(), testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
@@ -159,7 +166,7 @@ func Test_CockroachDB_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	result, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, result)

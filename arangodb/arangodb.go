@@ -265,9 +265,9 @@ func (s *Storage) Close() error {
 }
 
 // execute query
-func (s *Storage) exec(query string) error {
+func (s *Storage) exec(ctx context.Context, query string) error {
 	// execute query
-	_, err := s.db.Query(context.Background(), query, s.bindingParams)
+	_, err := s.db.Query(ctx, query, s.bindingParams)
 	if err != nil {
 		return err
 	}
@@ -280,6 +280,15 @@ func (s *Storage) exec(query string) error {
 func (s *Storage) gc() {
 	defer close(s.stopped)
 
+	// A sweep is abandoned when Close is called, so a query that stalls
+	// cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -289,7 +298,7 @@ func (s *Storage) gc() {
 		case t := <-ticker.C:
 			// set the expiration
 			s.bindingParams["exp"] = t.Unix()
-			_ = s.exec(s.aqlRemoveGC)
+			_ = s.exec(ctx, s.aqlRemoveGC)
 		}
 	}
 }
