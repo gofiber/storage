@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"strings"
@@ -73,9 +74,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// Return a copy to prevent callers from mutating stored data
-	valCopy := make([]byte, len(v.data))
-	copy(valCopy, v.data)
-	return valCopy, nil
+	return bytes.Clone(v.data), nil
 }
 
 // GetWithContext gets value by key, aborting if ctx is already done.
@@ -97,8 +96,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Copy both key and value to avoid unsafe reuse from sync.Pool.
 	// When Fiber uses pooled buffers, the underlying memory can be reused.
 	keyCopy := strings.Clone(key)
-	valCopy := make([]byte, len(val))
-	copy(valCopy, val)
+	valCopy := bytes.Clone(val)
 
 	// A negative expiration is not an expiration in the past, it means none,
 	// the same way the other drivers read it.

@@ -1,6 +1,7 @@
 package bbolt
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -84,8 +85,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		if v == nil {
 			return nil
 		}
-		value = make([]byte, len(v))
-		copy(value, v)
+		value = bytes.Clone(v)
 
 		return nil
 	})

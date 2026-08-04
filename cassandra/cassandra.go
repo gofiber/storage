@@ -146,15 +146,24 @@ func (s *Storage) createOrVerifyKeySpace(reset bool) error {
 	s.session = session
 	s.sx = gocqlx.NewSession(session)
 
+	// New returns nil to the caller when this fails, so nothing can close the
+	// session afterwards. Release it here instead of leaking it.
+	closeOwned := func() {
+		session.Close()
+		s.session = nil
+	}
+
 	// Drop tables if reset is requested
 	if reset {
 		if err := s.dropTables(); err != nil {
+			closeOwned()
 			return err
 		}
 	}
 
 	// Create data table if necessary
 	if err := s.createDataTable(); err != nil {
+		closeOwned()
 		return err
 	}
 

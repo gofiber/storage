@@ -52,15 +52,21 @@ func New(config ...Config) *Storage {
 		expiration: cfg.Expiration,
 	}
 
+	// Release the client opened above rather than leaking it when a later
+	// step fails.
+	closeOwned := func() { client.Close() }
+
 	// Reset keys if set
 	if cfg.Reset {
 		if err := store.Reset(); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
 
 	// Check and create schema
 	if err := store.createOrVerifySchema(cfg.SchemaVersion, cfg.SchemaDescription, cfg.ForceSchemaUpdate); err != nil {
+		closeOwned()
 		panic(err)
 	}
 

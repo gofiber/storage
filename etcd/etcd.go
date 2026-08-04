@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -9,6 +10,9 @@ import (
 
 type Storage struct {
 	db *clientv3.Client
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func New(config ...Config) *Storage {
@@ -125,8 +129,13 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// Close closes the client. It is safe to call Close more than once, every
+// call reports the result of the single underlying close.
 func (s *Storage) Close() error {
-	return s.db.Close()
+	s.closeOnce.Do(func() {
+		s.closeErr = s.db.Close()
+	})
+	return s.closeErr
 }
 
 func (s *Storage) Conn() *clientv3.Client {

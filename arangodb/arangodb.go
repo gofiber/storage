@@ -2,6 +2,7 @@ package arangodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +12,11 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
+// errClosed is returned by every operation attempted after Close. ArangoDB has
+// no connection to tear down, so without this a call made after Close would
+// silently keep talking to the server.
+var errClosed = errors.New("arangodb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         driver.Database
@@ -18,6 +24,11 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	closeOnce  sync.Once
+
+	// mu guards closed. Operations take it for reading and Close for writing,
+	// so a call that starts before Close completes still runs to the end.
+	mu     sync.RWMutex
+	closed bool
 
 	// Arango mandatory fields
 	connection driver.Connection
@@ -135,6 +146,13 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, errClosed
+	}
+
 	// Check if the document exists
 	// to avoid errors later
 	exists, err := s.collection.DocumentExists(ctx, key)
@@ -173,6 +191,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	var expireAt int64
 	if exp > 0 {
 		// The deadline is stored with a one-second granularity, so round it up:
@@ -221,6 +247,14 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	_, err := s.collection.RemoveDocument(ctx, key)
 	return err
 }
@@ -232,6 +266,13 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with given context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	return s.collection.Truncate(ctx)
 }
 
@@ -251,11 +292,15 @@ func (s *Storage) Close() error {
 		// Stop gc and wait for it to return.
 		close(s.done)
 		<-s.stopped
-	})
 
-	// The connection fields are deliberately left in place: clearing them
-	// raced any Get or Set still in flight, turning a late call into a nil
-	// dereference instead of a driver error.
+		// Mark the storage closed rather than clearing the connection fields:
+		// clearing them raced any Get or Set still in flight, turning a late
+		// call into a nil dereference. Taking the lock for writing waits for
+		// those calls to finish, and later ones get errClosed.
+		s.mu.Lock()
+		s.closed = true
+		s.mu.Unlock()
+	})
 
 	return nil
 }

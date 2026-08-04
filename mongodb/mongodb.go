@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -182,10 +183,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	// Copy before the item goes back to the pool. Releasing only drops the
 	// driver's reference today, but the caller keeps this value for as long
 	// as it likes, so it must not alias anything the pool hands out again.
-	val := make([]byte, len(item.Value))
-	copy(val, item.Value)
-
-	return val, nil
+	return bytes.Clone(item.Value), nil
 }
 
 // Get gets value by key
@@ -255,7 +253,12 @@ func (s *Storage) Reset() error {
 // every call reports the result of the single underlying disconnect.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		s.closeErr = s.db.Client().Disconnect(context.Background())
+		// Bounded for the same reason as the constructor cleanup: the
+		// interface gives Close no context, and a stuck connection must not
+		// hang the caller forever.
+		ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		s.closeErr = s.db.Client().Disconnect(ctx)
 	})
 	return s.closeErr
 }

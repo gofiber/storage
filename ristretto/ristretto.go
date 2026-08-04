@@ -1,6 +1,7 @@
 package ristretto
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -73,10 +74,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// Return a copy so callers cannot mutate the cached entry in place.
-	val := make([]byte, len(buf))
-	copy(val, buf)
-
-	return val, nil
+	return bytes.Clone(buf), nil
 }
 
 // GetWithContext gets the value by key, aborting if ctx is already done.
@@ -96,8 +94,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	// Store a copy: the caller may reuse or mutate val once Set returns.
-	valCopy := make([]byte, len(val))
-	copy(valCopy, val)
+	valCopy := bytes.Clone(val)
 
 	// Ristretto reads a negative TTL as "do nothing", while the storage
 	// interface has no expiration below zero, so clamp it to none.
