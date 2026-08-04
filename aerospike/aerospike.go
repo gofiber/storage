@@ -234,10 +234,15 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		expiration = exp
 	}
 
-	// Convert to seconds with a minimum of 1
-	ttl := uint32(expiration.Seconds())
-	if ttl < 1 {
-		ttl = 1
+	// Convert to seconds with a minimum of 1, rounding up so that a
+	// sub-second expiration is not truncated away.
+	secs := expiration / time.Second
+	if expiration%time.Second != 0 {
+		secs++
+	}
+	ttl := uint32(1)
+	if secs > 1 {
+		ttl = uint32(secs) //nolint:gosec // secs is positive and bounded by the caller
 	}
 
 	writePolicy := aerospike.NewWritePolicy(0, ttl)

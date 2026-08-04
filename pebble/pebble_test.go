@@ -192,6 +192,22 @@ func Test_Pebble_Reset_LargerThanOneBatch(t *testing.T) {
 	}
 }
 
+func Test_Pebble_Close_Twice(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-close-twice")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db")})
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
+}
+
 func Test_Pebble_Close(t *testing.T) {
 	require.Nil(t, testStore.Close())
 }

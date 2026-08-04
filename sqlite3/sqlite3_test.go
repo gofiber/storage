@@ -3,6 +3,8 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,9 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(Config{
-	Reset: true,
-})
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	// Keep the generated database out of the package directory.
+	dir, err := os.MkdirTemp("", "sqlite3-test")
+	if err != nil {
+		panic(err)
+	}
+
+	testStore = New(Config{
+		Database: filepath.Join(dir, "fiber.sqlite3"),
+		Reset:    true,
+	})
+
+	code := m.Run()
+
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
 
 func Test_SQLite3_Set(t *testing.T) {
 	var (

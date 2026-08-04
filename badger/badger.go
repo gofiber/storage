@@ -99,7 +99,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	entry := badger.NewEntry(utils.UnsafeBytes(key), val)
 	if exp > 0 {
-		entry.WithTTL(exp)
+		// WithTTL truncates the deadline to a whole second, which makes any
+		// sub-second expiration immediate, so set the rounded up deadline.
+		deadline := time.Now().Add(exp)
+		secs := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			secs++
+		}
+		entry.ExpiresAt = uint64(secs) //nolint:gosec // a deadline is never negative
 	}
 	return s.db.Update(func(tx *badger.Txn) error {
 		return tx.SetEntry(entry)

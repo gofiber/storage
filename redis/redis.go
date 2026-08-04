@@ -113,6 +113,11 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+	// go-redis reads a negative expiration as its KeepTTL sentinel, which
+	// would carry over the previous expiration instead of clearing it.
+	if exp < 0 {
+		exp = 0
+	}
 	return s.db.Set(ctx, key, val, exp).Err()
 }
 

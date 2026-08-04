@@ -14,10 +14,6 @@ import (
 // closed, so the storage refuses those calls instead of forwarding them.
 var errClosed = errors.New("ristretto: storage is closed")
 
-// errNotStored is returned when Ristretto drops a write instead of buffering
-// it, which happens when its write buffer is saturated.
-var errNotStored = errors.New("ristretto: value was not stored")
-
 // Storage interface that is implemented by storage providers.
 type Storage struct {
 	cache       *ristretto.Cache
@@ -114,9 +110,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return errClosed
 	}
 
-	if !s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp) {
-		return errNotStored
-	}
+	// The result is deliberately ignored: Ristretto is a cache, it may drop a
+	// write under pressure or evict the entry later, which is not an error.
+	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
 
 	// Ristretto applies writes asynchronously through a buffer, so without
 	// this a Get right after Set would race the write and often miss. Wait

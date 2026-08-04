@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -317,4 +318,17 @@ func Test_Storage_Memory_Set_Short_Expiration(t *testing.T) {
 	start := time.Now()
 	requireExpires(t, testStore, "john", time.Second)
 	require.Less(t, time.Since(start), 500*time.Millisecond, "a 100ms expiration must not outlive it by much")
+}
+
+func Test_Storage_Memory_Set_Huge_Expiration(t *testing.T) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	// A deadline past what a nanosecond timestamp can hold must saturate
+	// rather than wrap into the past.
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Duration(math.MaxInt64)))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
 }

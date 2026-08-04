@@ -66,9 +66,18 @@ func Test_Badger_Set_Expiration(t *testing.T) {
 func Test_Badger_Get_Expired(t *testing.T) {
 	key := "john"
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// Badger TTLs land on a whole second and are rounded up, so the entry set
+	// by the previous test may outlive its expiration by up to a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			return
+		}
+		require.False(t, time.Now().After(deadline), "key should expire")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_Badger_Get_NotExist(t *testing.T) {
@@ -201,4 +210,22 @@ func Test_Badger_WithContext_Canceled(t *testing.T) {
 
 	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Badger_Set_Sub_Second_Expiration(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	// Badger truncates a TTL to a whole second, so a sub-second expiration
+	// must be rounded up rather than landing on the current second.
+	require.NoError(t, store.Set(key, val, 900*time.Millisecond))
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result, "key expired before its expiration")
 }

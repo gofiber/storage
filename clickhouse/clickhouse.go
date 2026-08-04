@@ -60,7 +60,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	}
 
 	exp := time.Time{}
-	if expiration != 0 {
+	if expiration > 0 {
 		exp = time.Now().Add(expiration).UTC()
 	}
 

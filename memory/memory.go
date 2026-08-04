@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -95,7 +96,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// A negative expiration is not an expiration in the past, it means none,
 	// the same way the other drivers read it.
 	if exp > 0 {
-		expire = time.Now().Add(exp).UnixNano()
+		// Computed in nanoseconds directly so that a deadline past the year
+		// 2262 saturates instead of wrapping to a negative one.
+		expire = time.Now().UnixNano()
+		if int64(exp) > math.MaxInt64-expire {
+			expire = math.MaxInt64
+		} else {
+			expire += int64(exp)
+		}
 	}
 
 	e := entry{valCopy, expire}

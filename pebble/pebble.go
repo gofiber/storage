@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/cockroachdb/pebble"
@@ -17,6 +18,8 @@ const resetBatchSize = 1000
 type Storage struct {
 	db           *pebble.DB
 	writeOptions *pebble.WriteOptions
+	closeOnce    sync.Once
+	closeErr     error
 }
 
 type CacheType struct {
@@ -200,9 +203,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the database
+// Close closes the database. It is safe to call Close more than once, every
+// call reports the result of the single underlying close.
 func (s *Storage) Close() error {
-	return s.db.Close()
+	s.closeOnce.Do(func() {
+		s.closeErr = s.db.Close()
+	})
+	return s.closeErr
 }
 
 // Conn returns the database client
