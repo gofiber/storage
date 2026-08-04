@@ -119,7 +119,7 @@ func New(config ...Config) *Storage {
 
 	// Create table if not exists
 	if err = store.createTableIfNotExists(cfg.Keyspace); err != nil {
-		session.Close()
+		closeOwned()
 		panic(err)
 	}
 

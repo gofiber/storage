@@ -242,10 +242,17 @@ func decode(data []byte) (item, envelopeKind) {
 	}
 
 	if stored.Version != nil {
-		if *stored.Version != envelopeVersion {
+		if *stored.Version == envelopeVersion {
+			return stored, envelopeEntry
+		}
+		// A version this driver does not know, but only when the document
+		// also carries a value: every envelope ever written did, so a raw
+		// payload that merely happens to have a field of this name is still
+		// returned as the payload it is.
+		if stored.Value != nil {
 			return item{}, envelopeUnknown
 		}
-		return stored, envelopeEntry
+		return item{}, envelopeNone
 	}
 
 	// No version marker, so this is either a bare payload or the unversioned

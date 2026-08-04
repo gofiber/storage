@@ -440,3 +440,21 @@ func Test_Reset_LargerThanOneBatch(t *testing.T) {
 		require.Zero(t, len(result))
 	}
 }
+
+func Test_Get_LegacyValueWithVersionField(t *testing.T) {
+	db := New(Config{Path: "./testdb_version_field"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_version_field"))
+	}()
+
+	// A payload that merely happens to carry a field of the version's name is
+	// not an envelope, and must be returned verbatim rather than reported as
+	// written by a newer driver.
+	raw := []byte(`{"_fiber_storage_v":99,"other":"data"}`)
+	require.Nil(t, db.Conn().Put([]byte("raw"), raw, nil))
+
+	result, err := db.Get("raw")
+	require.Nil(t, err)
+	require.Equal(t, raw, result)
+}

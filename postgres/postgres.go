@@ -150,16 +150,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		const kTypeQuery = `SELECT data_type FROM information_schema.columns
 			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
 		if err := db.QueryRow(ctx, kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			if cfg.DB == nil {
-				closeOwned()
-			}
+			closeOwned()
 			panic(err)
 		}
 		if kDataType == "character varying" {
 			if _, err := db.Exec(ctx, fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
-				if cfg.DB == nil {
-					closeOwned()
-				}
+				closeOwned()
 				panic(err)
 			}
 		}

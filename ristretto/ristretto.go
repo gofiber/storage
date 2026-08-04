@@ -16,8 +16,9 @@ var errClosed = errors.New("ristretto: storage is closed")
 
 // Storage interface that is implemented by storage providers.
 type Storage struct {
-	cache       *ristretto.Cache
-	defaultCost int64
+	cache        *ristretto.Cache
+	defaultCost  int64
+	waitForWrite bool
 
 	// mu guards the cache against a concurrent Close. Operations hold it for
 	// reading, Close holds it for writing, so no operation can be in flight
@@ -39,8 +40,9 @@ func New(config ...Config) *Storage {
 	}
 
 	store := &Storage{
-		cache:       cache,
-		defaultCost: cfg.DefaultCost,
+		cache:        cache,
+		defaultCost:  cfg.DefaultCost,
+		waitForWrite: !cfg.SkipWaitForWrite,
 	}
 
 	return store
@@ -121,7 +123,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Note that Ristretto is a cache with an admission policy: waiting makes
 	// the write visible if it is admitted, it does not make admission
 	// certain, and an entry may still be evicted at any later point.
-	s.cache.Wait()
+	if s.waitForWrite {
+		s.cache.Wait()
+	}
 
 	return nil
 }

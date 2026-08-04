@@ -273,3 +273,21 @@ func Test_Ristretto_WithContext_Canceled(t *testing.T) {
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
+
+func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
+	testStore := New(Config{SkipWaitForWrite: true})
+	t.Cleanup(func() { _ = testStore.Close() })
+
+	// Set returns without waiting for the buffered write, so a Get right
+	// after it may or may not see the value. It must at least not error.
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	_, err := testStore.Get("john")
+	require.NoError(t, err)
+
+	// The value does land once the buffer drains.
+	require.Eventually(t, func() bool {
+		val, err := testStore.Get("john")
+		return err == nil && len(val) > 0
+	}, time.Second, 10*time.Millisecond)
+}

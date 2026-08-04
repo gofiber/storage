@@ -356,3 +356,20 @@ func Test_Storage_Memory_GC_Reclaims_Expired(t *testing.T) {
 		return len(testStore.db) == 0
 	}, 2*time.Second, 25*time.Millisecond, "the collector should reclaim the expired entry")
 }
+
+func Benchmark_Memory_Get_WithExpiration(b *testing.B) {
+	testStore := New()
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	err := testStore.Set("john", []byte("doe"), time.Hour)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = testStore.Get("john")
+	}
+
+	require.NoError(b, err)
+}

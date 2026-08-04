@@ -305,6 +305,26 @@ func Test_Redis_ResetWithContext(t *testing.T) {
 func Test_Redis_Close(t *testing.T) {
 	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
+
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
+}
+
+func Test_Redis_Close_DoesNotCloseBorrowedClient(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close() //nolint:errcheck // best effort cleanup
+
+	borrowed := NewFromConnection(owner.Conn())
+	require.NoError(t, borrowed.Close())
+
+	// The client belongs to owner, so it must still work after borrowed
+	// was closed.
+	require.NoError(t, owner.Set("john", []byte("doe"), 0))
+	val, err := owner.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
 }
 
 func Test_Redis_Conn(t *testing.T) {

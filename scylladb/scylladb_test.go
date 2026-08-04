@@ -322,3 +322,13 @@ func Benchmark_Scylla_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_ScyllaDB_Close_Twice(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.NoError(t, testStore.Close())
+	// A second Close must not close the session twice, which gocql panics on.
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
+}

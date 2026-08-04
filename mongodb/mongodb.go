@@ -18,6 +18,9 @@ type Storage struct {
 	db    *mongo.Database
 	col   *mongo.Collection
 	items *sync.Pool
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 type item struct {
@@ -225,8 +228,13 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// Close disconnects the client. It is safe to call Close more than once,
+// every call reports the result of the single underlying disconnect.
 func (s *Storage) Close() error {
-	return s.db.Client().Disconnect(context.Background())
+	s.closeOnce.Do(func() {
+		s.closeErr = s.db.Client().Disconnect(context.Background())
+	})
+	return s.closeErr
 }
 
 // Acquire item from pool

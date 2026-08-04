@@ -11,13 +11,25 @@ type Config struct {
 	// BufferItems number of keys per Get buffer.
 	BufferItems int64
 	DefaultCost int64
+
+	// SkipWaitForWrite makes Set return as soon as the write is buffered,
+	// rather than waiting for Ristretto to apply it.
+	//
+	// Ristretto applies writes asynchronously, so with this set a Get issued
+	// straight after a Set can miss. That is Ristretto's own design and it is
+	// faster; leave it off to get the read-after-write behaviour the storage
+	// interface implies.
+	//
+	// Optional. Default is false
+	SkipWaitForWrite bool
 }
 
 var ConfigDefault = Config{
-	NumCounters: 1e7,
-	MaxCost:     1 << 30,
-	BufferItems: 64,
-	DefaultCost: 1,
+	NumCounters:      1e7,
+	MaxCost:          1 << 30,
+	BufferItems:      64,
+	DefaultCost:      1,
+	SkipWaitForWrite: false,
 }
 
 func configDefault(config ...Config) Config {
