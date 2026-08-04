@@ -8,12 +8,14 @@ import (
 	"github.com/valkey-io/valkey-go"
 )
 
-var cacheTTL = time.Second
-
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db        valkey.Client
 	closeOnce sync.Once
+
+	// cacheTTL is per storage: as a package-level variable every instance
+	// overwrote it for all the others, and did so racily.
+	cacheTTL time.Duration
 }
 
 // New creates a new valkey storage using context.Background() for initialization.
@@ -29,7 +31,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create new valkey client
 	var db valkey.Client
-	cacheTTL = cfg.CacheTTL
 
 	// Parse the URL and update config values accordingly
 	if cfg.URL != "" {
@@ -95,7 +96,8 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create new store
 	return &Storage{
-		db: db,
+		db:       db,
+		cacheTTL: cfg.CacheTTL,
 	}
 }
 
@@ -104,7 +106,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
+	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), s.cacheTTL).AsBytes()
 	if err != nil && valkey.IsValkeyNil(err) {
 		return nil, nil
 	}

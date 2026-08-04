@@ -234,3 +234,20 @@ func Benchmark_AeroSpikeDB_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Aerospike_WithContext_Canceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// No server is needed: an already cancelled context is rejected before
+	// the storage is touched.
+	testStore := &Storage{}
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
+}
