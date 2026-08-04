@@ -150,7 +150,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
+	// Compare the deadline itself: truncating both sides to whole seconds
+	// dropped an entry up to a second before it expired.
+	if !item.Expiration.IsZero() && !time.Now().Before(item.Expiration) {
 		return nil, nil
 	}
 	// // not safe?

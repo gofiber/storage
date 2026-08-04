@@ -651,4 +651,8 @@ func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
 
 	require.NotNil(t, testStore)
 	defer testStore.Close() //nolint:errcheck // the server is unreachable
+
+	// The flush is skipped rather than attempted, so New returns at once
+	// instead of waiting on a connection that cannot be made.
+	require.NotNil(t, testStore.Conn())
 }

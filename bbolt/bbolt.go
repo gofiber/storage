@@ -3,6 +3,7 @@ package bbolt
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/gofiber/utils/v2"
@@ -19,8 +20,10 @@ var errBucketNotFound = errors.New("bbolt: bucket not found")
 // ignored and stored entries live until they are deleted or the storage is
 // reset.
 type Storage struct {
-	conn   *bbolt.DB
-	bucket string
+	conn      *bbolt.DB
+	bucket    string
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // New creates a new storage
@@ -143,18 +146,22 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 // Reset all entries
 func (s *Storage) Reset() error {
 	return s.conn.Update(func(tx *bbolt.Tx) error {
-		bucket := utils.UnsafeBytes(s.bucket)
-		if tx.Bucket(bucket) == nil {
+		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
+		if b == nil {
 			return errBucketNotFound
 		}
 
-		// Recreating the bucket is both cheaper and safer than deleting keys
-		// while iterating over the same bucket.
-		if err := tx.DeleteBucket(bucket); err != nil {
-			return err
+		// Delete through the cursor, which bbolt supports while iterating.
+		// Dropping and recreating the bucket would also reset its sequence
+		// counter, which callers reach through Conn.
+		c := b.Cursor()
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			if err := c.Delete(); err != nil {
+				return err
+			}
 		}
-		_, err := tx.CreateBucket(bucket)
-		return err
+
+		return nil
 	})
 }
 
@@ -166,9 +173,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database
+// Close the database. It is safe to call Close more than once, every call
+// reports the result of the single underlying close.
 func (s *Storage) Close() error {
-	return s.conn.Close()
+	s.closeOnce.Do(func() {
+		s.closeErr = s.conn.Close()
+	})
+	return s.closeErr
 }
 
 // Conn returns the database client

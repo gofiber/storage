@@ -208,9 +208,10 @@ type Config struct {
 	// network call at all and connection errors are reported by the first
 	// operation instead.
 	//
-	// With this set New never panics: a Reset that cannot reach the server is
-	// skipped rather than bringing the process down, and the failure surfaces
-	// on the first operation like any other.
+	// With this set New makes no network call and never panics. Reset is
+	// therefore not carried out either, since flushing the database is a
+	// network call; clear it explicitly with Reset() once the storage is up
+	// if you need both.
 	//
 	// Optional. Default is false
 	SkipConnectionCheck bool

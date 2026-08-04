@@ -51,6 +51,10 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// A caller-supplied connection stays the caller's to close, this driver
+	// must not close it when initialization fails.
+	ownsDB := cfg.Db == nil
+
 	if cfg.Db != nil {
 		// Use passed db
 		db = cfg.Db
@@ -76,7 +80,9 @@ func New(config ...Config) *Storage {
 	if cfg.Reset {
 		query := fmt.Sprintf(dropQuery, cfg.Table)
 		if _, err = db.Exec(query); err != nil {
-			_ = db.Close()
+			if ownsDB {
+				_ = db.Close()
+			}
 			panic(err)
 		}
 	}
@@ -85,7 +91,9 @@ func New(config ...Config) *Storage {
 	for _, query := range initQuery {
 		query = fmt.Sprintf(query, cfg.Table)
 		if _, err := db.Exec(query); err != nil {
-			_ = db.Close()
+			if ownsDB {
+				_ = db.Close()
+			}
 			panic(err)
 		}
 	}

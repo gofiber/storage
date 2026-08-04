@@ -249,17 +249,14 @@ func (s *Storage) Reset() error {
 // It is safe to call Close more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		// Stop gc and wait for it to return, it must not run against the
-		// connection parameters this clears below.
+		// Stop gc and wait for it to return.
 		close(s.done)
 		<-s.stopped
-
-		// reset connection params
-		s.db = nil
-		s.collection = nil
-		s.connection = nil
-		s.bindingParams = nil
 	})
+
+	// The connection fields are deliberately left in place: clearing them
+	// raced any Get or Set still in flight, turning a late call into a nil
+	// dereference instead of a driver error.
 
 	return nil
 }

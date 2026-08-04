@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 var testStore *Storage
@@ -235,4 +236,35 @@ func Test_Bbolt_WithContext_Canceled(t *testing.T) {
 
 	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Bbolt_Close_Twice(t *testing.T) {
+	store := New(Config{
+		Database: filepath.Join(t.TempDir(), "fiber.db"),
+		Bucket:   "fiber-bucket",
+		Reset:    true,
+	})
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
+}
+
+func Test_Bbolt_Reset_Keeps_Bucket_Sequence(t *testing.T) {
+	store := newTestStore(t)
+
+	require.NoError(t, store.Conn().Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket([]byte("fiber-bucket")).SetSequence(42)
+	}))
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	require.NoError(t, store.Reset())
+
+	// Dropping and recreating the bucket would have reset this to zero.
+	require.NoError(t, store.Conn().View(func(tx *bbolt.Tx) error {
+		require.Equal(t, uint64(42), tx.Bucket([]byte("fiber-bucket")).Sequence())
+		return nil
+	}))
 }

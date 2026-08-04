@@ -2,9 +2,7 @@ package redis
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -80,17 +78,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
-	// Empty collection if Clear is true
-	if cfg.Reset {
+	// Empty collection if Clear is true. Skipped when the connection check is,
+	// because that option exists precisely so that New makes no network call:
+	// flushing is one, and it would panic on the error that was opted out of.
+	if cfg.Reset && !cfg.SkipConnectionCheck {
 		if err := db.FlushDB(ctx).Err(); err != nil {
-			// Skipping the connection check means the caller asked New not to
-			// fail because the server cannot be reached, so a flush that fails
-			// for that reason is skipped rather than panicking on the very
-			// error that was opted out of. Anything else, a permission denial
-			// for instance, is still a genuine misconfiguration.
-			if !cfg.SkipConnectionCheck || !isUnreachable(err) {
-				panic(err)
-			}
+			panic(err)
 		}
 	}
 
@@ -98,16 +91,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	return &Storage{
 		db: db,
 	}
-}
-
-// isUnreachable reports whether err means the server could not be reached,
-// as opposed to having rejected the command.
-func isUnreachable(err error) bool {
-	var netErr net.Error
-	return errors.As(err, &netErr) ||
-		errors.Is(err, context.DeadlineExceeded) ||
-		errors.Is(err, context.Canceled) ||
-		errors.Is(err, redis.ErrClosed)
 }
 
 // GetWithContext retrieves the value associated with the given key using the provided context.

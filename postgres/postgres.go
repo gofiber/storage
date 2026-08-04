@@ -80,13 +80,21 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection
+	// Select db connection. A caller-supplied pool stays the caller's to
+	// close, this driver must not close it when initialization fails.
 	var err error
 	db := cfg.DB
-	if db == nil {
+	ownsDB := db == nil
+	if ownsDB {
 		db, err = pgxpool.New(ctx, cfg.getDSN())
 		if err != nil {
 			panic(err)
+		}
+	}
+
+	closeOwned := func() {
+		if ownsDB {
+			db.Close()
 		}
 	}
 
@@ -108,7 +116,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Drop table if set to true
 	if cfg.Reset {
 		if _, err := db.Exec(ctx, fmt.Sprintf(dropQuery, fullTableName)); err != nil {
-			db.Close()
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -118,7 +126,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	row := db.QueryRow(ctx, checkTableExistsQuery, schema, tableName)
 	var count int
 	if err := row.Scan(&count); err != nil {
-		db.Close()
+		closeOwned()
 		panic(err)
 	}
 	tableExists = count > 0
@@ -130,7 +138,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
 			if _, err := db.Exec(ctx, query); err != nil {
-				db.Close()
+				closeOwned()
 				panic(err)
 			}
 		}
@@ -141,14 +149,14 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
 		if err := db.QueryRow(ctx, kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			if cfg.DB == nil {
-				db.Close()
+				closeOwned()
 			}
 			panic(err)
 		}
 		if kDataType == "character varying" {
 			if _, err := db.Exec(ctx, fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
 				if cfg.DB == nil {
-					db.Close()
+					closeOwned()
 				}
 				panic(err)
 			}
