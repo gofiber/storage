@@ -287,3 +287,13 @@ func Benchmark_SQLite3_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
+	// A sub-second interval used to be truncated to zero seconds and silently
+	// replaced by the ten second default.
+	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
+
+	// Zero and negative still fall back to the default.
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
+}

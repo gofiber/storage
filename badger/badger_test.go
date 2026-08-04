@@ -229,3 +229,13 @@ func Test_Badger_Set_Sub_Second_Expiration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, val, result, "key expired before its expiration")
 }
+
+func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
+	// A sub-second interval used to be truncated to zero seconds and silently
+	// replaced by the ten second default.
+	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
+
+	// Zero and negative still fall back to the default.
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
+}

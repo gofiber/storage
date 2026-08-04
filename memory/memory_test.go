@@ -332,3 +332,27 @@ func Test_Storage_Memory_Set_Huge_Expiration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 }
+
+func Test_Storage_Memory_Config_SubSecond_GCInterval(t *testing.T) {
+	// A sub-second interval used to be truncated to zero seconds and silently
+	// replaced by the ten second default.
+	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
+
+	// Zero and negative still fall back to the default.
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault().GCInterval)
+}
+
+func Test_Storage_Memory_GC_Reclaims_Expired(t *testing.T) {
+	testStore := New(Config{GCInterval: 50 * time.Millisecond})
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 50*time.Millisecond))
+
+	require.Eventually(t, func() bool {
+		testStore.mux.RLock()
+		defer testStore.mux.RUnlock()
+		return len(testStore.db) == 0
+	}, 2*time.Second, 25*time.Millisecond, "the collector should reclaim the expired entry")
+}

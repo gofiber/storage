@@ -89,10 +89,14 @@ func New(cnfg Config) (*Storage, error) {
 	cluster.ConnectTimeout = cfg.ConnectTimeout
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: cfg.MaxRetries}
 
-	// Convert expiration to seconds for TTL
+	// Convert expiration to seconds for TTL, rounding up: a TTL of 0 means
+	// "no TTL" in Cassandra, so truncating would disable it entirely.
 	ttl := 0
 	if cfg.Expiration > 0 {
-		ttl = int(cfg.Expiration.Seconds())
+		ttl = int(cfg.Expiration / time.Second)
+		if cfg.Expiration%time.Second != 0 {
+			ttl++
+		}
 	} else if cfg.Expiration < 0 {
 		// Expiration < 0 means indefinite storage
 		cfg.Expiration = 0
