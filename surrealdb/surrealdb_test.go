@@ -174,7 +174,8 @@ func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 	_ = testStore.Set("valid", []byte("123"), 0)
 
 	_ = testStore.Set("expired", []byte("456"), 1*time.Second)
-	time.Sleep(2 * time.Second)
+	// The deadline is stored in whole seconds and rounded up, so wait past it.
+	time.Sleep(3 * time.Second)
 
 	data, err := testStore.List()
 	require.NoError(t, err)

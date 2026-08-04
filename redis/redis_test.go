@@ -633,3 +633,22 @@ func Test_Redis_SkipConnectionCheck(t *testing.T) {
 	_, err := testStore.Get("foo")
 	require.Error(t, err, "an unreachable server must fail on use")
 }
+
+func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
+	// Reset asks New to flush, which cannot reach a closed port either. Having
+	// opted out of failing on an unreachable server, New must not panic on it.
+	cfg := Config{
+		Host:                "127.0.0.1",
+		Port:                1,
+		Reset:               true,
+		SkipConnectionCheck: true,
+	}
+
+	var testStore *Storage
+	require.NotPanics(t, func() {
+		testStore = New(cfg)
+	}, "New must not panic when the connection check is skipped")
+
+	require.NotNil(t, testStore)
+	defer testStore.Close() //nolint:errcheck // the server is unreachable
+}

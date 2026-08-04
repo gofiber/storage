@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -17,6 +18,9 @@ type Storage struct {
 	db         neo4j.DriverWithContext
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
+	closeErr   error
 
 	cypherMatch  string
 	cypherMerge  string
@@ -92,6 +96,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 
 		cypherMatch:  fmt.Sprintf("OPTIONAL MATCH (n:%s{ k: $key }) RETURN n { .* } AS data", cfg.Node),
 		cypherMerge:  fmt.Sprintf("MERGE (n:%s{ k: $key }) SET n.v = $val, n.e = $exp FINISH", cfg.Node),
@@ -152,7 +157,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expireAt int64
 	if exp > 0 {
-		expireAt = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it up:
+		// truncating expires an entry early, and a sub-second expiration would be
+		// stored as already past.
+		deadline := time.Now().Add(exp)
+		expireAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
 	}
 
 	// create the structure for the storage
@@ -208,10 +220,18 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// Close stops the garbage collector and closes the database. It is safe to
+// call Close more than once, every call reports the result of the single
+// underlying close.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-
-	return s.db.Close(context.Background())
+	s.closeOnce.Do(func() {
+		close(s.done)
+		// Wait for the collector to finish any sweep it started, it must
+		// not run against a driver that is being closed.
+		<-s.stopped
+		s.closeErr = s.db.Close(context.Background())
+	})
+	return s.closeErr
 }
 
 // Return database client
@@ -221,6 +241,8 @@ func (s *Storage) Conn() neo4j.DriverWithContext {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {

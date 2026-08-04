@@ -93,16 +93,23 @@ func Test_MSSQL_Set_Expiration(t *testing.T) {
 
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
-
-	time.Sleep(1100 * time.Millisecond)
 }
 
 func Test_MSSQL_Get_Expired(t *testing.T) {
 	key := "john"
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// The deadline is stored in whole seconds and rounded up, so the entry may
+	// outlive its expiration by up to a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "Key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_MSSQL_Get_NotExist(t *testing.T) {
@@ -200,7 +207,9 @@ func Test_MSSQL_GC(t *testing.T) {
 	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	// The deadline is rounded up to a whole second, so collect as of a moment
+	// safely past it rather than as of now.
+	testStore.gc(time.Now().Add(2 * time.Second))
 	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, sql.ErrNoRows, err)

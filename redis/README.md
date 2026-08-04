@@ -208,8 +208,9 @@ type Config struct {
 	// network call at all and connection errors are reported by the first
 	// operation instead.
 	//
-	// Note that Reset still flushes the database, and still panics when that
-	// fails, because it is an explicit request rather than a health check.
+	// With this set New never panics: a Reset that cannot reach the server is
+	// skipped rather than bringing the process down, and the failure surfaces
+	// on the first operation like any other.
 	//
 	// Optional. Default is false
 	SkipConnectionCheck bool

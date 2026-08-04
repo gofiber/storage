@@ -61,7 +61,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 	exp := time.Time{}
 	if expiration > 0 {
-		exp = time.Now().Add(expiration).UTC()
+		// The deadline is written with a one-second granularity below, so
+		// round it up: truncating expires an entry early, and a sub-second
+		// expiration would be written as already past.
+		deadline := time.Now().Add(expiration).UTC()
+		if deadline.Nanosecond() != 0 {
+			deadline = deadline.Truncate(time.Second).Add(time.Second)
+		}
+		exp = deadline
 	}
 
 	return s.

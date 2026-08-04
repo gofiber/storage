@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,8 @@ type Storage struct {
 	db         *pgxpool.Pool
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
 
 	sqlSelect string
 	sqlInsert string
@@ -157,6 +160,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, fullTableName),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", fullTableName),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", fullTableName),
@@ -211,7 +215,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expSeconds int64
 	if exp > 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it up:
+		// truncating expires an entry early, and a sub-second expiration would be
+		// stored as already past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	_, err := s.db.Exec(ctx, s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
@@ -249,10 +260,16 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// Close stops the garbage collector and closes the pool. It is safe to call
+// Close more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	s.db.Stat()
-	s.db.Close()
+	s.closeOnce.Do(func() {
+		close(s.done)
+		// Wait for the collector to finish any sweep it started, it must
+		// not run against a pool that is being closed.
+		<-s.stopped
+		s.db.Close()
+	})
 	return nil
 }
 
@@ -263,6 +280,8 @@ func (s *Storage) Conn() *pgxpool.Pool {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {

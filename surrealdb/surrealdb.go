@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/surrealdb/surrealdb.go"
@@ -13,10 +14,13 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db       *surrealdb.DB
-	table    string
-	stopGC   chan struct{}
-	interval time.Duration
+	db        *surrealdb.DB
+	table     string
+	stopGC    chan struct{}
+	stopped   chan struct{}
+	interval  time.Duration
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // model represents a key-value storage record used in SurrealDB.
@@ -62,6 +66,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		db:       db,
 		table:    cfg.DefaultTable,
 		stopGC:   make(chan struct{}),
+		stopped:  make(chan struct{}),
 		interval: cfg.GCInterval,
 	}
 
@@ -110,7 +115,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	var expiresAt int64
 	if exp > 0 {
-		expiresAt = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it
+		// up: truncating expires an entry early, and a sub-second expiration
+		// would be stored as already past.
+		deadline := time.Now().Add(exp)
+		expiresAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expiresAt++
+		}
 	}
 
 	_, err := surrealdb.Upsert[model](context.Background(), s.db, models.NewRecordID(s.table, key), &model{
@@ -154,8 +166,14 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
-	close(s.stopGC)
-	return s.db.Close(context.Background())
+	s.closeOnce.Do(func() {
+		close(s.stopGC)
+		// Wait for the collector to finish any sweep it started, it must not
+		// run against a database that is being closed.
+		<-s.stopped
+		s.closeErr = s.db.Close(context.Background())
+	})
+	return s.closeErr
 }
 
 // Conn returns the underlying SurrealDB client
@@ -206,6 +224,8 @@ func isTableNotFoundError(err error, table string) bool {
 
 // gc runs periodic cleanup of expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 

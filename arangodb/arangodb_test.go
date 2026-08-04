@@ -172,7 +172,8 @@ func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	// The deadline is stored in whole seconds and rounded up, so wait past it.
+	time.Sleep(2100 * time.Millisecond)
 }
 
 func Test_ArangoDB_Get_Expired(t *testing.T) {

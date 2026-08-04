@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -15,6 +16,9 @@ type Storage struct {
 	db         *sql.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
+	closeErr   error
 
 	sqlSelect string
 	sqlInsert string
@@ -91,6 +95,7 @@ func New(config ...Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		db:         db,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
@@ -149,7 +154,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expSeconds int64
 	if exp > 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it up:
+		// truncating expires an entry early, and a sub-second expiration would be
+		// stored as already past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
@@ -187,9 +199,18 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// Close stops the garbage collector and closes the database. It is safe to
+// call Close more than once, every call reports the result of the single
+// underlying close.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	return s.db.Close()
+	s.closeOnce.Do(func() {
+		close(s.done)
+		// Wait for the collector to finish any sweep it started, it must
+		// not run against a database that is being closed.
+		<-s.stopped
+		s.closeErr = s.db.Close()
+	})
+	return s.closeErr
 }
 
 // Return database client
@@ -199,6 +220,8 @@ func (s *Storage) Conn() *sql.DB {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {

@@ -3,6 +3,7 @@ package arangodb
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/arangodb/go-driver"
@@ -15,6 +16,8 @@ type Storage struct {
 	db         driver.Database
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
 
 	// Arango mandatory fields
 	connection    driver.Connection
@@ -117,6 +120,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		connection:  conn,
 		config:      cfg,
 		done:        make(chan struct{}),
+		stopped:     make(chan struct{}),
 		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
 	}
 
@@ -172,7 +176,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expireAt int64
 	if exp > 0 {
-		expireAt = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it up:
+		// truncating expires an entry early, and a sub-second expiration would be
+		// stored as already past.
+		deadline := time.Now().Add(exp)
+		expireAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
 	}
 	valStr := utils.UnsafeString(val)
 
@@ -234,14 +245,21 @@ func (s *Storage) Reset() error {
 // Close the database
 // Arango does not provide a method to close the connection
 // more info @https://github.com/arangodb/go-driver/issues/43
+// Close stops the garbage collector and releases the connection parameters.
+// It is safe to call Close more than once.
 func (s *Storage) Close() error {
-	// Stop gc
-	s.done <- struct{}{}
-	// reset connection params
-	s.db = nil
-	s.collection = nil
-	s.connection = nil
-	s.bindingParams = nil
+	s.closeOnce.Do(func() {
+		// Stop gc and wait for it to return, it must not run against the
+		// connection parameters this clears below.
+		close(s.done)
+		<-s.stopped
+
+		// reset connection params
+		s.db = nil
+		s.collection = nil
+		s.connection = nil
+		s.bindingParams = nil
+	})
 
 	return nil
 }
@@ -260,6 +278,8 @@ func (s *Storage) exec(query string) error {
 
 // Garbage collector to delete expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {

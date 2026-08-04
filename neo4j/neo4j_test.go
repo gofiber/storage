@@ -155,11 +155,18 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(200 * time.Millisecond)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// The deadline is stored in whole seconds and rounded up, so the entry may
+	// outlive its expiration by up to a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "Key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_Neo4jStore_Get_Expired(t *testing.T) {

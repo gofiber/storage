@@ -237,7 +237,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	// expiry
 	var expSeconds int64
 	if exp > 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+		// The deadline is stored with a one-second granularity, so round it up:
+		// truncating expires an entry early, and a sub-second expiration would be
+		// stored as already past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	// encode
 	e := new(bytes.Buffer)

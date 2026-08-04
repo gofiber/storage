@@ -81,7 +81,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Empty collection if Clear is true
 	if cfg.Reset {
 		if err := db.FlushDB(ctx).Err(); err != nil {
-			panic(err)
+			// Skipping the connection check means the caller asked New not to
+			// fail on an unreachable server, so the flush is skipped too
+			// rather than panicking on the very error that was opted out of.
+			if !cfg.SkipConnectionCheck {
+				panic(err)
+			}
 		}
 	}
 
