@@ -35,6 +35,8 @@ func (s *Storage) List() ([]byte, error) {
 
 **Note:** The context methods are dummy methods and don't have any functionality, as SurrealDB does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
 
+**Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
+
 ### Installation
 
 SurrealDB is tested on latest two version of Golang.

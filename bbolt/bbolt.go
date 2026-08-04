@@ -40,15 +40,21 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the file, and with it the OS lock, rather than leaking both
+	// when a later step fails.
+	closeOwned := func() { _ = conn.Close() }
+
 	// Reset bucket if field selected
 	if cfg.Reset {
 		if err := removeBucket(cfg, conn); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
 
 	// Create bucket if not exists
 	if err := createBucket(cfg, conn); err != nil {
+		closeOwned()
 		panic(err)
 	}
 

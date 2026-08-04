@@ -116,7 +116,19 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
-	store.checkSchema(cfg.Table)
+	// checkSchema panics on a schema mismatch, so release a connection this
+	// driver opened rather than leaking it on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if ownsDB {
+					_ = db.Close()
+				}
+				panic(r)
+			}
+		}()
+		store.checkSchema(cfg.Table)
+	}()
 
 	// Start garbage collector
 	go store.gcTicker()

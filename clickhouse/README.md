@@ -31,6 +31,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *Session
 ```
 
+**Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
+
 ### Installation
 
 Clickhouse is supported on the last version of Go:

@@ -175,7 +175,17 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
-	store.checkSchema(ctx, cfg.Table)
+	// checkSchema panics on a schema mismatch, so release a pool this driver
+	// opened rather than leaking it on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				closeOwned()
+				panic(r)
+			}
+		}()
+		store.checkSchema(ctx, cfg.Table)
+	}()
 
 	// Start garbage collector
 	go store.gcTicker()

@@ -73,8 +73,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the client opened above rather than leaking it when a later
+	// step fails.
+	closeOwned := func() { _ = client.Disconnect(context.Background()) }
+
 	// verify that the client can connect
 	if err = client.Ping(ctx, nil); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -84,6 +89,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	if cfg.Reset {
 		if err = col.Drop(ctx); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -107,6 +113,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	if _, err := col.Indexes().CreateOne(indexCtx, indexModel); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -120,6 +127,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	if _, err := col.Indexes().CreateOne(indexCtx, keyIndexModel); err != nil {
+		closeOwned()
 		panic(err)
 	}
 

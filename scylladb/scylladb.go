@@ -124,7 +124,17 @@ func New(config ...Config) *Storage {
 	}
 
 	// Check schema
-	store.checkSchema(cfg.Keyspace)
+	// checkSchema panics on a schema mismatch, so release a session this
+	// driver opened rather than leaking it on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				closeOwned()
+				panic(r)
+			}
+		}()
+		store.checkSchema(cfg.Keyspace)
+	}()
 
 	return store // Return storage
 }
