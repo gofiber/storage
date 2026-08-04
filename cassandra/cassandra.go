@@ -93,10 +93,7 @@ func New(cnfg Config) (*Storage, error) {
 	// "no TTL" in Cassandra, so truncating would disable it entirely.
 	ttl := 0
 	if cfg.Expiration > 0 {
-		ttl = int(cfg.Expiration / time.Second)
-		if cfg.Expiration%time.Second != 0 {
-			ttl++
-		}
+		ttl = ttlSeconds(cfg.Expiration)
 	} else if cfg.Expiration < 0 {
 		// Expiration < 0 means indefinite storage
 		cfg.Expiration = 0
@@ -223,6 +220,17 @@ type queryResult struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
+// ttlSeconds converts d to whole seconds, rounding up. Cassandra TTLs are
+// whole seconds and a TTL of 0 means "no TTL", so truncating a sub-second
+// expiration would disable expiration entirely.
+func ttlSeconds(d time.Duration) int {
+	secs := int(d / time.Second)
+	if d%time.Second != 0 {
+		secs++
+	}
+	return secs
+}
+
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
 	// Validate key
@@ -235,12 +243,8 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	var ttl int
 
 	if exp > 0 {
-		// Specific expiration provided. Cassandra TTLs are whole seconds and
-		// a TTL of 0 means "no TTL", so round up rather than truncating.
-		ttl = int(exp / time.Second)
-		if exp%time.Second != 0 {
-			ttl++
-		}
+		// Specific expiration provided.
+		ttl = ttlSeconds(exp)
 		t := time.Now().Add(exp)
 		expiresAt = &t
 	} else if exp == 0 && s.ttl > 0 {

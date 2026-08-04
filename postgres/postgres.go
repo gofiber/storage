@@ -101,6 +101,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Ping database
 	if err := db.Ping(ctx); err != nil {
+		closeOwned()
 		panic(err)
 	}
 

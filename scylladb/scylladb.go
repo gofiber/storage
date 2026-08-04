@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -23,6 +24,7 @@ type Storage struct {
 	// ownsSession records whether this driver opened the session, a
 	// caller-supplied one stays the caller's to close.
 	ownsSession bool
+	closeOnce   sync.Once
 }
 
 var (
@@ -81,16 +83,25 @@ func New(config ...Config) *Storage {
 		session = cfg.Session
 	}
 
+	// A caller-supplied session stays the caller's to close, this driver must
+	// not close it when initialization fails.
+	ownsSession := cfg.Session == nil
+	closeOwned := func() {
+		if ownsSession {
+			session.Close()
+		}
+	}
+
 	// Create keyspace if it does not exist
 	if err = session.Query(fmt.Sprintf(createKeyspaceQuery, cfg.Keyspace)).Exec(); err != nil {
-		session.Close()
+		closeOwned()
 		panic(err)
 	}
 
 	// Drop table if reset is true
 	if cfg.Reset {
 		if err = session.Query(fmt.Sprintf(dropQuery, cfg.Keyspace, cfg.Table)).Exec(); err != nil {
-			session.Close()
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -98,7 +109,7 @@ func New(config ...Config) *Storage {
 	// Create the storage
 	store := &Storage{
 		session:     session,
-		ownsSession: cfg.Session == nil,
+		ownsSession: ownsSession,
 		tableName:   cfg.Table,
 		selectQuery: fmt.Sprintf(selectQuery, cfg.Keyspace, cfg.Table),
 		insertQuery: fmt.Sprintf(insertQuery, cfg.Keyspace, cfg.Table),
@@ -198,11 +209,14 @@ func (s *Storage) Reset() error {
 
 // Close closes the storage
 // Close closes the session, unless it was supplied through Config.Session, in
-// which case it stays the caller's to close.
+// which case it stays the caller's to close. It is safe to call Close more
+// than once.
 func (s *Storage) Close() error {
-	if s.ownsSession {
-		s.session.Close()
-	}
+	s.closeOnce.Do(func() {
+		if s.ownsSession {
+			s.session.Close()
+		}
+	})
 	return nil
 }
 

@@ -74,6 +74,9 @@ func New(config ...Config) *Storage {
 
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
+		if ownsDB {
+			_ = db.Close()
+		}
 		panic(err)
 	}
 

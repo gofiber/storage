@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -10,8 +11,10 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db     redis.UniversalClient
-	ownsDB bool
+	db        redis.UniversalClient
+	ownsDB    bool
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // NewFromConnection creates a new instance of Storage using the provided Redis universal client.
@@ -158,12 +161,15 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database, unless the client was supplied to NewFromConnection, in
-// which case it stays the caller's to close.
+// which case it stays the caller's to close. It is safe to call Close more
+// than once, every call reports the result of the single underlying close.
 func (s *Storage) Close() error {
-	if !s.ownsDB {
-		return nil
-	}
-	return s.db.Close()
+	s.closeOnce.Do(func() {
+		if s.ownsDB {
+			s.closeErr = s.db.Close()
+		}
+	})
+	return s.closeErr
 }
 
 // Return database client

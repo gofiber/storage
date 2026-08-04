@@ -73,10 +73,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
-	if err := db.VerifyConnectivity(ctx); err != nil {
-		log.Panicf("Unable to verify connection: %v\n", err)
-	}
-
 	closeOwned := func() {
 		if !ownsDB {
 			return
@@ -84,6 +80,11 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		if err := db.Close(ctx); err != nil {
 			log.Printf("Error closing storage: %v\n", err)
 		}
+	}
+
+	if err := db.VerifyConnectivity(ctx); err != nil {
+		closeOwned()
+		log.Panicf("Unable to verify connection: %v\n", err)
 	}
 
 	// delete all nodes if reset set to true
