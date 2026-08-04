@@ -70,8 +70,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.Value, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -127,8 +130,11 @@ func expiration(exp time.Duration) int32 {
 	return int32(secs)
 }
 
-// SetWithContext sets key with value (dummy context support)
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -140,8 +146,11 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete(key)
 }
 
-// DeleteWithContext deletes key by key (dummy context support)
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -150,8 +159,11 @@ func (s *Storage) Reset() error {
 	return s.db.DeleteAll()
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 

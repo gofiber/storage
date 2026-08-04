@@ -36,6 +36,9 @@ func New(config ...Config) *Storage {
 
 	if cfg.Reset {
 		if err := db.DropAll(); err != nil {
+			// Release the database, and with it the directory lock, rather
+			// than leaking both on the way out.
+			_ = db.Close()
 			panic(err)
 		}
 	}

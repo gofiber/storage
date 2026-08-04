@@ -165,6 +165,11 @@ func (s *Storage) Reset() (err error) {
 	// Commit in bounded chunks, a database may hold more keys than fit in
 	// memory. The iterator reads a consistent snapshot, so the committed
 	// deletions do not disturb it.
+	//
+	// A reset larger than one chunk is therefore not atomic: a concurrent
+	// reader can observe the database part way through. Pebble has no
+	// multi-batch transaction to avoid that, and buffering every delete in
+	// one batch would make the memory cost scale with the key count.
 	commit := func() error {
 		if batch.Empty() {
 			return nil

@@ -44,7 +44,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the connection opened above rather than leaking it when a
+	// later step fails.
+	closeOwned := func() { _ = db.Close(ctx) }
+
 	if err = db.Use(ctx, cfg.Namespace, cfg.Database); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -55,10 +60,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	token, err := db.SignIn(ctx, authData)
 	if err != nil {
+		closeOwned()
 		panic(err)
 	}
 
 	if err = db.Authenticate(ctx, token); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
