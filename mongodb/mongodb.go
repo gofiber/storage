@@ -31,6 +31,10 @@ type item struct {
 	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
+// closeTimeout bounds the cleanup disconnect performed when initialization
+// fails.
+const closeTimeout = 10 * time.Second
+
 // New creates a new MongoDB storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -74,9 +78,15 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client opened above rather than leaking it when a later
-	// step fails.
-	closeOwned := func() { _ = client.Disconnect(context.Background()) }
+	// Release the client opened above rather than leaking it when a later step
+	// fails. Disconnecting runs on its own bounded context: the caller's may be
+	// exactly what failed, so a done context would skip the disconnect, and an
+	// unbounded one would hang here if the connection is stuck.
+	closeOwned := func() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer closeCancel()
+		_ = client.Disconnect(closeCtx)
+	}
 
 	// verify that the client can connect
 	if err = client.Ping(ctx, nil); err != nil {
