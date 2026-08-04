@@ -21,8 +21,8 @@ type Storage struct {
 	col   *mongo.Collection
 	items *sync.Pool
 
-	closeOnce sync.Once
-	closeErr  error
+	closeMu sync.Mutex
+	closed  bool
 }
 
 type item struct {
@@ -249,18 +249,30 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close disconnects the client. It is safe to call Close more than once,
-// every call reports the result of the single underlying disconnect.
+// Close disconnects the client. It is safe to call Close more than once: once
+// the disconnect has succeeded further calls do nothing, and a disconnect that
+// fails is reported so the caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		// Bounded for the same reason as the constructor cleanup: the
-		// interface gives Close no context, and a stuck connection must not
-		// hang the caller forever.
-		ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
-		defer cancel()
-		s.closeErr = s.db.Client().Disconnect(ctx)
-	})
-	return s.closeErr
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Bounded for the same reason as the constructor cleanup: the interface
+	// gives Close no context, and a stuck connection must not hang the caller
+	// forever. A timeout is transient, so it is reported without latching and
+	// a later Close tries again.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Client().Disconnect(ctx); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Acquire item from pool

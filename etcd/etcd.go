@@ -77,8 +77,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return err
 	}
 
-	_, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID))
-	if err != nil {
+	if _, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID)); err != nil {
+		// Nothing is attached to the lease, so revoke it rather than leaving
+		// it to occupy the server until it expires on its own.
+		_, _ = s.db.Revoke(context.WithoutCancel(ctx), lease.ID)
 		return err
 	}
 

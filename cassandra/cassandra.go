@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -21,12 +22,13 @@ var (
 
 // Storage represents a Cassandra storage implementation
 type Storage struct {
-	cluster  *gocql.ClusterConfig
-	session  *gocql.Session
-	sx       gocqlx.Session
-	keyspace string
-	table    string
-	ttl      int
+	cluster   *gocql.ClusterConfig
+	session   *gocql.Session
+	sx        gocqlx.Session
+	keyspace  string
+	table     string
+	ttl       int
+	closeOnce sync.Once
 }
 
 // validateIdentifier checks if an identifier is valid
@@ -361,8 +363,12 @@ func (s *Storage) Conn() *gocql.Session {
 
 // Close closes the storage connection.
 // This method is not thread-safe and should not be called concurrently with other methods.
+// Close the storage. It is safe to call Close more than once, the session is
+// closed only on the first call: gocql panics on a double close.
 func (s *Storage) Close() {
-	if s.session != nil {
-		s.session.Close()
-	}
+	s.closeOnce.Do(func() {
+		if s.session != nil {
+			s.session.Close()
+		}
+	})
 }

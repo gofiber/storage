@@ -20,8 +20,9 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
-	closeOnce  sync.Once
-	closeErr   error
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	cypherMatch  string
 	cypherMerge  string
@@ -239,20 +240,38 @@ func (s *Storage) Reset() error {
 
 // Close the database
 // Close stops the garbage collector and closes the driver, unless it was
-// supplied through Config.DB, which stays the caller's to close. It is safe
-// to call Close more than once, every call reports the result of the single
-// underlying close.
+// supplied through Config.DB, which stays the caller's to close. It is safe to
+// call Close more than once: once the close has succeeded further calls do
+// nothing, and a close that fails is reported so the caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
+	// Stopping the collector happens once, even if the close below fails and
+	// the caller tries again.
+	s.stopOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a driver that is being closed.
 		<-s.stopped
-		if s.ownsDB {
-			s.closeErr = s.db.Close(context.Background())
-		}
 	})
-	return s.closeErr
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed || !s.ownsDB {
+		return nil
+	}
+
+	// Bounded, so a stuck connection cannot hang the caller. A timeout is
+	// transient, so it is reported without latching and a later Close tries
+	// again.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Close(ctx); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Return database client

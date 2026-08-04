@@ -193,11 +193,15 @@ func (s *Storage) Reset() (err error) {
 		}
 	}
 
-	if err := iter.Error(); err != nil {
+	// Flush what is queued before reporting an iteration failure: earlier
+	// chunks are already committed, so dropping this one would throw away
+	// work for no benefit.
+	iterErr = iter.Error()
+	if err := commit(); err != nil {
 		return err
 	}
 
-	return commit()
+	return iterErr
 }
 
 // ResetWithContext resets storage, aborting if ctx is already done.

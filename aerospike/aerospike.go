@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
@@ -17,6 +18,7 @@ type Storage struct {
 	reset      bool
 	expiration time.Duration
 	schemaInfo *SchemaInfo
+	closeOnce  sync.Once
 }
 
 // SchemaInfo holds information about the schema structure
@@ -342,8 +344,11 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage
+// Close the storage. It is safe to call Close more than once, the client is
+// closed only on the first call.
 func (s *Storage) Close() error {
-	s.client.Close()
+	s.closeOnce.Do(func() {
+		s.client.Close()
+	})
 	return nil
 }

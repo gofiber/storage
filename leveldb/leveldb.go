@@ -196,15 +196,17 @@ func (s *Storage) Reset() error {
 		batch.Reset()
 	}
 
-	if err := iter.Error(); err != nil {
-		return err
+	// Flush what is queued before reporting an iteration failure: earlier
+	// chunks are already committed, so dropping this one would throw away
+	// work for no benefit.
+	iterErr := iter.Error()
+	if batch.Len() > 0 {
+		if err := s.db.Write(batch, nil); err != nil {
+			return err
+		}
 	}
 
-	if batch.Len() == 0 {
-		return nil
-	}
-
-	return s.db.Write(batch, nil)
+	return iterErr
 }
 
 // ResetWithContext resets all keys, aborting if ctx is already done.
