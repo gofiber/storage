@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"math"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,8 +22,19 @@ type Storage struct {
 }
 
 type entry struct {
-	data   []byte
-	expiry uint32 // max value is 4294967295 -> Sun Feb 07 2106 06:28:15 GMT+0000
+	data []byte
+
+	// expiry is the Unix second the entry expires at, rounded up, with 0
+	// meaning no expiration. Max value is 4294967295 -> Sun Feb 07 2106
+	// 06:28:15 GMT+0000.
+	//
+	// It is compared against internal.Timestamp, a cached clock refreshed
+	// once a second, so an entry can outlive its expiration by up to two
+	// seconds: one from rounding the deadline up, one from the cached clock
+	// trailing real time. It is never dropped early. Reading the real clock
+	// on every Get would halve the throughput of this storage, which is the
+	// reason the cached one exists.
+	expiry uint32
 }
 
 // New creates a new memory storage
@@ -88,13 +100,17 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if exp != 0 {
 		// Expiration is tracked with a one-second granularity. Round the
 		// deadline up rather than truncating the duration, which made any
-		// sub-second expiration immediate.
+		// sub-second expiration immediate. Entries are therefore never
+		// dropped early, see the expiry field for the cost of that.
 		deadline := time.Now().Add(exp)
 		secs := deadline.Unix()
 		if deadline.Nanosecond() != 0 {
 			secs++
 		}
-		expire = uint32(secs) //nolint:gosec // the entry comment documents the 2106 limit
+		if secs > math.MaxUint32 {
+			secs = math.MaxUint32
+		}
+		expire = uint32(secs) //nolint:gosec // clamped to MaxUint32 above
 	}
 
 	e := entry{valCopy, expire}

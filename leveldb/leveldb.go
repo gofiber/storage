@@ -31,14 +31,15 @@ const (
 	// written by earlier versions of this driver for keys with no expiration.
 	envelopeNone envelopeKind = iota
 
-	// envelopeCurrent means the entry carries this driver's envelope.
-	envelopeCurrent
-
-	// envelopeLegacy means the entry has the shape of the unversioned
-	// envelope earlier versions wrote for keys with an expiration. That shape
-	// is indistinguishable from a payload that happens to be the same JSON
-	// object, so such an entry is never deleted on the strength of the guess.
-	envelopeLegacy
+	// envelopeEntry means the entry carries an envelope this driver can read,
+	// either the versioned one it writes today or the unversioned one earlier
+	// versions wrote for keys with an expiration.
+	//
+	// The unversioned shape is indistinguishable from a payload that happens
+	// to be the same JSON object. That ambiguity predates the version marker
+	// and only affects databases written before it, so such an entry is
+	// treated as an envelope, exactly as earlier versions treated it.
+	envelopeEntry
 
 	// envelopeUnknown means the entry carries an envelope version this driver
 	// does not understand.
@@ -111,19 +112,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return data, nil
 	case envelopeUnknown:
 		return nil, errUnknownEnvelope
-	case envelopeCurrent, envelopeLegacy:
+	case envelopeEntry:
 	}
 
 	if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
 		return stored.Value, nil
 	}
 
-	// Only reclaim entries this driver is sure it wrote, a legacy envelope may
-	// really be a payload that looks like one.
-	if kind == envelopeCurrent {
-		if err := s.Delete(key); err != nil {
-			return nil, err
-		}
+	if err := s.Delete(key); err != nil {
+		return nil, err
 	}
 
 	return nil, nil
@@ -252,7 +249,7 @@ func decode(data []byte) (item, envelopeKind) {
 		if stored.Version != envelopeVersion {
 			return item{}, envelopeUnknown
 		}
-		return stored, envelopeCurrent
+		return stored, envelopeEntry
 	}
 
 	// The unversioned envelope had exactly these two fields.
@@ -260,7 +257,7 @@ func decode(data []byte) (item, envelopeKind) {
 		_, hasValue := fields["value"]
 		_, hasExpireAt := fields["expire_at"]
 		if hasValue && hasExpireAt {
-			return stored, envelopeLegacy
+			return stored, envelopeEntry
 		}
 	}
 
@@ -283,10 +280,8 @@ func (s *Storage) gc() {
 			batch := new(leveldb.Batch)
 
 			for iter.Next() {
-				// Only reclaim entries this driver is sure it wrote, see the
-				// envelopeLegacy comment.
 				stored, kind := decode(iter.Value())
-				if kind != envelopeCurrent {
+				if kind != envelopeEntry {
 					continue
 				}
 				if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
