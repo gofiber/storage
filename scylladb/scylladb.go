@@ -155,8 +155,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
 	var expiration int
-	if expire != 0 {
-		expiration = int(expire.Round(time.Second).Seconds())
+	if expire > 0 {
+		// ScyllaDB TTLs are whole seconds and a TTL of 0 means "no TTL", so
+		// round up rather than letting a sub-second expiration become zero.
+		expiration = int(expire / time.Second)
+		if expire%time.Second != 0 {
+			expiration++
+		}
 	}
 	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
 }

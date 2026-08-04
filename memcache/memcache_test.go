@@ -237,3 +237,32 @@ func Benchmark_Memcache_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Memcache_Expiration_Conversion(t *testing.T) {
+	tests := []struct {
+		name     string
+		exp      time.Duration
+		expected int32
+	}{
+		{name: "no expiration", exp: 0, expected: 0},
+		{name: "negative", exp: -time.Second, expected: 0},
+		{name: "sub second rounds up", exp: 500 * time.Millisecond, expected: 1},
+		{name: "one nanosecond rounds up", exp: time.Nanosecond, expected: 1},
+		{name: "whole seconds", exp: 90 * time.Second, expected: 90},
+		{name: "fractional rounds up", exp: 1500 * time.Millisecond, expected: 2},
+		{name: "at the relative limit", exp: 30 * 24 * time.Hour, expected: memcachedRelativeExpirationLimit},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, expiration(tt.exp))
+		})
+	}
+
+	// Above 30 days memcached reads the value as an absolute Unix timestamp,
+	// so a relative value would land in the past and expire immediately.
+	exp := 31 * 24 * time.Hour
+	got := expiration(exp)
+	require.Greater(t, got, int32(memcachedRelativeExpirationLimit))
+	require.InDelta(t, time.Now().Add(exp).Unix(), int64(got), 5)
+}

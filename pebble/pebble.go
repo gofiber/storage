@@ -141,13 +141,17 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 }
 
 // Reset deletes every key in the database
-func (s *Storage) Reset() error {
-	iter, err := s.db.NewIter(nil)
-	if err != nil {
-		return err
+func (s *Storage) Reset() (err error) {
+	iter, iterErr := s.db.NewIter(nil)
+	if iterErr != nil {
+		return iterErr
 	}
 	defer func() {
-		_ = iter.Close()
+		// Pebble folds child iterator teardown failures into the error Close
+		// returns, which Error never sees, so it must not be discarded.
+		if closeErr := iter.Close(); err == nil {
+			err = closeErr
+		}
 	}()
 
 	batch := s.db.NewBatch()

@@ -82,13 +82,40 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	item := s.acquireItem()
 	item.Key = key
 	item.Value = val
-	item.Expiration = int32(exp.Seconds())
+	item.Expiration = expiration(exp)
 
 	err := s.db.Set(item)
 
 	s.releaseItem(item)
 
 	return err
+}
+
+// memcachedRelativeExpirationLimit is the largest relative expiration
+// memcached accepts, 30 days. Anything above it is read as an absolute Unix
+// timestamp instead.
+const memcachedRelativeExpirationLimit = 60 * 60 * 24 * 30
+
+// expiration converts exp to the value memcached expects: 0 for no
+// expiration, whole seconds rounded up below the 30 day limit, and an
+// absolute Unix timestamp above it.
+func expiration(exp time.Duration) int32 {
+	if exp <= 0 {
+		return 0
+	}
+
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
+		// Round up, truncating would turn a sub-second expiration into no
+		// expiration at all.
+		secs++
+	}
+
+	if secs > memcachedRelativeExpirationLimit {
+		return int32(time.Now().Add(exp).Unix())
+	}
+
+	return int32(secs)
 }
 
 // SetWithContext sets key with value (dummy context support)

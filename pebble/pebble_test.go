@@ -80,11 +80,16 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 
 	// Expirations are rounded up to the next whole second, so the entry may
 	// survive for up to one second longer than requested.
-	require.Eventually(t, func() bool {
+	deadline := time.Now().Add(4 * time.Second)
+	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
-		return len(result) == 0
-	}, 4*time.Second, 100*time.Millisecond, "key should expire")
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should expire")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {

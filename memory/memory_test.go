@@ -60,6 +60,25 @@ func Test_Storage_Memory_Get(t *testing.T) {
 	require.Len(t, keys, 1)
 }
 
+// requireExpires polls until key is gone, or fails once within is exhausted.
+// Expirations are rounded up to the next whole second and the shared timestamp
+// the storage compares against is refreshed once a second, so a key may
+// outlive its expiration by up to two seconds.
+func requireExpires(t *testing.T, testStore *Storage, key string, within time.Duration) {
+	t.Helper()
+
+	deadline := time.Now().Add(within)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			return
+		}
+		require.False(t, time.Now().After(deadline), "key should expire")
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func Test_Storage_Memory_Set_Expiration(t *testing.T) {
 	var (
 		testStore = New()
@@ -71,11 +90,7 @@ func Test_Storage_Memory_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	requireExpires(t, testStore, key, 5*time.Second)
 
 	keys, err := testStore.Keys()
 	require.NoError(t, err)
@@ -103,10 +118,7 @@ func Test_Storage_Memory_Set_Long_Expiration_with_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 
-	time.Sleep(4000 * time.Millisecond)
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	requireExpires(t, testStore, key, 9*time.Second)
 
 	keys, err = testStore.Keys()
 	require.NoError(t, err)

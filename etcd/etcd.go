@@ -58,7 +58,17 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	lease, err := s.db.Grant(ctx, int64(exp.Seconds()))
+	// An expiration of 0 means the key never expires, so it must not be
+	// attached to a lease: etcd would raise the TTL to its own minimum and
+	// drop the key seconds later.
+	if exp <= 0 {
+		_, err := s.db.Put(ctx, key, string(val))
+		return err
+	}
+
+	// Leases have a one-second granularity. Round up, truncating would turn a
+	// sub-second expiration into a lease that etcd expires right away.
+	lease, err := s.db.Grant(ctx, ttlSeconds(exp))
 	if err != nil {
 		return err
 	}
@@ -69,6 +79,16 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	return nil
+}
+
+// ttlSeconds converts exp to whole seconds, rounding up so that an expiration
+// shorter than a second never becomes zero.
+func ttlSeconds(exp time.Duration) int64 {
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
+		secs++
+	}
+	return secs
 }
 
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {

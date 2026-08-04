@@ -293,3 +293,22 @@ func Benchmark_Etcd_SetAndDelete(b *testing.B) {
 	_ = testStore.Delete(key)
 	b.StartTimer()
 }
+
+func Test_Etcd_TTLSeconds(t *testing.T) {
+	tests := []struct {
+		name     string
+		exp      time.Duration
+		expected int64
+	}{
+		{name: "sub second rounds up", exp: 500 * time.Millisecond, expected: 1},
+		{name: "one nanosecond rounds up", exp: time.Nanosecond, expected: 1},
+		{name: "whole seconds", exp: 90 * time.Second, expected: 90},
+		{name: "fractional rounds up", exp: 1500 * time.Millisecond, expected: 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, ttlSeconds(tt.exp))
+		})
+	}
+}

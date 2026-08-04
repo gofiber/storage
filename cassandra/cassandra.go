@@ -231,8 +231,12 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	var ttl int
 
 	if exp > 0 {
-		// Specific expiration provided
-		ttl = int(exp.Seconds())
+		// Specific expiration provided. Cassandra TTLs are whole seconds and
+		// a TTL of 0 means "no TTL", so round up rather than truncating.
+		ttl = int(exp / time.Second)
+		if exp%time.Second != 0 {
+			ttl++
+		}
 		t := time.Now().Add(exp)
 		expiresAt = &t
 	} else if exp == 0 && s.ttl > 0 {
