@@ -16,6 +16,7 @@ type Storage struct {
 	db         map[string]entry
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
 	closeOnce  sync.Once
 }
 
@@ -34,6 +35,7 @@ func New(config ...Config) *Storage {
 		db:         make(map[string]entry),
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 
 	// Start garbage collector
@@ -142,11 +144,15 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
+		// Wait for the collector to return so it no longer touches the map.
+		<-s.stopped
 	})
 	return nil
 }
 
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	var expired []string

@@ -86,20 +86,23 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return nil
 	}
 
+	now := time.Now()
+
 	cache := CacheType{
 		Data:    val,
-		Created: time.Now().Unix(),
+		Created: now.Unix(),
 		Expires: 0,
 	}
 
 	if exp > 0 {
-		// Expiration is tracked with a one-second granularity, so round up:
-		// truncating would make any sub-second expiration immediate.
-		secs := int64(exp / time.Second)
-		if exp%time.Second != 0 {
-			secs++
+		// Expiration is tracked with a one-second granularity. Round the
+		// deadline up rather than deriving it from the truncated Created
+		// timestamp, so an entry is never dropped before it expires.
+		deadline := now.Add(exp)
+		cache.Expires = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			cache.Expires++
 		}
-		cache.Expires = cache.Created + secs
 	}
 
 	jsonString, err := json.Marshal(cache)

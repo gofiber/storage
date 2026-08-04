@@ -79,8 +79,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
 
-	// Ristretto applies writes asynchronously through a buffer. Wait for them
-	// to be applied so the value is visible to a Get that follows Set.
+	// Ristretto applies writes asynchronously through a buffer, so without
+	// this a Get right after Set would race the write and often miss. Wait
+	// blocks until the buffered write has been processed.
+	//
+	// Note that Ristretto is a cache with an admission policy: waiting makes
+	// the write visible if it is admitted, it does not make admission
+	// certain, and an entry may still be evicted at any later point.
 	s.cache.Wait()
 
 	return nil

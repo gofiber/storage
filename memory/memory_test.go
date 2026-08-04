@@ -238,7 +238,7 @@ func Test_Storage_Memory_Close_Twice(t *testing.T) {
 	require.NoError(t, testStore.Close())
 	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
-		_ = testStore.Close()
+		require.NoError(t, testStore.Close())
 	})
 }
 

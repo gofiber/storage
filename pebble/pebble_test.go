@@ -2,16 +2,33 @@ package pebble
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(Config{
-	Path:         "test.db",
-	WriteOptions: nil,
-})
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	// Keep the generated database out of the package directory.
+	dir, err := os.MkdirTemp("", "pebble-test")
+	if err != nil {
+		panic(err)
+	}
+
+	testStore = New(Config{
+		Path:         filepath.Join(dir, "test.db"),
+		WriteOptions: nil,
+	})
+
+	code := m.Run()
+
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
 
 func Test_Pebble_Set(t *testing.T) {
 	var (
@@ -60,11 +77,13 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
-
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// Expirations are rounded up to the next whole second, so the entry may
+	// survive for up to one second longer than requested.
+	require.Eventually(t, func() bool {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		return len(result) == 0
+	}, 4*time.Second, 100*time.Millisecond, "key should expire")
 }
 
 func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
@@ -73,15 +92,26 @@ func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	// Sub-second expirations are rounded up, they must not expire immediately.
-	err := testStore.Set(key, val, 20*time.Millisecond)
+	// Sub-second expirations are rounded up to the next whole second, they
+	// must not expire early, let alone immediately.
+	err := testStore.Set(key, val, 900*time.Millisecond)
 	require.NoError(t, err)
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Equal(t, val, result)
+	deadline := time.Now().Add(900 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		result, getErr := testStore.Get(key)
+		require.NoError(t, getErr)
+		require.Equal(t, val, result, "key expired before its expiration")
+		time.Sleep(20 * time.Millisecond)
+	}
 
 	require.NoError(t, testStore.Delete(key))
+}
+
+func Test_Pebble_ConfigDefault_NoArgs(t *testing.T) {
+	// configDefault used to call itself when given no config, which made
+	// New() overflow the stack.
+	require.Equal(t, ConfigDefault, configDefault())
 }
 
 func Test_Pebble_Get_Missing(t *testing.T) {

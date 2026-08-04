@@ -33,6 +33,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
+**Note:** Every entry is stored as a JSON envelope carrying the value and its expiration, so a value read directly through `Conn()` is the envelope rather than the raw payload. Raw values written by earlier versions of this driver are still read back verbatim.
+
 **Note:** LevelDB has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation

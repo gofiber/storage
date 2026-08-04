@@ -13,14 +13,22 @@ import (
 var testStore *Storage
 
 func TestMain(m *testing.M) {
+	// Keep the generated database out of the package directory.
+	dir, err := os.MkdirTemp("", "bbolt-test")
+	if err != nil {
+		panic(err)
+	}
+
 	testStore = New(Config{
-		Bucket: "fiber-bucket",
-		Reset:  true,
+		Database: filepath.Join(dir, "fiber.db"),
+		Bucket:   "fiber-bucket",
+		Reset:    true,
 	})
 
 	code := m.Run()
 
 	_ = testStore.Close()
+	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }
 

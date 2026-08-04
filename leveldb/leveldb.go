@@ -10,8 +10,19 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+// envelopeVersion identifies entries written by this driver. It is stored
+// under a deliberately unusual key so that a raw payload written by an older
+// version of this driver, which may itself be a JSON object, is never mistaken
+// for an envelope.
+const envelopeVersion = 1
+
+// resetBatchSize bounds how many deletions Reset buffers before flushing, so
+// that resetting a large database does not have to fit in memory.
+const resetBatchSize = 1000
+
 // data structure for storing items in the database
 type item struct {
+	Version  int       `json:"_fiber_storage_v"`
 	Value    []byte    `json:"value"`
 	ExpireAt time.Time `json:"expire_at"`
 }
@@ -21,7 +32,9 @@ type Storage struct {
 	db         *leveldb.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
 	closeOnce  sync.Once
+	closeErr   error
 }
 
 // New creates a new memory storage
@@ -37,6 +50,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 
 	go store.gc()
@@ -90,7 +104,7 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
-	data := item{Value: value}
+	data := item{Version: envelopeVersion, Value: value}
 	if exp != 0 {
 		data.ExpireAt = time.Now().Add(exp)
 	}
@@ -135,6 +149,14 @@ func (s *Storage) Reset() error {
 	batch := new(leveldb.Batch)
 	for iter.Next() {
 		batch.Delete(iter.Key())
+
+		if batch.Len() < resetBatchSize {
+			continue
+		}
+		if err := s.db.Write(batch, nil); err != nil {
+			return err
+		}
+		batch.Reset()
 	}
 
 	if err := iter.Error(); err != nil {
@@ -156,12 +178,17 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. It is safe to call Close more than once.
+// Close the memory storage. It is safe to call Close more than once, every
+// call reports the result of the single underlying close.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done) // GC stop
+		// Wait for the collector to return so it no longer writes to a
+		// database that is being closed.
+		<-s.stopped
+		s.closeErr = s.db.Close()
 	})
-	return s.db.Close()
+	return s.closeErr
 }
 
 // Return database client
@@ -172,13 +199,13 @@ func (s *Storage) Conn() *leveldb.DB {
 // decode reports whether data is an expiration envelope written by this driver
 // and, if so, returns it. Values stored by older versions of this driver are
 // raw payloads, which may themselves be valid JSON objects, so an envelope is
-// only accepted when it carries a value.
+// only accepted when it carries the version marker.
 func decode(data []byte) (item, bool) {
 	var stored item
 	if err := json.Unmarshal(data, &stored); err != nil {
 		return item{}, false
 	}
-	if stored.Value == nil {
+	if stored.Version != envelopeVersion {
 		return item{}, false
 	}
 	return stored, true
@@ -186,6 +213,8 @@ func decode(data []byte) (item, bool) {
 
 // gc is a helper function to clean up expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 
@@ -202,8 +231,15 @@ func (s *Storage) gc() {
 				if !ok {
 					continue
 				}
-				if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-					batch.Delete(iter.Key())
+				if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
+					continue
+				}
+
+				batch.Delete(iter.Key())
+
+				if batch.Len() >= resetBatchSize {
+					_ = s.db.Write(batch, nil)
+					batch.Reset()
 				}
 			}
 

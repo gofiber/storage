@@ -13,8 +13,9 @@ var ConfigDefault = Config{
 }
 
 func configDefault(config ...Config) Config {
+	// Return default config if nothing provided
 	if len(config) < 1 {
-		return configDefault(config...)
+		return ConfigDefault
 	}
 	cfg := config[0]
 	if cfg.Path == "" {

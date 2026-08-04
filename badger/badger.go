@@ -15,7 +15,9 @@ type Storage struct {
 	db         *badger.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
 	closeOnce  sync.Once
+	closeErr   error
 }
 
 // New creates a new memory storage
@@ -43,6 +45,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 
 	// Start garbage collector
@@ -143,15 +146,22 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. It is safe to call Close more than once.
+// Close the memory storage. It is safe to call Close more than once, every
+// call reports the result of the single underlying close.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
+		// Wait for the collector to finish any value log GC it started, it
+		// must not run against a database that is being closed.
+		<-s.stopped
+		s.closeErr = s.db.Close()
 	})
-	return s.db.Close()
+	return s.closeErr
 }
 
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 

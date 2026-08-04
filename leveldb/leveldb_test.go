@@ -3,6 +3,7 @@ package leveldb
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -343,8 +344,47 @@ func Test_Close_Twice(t *testing.T) {
 	}()
 
 	require.Nil(t, db.Close())
-	// A second Close must neither panic nor block.
+	// A second Close must neither panic nor block, and must report the same
+	// result as the first one.
 	require.NotPanics(t, func() {
-		_ = db.Close()
+		require.Nil(t, db.Close())
 	})
+}
+
+func Test_Get_LegacyRawValue(t *testing.T) {
+	db := New(Config{Path: "./testdb_legacy"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_legacy"))
+	}()
+
+	// Older versions of this driver stored values without an envelope. Such a
+	// value must be returned verbatim, even when it looks like an envelope.
+	legacy := []byte(`{"value":"aGk=","expire_at":"2100-01-01T00:00:00Z"}`)
+	require.Nil(t, db.Conn().Put([]byte("legacy"), legacy, nil))
+
+	result, err := db.Get("legacy")
+	require.Nil(t, err)
+	require.Equal(t, legacy, result)
+}
+
+func Test_Reset_LargerThanOneBatch(t *testing.T) {
+	db := New(Config{Path: "./testdb_reset_batches"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_reset_batches"))
+	}()
+
+	total := resetBatchSize + 10
+	for i := 0; i < total; i++ {
+		require.Nil(t, db.Set("key-"+strconv.Itoa(i), []byte("doe"), 0))
+	}
+
+	require.Nil(t, db.Reset())
+
+	for i := 0; i < total; i++ {
+		result, err := db.Get("key-" + strconv.Itoa(i))
+		require.Nil(t, err)
+		require.Zero(t, len(result))
+	}
 }

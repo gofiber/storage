@@ -180,9 +180,10 @@ func Test_Badger_Close_Twice(t *testing.T) {
 	store := newTestStore(t)
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor block on the done channel.
+	// A second Close must neither panic nor block on the done channel, and
+	// must report the same result as the first one.
 	require.NotPanics(t, func() {
-		_ = store.Close()
+		require.NoError(t, store.Close())
 	})
 }
 
