@@ -367,12 +367,35 @@ func Test_Get_LegacyEnvelope(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// The same envelope, already expired, must be reported as a miss.
+	// The same envelope, already expired, must be reported as a miss. It must
+	// not be deleted though: it is indistinguishable from a bare payload that
+	// happens to be the same JSON object.
 	expired := []byte(`{"value":"ZG9l","expire_at":"2000-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("expired"), expired, nil))
 
 	result, err = db.Get("expired")
 	require.Nil(t, err)
+	require.Zero(t, len(result))
+
+	stored, err := db.Conn().Get([]byte("expired"), nil)
+	require.Nil(t, err, "a legacy entry must not be deleted on a guess")
+	require.Equal(t, expired, stored)
+}
+
+func Test_Get_UnknownEnvelopeVersion(t *testing.T) {
+	db := New(Config{Path: "./testdb_unknown_version"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_unknown_version"))
+	}()
+
+	// An entry written by a newer version of this driver must be reported as
+	// an error rather than read as if it were a payload.
+	future := []byte(`{"_fiber_storage_v":99,"value":"ZG9l","expire_at":"0001-01-01T00:00:00Z"}`)
+	require.Nil(t, db.Conn().Put([]byte("future"), future, nil))
+
+	result, err := db.Get("future")
+	require.ErrorIs(t, err, errUnknownEnvelope)
 	require.Zero(t, len(result))
 }
 

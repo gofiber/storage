@@ -2,6 +2,7 @@ package memcache
 
 import (
 	"context"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -265,4 +266,8 @@ func Test_Memcache_Expiration_Conversion(t *testing.T) {
 	got := expiration(exp)
 	require.Greater(t, got, int32(memcachedRelativeExpirationLimit))
 	require.InDelta(t, time.Now().Add(exp).Unix(), int64(got), 5)
+
+	// An expiration beyond what a 32 bit field can hold is clamped rather
+	// than wrapped into a timestamp in the past.
+	require.Equal(t, int32(math.MaxInt32), expiration(200*365*24*time.Hour))
 }

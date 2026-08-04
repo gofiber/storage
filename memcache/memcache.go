@@ -2,6 +2,7 @@ package memcache
 
 import (
 	"context"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -98,7 +99,7 @@ const memcachedRelativeExpirationLimit = 60 * 60 * 24 * 30
 
 // expiration converts exp to the value memcached expects: 0 for no
 // expiration, whole seconds rounded up below the 30 day limit, and an
-// absolute Unix timestamp above it.
+// absolute Unix timestamp above it, clamped to what a 32 bit field can hold.
 func expiration(exp time.Duration) int32 {
 	if exp <= 0 {
 		return 0
@@ -112,7 +113,13 @@ func expiration(exp time.Duration) int32 {
 	}
 
 	if secs > memcachedRelativeExpirationLimit {
-		return int32(time.Now().Add(exp).Unix())
+		unix := time.Now().Add(exp).Unix()
+		if unix > math.MaxInt32 {
+			// The expiration field is 32 bit, this is the furthest point in
+			// the future memcached can express.
+			return math.MaxInt32
+		}
+		return int32(unix)
 	}
 
 	return int32(secs)

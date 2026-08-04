@@ -2,15 +2,28 @@ package ristretto
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
 )
 
+// errClosed is returned by every operation attempted after Close. Ristretto
+// panics or blocks forever when its buffers are used after the cache is
+// closed, so the storage refuses those calls instead of forwarding them.
+var errClosed = errors.New("ristretto: storage is closed")
+
 // Storage interface that is implemented by storage providers.
 type Storage struct {
 	cache       *ristretto.Cache
 	defaultCost int64
+
+	// mu guards the cache against a concurrent Close. Operations hold it for
+	// reading, Close holds it for writing, so no operation can be in flight
+	// while the cache is being torn down.
+	mu     sync.RWMutex
+	closed bool
 }
 
 // New creates a new storage.
@@ -38,6 +51,13 @@ func New(config ...Config) *Storage {
 func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, errClosed
 	}
 
 	item, found := s.cache.Get(key)
@@ -77,6 +97,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	valCopy := make([]byte, len(val))
 	copy(valCopy, val)
 
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
 
 	// Ristretto applies writes asynchronously through a buffer, so without
@@ -104,6 +131,14 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	s.cache.Del(key)
 	return nil
 }
@@ -118,6 +153,13 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	s.cache.Clear()
 	return nil
 }
@@ -131,8 +173,17 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 }
 
 // Close closes the storage and will stop any running garbage
-// collectors and open connections.
+// collectors and open connections. It is safe to call Close more than once,
+// and it waits for any operation already in flight to finish.
 func (s *Storage) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
 	s.cache.Close()
 	return nil
 }

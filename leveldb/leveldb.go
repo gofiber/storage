@@ -16,6 +16,35 @@ import (
 // for an envelope.
 const envelopeVersion = 1
 
+// versionField is the JSON field envelopeVersion is stored under.
+const versionField = "_fiber_storage_v"
+
+// errUnknownEnvelope is returned when an entry carries an envelope version
+// this driver does not understand, which happens after a downgrade.
+var errUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
+
+// envelopeKind describes how an entry read from the database is encoded.
+type envelopeKind int
+
+const (
+	// envelopeNone means the entry has no envelope: a bare payload, as
+	// written by earlier versions of this driver for keys with no expiration.
+	envelopeNone envelopeKind = iota
+
+	// envelopeCurrent means the entry carries this driver's envelope.
+	envelopeCurrent
+
+	// envelopeLegacy means the entry has the shape of the unversioned
+	// envelope earlier versions wrote for keys with an expiration. That shape
+	// is indistinguishable from a payload that happens to be the same JSON
+	// object, so such an entry is never deleted on the strength of the guess.
+	envelopeLegacy
+
+	// envelopeUnknown means the entry carries an envelope version this driver
+	// does not understand.
+	envelopeUnknown
+)
+
 // resetBatchSize bounds how many deletions Reset buffers before flushing, so
 // that resetting a large database does not have to fit in memory.
 const resetBatchSize = 1000
@@ -73,21 +102,31 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	stored, ok := decode(data)
-	if !ok {
+	stored, kind := decode(data)
+
+	switch kind {
+	case envelopeNone:
 		// Entry written by an older version of this driver, which stored
 		// values without an expiration envelope.
 		return data, nil
+	case envelopeUnknown:
+		return nil, errUnknownEnvelope
+	case envelopeCurrent, envelopeLegacy:
 	}
 
-	if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
+	if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
+		return stored.Value, nil
+	}
+
+	// Only reclaim entries this driver is sure it wrote, a legacy envelope may
+	// really be a payload that looks like one.
+	if kind == envelopeCurrent {
 		if err := s.Delete(key); err != nil {
 			return nil, err
 		}
-		return nil, nil
 	}
 
-	return stored.Value, nil
+	return nil, nil
 }
 
 // GetWithContext gets value by key, aborting if ctx is already done.
@@ -196,44 +235,36 @@ func (s *Storage) Conn() *leveldb.DB {
 	return s.db
 }
 
-// decode reports whether data is an expiration envelope and, if so, returns
-// it. Entries written by this version carry a version marker. Entries written
-// by earlier versions do not: those stored a bare payload when no expiration
-// was given and an unmarked envelope otherwise, so an unmarked document is
-// only read as an envelope when it has exactly the two fields such an envelope
-// had. A payload that is itself a JSON object is returned unchanged.
-func decode(data []byte) (item, bool) {
-	var stored item
-	if err := json.Unmarshal(data, &stored); err != nil {
-		return item{}, false
-	}
-
-	if stored.Version == envelopeVersion {
-		return stored, true
-	}
-
-	if stored.Version != 0 || !isLegacyEnvelope(data) {
-		return item{}, false
-	}
-
-	return stored, true
-}
-
-// isLegacyEnvelope reports whether data has exactly the shape of the
-// unversioned envelope written by earlier versions of this driver.
-func isLegacyEnvelope(data []byte) bool {
+// decode classifies an entry read from the database and, when it is an
+// envelope this driver can read, returns its contents.
+func decode(data []byte) (item, envelopeKind) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
-		return false
-	}
-	if len(fields) != 2 {
-		return false
+		return item{}, envelopeNone
 	}
 
-	_, hasValue := fields["value"]
-	_, hasExpireAt := fields["expire_at"]
+	var stored item
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return item{}, envelopeNone
+	}
 
-	return hasValue && hasExpireAt
+	if _, versioned := fields[versionField]; versioned {
+		if stored.Version != envelopeVersion {
+			return item{}, envelopeUnknown
+		}
+		return stored, envelopeCurrent
+	}
+
+	// The unversioned envelope had exactly these two fields.
+	if len(fields) == 2 {
+		_, hasValue := fields["value"]
+		_, hasExpireAt := fields["expire_at"]
+		if hasValue && hasExpireAt {
+			return stored, envelopeLegacy
+		}
+	}
+
+	return item{}, envelopeNone
 }
 
 // gc is a helper function to clean up expired keys
@@ -252,8 +283,10 @@ func (s *Storage) gc() {
 			batch := new(leveldb.Batch)
 
 			for iter.Next() {
-				stored, ok := decode(iter.Value())
-				if !ok {
+				// Only reclaim entries this driver is sure it wrote, see the
+				// envelopeLegacy comment.
+				stored, kind := decode(iter.Value())
+				if kind != envelopeCurrent {
 					continue
 				}
 				if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
