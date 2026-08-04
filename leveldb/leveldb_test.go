@@ -351,6 +351,31 @@ func Test_Close_Twice(t *testing.T) {
 	})
 }
 
+func Test_Get_LegacyEnvelope(t *testing.T) {
+	db := New(Config{Path: "./testdb_legacy_envelope"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_legacy_envelope"))
+	}()
+
+	// Envelope written by an earlier version of this driver, which did not
+	// carry a version marker.
+	legacy := []byte(`{"value":"ZG9l","expire_at":"2100-01-01T00:00:00Z"}`)
+	require.Nil(t, db.Conn().Put([]byte("legacy"), legacy, nil))
+
+	result, err := db.Get("legacy")
+	require.Nil(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The same envelope, already expired, must be reported as a miss.
+	expired := []byte(`{"value":"ZG9l","expire_at":"2000-01-01T00:00:00Z"}`)
+	require.Nil(t, db.Conn().Put([]byte("expired"), expired, nil))
+
+	result, err = db.Get("expired")
+	require.Nil(t, err)
+	require.Zero(t, len(result))
+}
+
 func Test_Get_LegacyRawValue(t *testing.T) {
 	db := New(Config{Path: "./testdb_legacy"})
 	defer func() {
@@ -358,14 +383,19 @@ func Test_Get_LegacyRawValue(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_legacy"))
 	}()
 
-	// Older versions of this driver stored values without an envelope. Such a
-	// value must be returned verbatim, even when it looks like an envelope.
-	legacy := []byte(`{"value":"aGk=","expire_at":"2100-01-01T00:00:00Z"}`)
-	require.Nil(t, db.Conn().Put([]byte("legacy"), legacy, nil))
+	// Older versions of this driver stored values with no expiration without
+	// an envelope. A raw JSON object must be returned verbatim.
+	for _, raw := range [][]byte{
+		[]byte(`{"value":"aGk="}`),
+		[]byte(`{"foo":"bar"}`),
+		[]byte(`{"value":"aGk=","expire_at":"2100-01-01T00:00:00Z","extra":1}`),
+	} {
+		require.Nil(t, db.Conn().Put([]byte("legacy"), raw, nil))
 
-	result, err := db.Get("legacy")
-	require.Nil(t, err)
-	require.Equal(t, legacy, result)
+		result, err := db.Get("legacy")
+		require.Nil(t, err)
+		require.Equal(t, raw, result)
+	}
 }
 
 func Test_Reset_LargerThanOneBatch(t *testing.T) {

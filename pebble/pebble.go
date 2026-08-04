@@ -10,6 +10,10 @@ import (
 	"github.com/cockroachdb/pebble"
 )
 
+// resetBatchSize bounds how many deletions Reset buffers before committing, so
+// that resetting a large database does not have to fit in memory.
+const resetBatchSize = 1000
+
 type Storage struct {
 	db           *pebble.DB
 	writeOptions *pebble.WriteOptions
@@ -142,28 +146,46 @@ func (s *Storage) Reset() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = iter.Close()
+	}()
 
 	batch := s.db.NewBatch()
 	defer func() {
 		_ = batch.Close()
 	}()
 
+	// Commit in bounded chunks, a database may hold more keys than fit in
+	// memory. The iterator reads a consistent snapshot, so the committed
+	// deletions do not disturb it.
+	commit := func() error {
+		if batch.Empty() {
+			return nil
+		}
+		if err := batch.Commit(s.writeOptions); err != nil {
+			return err
+		}
+		batch.Reset()
+		return nil
+	}
+
 	for iter.First(); iter.Valid(); iter.Next() {
 		if err := batch.Delete(iter.Key(), nil); err != nil {
-			_ = iter.Close()
+			return err
+		}
+		if batch.Count() < resetBatchSize {
+			continue
+		}
+		if err := commit(); err != nil {
 			return err
 		}
 	}
 
-	if err := iter.Close(); err != nil {
+	if err := iter.Error(); err != nil {
 		return err
 	}
 
-	if batch.Empty() {
-		return nil
-	}
-
-	return batch.Commit(s.writeOptions)
+	return commit()
 }
 
 // ResetWithContext resets storage, aborting if ctx is already done.

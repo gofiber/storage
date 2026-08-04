@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -169,6 +170,21 @@ func Test_Pebble_WithContext_Canceled(t *testing.T) {
 
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Pebble_Reset_LargerThanOneBatch(t *testing.T) {
+	total := resetBatchSize + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, testStore.Set("key-"+strconv.Itoa(i), []byte("doe"), 0))
+	}
+
+	require.NoError(t, testStore.Reset())
+
+	for i := 0; i < total; i++ {
+		result, err := testStore.Get("key-" + strconv.Itoa(i))
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	}
 }
 
 func Test_Pebble_Close(t *testing.T) {

@@ -196,19 +196,44 @@ func (s *Storage) Conn() *leveldb.DB {
 	return s.db
 }
 
-// decode reports whether data is an expiration envelope written by this driver
-// and, if so, returns it. Values stored by older versions of this driver are
-// raw payloads, which may themselves be valid JSON objects, so an envelope is
-// only accepted when it carries the version marker.
+// decode reports whether data is an expiration envelope and, if so, returns
+// it. Entries written by this version carry a version marker. Entries written
+// by earlier versions do not: those stored a bare payload when no expiration
+// was given and an unmarked envelope otherwise, so an unmarked document is
+// only read as an envelope when it has exactly the two fields such an envelope
+// had. A payload that is itself a JSON object is returned unchanged.
 func decode(data []byte) (item, bool) {
 	var stored item
 	if err := json.Unmarshal(data, &stored); err != nil {
 		return item{}, false
 	}
-	if stored.Version != envelopeVersion {
+
+	if stored.Version == envelopeVersion {
+		return stored, true
+	}
+
+	if stored.Version != 0 || !isLegacyEnvelope(data) {
 		return item{}, false
 	}
+
 	return stored, true
+}
+
+// isLegacyEnvelope reports whether data has exactly the shape of the
+// unversioned envelope written by earlier versions of this driver.
+func isLegacyEnvelope(data []byte) bool {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return false
+	}
+	if len(fields) != 2 {
+		return false
+	}
+
+	_, hasValue := fields["value"]
+	_, hasExpireAt := fields["expire_at"]
+
+	return hasValue && hasExpireAt
 }
 
 // gc is a helper function to clean up expired keys
