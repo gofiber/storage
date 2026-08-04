@@ -18,8 +18,8 @@ const resetBatchSize = 1000
 type Storage struct {
 	db           *pebble.DB
 	writeOptions *pebble.WriteOptions
-	closeOnce    sync.Once
-	closeErr     error
+	closeMu      sync.Mutex
+	closed       bool
 }
 
 type CacheType struct {
@@ -214,13 +214,23 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the database. It is safe to call Close more than once, every
-// call reports the result of the single underlying close.
+// Close closes the database. It is safe to call Close more than once: once the close has succeeded
+// further calls do nothing, and a close that fails is reported so the
+// caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closeErr = s.db.Close()
-	})
-	return s.closeErr
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.db.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Conn returns the database client

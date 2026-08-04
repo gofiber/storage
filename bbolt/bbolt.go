@@ -22,10 +22,10 @@ var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 // ignored and stored entries live until they are deleted or the storage is
 // reset.
 type Storage struct {
-	conn      *bbolt.DB
-	bucket    string
-	closeOnce sync.Once
-	closeErr  error
+	conn    *bbolt.DB
+	bucket  string
+	closeMu sync.Mutex
+	closed  bool
 }
 
 // New creates a new storage
@@ -180,13 +180,23 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. It is safe to call Close more than once, every call
-// reports the result of the single underlying close.
+// Close the database. It is safe to call Close more than once: once the close has succeeded
+// further calls do nothing, and a close that fails is reported so the
+// caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closeErr = s.conn.Close()
-	})
-	return s.closeErr
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.conn.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Conn returns the database client

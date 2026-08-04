@@ -14,13 +14,14 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db        *surrealdb.DB
-	table     string
-	stopGC    chan struct{}
-	stopped   chan struct{}
-	interval  time.Duration
-	closeOnce sync.Once
-	closeErr  error
+	db       *surrealdb.DB
+	table    string
+	stopGC   chan struct{}
+	stopped  chan struct{}
+	interval time.Duration
+	stopOnce sync.Once
+	closeMu  sync.Mutex
+	closed   bool
 }
 
 // model represents a key-value storage record used in SurrealDB.
@@ -184,18 +185,33 @@ func (s *Storage) Reset() error {
 
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
+	// Stopping the collector happens once, even if the close below fails and
+	// the caller tries again.
+	s.stopOnce.Do(func() {
 		close(s.stopGC)
 		// Wait for the collector to finish any sweep it started, it must not
 		// run against a database that is being closed.
 		<-s.stopped
-		// Bounded, so a stuck connection cannot hang the caller: the interface
-		// gives Close no context of its own.
-		ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
-		defer cancel()
-		s.closeErr = s.db.Close(ctx)
 	})
-	return s.closeErr
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Bounded, so a stuck connection cannot hang the caller: the interface
+	// gives Close no context of its own.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Close(ctx); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Conn returns the underlying SurrealDB client

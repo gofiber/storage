@@ -2,6 +2,7 @@ package rueidis
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/redis/rueidis"
@@ -11,7 +12,8 @@ var cacheTTL = time.Second
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db rueidis.Client
+	db        rueidis.Client
+	closeOnce sync.Once
 }
 
 // New creates a new rueidis storage using context.Background() for initialization.
@@ -73,14 +75,20 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the client opened above rather than leaking it when a later
+	// step fails.
+	closeOwned := func() { db.Close() }
+
 	// Test connection
 	if err := db.Do(ctx, db.B().Ping().Build()).Error(); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
 	// Empty collection if Clear is true
 	if cfg.Reset {
 		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -113,11 +121,19 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	if exp > 0 {
-		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
-	} else {
+	if exp <= 0 {
 		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
 	}
+
+	// Ex truncates to whole seconds, which turns a sub-second expiration into
+	// EX 0 and makes the server reject the command. PX carries the expiration
+	// exactly, rounded up so it can never reach zero either.
+	ms := int64(exp / time.Millisecond)
+	if exp%time.Millisecond != 0 {
+		ms++
+	}
+
+	return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Px(time.Duration(ms)*time.Millisecond).Build()).Error()
 }
 
 // Set sets key with value
@@ -149,8 +165,12 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// Close the storage. It is safe to call Close more than once, the client is
+// closed only on the first call.
 func (s *Storage) Close() error {
-	s.db.Close()
+	s.closeOnce.Do(func() {
+		s.db.Close()
+	})
 	return nil
 }
 

@@ -15,8 +15,8 @@ type Storage struct {
 	session driver.Conn
 	table   string
 
-	closeOnce sync.Once
-	closeErr  error
+	closeMu sync.Mutex
+	closed  bool
 }
 
 // New returns a new [*Storage] given a [Config], using context.Background() for initialization.
@@ -157,11 +157,21 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the connection. It is safe to call Close more than once, every
-// call reports the result of the single underlying close.
+// Close closes the connection. It is safe to call Close more than once: once the close has succeeded
+// further calls do nothing, and a close that fails is reported so the
+// caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closeErr = s.session.Close()
-	})
-	return s.closeErr
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.session.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }

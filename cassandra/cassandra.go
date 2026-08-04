@@ -361,10 +361,9 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the storage connection.
-// This method is not thread-safe and should not be called concurrently with other methods.
-// Close the storage. It is safe to call Close more than once, the session is
-// closed only on the first call: gocql panics on a double close.
+// Close closes the storage connection. It is safe to call Close more than
+// once, the session is closed only on the first call: gocql panics on a
+// double close.
 //
 // It returns an error so that *Storage satisfies the storage.Storage
 // interface, as this driver's own documentation already stated; gocql's own

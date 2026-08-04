@@ -18,8 +18,9 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
-	closeOnce  sync.Once
-	closeErr   error
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	sqlSelect string
 	sqlInsert string
@@ -226,21 +227,34 @@ func (s *Storage) Reset() error {
 // Close the database
 // Close stops the garbage collector and closes the database, unless the
 // connection was supplied through Config.Db, which stays the caller's to
-// close. It is safe to call Close more than once, every call reports the
-// result of the single underlying close.
+// close. It is safe to call Close more than once: once the close has
+// succeeded further calls do nothing, and a close that fails is reported so
+// the caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
+	// Stopping the collector happens once, even if the close below fails and
+	// the caller tries again.
+	s.stopOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a database that is being closed.
 		<-s.stopped
-		// A caller-supplied connection stays the caller's to close, other
-		// parts of their application may still be using it.
-		if s.ownsDB {
-			s.closeErr = s.db.Close()
-		}
 	})
-	return s.closeErr
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	// A caller-supplied connection stays the caller's to close, other parts of
+	// their application may still be using it.
+	if s.closed || !s.ownsDB {
+		return nil
+	}
+
+	if err := s.db.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Return database client

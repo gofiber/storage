@@ -16,8 +16,9 @@ type Storage struct {
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
-	closeOnce  sync.Once
-	closeErr   error
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	sqlSelect string
 	sqlInsert string
@@ -179,17 +180,31 @@ func (s *Storage) Reset() error {
 
 // Close the database
 // Close stops the garbage collector and closes the database. It is safe to
-// call Close more than once, every call reports the result of the single
-// underlying close.
+// call Close more than once: once the close has succeeded further calls do
+// nothing, and a close that fails is reported so the caller can try again.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
+	// Stopping the collector happens once, even if the close below fails and
+	// the caller tries again.
+	s.stopOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to finish any sweep it started, it must
 		// not run against a database that is being closed.
 		<-s.stopped
-		s.closeErr = s.db.Close()
 	})
-	return s.closeErr
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.db.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // gcTicker starts the gc ticker
