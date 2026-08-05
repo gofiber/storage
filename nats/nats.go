@@ -195,31 +195,42 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
-	v, err := kv.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get: %w", err)
+	data, expired, revision, err := read(ctx, kv, key)
+	if err != nil || data == nil {
+		return nil, err
 	}
 
-	e := entry{}
-	if err = gob.NewDecoder(bytes.NewBuffer(v.Value())).Decode(&e); err != nil {
-		// A value this driver cannot decode is a real failure. Reporting it as
-		// an expiry hid the error and deleted the data along with it.
-		return nil, fmt.Errorf("decode: %w", err)
-	}
-
-	// Expiry == 0 means the entry never expires (see SetWithContext).
-	if e.Expiry != 0 && e.Expiry <= time.Now().Unix() {
+	if expired {
 		// Reclaim it, conditional on the revision this read saw: there is no
 		// collector for this driver, and an unconditional delete would drop a
 		// value a concurrent Set had already written.
-		_ = kv.Delete(ctx, key, jetstream.LastRevision(v.Revision()))
+		_ = kv.Delete(ctx, key, jetstream.LastRevision(revision))
 		return nil, nil
 	}
 
-	return e.Data, nil
+	return data, nil
+}
+
+// read fetches key and reports its value, whether it has expired, and the
+// revision it was read at. A missing key yields a nil value and no error.
+func read(ctx context.Context, kv jetstream.KeyValue, key string) (data []byte, expired bool, revision uint64, err error) {
+	v, err := kv.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, false, 0, nil
+		}
+		return nil, false, 0, fmt.Errorf("get: %w", err)
+	}
+
+	e := entry{}
+	if err := gob.NewDecoder(bytes.NewBuffer(v.Value())).Decode(&e); err != nil {
+		// A value this driver cannot decode is a real failure. Reporting it as
+		// an expiry hid the error and deleted the data along with it.
+		return nil, false, 0, fmt.Errorf("decode: %w", err)
+	}
+
+	// Expiry == 0 means the entry never expires (see SetWithContext).
+	return e.Data, e.Expiry != 0 && e.Expiry <= time.Now().Unix(), v.Revision(), nil
 }
 
 // Get value by key
@@ -372,9 +383,10 @@ func (s *Storage) Keys() ([]string, error) {
 	var keys []string
 	for key := range keyLister.Keys() {
 		// An expired entry is still in the bucket until something reclaims it,
-		// so filter it out rather than reporting a key Get will miss on.
-		val, err := s.GetWithContext(context.Background(), key)
-		if err != nil || len(val) == 0 {
+		// so filter it out rather than reporting a key Get will miss on. This
+		// only reads: listing keys must not delete any.
+		data, expired, _, err := read(context.Background(), kv, key)
+		if err != nil || expired || len(data) == 0 {
 			continue
 		}
 		keys = append(keys, key)
