@@ -139,8 +139,10 @@ func (s *Storage) createSchema(schemaKey *aerospike.Key, version int, descriptio
 		"description": description,
 	}
 
-	// Never expire the schema info
-	writePolicy := aerospike.NewWritePolicy(0, 0)
+	// Never expire the schema info. A TTL of zero is the namespace default,
+	// not "never", so on a namespace with one configured the bookkeeping
+	// quietly expired and its history was lost.
+	writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 
 	// Store in Aerospike
 	err := s.client.Put(writePolicy, schemaKey, bins)
@@ -171,8 +173,8 @@ func (s *Storage) updateSchema(schemaKey *aerospike.Key, version int, descriptio
 		"description": description,
 	}
 
-	// Never expire the schema info
-	writePolicy := aerospike.NewWritePolicy(0, 0)
+	// Never expire the schema info, see createSchema.
+	writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 
 	// Store in Aerospike
 	err := s.client.Put(writePolicy, schemaKey, bins)
@@ -323,13 +325,20 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	// The scan returns records by digest, not by user key, so the record to
+	// keep is identified the same way.
+	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, schemaInfoKey)
+	if err != nil {
+		return err
+	}
+
 	// Use ScanAll which returns a Recordset
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
 
-	recordset, err := s.client.ScanAll(scanPolicy, s.namespace, s.setName)
-	if err != nil {
-		return err
+	recordset, scanErr := s.client.ScanAll(scanPolicy, s.namespace, s.setName)
+	if scanErr != nil {
+		return scanErr
 	}
 
 	// Ensure recordset is closed when we're done
@@ -352,7 +361,11 @@ func (s *Storage) Reset() error {
 
 		// Leave this driver's own bookkeeping in place: wiping it made the
 		// next New believe the schema had never been created.
-		if value, ok := result.Record.Key.Value().GetObject().(string); ok && value == schemaInfoKey {
+		//
+		// Compared by digest rather than by user key: a write policy does not
+		// send the key back by default, so the value is nil here and reading
+		// it panicked.
+		if result.Record.Key.Equals(schemaKey) {
 			continue
 		}
 

@@ -241,6 +241,11 @@ func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
 }
 
 // expired reports whether a stored value is past its expiration as of now.
+//
+// A value this driver cannot decode is reported as not expired, so the
+// collector leaves it alone. Get surfaces it as an error instead: deleting
+// data because it could not be parsed would destroy whatever the caller could
+// still recover from it.
 func expired(value []byte, now int64) bool {
 	var cache CacheType
 	if err := json.Unmarshal(value, &cache); err != nil {
