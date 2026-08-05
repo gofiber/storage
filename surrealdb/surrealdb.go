@@ -3,7 +3,6 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -93,8 +92,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext returns the value by key, using ctx for the query.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
-		return nil, errors.New("key is required")
+		return nil, nil
 	}
 
 	recordID := models.NewRecordID(s.table, key)
@@ -127,8 +127,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // SetWithContext sets a value by key with optional expiration, using ctx for
 // the query.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
-		return errors.New("key is required")
+		return nil
 	}
 
 	var expiresAt int64
@@ -158,8 +159,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext removes a key from storage, using ctx for the query.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
-		return errors.New("key is required")
+		return nil
 	}
 
 	_, err := surrealdb.Delete[model](ctx, s.db, models.NewRecordID(s.table, key))

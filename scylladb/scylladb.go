@@ -180,6 +180,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
+	// The storage interface documents an empty key or value as ignored
+	// without error; storing one persisted a row nothing could read back.
+	if len(key) == 0 || len(value) == 0 {
+		return nil
+	}
+
 	var expiration int
 	if expire > 0 {
 		// ScyllaDB TTLs are whole seconds and a TTL of 0 means "no TTL", so

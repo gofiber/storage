@@ -33,6 +33,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *pebble.DB
 ```
 
+**Note:** Every method returns `ErrClosed` once `Close` has been called, rather than reaching into a closed database, which Pebble panics on.
+
 **Note:** `Reset` deletes in bounded chunks so that resetting a large database does not have to fit in memory. A reset that spans more than one chunk is therefore not atomic: a concurrent reader can observe the database part way through it.
 
 **Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second.

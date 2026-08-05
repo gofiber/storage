@@ -209,7 +209,24 @@ func Test_Pebble_Close_Twice(t *testing.T) {
 }
 
 func Test_Pebble_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	// A store of its own: closing the shared one would break the benchmarks
+	// below, which keep using it.
+	dir, err := os.MkdirTemp("", "pebble-close")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db")})
+
+	require.Nil(t, store.Close())
+
+	// Operations after Close are refused rather than panicking inside Pebble.
+	_, err = store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
 }
 
 func Test_Pebble_Conn(t *testing.T) {

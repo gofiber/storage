@@ -15,11 +15,20 @@ import (
 // that resetting a large database does not have to fit in memory.
 const resetBatchSize = 1000
 
+// ErrClosed is returned by every operation attempted after Close. Pebble
+// panics when a closed database is used, so the storage refuses those calls
+// instead of forwarding them.
+var ErrClosed = errors.New("pebble: storage is closed")
+
 type Storage struct {
 	db           *pebble.DB
 	writeOptions *pebble.WriteOptions
-	closeMu      sync.Mutex
-	closed       bool
+
+	// mu guards the database against a concurrent Close. Operations hold it
+	// for reading and Close for writing, so none is in flight while the
+	// database is torn down: Pebble panics when a closed one is used.
+	mu     sync.RWMutex
+	closed bool
 }
 
 type CacheType struct {
@@ -51,6 +60,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, ErrClosed
+	}
+
 	data, closer, err := s.db.Get([]byte(key))
 	if err != nil {
 		// A missing key is not an error, every other failure is.
@@ -75,10 +91,12 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expires > 0 && cache.Expires <= secs {
-		// Report the miss without deleting. Pebble offers no
-		// compare-and-delete, so removing the key here would drop a value a
-		// concurrent Set had already written.
-		return nil, nil
+		// This driver has no collector, so a read is the only thing that
+		// reclaims an expired entry and the delete has to stay. Pebble offers
+		// no compare-and-delete, so a Set landing between the read above and
+		// this delete loses its write; that window is microseconds wide,
+		// against an otherwise unbounded accumulation of dead entries.
+		return nil, s.db.Delete([]byte(key), s.writeOptions)
 	}
 
 	return cache.Data, nil
@@ -121,6 +139,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if err != nil {
 		return err
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return ErrClosed
+	}
+
 	return s.db.Set([]byte(key), jsonString, s.writeOptions)
 }
 
@@ -137,6 +163,14 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return ErrClosed
+	}
+
 	return s.db.Delete([]byte(key), s.writeOptions)
 }
 
@@ -150,6 +184,13 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset deletes every key in the database
 func (s *Storage) Reset() (err error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return ErrClosed
+	}
+
 	iter, iterErr := s.db.NewIter(nil)
 	if iterErr != nil {
 		return iterErr
@@ -164,7 +205,9 @@ func (s *Storage) Reset() (err error) {
 
 	batch := s.db.NewBatch()
 	defer func() {
-		_ = batch.Close()
+		if closeErr := batch.Close(); err == nil {
+			err = closeErr
+		}
 	}()
 
 	// Commit in bounded chunks, a database may hold more keys than fit in
@@ -221,8 +264,8 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // further calls do nothing, and a close that fails is reported so the
 // caller can try again.
 func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.closed {
 		return nil

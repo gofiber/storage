@@ -212,8 +212,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Expiry == 0 means the entry never expires (see SetWithContext).
 	if e.Expiry != 0 && e.Expiry <= time.Now().Unix() {
-		// Report the miss without deleting: an unconditional delete here would
-		// drop a value a concurrent Set had already written.
+		// Reclaim it, conditional on the revision this read saw: there is no
+		// collector for this driver, and an unconditional delete would drop a
+		// value a concurrent Set had already written.
+		_ = kv.Delete(ctx, key, jetstream.LastRevision(v.Revision()))
 		return nil, nil
 	}
 
@@ -369,6 +371,12 @@ func (s *Storage) Keys() ([]string, error) {
 
 	var keys []string
 	for key := range keyLister.Keys() {
+		// An expired entry is still in the bucket until something reclaims it,
+		// so filter it out rather than reporting a key Get will miss on.
+		val, err := s.GetWithContext(context.Background(), key)
+		if err != nil || len(val) == 0 {
+			continue
+		}
 		keys = append(keys, key)
 	}
 	_ = keyLister.Stop()
