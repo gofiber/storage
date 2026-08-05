@@ -309,10 +309,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// Delete the expired key
-		if err := s.Delete(key); err != nil {
-			return nil, err
-		}
+		// Report the expiry without deleting: an unconditional delete here
+		// would drop a value a concurrent Set had already written, and
+		// Cassandra reclaims the row itself through the TTL that Set stores
+		// alongside it.
 		return nil, ErrKeyExpired
 	}
 

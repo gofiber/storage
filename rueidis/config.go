@@ -175,7 +175,10 @@ func configDefault(config ...Config) Config {
 	if userConfig.PipelineMultiplex != 0 {
 		cfg.PipelineMultiplex = userConfig.PipelineMultiplex
 	}
-	if userConfig.CacheTTL != time.Second {
+	// Only a positive value overrides: the check used to be "!= time.Second",
+	// so a caller who left CacheTTL unset had it forced to zero and lost
+	// client-side caching entirely.
+	if userConfig.CacheTTL > 0 {
 		cfg.CacheTTL = userConfig.CacheTTL
 	}
 	if userConfig.DisableRetry {
@@ -186,6 +189,10 @@ func configDefault(config ...Config) Config {
 		cfg.DisableCache = true
 	}
 
+	// Note: AlwaysPipelining defaults to true and this scheme reads a zero
+	// value as "not set", so it cannot be turned off here. Changing that means
+	// either flipping the default or adding a field, both of which alter
+	// behaviour for existing callers.
 	if userConfig.AlwaysPipelining {
 		cfg.AlwaysPipelining = true
 	}

@@ -75,7 +75,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expires > 0 && cache.Expires <= secs {
-		return nil, s.db.Delete([]byte(key), s.writeOptions)
+		// Report the miss without deleting. Pebble offers no
+		// compare-and-delete, so removing the key here would drop a value a
+		// concurrent Set had already written.
+		return nil, nil
 	}
 
 	return cache.Data, nil

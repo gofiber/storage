@@ -212,7 +212,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Expiry == 0 means the entry never expires (see SetWithContext).
 	if e.Expiry != 0 && e.Expiry <= time.Now().Unix() {
-		_ = kv.Delete(ctx, key)
+		// Report the miss without deleting: an unconditional delete here would
+		// drop a value a concurrent Set had already written.
 		return nil, nil
 	}
 

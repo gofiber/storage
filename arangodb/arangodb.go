@@ -124,15 +124,17 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		gcInterval:  cfg.GCInterval,
-		db:          database,
-		collection:  collection,
-		client:      client,
-		connection:  conn,
-		config:      cfg,
-		done:        make(chan struct{}),
-		stopped:     make(chan struct{}),
-		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
+		gcInterval: cfg.GCInterval,
+		db:         database,
+		collection: collection,
+		client:     client,
+		connection: conn,
+		config:     cfg,
+		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
+		// doc.exp == 0 means the entry never expires, so it has to be excluded:
+		// without that the sweep matched every such key and deleted the lot.
+		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
 	}
 
 	// Start garbage collector
