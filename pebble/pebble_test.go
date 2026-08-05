@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/cockroachdb/pebble"
 )
 
 var testStore *Storage
@@ -270,4 +272,31 @@ func Benchmark_Pebble_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Pebble_GC_Reclaims_Expired(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: 100 * time.Millisecond})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, store.Set("john", []byte("doe"), time.Second))
+
+	// Get reports the miss without deleting, so the entry stays until the
+	// collector reclaims it.
+	deadline := time.Now().Add(6 * time.Second)
+	for {
+		_, closer, getErr := store.Conn().Get([]byte("john"))
+		if getErr != nil {
+			require.ErrorIs(t, getErr, pebble.ErrNotFound)
+			break
+		}
+		require.NoError(t, closer.Close())
+		require.False(t, time.Now().After(deadline), "collector should reclaim the key")
+		time.Sleep(100 * time.Millisecond)
+	}
 }

@@ -80,12 +80,18 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if _, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID)); err != nil {
 		// Nothing is attached to the lease, so revoke it rather than leaving
 		// it to occupy the server until it expires on its own.
-		_, _ = s.db.Revoke(context.WithoutCancel(ctx), lease.ID)
+		revokeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revokeTimeout)
+		defer cancel()
+		_, _ = s.db.Revoke(revokeCtx, lease.ID)
 		return err
 	}
 
 	return nil
 }
+
+// revokeTimeout bounds the cleanup revoke of a lease whose Put failed, so it
+// cannot hang the caller on a server that has stopped responding.
+const revokeTimeout = 5 * time.Second
 
 // ttlSeconds converts exp to whole seconds, rounding up so that an expiration
 // shorter than a second never becomes zero.

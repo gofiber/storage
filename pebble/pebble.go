@@ -23,6 +23,10 @@ var ErrClosed = errors.New("pebble: storage is closed")
 type Storage struct {
 	db           *pebble.DB
 	writeOptions *pebble.WriteOptions
+	gcInterval   time.Duration
+	done         chan struct{}
+	stopped      chan struct{}
+	stopOnce     sync.Once
 
 	// mu guards the database against a concurrent Close. Operations hold it
 	// for reading and Close for writing, so none is in flight while the
@@ -49,9 +53,84 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	return &Storage{
+	store := &Storage{
 		db:           db,
 		writeOptions: cfg.WriteOptions,
+		gcInterval:   cfg.GCInterval,
+		done:         make(chan struct{}),
+		stopped:      make(chan struct{}),
+	}
+
+	go store.gc()
+
+	return store
+}
+
+// gc reclaims expired entries so that reads do not have to. Pebble has no
+// compare-and-delete, so deleting from Get could drop a value a concurrent
+// Set had just written; sweeping in the background avoids that entirely.
+func (s *Storage) gc() {
+	defer close(s.stopped)
+
+	ticker := time.NewTicker(s.gcInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+			s.collect()
+		}
+	}
+}
+
+// collect deletes every entry whose expiration has passed.
+func (s *Storage) collect() {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return
+	}
+
+	iter, err := s.db.NewIter(nil)
+	if err != nil {
+		return
+	}
+	defer func() {
+		_ = iter.Close()
+	}()
+
+	batch := s.db.NewBatch()
+	defer func() {
+		_ = batch.Close()
+	}()
+
+	now := time.Now().Unix()
+	for iter.First(); iter.Valid(); iter.Next() {
+		var cache CacheType
+		if err := json.Unmarshal(iter.Value(), &cache); err != nil {
+			continue
+		}
+		if cache.Expires <= 0 || cache.Expires > now {
+			continue
+		}
+
+		if err := batch.Delete(iter.Key(), nil); err != nil {
+			return
+		}
+		if batch.Count() < resetBatchSize {
+			continue
+		}
+		if err := batch.Commit(s.writeOptions); err != nil {
+			return
+		}
+		batch.Reset()
+	}
+
+	if !batch.Empty() {
+		_ = batch.Commit(s.writeOptions)
 	}
 }
 
@@ -91,12 +170,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expires > 0 && cache.Expires <= secs {
-		// This driver has no collector, so a read is the only thing that
-		// reclaims an expired entry and the delete has to stay. Pebble offers
-		// no compare-and-delete, so a Set landing between the read above and
-		// this delete loses its write; that window is microseconds wide,
-		// against an otherwise unbounded accumulation of dead entries.
-		return nil, s.db.Delete([]byte(key), s.writeOptions)
+		// Report the miss without deleting: Pebble has no compare-and-delete,
+		// so removing the key here could drop a value a concurrent Set had
+		// already written. The collector reclaims it instead.
+		return nil, nil
 	}
 
 	return cache.Data, nil
@@ -264,6 +341,15 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // further calls do nothing, and a close that fails is reported so the
 // caller can try again.
 func (s *Storage) Close() error {
+	// Stopping the collector happens once, even if the close below fails and
+	// the caller tries again.
+	s.stopOnce.Do(func() {
+		close(s.done)
+		// Wait for the collector to return so it no longer writes to a
+		// database that is being closed.
+		<-s.stopped
+	})
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -37,7 +37,7 @@ func (s *Storage) Conn() *pebble.DB
 
 **Note:** `Reset` deletes in bounded chunks so that resetting a large database does not have to fit in memory. A reset that spans more than one chunk is therefore not atomic: a concurrent reader can observe the database part way through it.
 
-**Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second.
+**Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second. Expired entries are reported as a miss immediately and reclaimed in the background on `GCInterval`; `Get` does not delete them, since Pebble has no compare-and-delete and doing so could drop a value a concurrent `Set` had just written.
 
 **Note:** `WriteOptions` defaults to `nil`, which Pebble reads as a synchronous write, so every `Set` and `Delete` is flushed to disk before it returns. Pass `&pebble.WriteOptions{}` to let Pebble buffer writes instead, which is far faster but loses the most recent writes if the process dies.
 
@@ -97,6 +97,11 @@ type Config struct {
 	//
 	// Optional. Default is nil.
 	WriteOptions *pebble.WriteOptions
+
+	// GCInterval is how often expired entries are reclaimed in the background.
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 ```
 
@@ -106,5 +111,6 @@ type Config struct {
 var ConfigDefault = Config{
 	Path:         "db",
 	WriteOptions: nil,
+	GCInterval:   10 * time.Second,
 }
 ```

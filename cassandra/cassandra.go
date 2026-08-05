@@ -2,6 +2,7 @@ package cassandra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -14,9 +15,17 @@ import (
 )
 
 var (
-	// ErrNotFound is returned when the key does not exist
+	// ErrNotFound is returned when the key does not exist.
+	//
+	// Deprecated: Get reports a miss as nil, nil, which is what the storage
+	// interface documents. This is kept so that callers matching on it still
+	// compile.
 	ErrNotFound = fmt.Errorf("key not found")
-	// ErrKeyExpired is returned when the key has expired
+	// ErrKeyExpired is returned when the key has expired.
+	//
+	// Deprecated: Get reports an expired entry as a miss, nil, nil, which is
+	// what the storage interface documents. This is kept so that callers
+	// matching on it still compile.
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
@@ -301,19 +310,20 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
 		"key": key,
 	}).WithContext(ctx).GetRelease(&result); err != nil {
-		if err == gocql.ErrNotFound {
-			return nil, ErrNotFound
+		if errors.Is(err, gocql.ErrNotFound) {
+			// The storage interface documents a miss as nil, nil.
+			return nil, nil
 		}
 		return nil, err
 	}
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// Report the expiry without deleting: an unconditional delete here
-		// would drop a value a concurrent Set had already written, and
-		// Cassandra reclaims the row itself through the TTL that Set stores
-		// alongside it.
-		return nil, ErrKeyExpired
+		// An expired entry is a miss, which the storage interface documents as
+		// nil, nil. It is not deleted here: an unconditional delete would drop
+		// a value a concurrent Set had already written, and Cassandra reclaims
+		// the row itself through the TTL that Set stores alongside it.
+		return nil, nil
 	}
 
 	return result.Value, nil

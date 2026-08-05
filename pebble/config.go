@@ -1,6 +1,10 @@
 package pebble
 
-import "github.com/cockroachdb/pebble"
+import (
+	"time"
+
+	"github.com/cockroachdb/pebble"
+)
 
 type Config struct {
 	// Path is the directory the database is stored in.
@@ -18,6 +22,11 @@ type Config struct {
 	//
 	// Optional. Default is nil.
 	WriteOptions *pebble.WriteOptions
+
+	// GCInterval is how often expired entries are reclaimed in the background.
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 
 var ConfigDefault = Config{
@@ -25,6 +34,7 @@ var ConfigDefault = Config{
 	// Left nil on purpose, see the field documentation: a config that does not
 	// set WriteOptions must not end up more durable than the default one.
 	WriteOptions: nil,
+	GCInterval:   10 * time.Second,
 }
 
 func configDefault(config ...Config) Config {
@@ -35,6 +45,9 @@ func configDefault(config ...Config) Config {
 	cfg := config[0]
 	if cfg.Path == "" {
 		cfg.Path = ConfigDefault.Path
+	}
+	if cfg.GCInterval <= 0 {
+		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	return cfg
 }

@@ -127,8 +127,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 // SetWithContext sets a value by key with optional expiration, using ctx for
 // the query.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
-	// The storage interface documents an empty key as ignored without error.
-	if len(key) == 0 {
+	// The storage interface documents an empty key or value as ignored
+	// without error.
+	if len(key) == 0 || len(val) == 0 {
 		return nil
 	}
 

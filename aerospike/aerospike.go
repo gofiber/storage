@@ -205,6 +205,10 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return nil, err
@@ -236,6 +240,12 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// The storage interface documents an empty key or value as ignored
+	// without error.
+	if len(key) == 0 || len(val) == 0 {
+		return nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err
