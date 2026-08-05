@@ -3,6 +3,7 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -293,19 +294,17 @@ func (s *Storage) gc() {
 	}
 }
 
-// cleanupExpired deletes expired keys from storage
+// cleanupExpired deletes expired keys from storage.
+//
+// The condition is evaluated by the server in a single statement rather than
+// by selecting every record and deleting the expired ones: that read-then-
+// delete could remove a record a concurrent Set had refreshed in between, and
+// it cost one round trip per expired key.
 func (s *Storage) cleanupExpired(ctx context.Context) {
-	records, err := surrealdb.Select[[]model, models.Table](ctx, s.db, models.Table(s.table))
-	if err != nil || records == nil {
-		return
-	}
-	now := time.Now().Unix()
-	for _, item := range *records {
-		if ctx.Err() != nil {
-			return
-		}
-		if item.Exp > 0 && now > item.Exp {
-			_ = s.DeleteWithContext(ctx, item.Key)
-		}
-	}
+	_, _ = surrealdb.Query[any](
+		ctx,
+		s.db,
+		fmt.Sprintf("DELETE %s WHERE exp != 0 AND exp <= $now", s.table),
+		map[string]any{"now": time.Now().Unix()},
+	)
 }

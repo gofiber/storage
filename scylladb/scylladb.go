@@ -179,6 +179,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 // SetWithContext sets a value by key with context
+// maxTTLSeconds is the largest TTL ScyllaDB accepts, 20 years. It also keeps
+// the value inside a 32 bit int.
+const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
+
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
 	// The storage interface documents an empty key or value as ignored
 	// without error; storing one persisted a row nothing could read back.
@@ -190,10 +194,16 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	if expire > 0 {
 		// ScyllaDB TTLs are whole seconds and a TTL of 0 means "no TTL", so
 		// round up rather than letting a sub-second expiration become zero.
-		expiration = int(expire / time.Second)
+		// The count is computed as int64 and clamped to what ScyllaDB accepts,
+		// so it cannot overflow int on a 32 bit build.
+		secs := int64(expire / time.Second)
 		if expire%time.Second != 0 {
-			expiration++
+			secs++
 		}
+		if secs > maxTTLSeconds {
+			secs = maxTTLSeconds
+		}
+		expiration = int(secs)
 	}
 	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
 }

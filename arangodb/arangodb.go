@@ -37,6 +37,8 @@ type Storage struct {
 	collection driver.Collection
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
+	// AQL query used to store a key, insert or update in one statement
+	aqlUpsert string
 }
 
 type model struct {
@@ -133,6 +135,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		// doc.exp == 0 means the entry never expires, so it has to be excluded:
 		// without that the sweep matched every such key and deleted the lot.
 		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
+		// One atomic statement: reading whether the document exists and then
+		// creating it left a window where two concurrent writers both saw it
+		// missing and the second one failed with a conflict.
+		aqlUpsert: fmt.Sprintf("UPSERT { _key: @key }\n INSERT { _key: @key, val: @val, exp: @exp }\n UPDATE { val: @val, exp: @exp }\n IN %s", collection.Name()),
 	}
 
 	// Start garbage collector
@@ -205,30 +211,11 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 			expireAt++
 		}
 	}
-	valStr := utils.UnsafeString(val)
-
-	// create the structure for the storage
-	data := model{
-		Key: key,
-		Val: valStr,
-		Exp: expireAt,
-	}
-
-	// Arango does not support documents with the same key
-	// So we need to check if the document exists
-	exists, err := s.collection.DocumentExists(ctx, key)
-	if err != nil {
-		return err
-	}
-	// Update the document if exists
-	if exists {
-		_, err = s.collection.UpdateDocument(ctx, key, data)
-		return err
-	}
-	// Otherwise create it
-	_, err = s.collection.CreateDocument(ctx, data)
-
-	return err
+	return s.exec(ctx, s.aqlUpsert, map[string]interface{}{
+		"key": key,
+		"val": utils.UnsafeString(val),
+		"exp": expireAt,
+	})
 }
 
 // Set key with value
