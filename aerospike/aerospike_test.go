@@ -155,6 +155,9 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
 
+	schemaBefore := testStore.GetSchemaInfo()
+	require.NotNil(t, schemaBefore)
+
 	// Set multiple values
 	err := testStore.Set(key1, val1, 0)
 	require.NoError(t, err)
@@ -173,6 +176,15 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	retrievedVal2, err := testStore.Get(key2)
 	require.NoError(t, err)
 	require.Nil(t, retrievedVal2)
+
+	// Ensure the driver's own schema bookkeeping record survived the reset:
+	// this is the record the digest comparison in Reset is meant to skip.
+	schemaKey, err := aerospike.NewKey(testStore.namespace, testStore.setName, schemaInfoKey)
+	require.NoError(t, err)
+	schemaRecord, err := testStore.client.Get(nil, schemaKey, "version")
+	require.NoError(t, err)
+	require.NotNil(t, schemaRecord)
+	require.Equal(t, schemaBefore.Version, schemaRecord.Bins["version"].(int))
 }
 
 // Test_AeroSpikeDB_GetSchemaInfo tests the GetSchemaInfo method

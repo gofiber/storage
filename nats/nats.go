@@ -414,15 +414,20 @@ func (s *Storage) Keys() ([]string, error) {
 			break
 		}
 
-		// A value this driver cannot decode is left out of the listing rather
+		// A value this driver cannot decode still has its key listed rather
 		// than failing the whole call: one unreadable entry should not hide
-		// every other key. Get still reports the failure for that key.
+		// every other key, and Get still reports the failure for that key -
+		// which only happens if the key remains visible here.
 		//
 		// An expired entry is skipped for the same reason a miss would be,
 		// since it is still in the bucket until something reclaims it. This
 		// only reads: listing keys must not delete any.
 		data, expired, err := decodeEntry(e.Value())
-		if err != nil || expired || len(data) == 0 {
+		if err != nil {
+			keys = append(keys, e.Key())
+			continue
+		}
+		if expired || len(data) == 0 {
 			continue
 		}
 		keys = append(keys, e.Key())

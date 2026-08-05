@@ -2,6 +2,7 @@ package aerospike
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"sync"
@@ -351,11 +352,14 @@ func (s *Storage) Reset() error {
 	// Create a write policy for deletes
 	writePolicy := aerospike.NewWritePolicy(0, 0)
 
-	// Iterate through all records and delete them
+	// Iterate through all records and delete them, collecting failures rather
+	// than swallowing them: New calls Reset to fail fast when cfg.Reset can't
+	// actually wipe the store, so a silent nil here would let it proceed
+	// against a store that still has stale keys in it.
+	var errs []error
 	for result := range recordset.Results() {
 		if result.Err != nil {
-			// Log the error but continue with other records
-			log.Printf("Error scanning: %v\n", result.Err)
+			errs = append(errs, result.Err)
 			continue
 		}
 
@@ -370,14 +374,12 @@ func (s *Storage) Reset() error {
 		}
 
 		// Delete the record
-		_, err = s.client.Delete(writePolicy, result.Record.Key)
-		if err != nil {
-			// Log the error but continue with other records
-			log.Printf("Error deleting key %v: %v\n", result.Record.Key, err)
+		if _, err := s.client.Delete(writePolicy, result.Record.Key); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // ResetWithContext resets all keys, aborting if ctx is already done.
