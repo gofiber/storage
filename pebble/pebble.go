@@ -20,6 +20,10 @@ const resetBatchSize = 1000
 // holds in memory before deleting them.
 const collectBatchSize = 1000
 
+// collectMaxBatches bounds how many passes one sweep makes, so a database
+// expiring keys as fast as they are reclaimed cannot keep it running forever.
+const collectMaxBatches = 100
+
 // ErrClosed is returned by every operation attempted after Close. Pebble
 // panics when a closed database is used, so the storage refuses those calls
 // instead of forwarding them.
@@ -97,21 +101,23 @@ func (s *Storage) gc() {
 // straight off the snapshot could remove a key a concurrent Set had refreshed
 // in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
-	for {
-		candidates := s.expiredCandidates()
-		if len(candidates) == 0 {
+	var after []byte
+
+	// Bounded so that a database expiring keys as fast as they are reclaimed
+	// cannot keep one sweep running, and taking the exclusive lock, forever.
+	// Whatever is left waits for the next tick.
+	for range collectMaxBatches {
+		candidates, last := s.expiredCandidates(after)
+		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
 			return
 		}
 
-		if !s.deleteIfStillExpired(candidates) {
-			return
-		}
-
-		// A short list means the database had no more to give, so this sweep
-		// is done.
+		// A short list means the scan reached the end of the database, so this
+		// sweep is done.
 		if len(candidates) < collectBatchSize {
 			return
 		}
+		after = last
 
 		// Give up promptly when Close is waiting, rather than making it sit
 		// through the rest of the sweep.
@@ -123,42 +129,54 @@ func (s *Storage) collect() {
 	}
 }
 
-// expiredCandidates lists the keys a snapshot shows as expired.
-func (s *Storage) expiredCandidates() [][]byte {
+// expiredCandidates lists the keys a snapshot shows as expired, starting after
+// the given key, and reports the last key it examined so the next batch can
+// resume from there rather than rescanning from the beginning.
+func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.closed {
-		return nil
+		return nil, nil
 	}
 
 	iter, err := s.db.NewIter(nil)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	defer func() {
 		_ = iter.Close()
 	}()
 
-	var (
-		candidates = make([][]byte, 0, collectBatchSize)
-		now        = time.Now().Unix()
-	)
-	for iter.First(); iter.Valid(); iter.Next() {
+	valid := iter.First()
+	if after != nil {
+		// SeekGE lands on the key itself, which the previous batch already
+		// examined, so step past it.
+		valid = iter.SeekGE(after)
+		if valid && bytes.Equal(iter.Key(), after) {
+			valid = iter.Next()
+		}
+	}
+
+	candidates = make([][]byte, 0, collectBatchSize)
+	now := time.Now().Unix()
+
+	for ; valid; valid = iter.Next() {
 		if !expired(iter.Value(), now) {
 			continue
 		}
 
-		candidates = append(candidates, bytes.Clone(iter.Key()))
+		last = bytes.Clone(iter.Key())
+		candidates = append(candidates, last)
 
-		// Bounded so that one sweep of a large database cannot hold every
-		// expired key in memory at once. The rest go in the next sweep.
+		// Bounded so that one pass of a large database cannot hold every
+		// expired key in memory at once. The rest go in the next batch.
 		if len(candidates) == collectBatchSize {
 			break
 		}
 	}
 
-	return candidates
+	return candidates, last
 }
 
 // deleteIfStillExpired re-reads each key and deletes the ones that are still

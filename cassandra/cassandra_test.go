@@ -329,13 +329,27 @@ func Test_Unusual_Keys(t *testing.T) {
 }
 
 // Test_Empty_Key_Or_Value checks the interface contract: both are ignored
-// without an error.
+// without an error, and nothing is written for either.
 func Test_Empty_Key_Or_Value(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
 
+	countRows := func() int {
+		var count int
+		require.NoError(t, store.Conn().Query(
+			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", store.keyspace, store.table),
+		).Scan(&count))
+		return count
+	}
+
+	require.Zero(t, countRows(), "the table should start empty")
+
 	require.NoError(t, store.Set("", []byte("value"), 0))
 	require.NoError(t, store.Set("empty-value", nil, 0))
+
+	// Reading back is not enough on its own: a row written under an empty key
+	// would also read back as nothing. Count the rows instead.
+	require.Zero(t, countRows(), "neither call should have written a row")
 
 	val, err := store.Get("empty-value")
 	require.NoError(t, err)

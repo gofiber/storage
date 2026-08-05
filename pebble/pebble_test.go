@@ -300,3 +300,38 @@ func Test_Pebble_GC_Reclaims_Expired(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 }
+
+func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-batches")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	// A long interval keeps the collector out of the way; collect is driven
+	// directly so the batching is what is under test.
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// More keys than one batch holds, so the scan has to resume rather than
+	// start over and make no progress past the first batch.
+	total := collectBatchSize + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, store.Set("key-"+strconv.Itoa(i), []byte("doe"), time.Second))
+	}
+
+	time.Sleep(2100 * time.Millisecond)
+	store.collect()
+
+	iter, err := store.Conn().NewIter(nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, iter.Close())
+	}()
+
+	remaining := 0
+	for iter.First(); iter.Valid(); iter.Next() {
+		remaining++
+	}
+	require.Zero(t, remaining, "every expired key should have been reclaimed")
+}
