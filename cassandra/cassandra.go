@@ -36,7 +36,6 @@ type Storage struct {
 	sx        gocqlx.Session
 	keyspace  string
 	table     string
-	ttl       int
 	closeOnce sync.Once
 }
 
@@ -100,22 +99,11 @@ func New(cnfg Config) (*Storage, error) {
 	cluster.ConnectTimeout = cfg.ConnectTimeout
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: cfg.MaxRetries}
 
-	// Convert expiration to seconds for TTL, rounding up: a TTL of 0 means
-	// "no TTL" in Cassandra, so truncating would disable it entirely.
-	ttl := 0
-	if cfg.Expiration > 0 {
-		ttl = ttlSeconds(cfg.Expiration)
-	} else if cfg.Expiration < 0 {
-		// Expiration < 0 means indefinite storage
-		cfg.Expiration = 0
-	}
-
 	// Create storage instance
 	storage := &Storage{
 		cluster:  cluster,
 		keyspace: keyspace,
 		table:    table,
-		ttl:      ttl,
 	}
 
 	// Initialize keyspace
@@ -263,26 +251,23 @@ func ttlSeconds(d time.Duration) int {
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
 	// Validate key
-	if _, err := validateIdentifier(key, "key"); err != nil {
-		return err
-	}
+	// The key is a bound query parameter, not an identifier spliced into the
+	// statement, so it does not have to look like one. Validating it here
+	// rejected perfectly ordinary keys such as "user:123" that Get and Delete
+	// accept without complaint.
 
 	// Calculate expiration time
 	var expiresAt *time.Time
 	var ttl int
 
+	// The storage interface documents an expiration at or below zero as no
+	// expiration, so the configured default is not substituted here: doing so
+	// meant Set(key, value, 0) quietly stored an entry that expired.
 	if exp > 0 {
-		// Specific expiration provided.
 		ttl = ttlSeconds(exp)
 		t := time.Now().Add(exp)
 		expiresAt = &t
-	} else if exp == 0 && s.ttl > 0 {
-		// Use default TTL from config
-		ttl = s.ttl
-		t := time.Now().Add(time.Duration(s.ttl) * time.Second)
-		expiresAt = &t
 	}
-	// If exp == 0 and s.ttl == 0, no TTL will be set (live forever)
 
 	// Use query builder for insert
 	stmt, names := qb.Insert(fmt.Sprintf("%s.%s", s.keyspace, s.table)).

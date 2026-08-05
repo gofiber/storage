@@ -16,7 +16,6 @@ type Storage struct {
 	namespace  string
 	setName    string
 	reset      bool
-	expiration time.Duration
 	schemaInfo *SchemaInfo
 	closeOnce  sync.Once
 }
@@ -47,11 +46,10 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		client:     client,
-		namespace:  cfg.Namespace,
-		setName:    cfg.SetName,
-		reset:      cfg.Reset,
-		expiration: cfg.Expiration,
+		client:    client,
+		namespace: cfg.Namespace,
+		setName:   cfg.SetName,
+		reset:     cfg.Reset,
 	}
 
 	// Release the client opened above rather than leaking it when a later
@@ -251,19 +249,16 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return err
 	}
 
-	// Zero keeps the configured default, which is what Config.Expiration is
-	// for; anything else, including a negative value, is the caller's.
-	expiration := s.expiration
-	if exp != 0 {
-		expiration = exp
-	}
-
-	// A negative expiration, from either source, means no expiration, which
-	// Aerospike spells with a dedicated sentinel.
-	if expiration < 0 {
+	// The storage interface documents an expiration of zero as no expiration,
+	// so it is honoured here rather than being replaced by the configured
+	// default; a negative one means the same thing. Aerospike spells that with
+	// a dedicated sentinel.
+	if exp <= 0 {
 		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
 	}
+
+	expiration := exp
 
 	// Convert to seconds with a minimum of 1, rounding up so that a
 	// sub-second expiration is not truncated away. Aerospike carries the TTL
@@ -301,6 +296,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key
 func (s *Storage) Delete(key string) error {
+	if len(key) == 0 {
+		return nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err

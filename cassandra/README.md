@@ -30,6 +30,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *gocql.Session
 ```
 
+**Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
+
 ### Installation
 
 Cassandra is supported on the latest two versions of Go:

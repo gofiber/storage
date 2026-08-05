@@ -36,6 +36,8 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo
 
 **Note:** Aerospike has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
+**Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
+
 ### Installation
 
 Aerospike is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

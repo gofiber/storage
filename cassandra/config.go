@@ -28,6 +28,11 @@ type Config struct {
 	SslOpts *gocql.SslOptions
 	// Optional. Default is 10 minutes
 	// Expiration is the time after which an entry is considered expired.
+	//
+	// Deprecated: it is no longer applied. The storage interface documents an
+	// expiration of zero as no expiration, and substituting a default here
+	// meant Set(key, value, 0) quietly stored an entry that expired. Pass the
+	// expiration you want to Set instead.
 	Expiration time.Duration
 	// Optional. Default is false
 	// Reset is a flag to reset the database.

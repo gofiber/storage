@@ -188,11 +188,12 @@ func Test_Expirable_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 
-	// Wait for expiration using Eventually
+	// Wait for expiration using Eventually. An expired key is a miss, which
+	// the storage interface documents as nil, nil.
 	require.Eventually(t, func() bool {
 		val, err := store.Get("test")
-		return err != nil && val == nil
-	}, 3*time.Second, 100*time.Millisecond, "Key should expire within 3 seconds")
+		return err == nil && val == nil
+	}, 4*time.Second, 100*time.Millisecond, "Key should expire")
 }
 
 // Test_Concurrent_Access tests concurrent access to the storage

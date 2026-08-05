@@ -1,6 +1,7 @@
 package pebble
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -86,21 +87,74 @@ func (s *Storage) gc() {
 }
 
 // collect deletes every entry whose expiration has passed.
+//
+// Candidates are gathered from a snapshot first and then re-read before being
+// deleted, with the lock held exclusively for that second step. Deleting
+// straight off the snapshot could remove a key a concurrent Set had refreshed
+// in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
+	candidates := s.expiredCandidates()
+
+	for len(candidates) > 0 {
+		chunk := candidates
+		if len(chunk) > resetBatchSize {
+			chunk = chunk[:resetBatchSize]
+		}
+		candidates = candidates[len(chunk):]
+
+		if !s.deleteIfStillExpired(chunk) {
+			return
+		}
+
+		// Give up promptly when Close is waiting, rather than making it sit
+		// through the rest of the sweep.
+		select {
+		case <-s.done:
+			return
+		default:
+		}
+	}
+}
+
+// expiredCandidates lists the keys a snapshot shows as expired.
+func (s *Storage) expiredCandidates() [][]byte {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.closed {
-		return
+		return nil
 	}
 
 	iter, err := s.db.NewIter(nil)
 	if err != nil {
-		return
+		return nil
 	}
 	defer func() {
 		_ = iter.Close()
 	}()
+
+	var (
+		candidates [][]byte
+		now        = time.Now().Unix()
+	)
+	for iter.First(); iter.Valid(); iter.Next() {
+		if expired(iter.Value(), now) {
+			candidates = append(candidates, bytes.Clone(iter.Key()))
+		}
+	}
+
+	return candidates
+}
+
+// deleteIfStillExpired re-reads each key and deletes the ones that are still
+// expired. It reports whether the sweep should continue.
+func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return false
+	}
 
 	batch := s.db.NewBatch()
 	defer func() {
@@ -108,30 +162,37 @@ func (s *Storage) collect() {
 	}()
 
 	now := time.Now().Unix()
-	for iter.First(); iter.Valid(); iter.Next() {
-		var cache CacheType
-		if err := json.Unmarshal(iter.Value(), &cache); err != nil {
+	for _, key := range keys {
+		value, closer, err := s.db.Get(key)
+		if err != nil {
 			continue
 		}
-		if cache.Expires <= 0 || cache.Expires > now {
+		stillExpired := expired(value, now)
+		if err := closer.Close(); err != nil {
+			return false
+		}
+		if !stillExpired {
 			continue
 		}
-
-		if err := batch.Delete(iter.Key(), nil); err != nil {
-			return
+		if err := batch.Delete(key, nil); err != nil {
+			return false
 		}
-		if batch.Count() < resetBatchSize {
-			continue
-		}
-		if err := batch.Commit(s.writeOptions); err != nil {
-			return
-		}
-		batch.Reset()
 	}
 
-	if !batch.Empty() {
-		_ = batch.Commit(s.writeOptions)
+	if batch.Empty() {
+		return true
 	}
+
+	return batch.Commit(s.writeOptions) == nil
+}
+
+// expired reports whether a stored value is past its expiration as of now.
+func expired(value []byte, now int64) bool {
+	var cache CacheType
+	if err := json.Unmarshal(value, &cache); err != nil {
+		return false
+	}
+	return cache.Expires > 0 && cache.Expires <= now
 }
 
 // Get retrieves the value by key.
