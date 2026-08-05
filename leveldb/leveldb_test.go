@@ -473,3 +473,34 @@ func Test_Get_CorruptEnvelope(t *testing.T) {
 	require.ErrorIs(t, err, errCorruptEnvelope)
 	require.Zero(t, len(result))
 }
+
+func Test_ReadOnly(t *testing.T) {
+	const path = "./testdb_readonly"
+
+	writable := New(Config{Path: path})
+	require.Nil(t, writable.Set("john", []byte("doe"), 0))
+	require.Nil(t, writable.Close())
+
+	db := New(Config{Path: path, ReadOnly: true})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles(path))
+	}()
+
+	// ReadOnly used to be ignored entirely, along with every other tuning
+	// field, because the options were passed to OpenFile as nil.
+	result, err := db.Get("john")
+	require.Nil(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.ErrorIs(t, db.Set("jane", []byte("doe"), 0), ErrReadOnly)
+	require.ErrorIs(t, db.Delete("john"), ErrReadOnly)
+	require.ErrorIs(t, db.Reset(), ErrReadOnly)
+}
+
+func Test_ErrorIfMissing(t *testing.T) {
+	// Another field that OpenFile never saw.
+	require.Panics(t, func() {
+		New(Config{Path: "./testdb_missing", ErrorIfMissing: true})
+	})
+}

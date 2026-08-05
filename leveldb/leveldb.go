@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 // envelopeVersion identifies entries written by this driver. It is stored
@@ -23,6 +25,10 @@ var errUnknownEnvelope = errors.New("leveldb: entry was written by a newer versi
 // errCorruptEnvelope is returned when an entry carries this driver's envelope
 // but not the value that is always written with it.
 var errCorruptEnvelope = errors.New("leveldb: entry is missing its value")
+
+// ErrReadOnly is returned by every write attempted on a storage opened with
+// Config.ReadOnly.
+var ErrReadOnly = errors.New("leveldb: storage is read-only")
 
 // envelopeKind describes how an entry read from the database is encoded.
 type envelopeKind int
@@ -68,6 +74,7 @@ type item struct {
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
+	readOnly   bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -80,16 +87,44 @@ type Storage struct {
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	db, err := leveldb.OpenFile(cfg.Path, nil)
+	// Every tuning field of Config used to be ignored: the options were passed
+	// as nil, so only Path and GCInterval had any effect.
+	options := &opt.Options{
+		BlockCacheCapacity:     cfg.CacheSize * opt.MiB,
+		BlockSize:              cfg.BlockSize * opt.KiB,
+		WriteBuffer:            cfg.WriteBuffer * opt.MiB,
+		CompactionL0Trigger:    cfg.CompactionL0Trigger,
+		WriteL0PauseTrigger:    cfg.WriteL0PauseTrigger,
+		WriteL0SlowdownTrigger: cfg.WriteL0SlowdownTrigger,
+		OpenFilesCacheCapacity: cfg.MaxOpenFiles,
+		CompactionTableSize:    cfg.CompactionTableSize * opt.MiB,
+		NoSync:                 cfg.NoSync,
+		ReadOnly:               cfg.ReadOnly,
+		ErrorIfMissing:         cfg.ErrorIfMissing,
+		ErrorIfExist:           cfg.ErrorIfExist,
+	}
+	if cfg.BloomFilterBits > 0 {
+		options.Filter = filter.NewBloomFilter(cfg.BloomFilterBits)
+	}
+
+	db, err := leveldb.OpenFile(cfg.Path, options)
 	if err != nil {
 		panic(err)
 	}
 
 	store := &Storage{
 		db:         db,
+		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
+	}
+
+	// The collector writes, so there is nothing for it to do on a read-only
+	// database. Close still waits on stopped, so signal it here.
+	if cfg.ReadOnly {
+		close(store.stopped)
+		return store
 	}
 
 	go store.gc()
@@ -150,6 +185,10 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	version := envelopeVersion
 	data := item{Version: &version, Value: value}
 	if exp > 0 {
@@ -177,6 +216,10 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	return s.db.Delete([]byte(key), nil)
 }
 
@@ -190,6 +233,10 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 

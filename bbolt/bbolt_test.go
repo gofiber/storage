@@ -289,6 +289,11 @@ func Test_Bbolt_ReadOnly(t *testing.T) {
 	result, err := store.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
+
+	// Writes report a driver error rather than leaking bbolt's own.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrReadOnly)
+	require.ErrorIs(t, store.Delete("john"), ErrReadOnly)
+	require.ErrorIs(t, store.Reset(), ErrReadOnly)
 }
 
 func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {

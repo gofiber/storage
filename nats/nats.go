@@ -402,11 +402,17 @@ func (s *Storage) Keys() ([]string, error) {
 			break
 		}
 
+		// A value this driver cannot decode is reported, the same way Get
+		// reports it, rather than being quietly left out of the listing.
+		data, expired, err := decodeEntry(e.Value())
+		if err != nil {
+			return nil, fmt.Errorf("keys: %w", err)
+		}
+
 		// An expired entry is still in the bucket until something reclaims it,
 		// so filter it out rather than reporting a key Get will miss on. This
 		// only reads: listing keys must not delete any.
-		data, expired, err := decodeEntry(e.Value())
-		if err != nil || expired || len(data) == 0 {
+		if expired || len(data) == 0 {
 			continue
 		}
 		keys = append(keys, e.Key())

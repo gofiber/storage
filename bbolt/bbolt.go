@@ -16,16 +16,21 @@ import (
 // callers can tell it apart with errors.Is.
 var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 
+// ErrReadOnly is returned by every write attempted on a storage opened with
+// Config.ReadOnly, rather than leaking bbolt's own error for it.
+var ErrReadOnly = errors.New("bbolt: storage is read-only")
+
 // Storage interface that is implemented by storage providers.
 //
 // Note: bbolt has no notion of key expiration, so the exp argument of Set is
 // ignored and stored entries live until they are deleted or the storage is
 // reset.
 type Storage struct {
-	conn    *bbolt.DB
-	bucket  string
-	closeMu sync.Mutex
-	closed  bool
+	conn     *bbolt.DB
+	bucket   string
+	readOnly bool
+	closeMu  sync.Mutex
+	closed   bool
 }
 
 // New creates a new storage
@@ -62,8 +67,9 @@ func New(config ...Config) *Storage {
 		}
 
 		return &Storage{
-			conn:   conn,
-			bucket: cfg.Bucket,
+			conn:     conn,
+			bucket:   cfg.Bucket,
+			readOnly: true,
 		}
 	}
 
@@ -132,6 +138,10 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return nil
 	}
 
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
@@ -155,6 +165,10 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {
@@ -174,6 +188,10 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all entries
 func (s *Storage) Reset() error {
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	return s.conn.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(utils.UnsafeBytes(s.bucket))
 		if b == nil {

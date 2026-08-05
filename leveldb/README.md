@@ -33,6 +33,10 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
+**Note:** The tuning fields of `Config` are applied when the database is opened. They used to be ignored: only `Path` and `GCInterval` had any effect.
+
+**Note:** With `ReadOnly` set, `Set`, `Delete` and `Reset` return `ErrReadOnly`, which callers can match with `errors.Is`.
+
 **Note:** Every entry is stored as a JSON envelope carrying the value and its expiration, so a value read directly through `Conn()` is the envelope rather than the raw payload. Entries written by earlier versions of this driver are still read back correctly, both the envelopes they wrote for keys with an expiration and the bare payloads they wrote for keys without one. Those earlier envelopes carry no marker, so a bare payload that is a JSON object with exactly a `value` and an `expire_at` field is read as one; this only affects databases written before this version.
 
 **Note:** LevelDB has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
