@@ -157,23 +157,15 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errClosed
 	}
 
-	// Check if the document exists
-	// to avoid errors later
-	exists, err := s.collection.DocumentExists(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-
-	// instead of returning an error if not exists
-	// return nil
-	if !exists {
-		return nil, nil
-	}
-
-	// result model
+	// Read straight away and treat a missing document as a miss. Asking
+	// whether it existed first left a window where a concurrent delete, or the
+	// collector, removed it in between and the read then reported an error
+	// instead of the nil, nil the storage interface documents.
 	var model model
-	_, err = s.collection.ReadDocument(ctx, key, &model)
-	if err != nil {
+	if _, err := s.collection.ReadDocument(ctx, key, &model); err != nil {
+		if driver.IsNotFoundGeneral(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	// If the expiration time has already passed, then return nil

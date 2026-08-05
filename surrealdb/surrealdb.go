@@ -112,7 +112,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	if m.Exp > 0 && time.Now().Unix() > m.Exp {
+	if m.Exp > 0 && time.Now().Unix() >= m.Exp {
 		// Report the miss without deleting: an unconditional delete here would
 		// drop a value a concurrent Set had already written. The collector
 		// reclaims expired records instead.
@@ -246,7 +246,11 @@ func (s *Storage) List() ([]byte, error) {
 		// Skip an expired record without deleting it: listing must not write,
 		// and an unconditional delete could drop a value a concurrent Set had
 		// already written. The collector reclaims them.
-		if item.Exp > 0 && now > item.Exp {
+		//
+		// The comparison matches the collector's exactly: reading an entry as
+		// live that the collector treats as expired made the two disagree for
+		// a whole second around the deadline.
+		if item.Exp > 0 && now >= item.Exp {
 			continue
 		}
 		data[item.Key] = item.Body
