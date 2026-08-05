@@ -193,14 +193,64 @@ func (s *Storage) Conn() redis.UniversalClient {
 
 // Return all the keys
 func (s *Storage) Keys() ([][]byte, error) {
-	var keys [][]byte
-	var cursor uint64
-	var err error
+	ctx := context.Background()
+
+	// A cluster holds its keyspace across shards, and Scan on the cluster
+	// client only walks one of them, so every other shard's keys were left
+	// out with nothing to say so.
+	if cluster, ok := s.db.(*redis.ClusterClient); ok {
+		var (
+			mu   sync.Mutex
+			keys [][]byte
+		)
+
+		err := cluster.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
+			shardKeys, err := scanKeys(ctx, shard)
+			if err != nil {
+				return err
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			keys = append(keys, shardKeys...)
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(keys) == 0 {
+			return nil, nil
+		}
+
+		return keys, nil
+	}
+
+	keys, err := scanKeys(ctx, s.db)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	return keys, nil
+}
+
+// scanKeys walks one node's keyspace.
+func scanKeys(ctx context.Context, client redis.Cmdable) ([][]byte, error) {
+	var (
+		keys   [][]byte
+		cursor uint64
+		err    error
+	)
 
 	for {
 		var batch []string
 
-		if batch, cursor, err = s.db.Scan(context.Background(), cursor, "*", 10).Result(); err != nil {
+		if batch, cursor, err = client.Scan(ctx, cursor, "*", 10).Result(); err != nil {
 			return nil, err
 		}
 
@@ -209,13 +259,7 @@ func (s *Storage) Keys() ([][]byte, error) {
 		}
 
 		if cursor == 0 {
-			break
+			return keys, nil
 		}
 	}
-
-	if len(keys) == 0 {
-		return nil, nil
-	}
-
-	return keys, nil
 }

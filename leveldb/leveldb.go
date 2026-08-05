@@ -99,8 +99,8 @@ type Storage struct {
 	// just refreshed is not reclaimed on the strength of a stale read.
 	mu sync.RWMutex
 
-	// gcCursor is where the next sweep resumes scanning from. Only the
-	// collector touches it.
+	// gcCursor is where the next sweep resumes scanning from. It is guarded
+	// by mu: the collector is not its only writer, Reset clears it.
 	gcCursor []byte
 }
 
@@ -423,7 +423,7 @@ func (s *Storage) gc() {
 // The work is bounded on both axes, so a large database neither holds every
 // expired key in memory nor keeps Close waiting through a full scan.
 func (s *Storage) collect() {
-	after := s.gcCursor
+	after := s.loadCursor()
 
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
@@ -431,7 +431,7 @@ func (s *Storage) collect() {
 			s.deleteIfStillExpired(candidates)
 		}
 		if reachedEnd {
-			s.gcCursor = nil
+			s.storeCursor(nil)
 			return
 		}
 		after = last
@@ -439,13 +439,29 @@ func (s *Storage) collect() {
 		// Give up promptly when Close is waiting.
 		select {
 		case <-s.done:
-			s.gcCursor = after
+			s.storeCursor(after)
 			return
 		default:
 		}
 	}
 
-	s.gcCursor = after
+	s.storeCursor(after)
+}
+
+// loadCursor reports where the next sweep resumes from.
+func (s *Storage) loadCursor() []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.gcCursor
+}
+
+// storeCursor records where the next sweep resumes from.
+func (s *Storage) storeCursor(cursor []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.gcCursor = cursor
 }
 
 // expiredCandidates lists the keys a snapshot shows as expired, starting after

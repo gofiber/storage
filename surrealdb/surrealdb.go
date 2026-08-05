@@ -3,7 +3,7 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -305,10 +305,16 @@ func (s *Storage) gc() {
 // delete could remove a record a concurrent Set had refreshed in between, and
 // it cost one round trip per expired key.
 func (s *Storage) cleanupExpired(ctx context.Context) {
-	_, _ = surrealdb.Query[any](
+	// The table is bound through type::table rather than spliced into the
+	// statement: a name needing SurrealQL escaping, a hyphen for instance,
+	// produced a query the server rejected, and the error was discarded, so
+	// expiry cleanup stopped happening with nothing to show for it.
+	if _, err := surrealdb.Query[any](
 		ctx,
 		s.db,
-		fmt.Sprintf("DELETE %s WHERE exp != 0 AND exp <= $now", s.table),
-		map[string]any{"now": time.Now().Unix()},
-	)
+		"DELETE type::table($table) WHERE exp != 0 AND exp <= $now",
+		map[string]any{"table": s.table, "now": time.Now().Unix()},
+	); err != nil {
+		log.Printf("surrealdb: expiry cleanup failed: %v", err)
+	}
 }

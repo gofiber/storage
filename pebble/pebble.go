@@ -47,10 +47,11 @@ type Storage struct {
 	mu     sync.RWMutex
 	closed bool
 
-	// gcCursor is where the next tick's sweep resumes scanning from. Only the
-	// gc goroutine touches it, so it needs no lock of its own. Without it, a
-	// keyspace too large for one tick's scan budget would restart from the
-	// beginning every tick and never reach keys past that budget.
+	// gcCursor is where the next tick's sweep resumes scanning from. It is
+	// guarded by mu: the collector is not its only writer, Reset clears it.
+	// Without it, a keyspace too large for one tick's scan budget would
+	// restart from the beginning every tick and never reach keys past that
+	// budget.
 	gcCursor []byte
 }
 
@@ -111,7 +112,7 @@ func (s *Storage) gc() {
 // straight off the snapshot could remove a key a concurrent Set had refreshed
 // in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
-	after := s.gcCursor
+	after := s.loadCursor()
 
 	// Bounded so that a database expiring keys as fast as they are reclaimed
 	// cannot keep one sweep running, and taking the exclusive lock, forever.
@@ -121,11 +122,11 @@ func (s *Storage) collect() {
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
-			s.gcCursor = after
+			s.storeCursor(after)
 			return
 		}
 		if reachedEnd {
-			s.gcCursor = nil
+			s.storeCursor(nil)
 			return
 		}
 		after = last
@@ -134,12 +135,29 @@ func (s *Storage) collect() {
 		// through the rest of the sweep.
 		select {
 		case <-s.done:
-			s.gcCursor = after
+			s.storeCursor(after)
 			return
 		default:
 		}
 	}
-	s.gcCursor = after
+
+	s.storeCursor(after)
+}
+
+// loadCursor reports where the next sweep resumes from.
+func (s *Storage) loadCursor() []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.gcCursor
+}
+
+// storeCursor records where the next sweep resumes from.
+func (s *Storage) storeCursor(cursor []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.gcCursor = cursor
 }
 
 // expiredCandidates lists the keys a snapshot shows as expired, starting after

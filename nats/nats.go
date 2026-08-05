@@ -345,6 +345,15 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	// Held for the whole call, not just the recreate: Close landing between
+	// the delete and the recreate below left the bucket gone for good.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	js, err := jetstream.New(s.nc)
 	if err != nil {
 		return fmt.Errorf("get jetstream: %w", err)
@@ -357,8 +366,6 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	}
 
 	// Create the bucket
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.kv, err = newNatsKV(
 		s.nc,
 		ctx,

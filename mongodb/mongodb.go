@@ -32,6 +32,11 @@ type item struct {
 	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
+// ErrClosed is returned by every operation attempted after Close, rather than
+// letting it reach a disconnected client and fail with a driver error that
+// says nothing about why.
+var ErrClosed = errors.New("mongodb: storage is closed")
+
 // closeTimeout bounds the cleanup disconnect performed when initialization
 // fails.
 const closeTimeout = 10 * time.Second
@@ -118,10 +123,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	col := db.Collection(cfg.Collection)
 
 	if cfg.Reset {
-		if err = col.Drop(ctx); err != nil {
+		dropCtx, dropCancel := withDefaultTimeout(ctx)
+		if err = col.Drop(dropCtx); err != nil {
+			dropCancel()
 			closeOwned()
 			panic(err)
 		}
+		dropCancel()
 	}
 
 	// Use a dedicated timeout for index creation so it is not starved by time
@@ -178,6 +186,10 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
+
 	res := s.col.FindOne(ctx, bson.M{"key": key})
 	item := s.acquireItem()
 	defer s.releaseItem(item)
@@ -219,6 +231,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	filter := bson.M{"key": key}
 	item := s.acquireItem()
 	item.Key = key
@@ -247,6 +263,11 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	_, err := s.col.DeleteOne(ctx, bson.M{"key": key})
 	return err
 }
@@ -258,6 +279,10 @@ func (s *Storage) Delete(key string) error {
 
 // Reset all keys by drop collection with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	return s.col.Drop(ctx)
 }
 
@@ -267,6 +292,14 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
+// isClosed reports whether Close has completed.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	return s.closed
+}
+
 // Close disconnects the client. It is safe to call Close more than once: once
 // the disconnect has succeeded further calls do nothing, and a disconnect that
 // fails is reported so the caller can try again.
