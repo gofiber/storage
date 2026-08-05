@@ -158,9 +158,11 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	// If the expiration time has already passed, then return nil
+	// If the expiration time has already passed, then return nil. The row is
+	// not deleted here: this is not conditional on what was read, so it could
+	// remove a value a concurrent Set had already written. The collector
+	// reclaims expired rows instead.
 	if exp != 0 && exp <= time.Now().Unix() {
-		_, _ = s.db.ExecContext(ctx, s.sqlDelete, key)
 		return nil, nil
 	}
 

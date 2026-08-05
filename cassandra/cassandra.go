@@ -240,15 +240,24 @@ type queryResult struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
+// maxTTLSeconds is the largest TTL Cassandra accepts, 20 years. It also keeps
+// the value inside a 32 bit int.
+const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
+
 // ttlSeconds converts d to whole seconds, rounding up. Cassandra TTLs are
 // whole seconds and a TTL of 0 means "no TTL", so truncating a sub-second
 // expiration would disable expiration entirely.
 func ttlSeconds(d time.Duration) int {
-	secs := int(d / time.Second)
+	// Computed as int64 and clamped: int is 32 bit on some builds, and
+	// Cassandra rejects a TTL beyond this anyway.
+	secs := int64(d / time.Second)
 	if d%time.Second != 0 {
 		secs++
 	}
-	return secs
+	if secs > maxTTLSeconds {
+		secs = maxTTLSeconds
+	}
+	return int(secs)
 }
 
 // SetWithContext stores a key-value pair with optional expiration with context support
