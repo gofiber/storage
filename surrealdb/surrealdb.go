@@ -112,7 +112,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if m.Exp > 0 && time.Now().Unix() > m.Exp {
-		_ = s.DeleteWithContext(ctx, key)
+		// Report the miss without deleting: an unconditional delete here would
+		// drop a value a concurrent Set had already written. The collector
+		// reclaims expired records instead.
 		return nil, nil
 	}
 
@@ -240,8 +242,10 @@ func (s *Storage) List() ([]byte, error) {
 	now := time.Now().Unix()
 
 	for _, item := range *records {
+		// Skip an expired record without deleting it: listing must not write,
+		// and an unconditional delete could drop a value a concurrent Set had
+		// already written. The collector reclaims them.
 		if item.Exp > 0 && now > item.Exp {
-			_ = s.Delete(item.Key)
 			continue
 		}
 		data[item.Key] = item.Body

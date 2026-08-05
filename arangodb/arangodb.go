@@ -35,7 +35,6 @@ type Storage struct {
 	connection driver.Connection
 	client     driver.Client
 	collection driver.Collection
-	config     Config
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
 }
@@ -129,7 +128,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		collection: collection,
 		client:     client,
 		connection: conn,
-		config:     cfg,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
 		// doc.exp == 0 means the entry never expires, so it has to be excluded:

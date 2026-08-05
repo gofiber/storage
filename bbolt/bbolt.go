@@ -49,6 +49,13 @@ func New(config ...Config) *Storage {
 	// below need, so New panicked whenever ReadOnly was set. Check that the
 	// bucket is there instead.
 	if cfg.ReadOnly {
+		// Resetting means writing, so the two options contradict each other.
+		// Say so rather than silently ignoring one of them.
+		if cfg.Reset {
+			closeOwned()
+			panic(errors.New("bbolt: Reset cannot be used with ReadOnly"))
+		}
+
 		if err := checkBucket(cfg, conn); err != nil {
 			closeOwned()
 			panic(err)

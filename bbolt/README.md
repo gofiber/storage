@@ -31,6 +31,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *bbolt.DB
 ```
 
+**Note:** `ReadOnly` opens the database without creating the bucket, so the bucket must already exist; `New` panics if it does not. `Reset` writes, so combining it with `ReadOnly` is rejected rather than silently ignored.
+
 **Note:** If the configured bucket is dropped outside this driver, every method returns `ErrBucketNotFound`, which callers can match with `errors.Is`.
 
 **Note:** Bbolt has no notion of key expiration, so the `exp` argument of `Set` is ignored and stored entries live until they are deleted or the storage is reset.

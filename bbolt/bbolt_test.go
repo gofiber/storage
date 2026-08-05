@@ -290,3 +290,16 @@ func Test_Bbolt_ReadOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 }
+
+func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fiber.db")
+
+	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
+	require.NoError(t, writable.Close())
+
+	// Resetting means writing, so the combination is rejected rather than
+	// silently dropping one of the two options.
+	require.Panics(t, func() {
+		New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true, Reset: true})
+	})
+}

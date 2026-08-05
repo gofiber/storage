@@ -222,15 +222,25 @@ func read(ctx context.Context, kv jetstream.KeyValue, key string) (data []byte, 
 		return nil, false, 0, fmt.Errorf("get: %w", err)
 	}
 
+	data, expired, err = decodeEntry(v.Value())
+	if err != nil {
+		return nil, false, 0, err
+	}
+
+	return data, expired, v.Revision(), nil
+}
+
+// decodeEntry decodes a stored value and reports whether it has expired.
+func decodeEntry(value []byte) (data []byte, expired bool, err error) {
 	e := entry{}
-	if err := gob.NewDecoder(bytes.NewBuffer(v.Value())).Decode(&e); err != nil {
+	if err := gob.NewDecoder(bytes.NewBuffer(value)).Decode(&e); err != nil {
 		// A value this driver cannot decode is a real failure. Reporting it as
 		// an expiry hid the error and deleted the data along with it.
-		return nil, false, 0, fmt.Errorf("decode: %w", err)
+		return nil, false, fmt.Errorf("decode: %w", err)
 	}
 
 	// Expiry == 0 means the entry never expires (see SetWithContext).
-	return e.Data, e.Expiry != 0 && e.Expiry <= time.Now().Unix(), v.Revision(), nil
+	return e.Data, e.Expiry != 0 && e.Expiry <= time.Now().Unix(), nil
 }
 
 // Get value by key
@@ -374,24 +384,33 @@ func (s *Storage) Keys() ([]string, error) {
 		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}
 
-	keyLister, err := kv.ListKeys(context.Background())
-
+	// Watch streams every current entry with its value in one subscription.
+	// ListKeys would be one round trip too, but it asks for metadata only, so
+	// filtering out expired entries would then cost a Get per key.
+	watcher, err := kv.Watch(context.Background(), ">", jetstream.IgnoreDeletes())
 	if err != nil {
 		return nil, fmt.Errorf("keys: %w", err)
 	}
+	defer func() {
+		_ = watcher.Stop()
+	}()
 
 	var keys []string
-	for key := range keyLister.Keys() {
+	for e := range watcher.Updates() {
+		// A nil entry marks the end of the initial replay.
+		if e == nil {
+			break
+		}
+
 		// An expired entry is still in the bucket until something reclaims it,
 		// so filter it out rather than reporting a key Get will miss on. This
 		// only reads: listing keys must not delete any.
-		data, expired, _, err := read(context.Background(), kv, key)
+		data, expired, err := decodeEntry(e.Value())
 		if err != nil || expired || len(data) == 0 {
 			continue
 		}
-		keys = append(keys, key)
+		keys = append(keys, e.Key())
 	}
-	_ = keyLister.Stop()
 
 	// Double check if no valid keys were found
 	if len(keys) == 0 {
