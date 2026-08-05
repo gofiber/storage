@@ -20,6 +20,10 @@ const resetBatchSize = 1000
 // holds in memory before deleting them.
 const collectBatchSize = 1000
 
+// collectScanLimit bounds how many keys one pass of the collector examines, so
+// the read lock is not held across a whole keyspace when few keys are expired.
+const collectScanLimit = 10000
+
 // collectMaxBatches bounds how many passes one sweep makes, so a database
 // expiring keys as fast as they are reclaimed cannot keep it running forever.
 const collectMaxBatches = 100
@@ -107,14 +111,11 @@ func (s *Storage) collect() {
 	// cannot keep one sweep running, and taking the exclusive lock, forever.
 	// Whatever is left waits for the next tick.
 	for range collectMaxBatches {
-		candidates, last := s.expiredCandidates(after)
+		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
 			return
 		}
-
-		// A short list means the scan reached the end of the database, so this
-		// sweep is done.
-		if len(candidates) < collectBatchSize {
+		if reachedEnd {
 			return
 		}
 		after = last
@@ -130,19 +131,25 @@ func (s *Storage) collect() {
 }
 
 // expiredCandidates lists the keys a snapshot shows as expired, starting after
-// the given key, and reports the last key it examined so the next batch can
-// resume from there rather than rescanning from the beginning.
-func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte) {
+// the given key. It also reports the last key it examined, so the next batch
+// can resume from there rather than rescanning from the beginning, and whether
+// it reached the end of the database.
+//
+// Both the number of keys examined and the number collected are capped, so the
+// read lock is never held for a whole keyspace: a database with millions of
+// live keys and a handful of expired ones would otherwise walk all of them in
+// one call, holding off writers and Close alike.
+func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.closed {
-		return nil, nil
+		return nil, nil, true
 	}
 
 	iter, err := s.db.NewIter(nil)
 	if err != nil {
-		return nil, nil
+		return nil, nil, true
 	}
 	defer func() {
 		_ = iter.Close()
@@ -161,22 +168,20 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	candidates = make([][]byte, 0, collectBatchSize)
 	now := time.Now().Unix()
 
-	for ; valid; valid = iter.Next() {
-		if !expired(iter.Value(), now) {
-			continue
+	for examined := 0; valid; valid = iter.Next() {
+		last = bytes.Clone(iter.Key())
+		examined++
+
+		if expired(iter.Value(), now) {
+			candidates = append(candidates, last)
 		}
 
-		last = bytes.Clone(iter.Key())
-		candidates = append(candidates, last)
-
-		// Bounded so that one pass of a large database cannot hold every
-		// expired key in memory at once. The rest go in the next batch.
-		if len(candidates) == collectBatchSize {
-			break
+		if len(candidates) == collectBatchSize || examined == collectScanLimit {
+			return candidates, last, false
 		}
 	}
 
-	return candidates, last
+	return candidates, last, true
 }
 
 // deleteIfStillExpired re-reads each key and deletes the ones that are still

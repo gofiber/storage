@@ -335,3 +335,60 @@ func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
 	}
 	require.Zero(t, remaining, "every expired key should have been reclaimed")
 }
+
+func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-resume")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	for _, key := range []string{"a", "b", "c"} {
+		require.NoError(t, store.Set(key, []byte("doe"), time.Second))
+	}
+	time.Sleep(2100 * time.Millisecond)
+
+	// From the start, every key is a candidate and the scan reaches the end.
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a"), []byte("b"), []byte("c")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+
+	// Resuming after a key must skip it and everything before it, which is
+	// what stops each batch from rescanning the whole database.
+	candidates, last, reachedEnd = store.expiredCandidates([]byte("a"))
+	require.Equal(t, [][]byte{[]byte("b"), []byte("c")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+
+	candidates, _, reachedEnd = store.expiredCandidates([]byte("c"))
+	require.Empty(t, candidates)
+	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_ExpiredCandidates_Reports_Last_Examined(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-examined")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Only the first key expires. The last key reported has to be the last one
+	// examined, not the last one found expired: resuming from the expired one
+	// would walk the live keys again on every batch.
+	require.NoError(t, store.Set("a", []byte("doe"), time.Second))
+	require.NoError(t, store.Set("b", []byte("doe"), 0))
+	require.NoError(t, store.Set("c", []byte("doe"), 0))
+	time.Sleep(2100 * time.Millisecond)
+
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+}
