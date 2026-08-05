@@ -2,6 +2,7 @@ package pebble
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -391,4 +392,51 @@ func Test_Pebble_ExpiredCandidates_Reports_Last_Examined(t *testing.T) {
 	require.Equal(t, [][]byte{[]byte("a")}, candidates)
 	require.Equal(t, []byte("c"), last)
 	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_ExpiredCandidates_Stops_At_Scan_Limit(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-scanlimit")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// More live keys than one pass examines, and no expired ones at all: the
+	// pass must stop at its scan budget rather than walking the whole
+	// keyspace while holding the read lock.
+	total := collectScanLimit + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, store.Set(fmt.Sprintf("key-%07d", i), []byte("doe"), 0))
+	}
+
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Empty(t, candidates)
+	require.False(t, reachedEnd, "the pass should stop at its scan budget")
+	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectScanLimit-1)), last)
+
+	// Resuming from there reaches the end.
+	candidates, _, reachedEnd = store.expiredCandidates(last)
+	require.Empty(t, candidates)
+	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_GC_Cursor_Persists_Across_Sweeps(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-cursor")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, store.Set("a", []byte("doe"), 0))
+
+	// A sweep that reaches the end clears the cursor, so the next one starts
+	// over rather than skipping the keys it already passed.
+	store.collect()
+	require.Nil(t, store.gcCursor)
 }

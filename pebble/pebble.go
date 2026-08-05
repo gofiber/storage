@@ -46,6 +46,12 @@ type Storage struct {
 	// database is torn down: Pebble panics when a closed one is used.
 	mu     sync.RWMutex
 	closed bool
+
+	// gcCursor is where the next tick's sweep resumes scanning from. Only the
+	// gc goroutine touches it, so it needs no lock of its own. Without it, a
+	// keyspace too large for one tick's scan budget would restart from the
+	// beginning every tick and never reach keys past that budget.
+	gcCursor []byte
 }
 
 type CacheType struct {
@@ -105,17 +111,21 @@ func (s *Storage) gc() {
 // straight off the snapshot could remove a key a concurrent Set had refreshed
 // in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
-	var after []byte
+	after := s.gcCursor
 
 	// Bounded so that a database expiring keys as fast as they are reclaimed
 	// cannot keep one sweep running, and taking the exclusive lock, forever.
-	// Whatever is left waits for the next tick.
+	// Whatever is left resumes on the next tick from s.gcCursor, rather than
+	// rescanning from the beginning: a keyspace bigger than one tick's scan
+	// budget would otherwise never reach the keys past that budget.
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
+			s.gcCursor = after
 			return
 		}
 		if reachedEnd {
+			s.gcCursor = nil
 			return
 		}
 		after = last
@@ -124,10 +134,12 @@ func (s *Storage) collect() {
 		// through the rest of the sweep.
 		select {
 		case <-s.done:
+			s.gcCursor = after
 			return
 		default:
 		}
 	}
+	s.gcCursor = after
 }
 
 // expiredCandidates lists the keys a snapshot shows as expired, starting after
@@ -168,16 +180,20 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	candidates = make([][]byte, 0, collectBatchSize)
 	now := time.Now().Unix()
 
-	for examined := 0; valid; valid = iter.Next() {
-		last = bytes.Clone(iter.Key())
-		examined++
+	for examined := 0; valid; examined++ {
+		key := iter.Key()
 
 		if expired(iter.Value(), now) {
-			candidates = append(candidates, last)
+			candidates = append(candidates, bytes.Clone(key))
 		}
 
-		if len(candidates) == collectBatchSize || examined == collectScanLimit {
-			return candidates, last, false
+		if len(candidates) == collectBatchSize || examined+1 == collectScanLimit {
+			return candidates, bytes.Clone(key), false
+		}
+
+		valid = iter.Next()
+		if !valid {
+			return candidates, bytes.Clone(key), true
 		}
 	}
 
