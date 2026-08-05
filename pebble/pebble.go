@@ -16,6 +16,10 @@ import (
 // that resetting a large database does not have to fit in memory.
 const resetBatchSize = 1000
 
+// collectBatchSize bounds how many expired keys one pass of the collector
+// holds in memory before deleting them.
+const collectBatchSize = 1000
+
 // ErrClosed is returned by every operation attempted after Close. Pebble
 // panics when a closed database is used, so the storage refuses those calls
 // instead of forwarding them.
@@ -93,16 +97,19 @@ func (s *Storage) gc() {
 // straight off the snapshot could remove a key a concurrent Set had refreshed
 // in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
-	candidates := s.expiredCandidates()
-
-	for len(candidates) > 0 {
-		chunk := candidates
-		if len(chunk) > resetBatchSize {
-			chunk = chunk[:resetBatchSize]
+	for {
+		candidates := s.expiredCandidates()
+		if len(candidates) == 0 {
+			return
 		}
-		candidates = candidates[len(chunk):]
 
-		if !s.deleteIfStillExpired(chunk) {
+		if !s.deleteIfStillExpired(candidates) {
+			return
+		}
+
+		// A short list means the database had no more to give, so this sweep
+		// is done.
+		if len(candidates) < collectBatchSize {
 			return
 		}
 
@@ -134,12 +141,20 @@ func (s *Storage) expiredCandidates() [][]byte {
 	}()
 
 	var (
-		candidates [][]byte
+		candidates = make([][]byte, 0, collectBatchSize)
 		now        = time.Now().Unix()
 	)
 	for iter.First(); iter.Valid(); iter.Next() {
-		if expired(iter.Value(), now) {
-			candidates = append(candidates, bytes.Clone(iter.Key()))
+		if !expired(iter.Value(), now) {
+			continue
+		}
+
+		candidates = append(candidates, bytes.Clone(iter.Key()))
+
+		// Bounded so that one sweep of a large database cannot hold every
+		// expired key in memory at once. The rest go in the next sweep.
+		if len(candidates) == collectBatchSize {
+			break
 		}
 	}
 
@@ -192,6 +207,11 @@ func expired(value []byte, now int64) bool {
 	if err := json.Unmarshal(value, &cache); err != nil {
 		return false
 	}
+	return isExpired(cache, now)
+}
+
+// isExpired reports whether a decoded entry is past its expiration as of now.
+func isExpired(cache CacheType, now int64) bool {
 	return cache.Expires > 0 && cache.Expires <= now
 }
 
@@ -228,9 +248,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	secs := time.Now().Unix()
-
-	if cache.Expires > 0 && cache.Expires <= secs {
+	if isExpired(cache, time.Now().Unix()) {
 		// Report the miss without deleting: Pebble has no compare-and-delete,
 		// so removing the key here could drop a value a concurrent Set had
 		// already written. The collector reclaims it instead.

@@ -40,3 +40,4 @@ pebble/test.db/
 badger/fiber.badger/
 leveldb/fiber.leveldb/
 sqlite3/fiber.sqlite3
+leveldb/testdb*/

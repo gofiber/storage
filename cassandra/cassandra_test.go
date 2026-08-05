@@ -296,30 +296,50 @@ func Test_Valid_Identifiers(t *testing.T) {
 	}
 }
 
-// Test_Invalid_Identifiers tests invalid identifier cases
-func Test_Invalid_Identifiers(t *testing.T) {
+// Test_Unusual_Keys checks that keys are bound as query parameters, so
+// anything that would be dangerous spliced into a statement is stored and
+// read back unchanged rather than rejected.
+func Test_Unusual_Keys(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
 
-	invalidCases := []struct {
+	keys := []struct {
 		name string
 		key  string
 	}{
-		{"empty", ""},
 		{"space", "test key"},
 		{"quote", `test"key`},
 		{"semicolon", "test;key"},
 		{"sql_injection", "test' OR '1'='1"},
 		{"unicode", "test\u2028key"},
+		{"colon", "user:123"},
 	}
 
-	for _, tc := range invalidCases {
-		t.Run(fmt.Sprintf("invalid_%s", tc.name), func(t *testing.T) {
-			err := store.Set(tc.key, []byte("value"), 0)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "invalid key name")
+	for _, tc := range keys {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, store.Set(tc.key, []byte("value"), 0))
+
+			val, err := store.Get(tc.key)
+			require.NoError(t, err)
+			require.Equal(t, []byte("value"), val)
+
+			require.NoError(t, store.Delete(tc.key))
 		})
 	}
+}
+
+// Test_Empty_Key_Or_Value checks the interface contract: both are ignored
+// without an error.
+func Test_Empty_Key_Or_Value(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	require.NoError(t, store.Set("", []byte("value"), 0))
+	require.NoError(t, store.Set("empty-value", nil, 0))
+
+	val, err := store.Get("empty-value")
+	require.NoError(t, err)
+	require.Zero(t, len(val))
 }
 
 func Benchmark_Cassandra_Set(b *testing.B) {

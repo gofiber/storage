@@ -251,10 +251,16 @@ func ttlSeconds(d time.Duration) int {
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
 	// Validate key
-	// The key is a bound query parameter, not an identifier spliced into the
-	// statement, so it does not have to look like one. Validating it here
-	// rejected perfectly ordinary keys such as "user:123" that Get and Delete
-	// accept without complaint.
+	// The storage interface documents an empty key or value as ignored without
+	// error.
+	//
+	// Nothing else about the key is checked: it is a bound query parameter,
+	// not an identifier spliced into the statement, so it does not have to
+	// look like one. Validating it rejected perfectly ordinary keys such as
+	// "user:123" that Get and Delete accept without complaint.
+	if len(key) == 0 || len(value) == 0 {
+		return nil
+	}
 
 	// Calculate expiration time
 	var expiresAt *time.Time

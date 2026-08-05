@@ -499,8 +499,15 @@ func Test_ReadOnly(t *testing.T) {
 }
 
 func Test_ErrorIfMissing(t *testing.T) {
+	const path = "./testdb_missing"
+	defer func() {
+		// goleveldb creates the directory before it reports the error, so it
+		// has to be cleaned up here.
+		require.Nil(t, removeAllFiles(path))
+	}()
+
 	// Another field that OpenFile never saw.
 	require.Panics(t, func() {
-		New(Config{Path: "./testdb_missing", ErrorIfMissing: true})
+		New(Config{Path: path, ErrorIfMissing: true})
 	})
 }
