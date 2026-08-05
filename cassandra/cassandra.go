@@ -270,8 +270,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	// expiration, so the configured default is not substituted here: doing so
 	// meant Set(key, value, 0) quietly stored an entry that expired.
 	if exp > 0 {
+		// Derive both from the clamped TTL, so the column and Cassandra's own
+		// expiry do not disagree for a duration long enough to be clamped.
 		ttl = ttlSeconds(exp)
-		t := time.Now().Add(exp)
+		t := time.Now().Add(time.Duration(ttl) * time.Second)
 		expiresAt = &t
 	}
 

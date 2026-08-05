@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,6 +62,18 @@ const (
 // that resetting a large database does not have to fit in memory.
 const resetBatchSize = 1000
 
+// collectBatchSize bounds how many expired keys one pass of the collector
+// holds in memory before deleting them.
+const collectBatchSize = 1000
+
+// collectScanLimit bounds how many keys one pass examines, so the read lock is
+// not held across a whole keyspace when few keys are expired.
+const collectScanLimit = 10000
+
+// collectMaxBatches bounds how many passes one sweep makes, so a database
+// expiring keys as fast as they are reclaimed cannot keep it running forever.
+const collectMaxBatches = 100
+
 // data structure for storing items in the database
 type item struct {
 	// Version is a pointer so that its absence, which marks an entry written
@@ -81,6 +94,14 @@ type Storage struct {
 	stopOnce   sync.Once
 	closeMu    sync.Mutex
 	closed     bool
+
+	// mu orders the collector's delete against writers, so a key a Set has
+	// just refreshed is not reclaimed on the strength of a stale read.
+	mu sync.RWMutex
+
+	// gcCursor is where the next sweep resumes scanning from. Only the
+	// collector touches it.
+	gcCursor []byte
 }
 
 // New creates a new memory storage
@@ -199,6 +220,10 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	if err != nil {
 		return err
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.db.Put([]byte(key), encoded, nil)
 }
 
@@ -373,31 +398,112 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			iter := s.db.NewIterator(nil, nil)
-			batch := new(leveldb.Batch)
-
-			for iter.Next() {
-				stored, kind := decode(iter.Value())
-				if kind != envelopeEntry {
-					continue
-				}
-				if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
-					continue
-				}
-
-				batch.Delete(iter.Key())
-
-				if batch.Len() >= resetBatchSize {
-					_ = s.db.Write(batch, nil)
-					batch.Reset()
-				}
-			}
-
-			iter.Release()
-
-			if batch.Len() > 0 {
-				_ = s.db.Write(batch, nil)
-			}
+			s.collect()
 		}
+	}
+}
+
+// collect reclaims expired entries.
+//
+// Candidates are gathered from a snapshot and then re-read before being
+// deleted, with the lock held exclusively for that second step: deleting
+// straight off the snapshot could remove a key a concurrent Set had refreshed
+// in between, and LevelDB has no compare-and-delete to prevent it.
+//
+// The work is bounded on both axes, so a large database neither holds every
+// expired key in memory nor keeps Close waiting through a full scan.
+func (s *Storage) collect() {
+	after := s.gcCursor
+
+	for range collectMaxBatches {
+		candidates, last, reachedEnd := s.expiredCandidates(after)
+		if len(candidates) > 0 {
+			s.deleteIfStillExpired(candidates)
+		}
+		if reachedEnd {
+			s.gcCursor = nil
+			return
+		}
+		after = last
+
+		// Give up promptly when Close is waiting.
+		select {
+		case <-s.done:
+			s.gcCursor = after
+			return
+		default:
+		}
+	}
+
+	s.gcCursor = after
+}
+
+// expiredCandidates lists the keys a snapshot shows as expired, starting after
+// the given key, and reports the last key it examined along with whether it
+// reached the end of the database.
+func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	iter := s.db.NewIterator(nil, nil)
+	defer iter.Release()
+
+	valid := iter.Next()
+	if after != nil {
+		// Seek lands on the key itself, which the previous batch already
+		// examined, so step past it.
+		valid = iter.Seek(after)
+		if valid && bytes.Equal(iter.Key(), after) {
+			valid = iter.Next()
+		}
+	}
+
+	candidates = make([][]byte, 0, collectBatchSize)
+	now := time.Now()
+
+	for examined := 0; valid; examined++ {
+		key := iter.Key()
+
+		if stored, kind := decode(iter.Value()); kind == envelopeEntry &&
+			!stored.ExpireAt.IsZero() && now.After(stored.ExpireAt) {
+			candidates = append(candidates, bytes.Clone(key))
+		}
+
+		if len(candidates) == collectBatchSize || examined+1 == collectScanLimit {
+			return candidates, bytes.Clone(key), false
+		}
+
+		valid = iter.Next()
+		if !valid {
+			return candidates, bytes.Clone(key), true
+		}
+	}
+
+	return candidates, last, true
+}
+
+// deleteIfStillExpired re-reads each key and deletes the ones that are still
+// expired.
+func (s *Storage) deleteIfStillExpired(keys [][]byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	batch := new(leveldb.Batch)
+	now := time.Now()
+
+	for _, key := range keys {
+		value, err := s.db.Get(key, nil)
+		if err != nil {
+			continue
+		}
+		stored, kind := decode(value)
+		if kind != envelopeEntry || stored.ExpireAt.IsZero() || !now.After(stored.ExpireAt) {
+			continue
+		}
+		batch.Delete(key)
+	}
+
+	if batch.Len() > 0 {
+		_ = s.db.Write(batch, nil)
 	}
 }

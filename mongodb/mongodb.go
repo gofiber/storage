@@ -89,8 +89,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		_ = client.Disconnect(closeCtx)
 	}
 
-	// verify that the client can connect
-	if err = client.Ping(ctx, nil); err != nil {
+	// verify that the client can connect, on a bounded context: the caller's
+	// may have no deadline at all, and New would then hang here forever.
+	pingCtx, pingCancel := context.WithTimeout(ctx, 20*time.Second)
+	defer pingCancel()
+
+	if err = client.Ping(pingCtx, nil); err != nil {
 		closeOwned()
 		panic(err)
 	}
@@ -268,7 +272,12 @@ func (s *Storage) Close() error {
 	defer cancel()
 
 	if err := s.db.Client().Disconnect(ctx); err != nil {
-		return err
+		// A client that is already disconnected is closed, which is what this
+		// call was for. Reporting the error instead would leave Close failing
+		// forever after a disconnect that timed out but did complete.
+		if !errors.Is(err, mongo.ErrClientDisconnected) {
+			return err
+		}
 	}
 
 	s.closed = true

@@ -379,8 +379,10 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset deletes every key in the database
 func (s *Storage) Reset() (err error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// Exclusive: a Set holding the read lock alongside this would be erased
+	// part way through, or survive it, depending on timing.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.closed {
 		return ErrClosed

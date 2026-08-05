@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func removeAllFiles(dir string) error {
@@ -510,4 +511,46 @@ func Test_ErrorIfMissing(t *testing.T) {
 	require.Panics(t, func() {
 		New(Config{Path: path, ErrorIfMissing: true})
 	})
+}
+
+func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
+	db := New(Config{Path: "./testdb_gc_recheck", GCInterval: time.Hour})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_gc_recheck"))
+	}()
+
+	require.Nil(t, db.Set("a", []byte("doe"), 100*time.Millisecond))
+	require.Nil(t, db.Set("b", []byte("doe"), 0))
+	time.Sleep(200 * time.Millisecond)
+
+	// The last key reported is the last one examined, not the last one found
+	// expired: resuming from the expired one would rescan the live keys after
+	// it on every batch.
+	candidates, last, reachedEnd := db.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a")}, candidates)
+	require.Equal(t, []byte("b"), last)
+	require.True(t, reachedEnd)
+
+	// Resuming past a key skips it.
+	candidates, _, reachedEnd = db.expiredCandidates([]byte("a"))
+	require.Empty(t, candidates)
+	require.True(t, reachedEnd)
+
+	// A key refreshed after the snapshot was taken must survive the sweep:
+	// the delete re-reads rather than trusting the stale candidate list.
+	require.Nil(t, db.Set("a", []byte("fresh"), time.Hour))
+	db.deleteIfStillExpired([][]byte{[]byte("a")})
+
+	result, err := db.Get("a")
+	require.Nil(t, err)
+	require.Equal(t, []byte("fresh"), result)
+
+	// A key that is still expired is reclaimed.
+	require.Nil(t, db.Set("c", []byte("doe"), 100*time.Millisecond))
+	time.Sleep(200 * time.Millisecond)
+	db.deleteIfStillExpired([][]byte{[]byte("c")})
+
+	_, err = db.Conn().Get([]byte("c"), nil)
+	require.ErrorIs(t, err, leveldb.ErrNotFound)
 }

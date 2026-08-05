@@ -17,12 +17,13 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	nc  *nats.Conn
-	kv  jetstream.KeyValue
-	err error
-	cfg Config
-	ctx context.Context
-	mu  sync.RWMutex
+	nc     *nats.Conn
+	kv     jetstream.KeyValue
+	err    error
+	cfg    Config
+	ctx    context.Context
+	mu     sync.RWMutex
+	closed bool
 }
 
 type entry struct {
@@ -361,10 +362,21 @@ func (s *Storage) Reset() error {
 }
 
 // Close the nats connection
+// Close the connection. It is safe to call Close more than once, the
+// connection is closed only on the first call.
+//
+// The lock is taken for writing: closing is not a read of the connection, and
+// holding it for reading let operations run against one being torn down.
 func (s *Storage) Close() error {
-	s.mu.RLock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
 	s.nc.Close()
-	s.mu.RUnlock()
 	return nil
 }
 
