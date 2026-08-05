@@ -439,4 +439,10 @@ func Test_Pebble_GC_Cursor_Persists_Across_Sweeps(t *testing.T) {
 	// over rather than skipping the keys it already passed.
 	store.collect()
 	require.Nil(t, store.gcCursor)
+
+	// So does a Reset: the keys the cursor pointed past are gone, and leaving
+	// it set would send the next sweep past everything written afterwards.
+	store.gcCursor = []byte("z")
+	require.NoError(t, store.Reset())
+	require.Nil(t, store.gcCursor)
 }

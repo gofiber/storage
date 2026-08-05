@@ -16,6 +16,11 @@ import (
 )
 
 // Storage interface that is implemented by storage providers
+// errClosed is returned by every operation attempted after Close. The NATS
+// connection is gone by then, so a call that slipped past would only fail
+// further in with a less obvious error.
+var errClosed = errors.New("nats: storage is closed")
+
 type Storage struct {
 	nc     *nats.Conn
 	kv     jetstream.KeyValue
@@ -190,8 +195,12 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	s.mu.RLock()
-	kv, initErr := s.kv, s.err
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
 	if kv == nil {
 		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}
@@ -256,8 +265,12 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	s.mu.RLock()
-	kv, initErr := s.kv, s.err
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return errClosed
+	}
 	if kv == nil {
 		return fmt.Errorf("kv not initialized: %w", initErr)
 	}
@@ -311,8 +324,12 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	s.mu.RLock()
-	kv, initErr := s.kv, s.err
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return errClosed
+	}
 
 	if kv == nil {
 		return fmt.Errorf("kv not initialized: %w", initErr)
@@ -390,8 +407,12 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue) {
 // Return all the keys
 func (s *Storage) Keys() ([]string, error) {
 	s.mu.RLock()
-	kv, initErr := s.kv, s.err
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
 	if kv == nil {
 		return nil, fmt.Errorf("kv not initialized: %w", initErr)
 	}

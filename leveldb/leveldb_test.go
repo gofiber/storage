@@ -559,3 +559,19 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	_, err = db.Conn().Get([]byte("c"), nil)
 	require.ErrorIs(t, err, leveldb.ErrNotFound)
 }
+
+func Test_Reset_Clears_GC_Cursor(t *testing.T) {
+	db := New(Config{Path: "./testdb_reset_cursor", GCInterval: time.Hour})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_reset_cursor"))
+	}()
+
+	require.Nil(t, db.Set("a", []byte("doe"), 0))
+
+	// The keys the cursor pointed past are gone after a reset, so leaving it
+	// set would send the next sweep past everything written afterwards.
+	db.gcCursor = []byte("z")
+	require.Nil(t, db.Reset())
+	require.Nil(t, db.gcCursor)
+}

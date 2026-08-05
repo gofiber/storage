@@ -389,6 +389,11 @@ func (s *Storage) Reset() (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// The keys the collector was working through are about to be gone, so its
+	// cursor would otherwise send the next sweep to a position past everything
+	// written afterwards, delaying expiry by up to one interval.
+	s.gcCursor = nil
+
 	if s.closed {
 		return ErrClosed
 	}
