@@ -90,6 +90,15 @@ type Config struct {
 	// Optional. The default is true
 	AlwaysPipelining bool
 
+	// DisableAlwaysPipelining turns AlwaysPipelining off.
+	//
+	// AlwaysPipelining defaults to true and this config reads a zero value as
+	// "not set", so setting it to false has no effect; this is the way to
+	// disable it, matching DisableRetry and DisableCache.
+	//
+	// Optional. Default is false
+	DisableAlwaysPipelining bool
+
 	// Reset clears any existing keys in existing Collection
 	//
 	// Optional. Default is false
@@ -103,24 +112,25 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Username:            "",
-	Password:            "",
-	ClientName:          "",
-	URL:                 "",
-	SelectDB:            0,
-	InitAddress:         []string{"127.0.0.1:6379"},
-	TLSConfig:           nil,
-	CacheSizeEachConn:   valkey.DefaultCacheBytes,
-	RingScaleEachConn:   valkey.DefaultRingScale,
-	ReadBufferEachConn:  valkey.DefaultReadBuffer,
-	WriteBufferEachConn: valkey.DefaultWriteBuffer,
-	BlockingPoolSize:    valkey.DefaultPoolSize,
-	PipelineMultiplex:   2,
-	DisableRetry:        false,
-	DisableCache:        false,
-	AlwaysPipelining:    true,
-	Reset:               false,
-	CacheTTL:            time.Minute,
+	Username:                "",
+	Password:                "",
+	ClientName:              "",
+	URL:                     "",
+	SelectDB:                0,
+	InitAddress:             []string{"127.0.0.1:6379"},
+	TLSConfig:               nil,
+	CacheSizeEachConn:       valkey.DefaultCacheBytes,
+	RingScaleEachConn:       valkey.DefaultRingScale,
+	ReadBufferEachConn:      valkey.DefaultReadBuffer,
+	WriteBufferEachConn:     valkey.DefaultWriteBuffer,
+	BlockingPoolSize:        valkey.DefaultPoolSize,
+	PipelineMultiplex:       2,
+	DisableRetry:            false,
+	DisableCache:            false,
+	AlwaysPipelining:        true,
+	DisableAlwaysPipelining: false,
+	Reset:                   false,
+	CacheTTL:                time.Minute,
 }
 
 // Helper function to set default values
@@ -189,12 +199,14 @@ func configDefault(config ...Config) Config {
 		cfg.DisableCache = true
 	}
 
-	// Note: AlwaysPipelining defaults to true and this scheme reads a zero
-	// value as "not set", so it cannot be turned off here. Changing that means
-	// either flipping the default or adding a field, both of which alter
-	// behaviour for existing callers.
 	if userConfig.AlwaysPipelining {
 		cfg.AlwaysPipelining = true
+	}
+
+	// A zero value cannot say "off" for an option that defaults to on, so
+	// disabling it has its own field.
+	if userConfig.DisableAlwaysPipelining {
+		cfg.AlwaysPipelining = false
 	}
 
 	if userConfig.Reset {

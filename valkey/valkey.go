@@ -127,19 +127,24 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
 	}
 
-	// Ex truncates to whole seconds, which turns a sub-second expiration into
-	// EX 0 and makes the server reject the command. PX carries the expiration
-	// exactly, rounded up so it can never reach zero either.
-	//
-	// The count is handed over as milliseconds rather than converted back to a
-	// Duration: that round trip overflowed int64 for an expiration near its
-	// maximum and wrapped to a negative one, which the server rejects.
+	return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).PxMilliseconds(expirationMilliseconds(exp)).Build()).Error()
+}
+
+// expirationMilliseconds converts exp to the millisecond count PX takes.
+//
+// Ex truncates to whole seconds, which turns a sub-second expiration into
+// EX 0 and makes the server reject the command, so PX carries the expiration
+// instead, rounded up so it can never reach zero either.
+//
+// The result stays a count rather than being converted back to a Duration:
+// that round trip overflowed int64 for an expiration near its maximum and
+// wrapped to a negative one, which the server also rejects.
+func expirationMilliseconds(exp time.Duration) int64 {
 	ms := int64(exp / time.Millisecond)
 	if exp%time.Millisecond != 0 {
 		ms++
 	}
-
-	return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).PxMilliseconds(ms).Build()).Error()
+	return ms
 }
 
 // Set sets key with value and expiration

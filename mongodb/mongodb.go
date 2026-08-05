@@ -36,6 +36,19 @@ type item struct {
 // fails.
 const closeTimeout = 10 * time.Second
 
+// initTimeout bounds an initialization step when the caller supplied no
+// deadline of their own.
+const initTimeout = 20 * time.Second
+
+// withDefaultTimeout bounds ctx at initTimeout unless it already has a
+// deadline, which is the caller's to choose.
+func withDefaultTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); ok {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, initTimeout)
+}
+
 // New creates a new MongoDB storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -70,8 +83,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set mongo options
 	opt := options.Client().ApplyURI(dsn)
 
-	// Create and connect the mongo client in one step
-	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	// Create and connect the mongo client in one step, bounded so a caller
+	// that passed no deadline does not hang here. A deadline the caller did
+	// set is left alone: shortening it overrode what they asked for.
+	timeoutCtx, cancel := withDefaultTimeout(ctx)
 	defer cancel()
 
 	client, err := mongo.Connect(timeoutCtx, opt)
@@ -89,9 +104,8 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		_ = client.Disconnect(closeCtx)
 	}
 
-	// verify that the client can connect, on a bounded context: the caller's
-	// may have no deadline at all, and New would then hang here forever.
-	pingCtx, pingCancel := context.WithTimeout(ctx, 20*time.Second)
+	// verify that the client can connect, bounded the same way.
+	pingCtx, pingCancel := withDefaultTimeout(ctx)
 	defer pingCancel()
 
 	if err = client.Ping(pingCtx, nil); err != nil {
@@ -112,7 +126,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Use a dedicated timeout for index creation so it is not starved by time
 	// already spent on connect/ping above.
-	indexCtx, indexCancel := context.WithTimeout(ctx, 20*time.Second)
+	indexCtx, indexCancel := withDefaultTimeout(ctx)
 	defer indexCancel()
 
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.

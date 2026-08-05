@@ -20,6 +20,10 @@ type Storage struct {
 	closeOnce  sync.Once
 }
 
+// schemaInfoKey is the key this driver keeps its schema bookkeeping under. It
+// is not user data, so Reset leaves it alone.
+const schemaInfoKey = "_schema_info"
+
 // SchemaInfo holds information about the schema structure
 type SchemaInfo struct {
 	Version     int
@@ -79,7 +83,7 @@ func New(config ...Config) *Storage {
 func (s *Storage) createOrVerifySchema(version int, description string, forceUpdate bool) error {
 
 	// Schema info is stored with a special key
-	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, "_schema_info")
+	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, schemaInfoKey)
 	if err != nil {
 		return err
 	}
@@ -343,6 +347,12 @@ func (s *Storage) Reset() error {
 		if result.Err != nil {
 			// Log the error but continue with other records
 			log.Printf("Error scanning: %v\n", result.Err)
+			continue
+		}
+
+		// Leave this driver's own bookkeeping in place: wiping it made the
+		// next New believe the schema had never been created.
+		if value, ok := result.Record.Key.Value().GetObject().(string); ok && value == schemaInfoKey {
 			continue
 		}
 

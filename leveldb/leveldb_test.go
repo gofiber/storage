@@ -407,8 +407,13 @@ func Test_Get_LegacyRawValue(t *testing.T) {
 	// Older versions of this driver stored values with no expiration without
 	// an envelope. A raw JSON object must be returned verbatim.
 	for _, raw := range [][]byte{
+		// One field, so not the two-field shape the old envelope had.
 		[]byte(`{"value":"aGk="}`),
+		// No value at all, ruled out before the shape is even checked.
 		[]byte(`{"foo":"bar"}`),
+		// Two fields, but not the two the old envelope had.
+		[]byte(`{"value":"aGk=","other":1}`),
+		// The right two fields plus another, so still not that shape.
 		[]byte(`{"value":"aGk=","expire_at":"2100-01-01T00:00:00Z","extra":1}`),
 	} {
 		require.Nil(t, db.Conn().Put([]byte("legacy"), raw, nil))

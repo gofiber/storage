@@ -178,11 +178,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return s.GetWithContext(context.Background(), key)
 }
 
-// SetWithContext sets a value by key with context
 // maxTTLSeconds is the largest TTL ScyllaDB accepts, 20 years. It also keeps
 // the value inside a 32 bit int.
 const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
 
+// SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
 	// The storage interface documents an empty key or value as ignored
 	// without error; storing one persisted a row nothing could read back.

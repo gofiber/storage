@@ -38,6 +38,8 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo
 
 **Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
 
+**Note:** `Reset` deletes user data only. The record this driver keeps its schema bookkeeping in is left in place.
+
 ### Installation
 
 Aerospike is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

@@ -262,6 +262,11 @@ func (s *Storage) Reset() error {
 		return ErrReadOnly
 	}
 
+	// Exclusive: a Set holding the read lock alongside this would be erased
+	// part way through, or survive it, depending on timing.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 

@@ -34,6 +34,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() valkey.Client
 ```
 
+**Note:** `AlwaysPipelining` defaults to true and this config reads a zero value as "not set", so setting it to false has no effect. Use `DisableAlwaysPipelining: true` to turn it off, the same way `DisableRetry` and `DisableCache` work.
+
 ### Installation
 
 The valkey driver is tested on the latest two [Go version](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

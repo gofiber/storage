@@ -477,16 +477,26 @@ func Test_Rueidis_ConfigDefault_CacheTTL(t *testing.T) {
 }
 
 func Test_Rueidis_Set_Huge_Expiration(t *testing.T) {
-	// The millisecond count used to be converted back into a Duration, which
-	// overflowed int64 near the maximum and wrapped to a negative expiration
-	// that the server rejects. Only the arithmetic is exercised here.
-	exp := time.Duration(math.MaxInt64)
-
-	ms := int64(exp / time.Millisecond)
-	if exp%time.Millisecond != 0 {
-		ms++
-	}
+	// Exercises the real conversion rather than re-deriving it here: the
+	// count used to be converted back into a Duration, which overflowed int64
+	// near the maximum and wrapped to a negative expiration the server
+	// rejects.
+	ms := expirationMilliseconds(time.Duration(math.MaxInt64))
 
 	require.Positive(t, ms)
 	require.Negative(t, int64(time.Duration(ms)*time.Millisecond), "the old round trip overflowed")
+
+	// Sub-millisecond expirations round up rather than reaching zero, which
+	// the server also rejects.
+	require.Equal(t, int64(1), expirationMilliseconds(time.Microsecond))
+	require.Equal(t, int64(2), expirationMilliseconds(1500*time.Microsecond))
+	require.Equal(t, int64(1000), expirationMilliseconds(time.Second))
+}
+
+func Test_Rueidis_ConfigDefault_AlwaysPipelining(t *testing.T) {
+	// The documented default is on, and a zero value cannot express "off",
+	// which is why disabling it has its own field.
+	require.True(t, configDefault(Config{}).AlwaysPipelining)
+	require.True(t, configDefault(Config{AlwaysPipelining: false}).AlwaysPipelining)
+	require.False(t, configDefault(Config{DisableAlwaysPipelining: true}).AlwaysPipelining)
 }
