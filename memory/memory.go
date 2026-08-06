@@ -25,9 +25,6 @@ type Storage struct {
 	stopped    chan struct{}
 	closeOnce  sync.Once
 
-	// closed is atomic rather than guarded by mux: it is read by every
-	// operation and only written once, so taking the lock a second time to
-	// see it would cost more than the check saves.
 	closed atomic.Bool
 }
 
@@ -35,8 +32,6 @@ type entry struct {
 	data []byte
 
 	// expiry is the Unix nanosecond the entry expires at, 0 meaning never.
-	// Nanoseconds rather than whole seconds: rounding made a 100ms entry live
-	// for two seconds.
 	expiry int64
 }
 

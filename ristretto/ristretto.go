@@ -21,9 +21,7 @@ type Storage struct {
 	defaultCost  int64
 	waitForWrite bool
 
-	// mu guards the cache against a concurrent Close. Operations hold it for
-	// reading, Close holds it for writing, so no operation can be in flight
-	// while the cache is being torn down.
+	// mu keeps operations from running against a cache Close is tearing down.
 	mu     sync.RWMutex
 	closed bool
 }

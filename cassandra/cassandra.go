@@ -306,7 +306,6 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		"key": key,
 	}).WithContext(ctx).GetRelease(&result); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
-			// The storage interface documents a miss as nil, nil.
 			return nil, nil
 		}
 		return nil, err
@@ -314,8 +313,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// An expired entry is a miss. Not deleted here: that would drop a value
-		// a concurrent Set just wrote, and the TTL reclaims the row anyway.
+		// Not deleted here: that would drop a value a concurrent Set just
+		// wrote, and the TTL reclaims the row anyway.
 		return nil, nil
 	}
 

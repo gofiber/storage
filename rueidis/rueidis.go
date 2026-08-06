@@ -18,13 +18,7 @@ type Storage struct {
 	db        rueidis.Client
 	closeOnce sync.Once
 
-	// closed is atomic rather than guarded by a mutex: the client is safe to
-	// use concurrently with Close, so operations only need to see a stable
-	// error, not to be held off while it is torn down.
-	closed atomic.Bool
-
-	// cacheTTL is per storage: as a package-level variable every instance
-	// overwrote it for all the others, and did so racily.
+	closed   atomic.Bool
 	cacheTTL time.Duration
 }
 

@@ -22,8 +22,6 @@ type Storage struct {
 	deleteQuery string
 	resetQuery  string
 
-	// ownsSession records whether this driver opened the session, a
-	// caller-supplied one stays the caller's to close.
 	ownsSession bool
 	closeOnce   sync.Once
 }

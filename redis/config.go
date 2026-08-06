@@ -84,10 +84,9 @@ type Config struct {
 	// Optional. Default is false
 	IsClusterMode bool
 
-	// SkipConnectionCheck disables the PING New sends while creating the
-	// storage, so New makes no network call and never panics on an unreachable
-	// server; errors surface on first use. Reset is skipped too, being a
-	// network call: call Reset() yourself if you need both.
+	// SkipConnectionCheck disables the PING New sends, so New makes no network
+	// call and never panics on an unreachable server; errors surface on first
+	// use. Reset is skipped too, being a network call.
 	//
 	// Optional. Default is false
 	SkipConnectionCheck bool

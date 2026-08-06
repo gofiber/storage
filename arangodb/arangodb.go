@@ -26,17 +26,12 @@ type Storage struct {
 	stopped    chan struct{}
 	closeOnce  sync.Once
 
-	// closed is checked by every operation. It is atomic rather than guarded
-	// by a mutex so that a call in flight, which is a full network round trip,
-	// does not hold a lock that Close and later calls would queue behind.
 	closed atomic.Bool
 
 	// Arango mandatory fields
-	connection driver.Connection
-	client     driver.Client
-	collection driver.Collection
-	// collectionName is bound into every query as @@collection, rather than
-	// interpolated into the text, so that names needing AQL escaping work.
+	connection     driver.Connection
+	client         driver.Client
+	collection     driver.Collection
 	collectionName string
 	// AQL query used to remove expired keys
 	aqlRemoveGC string

@@ -113,9 +113,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if m.Exp > 0 && time.Now().Unix() >= m.Exp {
-		// Report the miss without deleting: an unconditional delete here would
-		// drop a value a concurrent Set had already written. The collector
-		// reclaims expired records instead.
+		// Not deleted here: that would drop a value a concurrent Set had
+		// already written. The collector reclaims expired records.
 		return nil, nil
 	}
 

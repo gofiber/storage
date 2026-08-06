@@ -18,9 +18,9 @@ type Storage struct {
 	client    *aerospike.Client
 	namespace string
 	setName   string
-	// schemaSetName is the set holding this driver's own bookkeeping. It is
-	// deliberately not setName: sharing a set with user data meant a caller
-	// storing under schemaInfoKey wrote onto the bookkeeping record itself.
+
+	// schemaSetName is kept separate from setName so user data cannot collide
+	// with the bookkeeping record.
 	schemaSetName string
 	reset         bool
 	schemaInfo    *SchemaInfo
@@ -362,9 +362,8 @@ func (s *Storage) Reset() error {
 	// Create a write policy for deletes
 	writePolicy := aerospike.NewWritePolicy(0, 0)
 
-	// Collect failures rather than swallowing them: New calls Reset to fail
-	// fast, so a silent nil would let it proceed against a store still holding
-	// stale keys.
+	// Collected rather than swallowed: New calls Reset, and a silent nil would
+	// let it proceed against a store still holding stale keys.
 	var errs []error
 	for result := range recordset.Results() {
 		if result.Err != nil {

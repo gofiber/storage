@@ -19,11 +19,7 @@ type Storage struct {
 	db      redis.UniversalClient
 	ownsDB  bool
 	closeMu sync.Mutex
-
-	// closed is atomic rather than mutex-guarded: go-redis is safe to use
-	// concurrently with Close, so operations only need a stable error, not
-	// exclusion from the teardown.
-	closed atomic.Bool
+	closed  atomic.Bool
 }
 
 // NewFromConnection creates a Storage from an existing Redis universal client.

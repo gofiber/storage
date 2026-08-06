@@ -41,20 +41,15 @@ type Storage struct {
 	stopped      chan struct{}
 	stopOnce     sync.Once
 
-	// mu guards the database against a concurrent Close. Operations hold it
-	// for reading and Close for writing, so none is in flight while the
-	// database is torn down: Pebble panics when a closed one is used.
+	// mu keeps operations from running against a database Close is tearing
+	// down; Pebble panics when a closed one is used.
 	mu     sync.RWMutex
 	closed bool
 
-	// gcCursor is where the next sweep resumes, so a keyspace larger than one
-	// tick's scan budget still reaches its tail. Guarded by mu: Reset writes
-	// it too.
 	gcCursor []byte
 
-	// gcEpoch counts the times Reset has rewound gcCursor. A sweep carries the
-	// epoch it started in, so one still running across a Reset cannot write
-	// back a position into keys that Reset has already deleted.
+	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor
+	// pointing into keys Reset already deleted.
 	gcEpoch uint64
 }
 
@@ -286,7 +281,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	data, closer, err := s.db.Get([]byte(key))
 	if err != nil {
-		// A missing key is not an error, every other failure is.
 		if errors.Is(err, pebble.ErrNotFound) {
 			return nil, nil
 		}
@@ -306,9 +300,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	if isExpired(cache, time.Now().Unix()) {
-		// Report the miss without deleting: Pebble has no compare-and-delete,
-		// so removing the key here could drop a value a concurrent Set had
-		// already written. The collector reclaims it instead.
+		// Not deleted here: Pebble has no compare-and-delete, so that would
+		// drop a value a concurrent Set had already written.
 		return nil, nil
 	}
 

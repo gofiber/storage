@@ -70,9 +70,8 @@ const collectMaxBatches = 100
 
 // data structure for storing items in the database
 type item struct {
-	// Version is a pointer so that its absence, which marks an entry written
-	// before the version existed, can be told from a zero value without
-	// decoding the document a second time.
+	// Pointer so an absent version, marking an entry written before versioning,
+	// is distinguishable from 0.
 	Version  *int      `json:"_fiber_storage_v"`
 	Value    []byte    `json:"value"`
 	ExpireAt time.Time `json:"expire_at"`
@@ -93,13 +92,9 @@ type Storage struct {
 	// just refreshed is not reclaimed on the strength of a stale read.
 	mu sync.RWMutex
 
-	// gcEpoch counts the times Reset has rewound gcCursor. A sweep carries the
-	// epoch it started in, so one still running across a Reset cannot write
-	// back a position into keys that Reset has already deleted.
-	gcEpoch uint64
-
-	// gcCursor is where the next sweep resumes scanning from. It is guarded
-	// by mu: the collector is not its only writer, Reset clears it.
+	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor
+	// pointing into keys Reset already deleted.
+	gcEpoch  uint64
 	gcCursor []byte
 }
 
@@ -160,7 +155,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	data, err := s.db.Get([]byte(key), nil)
 	if err != nil {
-		// A missing key is not an error, every other failure is.
 		if errors.Is(err, leveldb.ErrNotFound) {
 			return nil, nil
 		}
@@ -185,9 +179,8 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return stored.Value, nil
 	}
 
-	// Report the miss without deleting. LevelDB offers no compare-and-delete,
-	// so removing the key here would drop a value a concurrent Set had already
-	// written. The collector reclaims expired entries instead.
+	// Not deleted here: LevelDB has no compare-and-delete, so that would drop
+	// a value a concurrent Set had already written. The collector reclaims it.
 	return nil, nil
 }
 
