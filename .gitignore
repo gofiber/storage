@@ -41,3 +41,6 @@ badger/fiber.badger/
 leveldb/fiber.leveldb/
 sqlite3/fiber.sqlite3
 leveldb/testdb*/
+
+# Scratch diffs from local tooling
+.tmp_*.diff
