@@ -186,6 +186,25 @@ func Benchmark_Ristretto_Set(b *testing.B) {
 	require.NoError(b, err)
 }
 
+// Benchmark_Ristretto_Set_SkipWaitForWrite measures the opt-out. Set waits for
+// Ristretto's write buffer to drain by default, so that a Get right after a Set
+// sees the value; this is what that costs, and what SkipWaitForWrite buys back
+// for callers that do not need to read their own writes immediately.
+func Benchmark_Ristretto_Set_SkipWaitForWrite(b *testing.B) {
+	store := New(Config{SkipWaitForWrite: true})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = store.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
 func Benchmark_Ristretto_Get(b *testing.B) {
 	err := testStore.Set("john", []byte("doe"), 0)
 	require.NoError(b, err)
