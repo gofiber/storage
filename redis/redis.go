@@ -2,19 +2,29 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("redis: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db      redis.UniversalClient
 	ownsDB  bool
 	closeMu sync.Mutex
-	closed  bool
+
+	// closed is atomic rather than guarded by closeMu: go-redis clients are
+	// safe to use concurrently with Close, so operations only need to see a
+	// stable error, not to be held off while the client is torn down. Taking
+	// the mutex on every call would serialize them for nothing.
+	closed atomic.Bool
 }
 
 // NewFromConnection creates a new instance of Storage using the provided Redis universal client.
@@ -110,6 +120,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -127,6 +140,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -145,6 +161,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -158,6 +177,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.db.FlushDB(ctx).Err()
 }
 
@@ -170,11 +192,21 @@ func (s *Storage) Reset() error {
 // which case it stays the caller's to close. It is safe to call Close more
 // than once: once the close has succeeded further calls do nothing, and a
 // close that fails is reported so the caller can try again.
+//
+// Either way the storage itself is closed and every later operation reports
+// ErrClosed. A borrowed client is left open for the rest of the application,
+// but this storage stops using it.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	if s.closed || !s.ownsDB {
+	if s.closed.Load() {
+		return nil
+	}
+
+	// A borrowed client is not ours to close, but the storage still is.
+	if !s.ownsDB {
+		s.closed.Store(true)
 		return nil
 	}
 
@@ -182,7 +214,7 @@ func (s *Storage) Close() error {
 		return err
 	}
 
-	s.closed = true
+	s.closed.Store(true)
 	return nil
 }
 
@@ -193,6 +225,10 @@ func (s *Storage) Conn() redis.UniversalClient {
 
 // Return all the keys
 func (s *Storage) Keys() ([][]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	ctx := context.Background()
 
 	// A cluster holds its keyspace across shards, and Scan on the cluster

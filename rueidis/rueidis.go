@@ -2,16 +2,26 @@ package rueidis
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/rueidis"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("rueidis: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db        rueidis.Client
 	closeOnce sync.Once
+
+	// closed is atomic rather than guarded by a mutex: the client is safe to
+	// use concurrently with Close, so operations only need to see a stable
+	// error, not to be held off while it is torn down.
+	closed atomic.Bool
 
 	// cacheTTL is per storage: as a package-level variable every instance
 	// overwrote it for all the others, and did so racily.
@@ -103,6 +113,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -120,6 +133,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets key with value with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -154,6 +170,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext deletes key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -167,6 +186,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
 }
 
@@ -180,6 +202,7 @@ func (s *Storage) Reset() error {
 // closed only on the first call.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		s.db.Close()
 	})
 	return nil

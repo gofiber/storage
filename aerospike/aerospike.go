@@ -13,17 +13,26 @@ import (
 
 // Storage interface that is implemented by storage drivers
 type Storage struct {
-	client     *aerospike.Client
-	namespace  string
-	setName    string
-	reset      bool
-	schemaInfo *SchemaInfo
-	closeOnce  sync.Once
+	client    *aerospike.Client
+	namespace string
+	setName   string
+	// schemaSetName is the set holding this driver's own bookkeeping. It is
+	// deliberately not setName: sharing a set with user data meant a caller
+	// storing under schemaInfoKey wrote onto the bookkeeping record itself.
+	schemaSetName string
+	reset         bool
+	schemaInfo    *SchemaInfo
+	closeOnce     sync.Once
 }
 
-// schemaInfoKey is the key this driver keeps its schema bookkeeping under. It
-// is not user data, so Reset leaves it alone.
+// schemaInfoKey is the key this driver keeps its schema bookkeeping under, in
+// its own set. It is an ordinary key as far as callers are concerned: nothing
+// stops them storing under the same name in the set holding their data.
 const schemaInfoKey = "_schema_info"
+
+// schemaSetSuffix names the set the bookkeeping record lives in, derived from
+// the configured set so that two storages on one namespace stay independent.
+const schemaSetSuffix = "_fiber_schema"
 
 // SchemaInfo holds information about the schema structure
 type SchemaInfo struct {
@@ -51,10 +60,11 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		client:    client,
-		namespace: cfg.Namespace,
-		setName:   cfg.SetName,
-		reset:     cfg.Reset,
+		client:        client,
+		namespace:     cfg.Namespace,
+		setName:       cfg.SetName,
+		schemaSetName: cfg.SetName + schemaSetSuffix,
+		reset:         cfg.Reset,
 	}
 
 	// Release the client opened above rather than leaking it when a later
@@ -83,8 +93,8 @@ func New(config ...Config) *Storage {
 // createOrVerifySchema checks if schema exists and creates or updates if needed
 func (s *Storage) createOrVerifySchema(version int, description string, forceUpdate bool) error {
 
-	// Schema info is stored with a special key
-	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, schemaInfoKey)
+	// Schema info lives in its own set, clear of the caller's keyspace.
+	schemaKey, err := aerospike.NewKey(s.namespace, s.schemaSetName, schemaInfoKey)
 	if err != nil {
 		return err
 	}
@@ -326,13 +336,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
-	// The scan returns records by digest, not by user key, so the record to
-	// keep is identified the same way.
-	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, schemaInfoKey)
-	if err != nil {
-		return err
-	}
-
+	// The bookkeeping record is in its own set, which this scan does not
+	// touch, so every record it returns is the caller's to delete.
+	//
 	// Use ScanAll which returns a Recordset
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
@@ -360,16 +366,6 @@ func (s *Storage) Reset() error {
 	for result := range recordset.Results() {
 		if result.Err != nil {
 			errs = append(errs, result.Err)
-			continue
-		}
-
-		// Leave this driver's own bookkeeping in place: wiping it made the
-		// next New believe the schema had never been created.
-		//
-		// Compared by digest rather than by user key: a write policy does not
-		// send the key back by default, so the value is nil here and reading
-		// it panicked.
-		if result.Record.Key.Equals(schemaKey) {
 			continue
 		}
 

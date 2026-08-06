@@ -423,7 +423,7 @@ func Test_Pebble_ExpiredCandidates_Stops_At_Scan_Limit(t *testing.T) {
 	require.True(t, reachedEnd)
 }
 
-func Test_Pebble_GC_Cursor_Persists_Across_Sweeps(t *testing.T) {
+func Test_Pebble_GC_Cursor_Cleared_After_Full_Sweep_And_Reset(t *testing.T) {
 	dir, err := os.MkdirTemp("", "pebble-gc-cursor")
 	require.NoError(t, err)
 	defer func() {

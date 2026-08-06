@@ -38,7 +38,7 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo
 
 **Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
 
-**Note:** `Reset` deletes user data only. The record this driver keeps its schema bookkeeping in is left in place. It reports any scan or delete that failed rather than logging and carrying on, so `New` with `Reset: true` fails loudly when the store could not actually be wiped instead of starting against stale keys.
+**Note:** `Reset` deletes user data only. This driver keeps its schema bookkeeping in a separate Aerospike set, derived from `SetName`, so it is untouched by the scan `Reset` runs and no key name is reserved for it. It reports any scan or delete that failed rather than logging and carrying on, so `New` with `Reset: true` fails loudly when the store could not actually be wiped instead of starting against stale keys.
 
 ### Installation
 

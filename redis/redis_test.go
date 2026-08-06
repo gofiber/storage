@@ -325,6 +325,16 @@ func Test_Redis_Close_DoesNotCloseBorrowedClient(t *testing.T) {
 	val, err := owner.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), val)
+
+	// borrowed itself is closed, though: leaving the client open is not the
+	// same as leaving the storage usable.
+	_, err = borrowed.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, borrowed.Set("jane", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, borrowed.Delete("john"), ErrClosed)
+	require.ErrorIs(t, borrowed.Reset(), ErrClosed)
+	_, err = borrowed.Keys()
+	require.ErrorIs(t, err, ErrClosed)
 }
 
 func Test_Redis_Conn(t *testing.T) {

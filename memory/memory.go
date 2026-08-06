@@ -3,11 +3,18 @@ package memory
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+// ErrClosed is returned by every operation attempted after Close. Without it a
+// Set landing after Close would store an entry the collector, already stopped,
+// could never reclaim.
+var ErrClosed = errors.New("memory: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -17,6 +24,11 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	closeOnce  sync.Once
+
+	// closed is atomic rather than guarded by mux: it is read by every
+	// operation and only written once, so taking the lock a second time to
+	// see it would cost more than the check saves.
+	closed atomic.Bool
 }
 
 type entry struct {
@@ -63,6 +75,9 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -87,6 +102,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -128,6 +146,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -147,6 +168,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	ndb := make(map[string]entry)
 	s.mux.Lock()
 	s.db = ndb
@@ -163,8 +187,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 }
 
 // Close the memory storage. It is safe to call Close more than once.
+//
+// Once closed the storage rejects every operation with ErrClosed: the
+// collector has stopped, so anything stored afterwards would sit in the map
+// with nothing left to expire it.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		close(s.done)
 		// Wait for the collector to return so it no longer touches the map.
 		<-s.stopped
@@ -223,6 +252,10 @@ func (s *Storage) Conn() map[string]entry {
 
 // Keys returns all the keys
 func (s *Storage) Keys() ([][]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 

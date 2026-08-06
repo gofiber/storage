@@ -161,10 +161,12 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		// Checked before the break as well: a key that disappears only after
+		// the deadline would otherwise end the loop and pass.
+		require.False(t, time.Now().After(deadline), "Key should have expired")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "Key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

@@ -390,3 +390,21 @@ func Test_Storage_Memory_Conn_Returns_Snapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 }
+
+func Test_Memory_Operations_After_Close(t *testing.T) {
+	store := New()
+	require.NoError(t, store.Close())
+
+	// The collector has stopped, so an entry stored now would never be
+	// reclaimed. Every operation reports that instead.
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+
+	_, err := store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
+
+	_, err = store.Keys()
+	require.ErrorIs(t, err, ErrClosed)
+}

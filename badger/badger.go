@@ -157,7 +157,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. It is safe to call Close more than once: once the close has succeeded
+// Close the database. It is safe to call Close more than once: once the close has succeeded
 // further calls do nothing, and a close that fails is reported so the
 // caller can try again.
 //

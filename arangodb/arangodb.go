@@ -35,6 +35,9 @@ type Storage struct {
 	connection driver.Connection
 	client     driver.Client
 	collection driver.Collection
+	// collectionName is bound into every query as @@collection, rather than
+	// interpolated into the text, so that names needing AQL escaping work.
+	collectionName string
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
 	// AQL query used to store a key, insert or update in one statement
@@ -125,20 +128,25 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		gcInterval: cfg.GCInterval,
-		db:         database,
-		collection: collection,
-		client:     client,
-		connection: conn,
-		done:       make(chan struct{}),
-		stopped:    make(chan struct{}),
+		gcInterval:     cfg.GCInterval,
+		db:             database,
+		collection:     collection,
+		client:         client,
+		connection:     conn,
+		done:           make(chan struct{}),
+		stopped:        make(chan struct{}),
+		collectionName: collection.Name(),
 		// doc.exp == 0 means the entry never expires, so it has to be excluded:
 		// without that the sweep matched every such key and deleted the lot.
-		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
+		//
+		// The collection is bound with @@collection rather than interpolated.
+		// A name ArangoDB accepts is not necessarily a bare AQL identifier:
+		// "fiber-storage" would parse as a subtraction and fail every query.
+		aqlRemoveGC: "FOR doc IN @@collection\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN @@collection",
 		// One atomic statement: reading whether the document exists and then
 		// creating it left a window where two concurrent writers both saw it
 		// missing and the second one failed with a conflict.
-		aqlUpsert: fmt.Sprintf("UPSERT { _key: @key }\n INSERT { _key: @key, val: @val, exp: @exp }\n UPDATE { val: @val, exp: @exp }\n IN %s", collection.Name()),
+		aqlUpsert: "UPSERT { _key: @key }\n INSERT { _key: @key, val: @val, exp: @exp }\n UPDATE { val: @val, exp: @exp }\n IN @@collection",
 	}
 
 	// Start garbage collector
@@ -276,6 +284,10 @@ func (s *Storage) Close() error {
 // a data race, and the field was never initialized, so the collector's first
 // sweep wrote to a nil map and took the process down with it.
 func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
+	// Every query names the collection through this bind parameter, so it is
+	// added here rather than repeated at each call site.
+	bindVars["@collection"] = s.collectionName
+
 	cursor, err := s.db.Query(ctx, query, bindVars)
 	if err != nil {
 		return err

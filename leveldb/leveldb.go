@@ -99,6 +99,11 @@ type Storage struct {
 	// just refreshed is not reclaimed on the strength of a stale read.
 	mu sync.RWMutex
 
+	// gcEpoch counts the times Reset has rewound gcCursor. A sweep carries the
+	// epoch it started in, so one still running across a Reset cannot write
+	// back a position into keys that Reset has already deleted.
+	gcEpoch uint64
+
 	// gcCursor is where the next sweep resumes scanning from. It is guarded
 	// by mu: the collector is not its only writer, Reset clears it.
 	gcCursor []byte
@@ -271,6 +276,7 @@ func (s *Storage) Reset() error {
 	// cursor would otherwise send the next sweep to a position past everything
 	// written afterwards, delaying expiry by up to one interval.
 	s.gcCursor = nil
+	s.gcEpoch++
 
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
@@ -423,7 +429,7 @@ func (s *Storage) gc() {
 // The work is bounded on both axes, so a large database neither holds every
 // expired key in memory nor keeps Close waiting through a full scan.
 func (s *Storage) collect() {
-	after := s.loadCursor()
+	after, epoch := s.loadCursor()
 
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
@@ -431,7 +437,7 @@ func (s *Storage) collect() {
 			s.deleteIfStillExpired(candidates)
 		}
 		if reachedEnd {
-			s.storeCursor(nil)
+			s.storeCursor(nil, epoch)
 			return
 		}
 		after = last
@@ -439,27 +445,35 @@ func (s *Storage) collect() {
 		// Give up promptly when Close is waiting.
 		select {
 		case <-s.done:
-			s.storeCursor(after)
+			s.storeCursor(after, epoch)
 			return
 		default:
 		}
 	}
 
-	s.storeCursor(after)
+	s.storeCursor(after, epoch)
 }
 
-// loadCursor reports where the next sweep resumes from.
-func (s *Storage) loadCursor() []byte {
+// loadCursor reports where the next sweep resumes from, along with the epoch
+// that position belongs to.
+func (s *Storage) loadCursor() ([]byte, uint64) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.gcCursor
+	return s.gcCursor, s.gcEpoch
 }
 
-// storeCursor records where the next sweep resumes from.
-func (s *Storage) storeCursor(cursor []byte) {
+// storeCursor records where the next sweep resumes from, unless a Reset rewound
+// the cursor while the sweep was running. That sweep's position refers to keys
+// Reset has since deleted, so writing it back would send the next sweep past
+// everything written after the Reset.
+func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.gcEpoch != epoch {
+		return
+	}
 
 	s.gcCursor = cursor
 }

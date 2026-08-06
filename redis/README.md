@@ -243,7 +243,7 @@ var ConfigDefault = Config{
 ### Using an Existing Redis Connection
 If you already have a Redis client configured in your application, you can create a Storage instance directly from that client. This is useful when you want to share an existing connection throughout your application instead of creating a new one.
 
-The client stays yours to close: `Close` on a storage built this way stops using the client but leaves it open, so the rest of your application keeps working.
+The client stays yours to close: `Close` on a storage built this way leaves the client open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

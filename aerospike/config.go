@@ -20,7 +20,8 @@ type Config struct {
 	// Reset clears any existing keys in existing Set
 	Reset bool
 
-	// Expiration is the default expiration time of entries.
+	// Expiration was the default expiration time of entries. It is ignored:
+	// pass the expiration you want to Set.
 	//
 	// Deprecated: it is no longer applied. The storage interface documents an
 	// expiration of zero as no expiration, and substituting a default here

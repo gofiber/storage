@@ -1,7 +1,9 @@
 package bbolt
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -204,17 +206,36 @@ func Test_Bbolt_Get_Value_Outlives_Transaction(t *testing.T) {
 func Test_Bbolt_Reset_Removes_Every_Key(t *testing.T) {
 	store := newTestStore(t)
 
-	for i := 0; i < 128; i++ {
-		require.NoError(t, store.Set("key-"+strconv.Itoa(i), []byte("doe"), 0))
+	// Enough keys, with values big enough, to split the bucket across several
+	// leaf pages and a branch level. Deleting through a cursor is only worth
+	// testing past the point where the whole bucket fits on one page.
+	const keys = 2000
+	value := bytes.Repeat([]byte("x"), 256)
+
+	for i := 0; i < keys; i++ {
+		require.NoError(t, store.Set(fmt.Sprintf("key-%06d", i), value, 0))
 	}
 
 	require.NoError(t, store.Reset())
 
-	for i := 0; i < 128; i++ {
-		result, err := store.Get("key-" + strconv.Itoa(i))
+	for i := 0; i < keys; i++ {
+		result, err := store.Get(fmt.Sprintf("key-%06d", i))
 		require.NoError(t, err)
 		require.Zero(t, len(result))
 	}
+
+	// Count through the bucket as well: a cursor that skipped entries would
+	// leave keys behind that the lookups above never named.
+	remaining := 0
+	require.NoError(t, store.Conn().View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(store.bucket))
+		require.NotNil(t, b)
+		return b.ForEach(func(_, _ []byte) error {
+			remaining++
+			return nil
+		})
+	}))
+	require.Zero(t, remaining)
 
 	// The bucket must still be usable after a reset.
 	require.NoError(t, store.Set("john", []byte("doe"), 0))

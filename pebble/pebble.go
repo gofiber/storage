@@ -53,6 +53,11 @@ type Storage struct {
 	// restart from the beginning every tick and never reach keys past that
 	// budget.
 	gcCursor []byte
+
+	// gcEpoch counts the times Reset has rewound gcCursor. A sweep carries the
+	// epoch it started in, so one still running across a Reset cannot write
+	// back a position into keys that Reset has already deleted.
+	gcEpoch uint64
 }
 
 type CacheType struct {
@@ -112,7 +117,7 @@ func (s *Storage) gc() {
 // straight off the snapshot could remove a key a concurrent Set had refreshed
 // in between, and Pebble has no compare-and-delete to prevent that.
 func (s *Storage) collect() {
-	after := s.loadCursor()
+	after, epoch := s.loadCursor()
 
 	// Bounded so that a database expiring keys as fast as they are reclaimed
 	// cannot keep one sweep running, and taking the exclusive lock, forever.
@@ -122,11 +127,11 @@ func (s *Storage) collect() {
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
-			s.storeCursor(after)
+			s.storeCursor(after, epoch)
 			return
 		}
 		if reachedEnd {
-			s.storeCursor(nil)
+			s.storeCursor(nil, epoch)
 			return
 		}
 		after = last
@@ -135,27 +140,35 @@ func (s *Storage) collect() {
 		// through the rest of the sweep.
 		select {
 		case <-s.done:
-			s.storeCursor(after)
+			s.storeCursor(after, epoch)
 			return
 		default:
 		}
 	}
 
-	s.storeCursor(after)
+	s.storeCursor(after, epoch)
 }
 
-// loadCursor reports where the next sweep resumes from.
-func (s *Storage) loadCursor() []byte {
+// loadCursor reports where the next sweep resumes from, along with the epoch
+// that position belongs to.
+func (s *Storage) loadCursor() ([]byte, uint64) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.gcCursor
+	return s.gcCursor, s.gcEpoch
 }
 
-// storeCursor records where the next sweep resumes from.
-func (s *Storage) storeCursor(cursor []byte) {
+// storeCursor records where the next sweep resumes from, unless a Reset rewound
+// the cursor while the sweep was running. That sweep's position refers to keys
+// Reset has since deleted, so writing it back would send the next sweep past
+// everything written after the Reset.
+func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.gcEpoch != epoch {
+		return
+	}
 
 	s.gcCursor = cursor
 }
@@ -409,8 +422,11 @@ func (s *Storage) Reset() (err error) {
 
 	// The keys the collector was working through are about to be gone, so its
 	// cursor would otherwise send the next sweep to a position past everything
-	// written afterwards, delaying expiry by up to one interval.
+	// written afterwards, delaying expiry by up to one interval. Bumping the
+	// epoch stops a sweep that is already running from putting that position
+	// back once this returns.
 	s.gcCursor = nil
+	s.gcEpoch++
 
 	if s.closed {
 		return ErrClosed
@@ -485,9 +501,12 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the database. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
+// Close closes the database. It is safe to call Close more than once: the
+// database is closed by the first call and further calls do nothing.
+//
+// A failure is reported by that first call only. Pebble closes the database
+// whether or not it reports an error and panics if it is closed again, so
+// there is nothing left for a caller to retry.
 func (s *Storage) Close() error {
 	// Stopping the collector happens once, even if the close below fails and
 	// the caller tries again.
@@ -505,12 +524,12 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.db.Close(); err != nil {
-		return err
-	}
-
+	// Pebble marks the database closed whether or not Close reports an error,
+	// and panics on a second call. Record the close before checking the error
+	// so a caller that retries gets the error again rather than that panic.
 	s.closed = true
-	return nil
+
+	return s.db.Close()
 }
 
 // Conn returns the database client

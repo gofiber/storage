@@ -28,6 +28,9 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
+	// os.Exit skips deferred cleanup, so release the database before removing
+	// the directory it lives in.
+	_ = testStore.Close()
 	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }

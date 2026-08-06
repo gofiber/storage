@@ -177,14 +177,37 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, retrievedVal2)
 
-	// Ensure the driver's own schema bookkeeping record survived the reset:
-	// this is the record the digest comparison in Reset is meant to skip.
-	schemaKey, err := aerospike.NewKey(testStore.namespace, testStore.setName, schemaInfoKey)
+	// Ensure the driver's own schema bookkeeping record survived the reset. It
+	// lives in its own set, which the scan Reset runs does not touch.
+	schemaKey, err := aerospike.NewKey(testStore.namespace, testStore.schemaSetName, schemaInfoKey)
 	require.NoError(t, err)
 	schemaRecord, err := testStore.client.Get(nil, schemaKey, "version")
 	require.NoError(t, err)
 	require.NotNil(t, schemaRecord)
 	require.Equal(t, schemaBefore.Version, schemaRecord.Bins["version"].(int))
+}
+
+// Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved checks that the name the
+// driver keeps its bookkeeping under is an ordinary key for callers: it is
+// readable, and Reset clears it like any other.
+func Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set(schemaInfoKey, []byte("user value"), 0))
+
+	val, err := testStore.Get(schemaInfoKey)
+	require.NoError(t, err)
+	require.Equal(t, []byte("user value"), val)
+
+	require.NoError(t, testStore.Reset())
+
+	val, err = testStore.Get(schemaInfoKey)
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	// The bookkeeping itself is still intact, so the storage stays usable.
+	require.NotNil(t, testStore.GetSchemaInfo())
 }
 
 // Test_AeroSpikeDB_GetSchemaInfo tests the GetSchemaInfo method

@@ -190,6 +190,11 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	// Checked before the empty-key no-op so that a cancelled context is
+	// reported whatever the key is, as the other drivers do.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -260,6 +265,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiry with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -319,6 +327,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -345,6 +356,13 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	// Checked before the lock: this one is held across a bucket delete and
+	// recreate, so a cancelled caller would otherwise wait out an unrelated
+	// Reset before finding out.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	// Held for the whole call, not just the recreate: Close landing between
 	// the delete and the recreate below left the bucket gone for good.
 	s.mu.Lock()

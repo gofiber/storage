@@ -3,6 +3,7 @@ package surrealdb
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"strings"
 	"sync"
@@ -315,6 +316,12 @@ func (s *Storage) cleanupExpired(ctx context.Context) {
 		"DELETE type::table($table) WHERE exp != 0 AND exp <= $now",
 		map[string]any{"table": s.table, "now": time.Now().Unix()},
 	); err != nil {
+		// Close cancels ctx to abandon a sweep in flight, so a cancellation
+		// here is an ordinary shutdown rather than a cleanup failure. Logging
+		// it would print an error line on every close that overlapped a sweep.
+		if errors.Is(err, context.Canceled) {
+			return
+		}
 		log.Printf("surrealdb: expiry cleanup failed: %v", err)
 	}
 }
