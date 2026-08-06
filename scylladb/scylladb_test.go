@@ -332,3 +332,23 @@ func Test_ScyllaDB_Close_Twice(t *testing.T) {
 		require.NoError(t, testStore.Close())
 	})
 }
+
+func Test_ScyllaDB_Rejects_Unsafe_Identifiers(t *testing.T) {
+	// CQL cannot bind a keyspace or table name, so these are interpolated into
+	// every statement. Names that are not bare identifiers are refused rather
+	// than spliced in.
+	for _, name := range []string{
+		`fiber; DROP TABLE x`,
+		`fiber-storage`,
+		`fiber storage`,
+		`"fiber"`,
+		`fiber.storage`,
+		"fibér",
+	} {
+		require.Error(t, validateIdentifier(name, "table"), "should reject %q", name)
+	}
+
+	require.NoError(t, validateIdentifier("fiber_storage", "table"))
+	require.NoError(t, validateIdentifier("fiber", "keyspace"))
+	require.Error(t, validateIdentifier("", "keyspace"))
+}

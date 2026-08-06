@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/gocql/gocql"
 )
@@ -41,6 +42,30 @@ var (
 	resetQuery          = `TRUNCATE %s.%s`
 )
 
+// validateIdentifier checks that name is safe to interpolate into CQL.
+//
+// CQL cannot bind a keyspace or table name as a placeholder, so these have to
+// go into the statement as text. An application that derives either from
+// untrusted input would otherwise turn that interpolation into an injection
+// point, and a name that is not a bare CQL identifier only fails later as a
+// syntax error from the server.
+func validateIdentifier(name, identifierType string) error {
+	if name == "" {
+		return fmt.Errorf("scylladb: invalid %s name: cannot be empty", identifierType)
+	}
+
+	for _, r := range name {
+		if r > unicode.MaxASCII {
+			return fmt.Errorf("scylladb: invalid %s name: cannot contain unicode characters", identifierType)
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+			return fmt.Errorf("scylladb: invalid %s name %q: can only contain letters, numbers, and underscores", identifierType, name)
+		}
+	}
+
+	return nil
+}
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	var err error
@@ -51,6 +76,15 @@ func New(config ...Config) *Storage {
 
 	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
 		panic(errKeyspace)
+	}
+
+	// Both names are interpolated into every statement below, so check them
+	// before any of those are built.
+	if err := validateIdentifier(cfg.Keyspace, "keyspace"); err != nil {
+		panic(err)
+	}
+	if err := validateIdentifier(cfg.Table, "table"); err != nil {
+		panic(err)
 	}
 
 	if cfg.Session == nil {

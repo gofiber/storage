@@ -420,6 +420,12 @@ func (s *Storage) Reset() (err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Checked before the cursor is touched: a closed storage deletes nothing,
+	// so it has no business rewinding the collector either.
+	if s.closed {
+		return ErrClosed
+	}
+
 	// The keys the collector was working through are about to be gone, so its
 	// cursor would otherwise send the next sweep to a position past everything
 	// written afterwards, delaying expiry by up to one interval. Bumping the
@@ -427,10 +433,6 @@ func (s *Storage) Reset() (err error) {
 	// back once this returns.
 	s.gcCursor = nil
 	s.gcEpoch++
-
-	if s.closed {
-		return ErrClosed
-	}
 
 	iter, iterErr := s.db.NewIter(nil)
 	if iterErr != nil {
