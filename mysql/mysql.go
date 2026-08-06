@@ -158,10 +158,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	// If the expiration time has already passed, then return nil. The row is
-	// not deleted here: this is not conditional on what was read, so it could
-	// remove a value a concurrent Set had already written. The collector
-	// reclaims expired rows instead.
+	// An expired entry is a miss. The row is not deleted here: the delete is
+	// not conditional on what was read, so it could drop a value a concurrent
+	// Set just wrote. The collector reclaims it.
 	if exp != 0 && exp <= time.Now().Unix() {
 		return nil, nil
 	}
@@ -227,11 +226,9 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close stops the garbage collector and closes the database, unless the
-// connection was supplied through Config.Db, which stays the caller's to
-// close. It is safe to call Close more than once: once the close has
-// succeeded further calls do nothing, and a close that fails is reported so
-// the caller can try again.
+// Close stops the garbage collector and closes the database, unless it came
+// from Config.Db, which stays the caller's to close. Safe to call more than
+// once; a failed close is reported so the caller can retry.
 func (s *Storage) Close() error {
 	// Stopping the collector happens once, even if the close below fails and
 	// the caller tries again.

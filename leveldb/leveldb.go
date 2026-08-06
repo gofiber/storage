@@ -13,10 +13,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// envelopeVersion identifies entries written by this driver. It is stored
-// under a deliberately unusual key so that a raw payload written by an older
-// version of this driver, which may itself be a JSON object, is never mistaken
-// for an envelope.
+// envelopeVersion identifies entries written by this driver, under a
+// deliberately unusual key so a raw JSON payload from an older version is
+// never mistaken for an envelope.
 const envelopeVersion = 1
 
 // errUnknownEnvelope is returned when an entry carries an envelope version
@@ -39,14 +38,9 @@ const (
 	// written by earlier versions of this driver for keys with no expiration.
 	envelopeNone envelopeKind = iota
 
-	// envelopeEntry means the entry carries an envelope this driver can read,
-	// either the versioned one it writes today or the unversioned one earlier
-	// versions wrote for keys with an expiration.
-	//
-	// The unversioned shape is indistinguishable from a payload that happens
-	// to be the same JSON object. That ambiguity predates the version marker
-	// and only affects databases written before it, so such an entry is
-	// treated as an envelope, exactly as earlier versions treated it.
+	// envelopeEntry carries an envelope this driver can read: the versioned one
+	// written today, or the unversioned one earlier versions wrote. That shape is
+	// ambiguous with a like payload, so it is read as earlier versions did.
 	envelopeEntry
 
 	// envelopeUnknown means the entry carries an envelope version this driver
@@ -365,10 +359,8 @@ func decode(data []byte) (item, envelopeKind) {
 			}
 			return stored, envelopeEntry
 		}
-		// A version this driver does not know, but only when the document
-		// also carries a value: every envelope ever written did, so a raw
-		// payload that merely happens to have a field of this name is still
-		// returned as the payload it is.
+		// Unknown version, but only when a value is present: every envelope
+		// carried one, so a payload that merely shares the field name is not.
 		if stored.Value != nil {
 			return item{}, envelopeUnknown
 		}
@@ -419,15 +411,9 @@ func (s *Storage) gc() {
 	}
 }
 
-// collect reclaims expired entries.
-//
-// Candidates are gathered from a snapshot and then re-read before being
-// deleted, with the lock held exclusively for that second step: deleting
-// straight off the snapshot could remove a key a concurrent Set had refreshed
-// in between, and LevelDB has no compare-and-delete to prevent it.
-//
-// The work is bounded on both axes, so a large database neither holds every
-// expired key in memory nor keeps Close waiting through a full scan.
+// collect reclaims expired entries. Candidates come from a snapshot and are
+// re-read under the exclusive lock before deletion, since LevelDB has no
+// compare-and-delete. Bounded so a large database cannot stall Close.
 func (s *Storage) collect() {
 	after, epoch := s.loadCursor()
 
@@ -463,10 +449,8 @@ func (s *Storage) loadCursor() ([]byte, uint64) {
 	return s.gcCursor, s.gcEpoch
 }
 
-// storeCursor records where the next sweep resumes from, unless a Reset rewound
-// the cursor while the sweep was running. That sweep's position refers to keys
-// Reset has since deleted, so writing it back would send the next sweep past
-// everything written after the Reset.
+// storeCursor records where the next sweep resumes, unless a Reset rewound the
+// cursor meanwhile: that position points into keys Reset has already deleted.
 func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

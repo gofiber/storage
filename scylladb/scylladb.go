@@ -42,13 +42,9 @@ var (
 	resetQuery          = `TRUNCATE %s.%s`
 )
 
-// validateIdentifier checks that name is safe to interpolate into CQL.
-//
-// CQL cannot bind a keyspace or table name as a placeholder, so these have to
-// go into the statement as text. An application that derives either from
-// untrusted input would otherwise turn that interpolation into an injection
-// point, and a name that is not a bare CQL identifier only fails later as a
-// syntax error from the server.
+// validateIdentifier checks that name is safe to interpolate into CQL, which
+// cannot bind a keyspace or table as a placeholder. Without it a name from
+// untrusted input is an injection point.
 func validateIdentifier(name, identifierType string) error {
 	if name == "" {
 		return fmt.Errorf("scylladb: invalid %s name: cannot be empty", identifierType)
@@ -58,10 +54,8 @@ func validateIdentifier(name, identifierType string) error {
 		if r > unicode.MaxASCII {
 			return fmt.Errorf("scylladb: invalid %s name: cannot contain unicode characters", identifierType)
 		}
-		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so the first
-		// character is letters only. Allowing a digit or underscore to lead
-		// would let a name through here that the server then rejects as a
-		// syntax error, which is the failure this check exists to replace.
+		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so a leading digit
+		// or underscore would pass here and then fail on the server.
 		if i == 0 && !unicode.IsLetter(r) {
 			return fmt.Errorf("scylladb: invalid %s name %q: must start with a letter", identifierType, name)
 		}
@@ -233,10 +227,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 	var expiration int
 	if expire > 0 {
-		// ScyllaDB TTLs are whole seconds and a TTL of 0 means "no TTL", so
-		// round up rather than letting a sub-second expiration become zero.
-		// The count is computed as int64 and clamped to what ScyllaDB accepts,
-		// so it cannot overflow int on a 32 bit build.
+		// TTLs are whole seconds and 0 means "no TTL", so round up rather than
+		// letting a sub-second expiration become zero. Computed as int64 and
+		// clamped, so it cannot overflow int on a 32 bit build.
 		secs := int64(expire / time.Second)
 		if expire%time.Second != 0 {
 			secs++
@@ -274,10 +267,8 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the storage
-// Close closes the session, unless it was supplied through Config.Session, in
-// which case it stays the caller's to close. It is safe to call Close more
-// than once.
+// Close closes the session, unless it came from Config.Session, in which case
+// it stays the caller's to close. Safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		if s.ownsSession {

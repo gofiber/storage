@@ -22,9 +22,8 @@ var ErrReadOnly = errors.New("bbolt: storage is read-only")
 
 // Storage interface that is implemented by storage providers.
 //
-// Note: bbolt has no notion of key expiration, so the exp argument of Set is
-// ignored and stored entries live until they are deleted or the storage is
-// reset.
+// bbolt has no key expiration, so Set ignores exp and entries live until
+// deleted or reset.
 type Storage struct {
 	conn     *bbolt.DB
 	bucket   string

@@ -34,10 +34,9 @@ type Storage struct {
 type entry struct {
 	data []byte
 
-	// expiry is the Unix nanosecond the entry expires at, with 0 meaning no
-	// expiration. Storing the exact deadline rather than a whole second keeps
-	// short expirations accurate: rounding to seconds and comparing against a
-	// clock refreshed once a second made a 100ms entry live for two seconds.
+	// expiry is the Unix nanosecond the entry expires at, 0 meaning never.
+	// Nanoseconds rather than whole seconds: rounding made a 100ms entry live
+	// for two seconds.
 	expiry int64
 }
 
@@ -204,11 +203,9 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. It is safe to call Close more than once.
-//
-// Once closed the storage rejects every operation with ErrClosed: the
-// collector has stopped, so anything stored afterwards would sit in the map
-// with nothing left to expire it.
+// Close the memory storage. Safe to call more than once. Once closed every
+// operation returns ErrClosed: the collector has stopped, so anything stored
+// afterwards would never be reclaimed.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		// Held only to publish the flag: an operation that has passed its
@@ -259,11 +256,8 @@ func (s *Storage) gc() {
 	}
 }
 
-// Conn returns a snapshot of the stored entries.
-//
-// It is a copy: handing out the live map let callers read it while the
-// garbage collector was writing to it, which is a data race. Writing to the
-// returned map does not affect the storage.
+// Conn returns a snapshot of the stored entries. It is a copy: the live map
+// raced the collector. Writing to the returned map does not affect storage.
 func (s *Storage) Conn() map[string]entry {
 	s.mux.RLock()
 	defer s.mux.RUnlock()

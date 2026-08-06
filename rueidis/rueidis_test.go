@@ -477,10 +477,8 @@ func Test_Rueidis_ConfigDefault_CacheTTL(t *testing.T) {
 }
 
 func Test_Rueidis_Set_Huge_Expiration(t *testing.T) {
-	// Exercises the real conversion rather than re-deriving it here: the
-	// count used to be converted back into a Duration, which overflowed int64
-	// near the maximum and wrapped to a negative expiration the server
-	// rejects.
+	// Exercises the real conversion: the count used to be turned back into a
+	// Duration, which overflowed int64 near the maximum and wrapped negative.
 	ms := expirationMilliseconds(time.Duration(math.MaxInt64))
 
 	require.Positive(t, ms)

@@ -84,19 +84,10 @@ type Config struct {
 	// Optional. Default is false
 	IsClusterMode bool
 
-	// SkipConnectionCheck disables the PING that New sends to the server while
-	// creating the storage.
-	//
-	// By default an unreachable server makes New panic, which is undesirable
-	// when Redis is an optional dependency, such as a cache that the
-	// application can survive without. With this option set New performs no
-	// network call at all and connection errors are reported by the first
-	// operation instead.
-	//
-	// With this set New makes no network call and never panics. Reset is
-	// therefore not carried out either, since flushing the database is a
-	// network call; clear it explicitly with Reset() once the storage is up
-	// if you need both.
+	// SkipConnectionCheck disables the PING New sends while creating the
+	// storage, so New makes no network call and never panics on an unreachable
+	// server; errors surface on first use. Reset is skipped too, being a
+	// network call: call Reset() yourself if you need both.
 	//
 	// Optional. Default is false
 	SkipConnectionCheck bool

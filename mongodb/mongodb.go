@@ -99,10 +99,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client opened above rather than leaking it when a later step
-	// fails. Disconnecting runs on its own bounded context: the caller's may be
-	// exactly what failed, so a done context would skip the disconnect, and an
-	// unbounded one would hang here if the connection is stuck.
+	// Release the client rather than leaking it when a later step fails, on its
+	// own bounded context: the caller's may be what failed, and an unbounded
+	// one would hang on a stuck connection.
 	closeOwned := func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
 		defer closeCancel()
@@ -311,10 +310,9 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Bounded for the same reason as the constructor cleanup: the interface
-	// gives Close no context, and a stuck connection must not hang the caller
-	// forever. A timeout is transient, so it is reported without latching and
-	// a later Close tries again.
+	// Bounded because Close takes no context and a stuck connection must not
+	// hang the caller. A timeout is transient, so it is reported without
+	// latching and a later Close retries.
 	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 	defer cancel()
 

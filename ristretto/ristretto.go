@@ -113,13 +113,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// write under pressure or evict the entry later, which is not an error.
 	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
 
-	// Ristretto applies writes asynchronously through a buffer, so without
-	// this a Get right after Set would race the write and often miss. Wait
-	// blocks until the buffered write has been processed.
-	//
-	// Note that Ristretto is a cache with an admission policy: waiting makes
-	// the write visible if it is admitted, it does not make admission
-	// certain, and an entry may still be evicted at any later point.
+	// Ristretto buffers writes, so without this a Get right after Set often
+	// misses. Waiting makes an admitted write visible; it does not guarantee
+	// admission, and the entry can still be evicted later.
 	if s.waitForWrite {
 		s.cache.Wait()
 	}

@@ -26,13 +26,11 @@ type Config struct {
 	// Optional. Default is false
 	// SslOpts is the SSL options for the Cassandra cluster.
 	SslOpts *gocql.SslOptions
-	// Expiration was the time after which an entry was considered expired. It
-	// is ignored: pass the expiration you want to Set.
+	// Expiration was the time after which an entry was considered expired.
 	//
-	// Deprecated: it is no longer applied. The storage interface documents an
-	// expiration of zero as no expiration, and substituting a default here
-	// meant Set(key, value, 0) quietly stored an entry that expired. Pass the
-	// expiration you want to Set instead.
+	// Deprecated: no longer applied. Zero means no expiration, and defaulting
+	// here made Set(key, value, 0) quietly store an expiring entry. Pass the
+	// expiration to Set instead.
 	Expiration time.Duration
 	// Optional. Default is false
 	// Reset is a flag to reset the database.

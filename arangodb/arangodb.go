@@ -136,12 +136,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		done:           make(chan struct{}),
 		stopped:        make(chan struct{}),
 		collectionName: collection.Name(),
-		// doc.exp == 0 means the entry never expires, so it has to be excluded:
-		// without that the sweep matched every such key and deleted the lot.
-		//
-		// The collection is bound with @@collection rather than interpolated.
-		// A name ArangoDB accepts is not necessarily a bare AQL identifier:
-		// "fiber-storage" would parse as a subtraction and fail every query.
+		// doc.exp == 0 never expires and must be excluded, or the sweep deletes
+		// every such key. The collection is bound, not interpolated: a valid
+		// name like "fiber-storage" would parse as a subtraction.
 		aqlRemoveGC: "FOR doc IN @@collection\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN @@collection",
 		// One atomic statement: reading whether the document exists and then
 		// creating it left a window where two concurrent writers both saw it
@@ -165,10 +162,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errClosed
 	}
 
-	// Read straight away and treat a missing document as a miss. Asking
-	// whether it existed first left a window where a concurrent delete, or the
-	// collector, removed it in between and the read then reported an error
-	// instead of the nil, nil the storage interface documents.
+	// Read straight away and treat a missing document as a miss. Checking
+	// existence first left a window where a concurrent delete turned the read
+	// into an error instead of a miss.
 	var model model
 	if _, err := s.collection.ReadDocument(ctx, key, &model); err != nil {
 		if driver.IsNotFoundGeneral(err) {
@@ -258,31 +254,27 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Arango does not provide a method to close the connection
-// more info @https://github.com/arangodb/go-driver/issues/43
 // Close stops the garbage collector and releases the connection parameters.
-// It is safe to call Close more than once.
+// Safe to call more than once. Arango has no connection close, see
+// https://github.com/arangodb/go-driver/issues/43
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		// Stop gc and wait for it to return.
 		close(s.done)
 		<-s.stopped
 
-		// Mark the storage closed rather than clearing the connection fields:
-		// clearing them raced any Get or Set still in flight, turning a late
-		// call into a nil dereference. A call already past the check runs to
-		// completion, which is harmless here, and later ones get errClosed.
+		// Mark closed rather than clearing the connection fields, which raced
+		// calls in flight into a nil dereference. A call already past the check
+		// completes harmlessly; later ones get errClosed.
 		s.closed.Store(true)
 	})
 
 	return nil
 }
 
-// exec runs query with bindVars. The bind variables are passed in rather than
-// held on the Storage: shared between the collector and the caller they were
-// a data race, and the field was never initialized, so the collector's first
-// sweep wrote to a nil map and took the process down with it.
+// exec runs query with bindVars. They are passed in rather than held on the
+// Storage, where they were a data race between collector and caller and, being
+// uninitialized, crashed the process on the first sweep.
 func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
 	// Every query names the collection through this bind parameter, so it is
 	// added here rather than repeated at each call site.

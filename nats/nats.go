@@ -404,11 +404,9 @@ func (s *Storage) Reset() error {
 }
 
 // Close the nats connection
-// Close the connection. It is safe to call Close more than once, the
-// connection is closed only on the first call.
-//
-// The lock is taken for writing: closing is not a read of the connection, and
-// holding it for reading let operations run against one being torn down.
+// Close the connection. Safe to call more than once; only the first call
+// closes. The lock is taken for writing, or operations run against a
+// connection being torn down.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -460,14 +458,9 @@ func (s *Storage) Keys() ([]string, error) {
 			break
 		}
 
-		// A value this driver cannot decode still has its key listed rather
-		// than failing the whole call: one unreadable entry should not hide
-		// every other key, and Get still reports the failure for that key -
-		// which only happens if the key remains visible here.
-		//
-		// An expired entry is skipped for the same reason a miss would be,
-		// since it is still in the bucket until something reclaims it. This
-		// only reads: listing keys must not delete any.
+		// An undecodable value still has its key listed, or one bad entry hides
+		// every other key. Expired entries are skipped like misses, and nothing
+		// is deleted: listing must not write.
 		data, expired, err := decodeEntry(e.Value())
 		if err != nil {
 			keys = append(keys, e.Key())

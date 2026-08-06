@@ -20,18 +20,15 @@ type Storage struct {
 	ownsDB  bool
 	closeMu sync.Mutex
 
-	// closed is atomic rather than guarded by closeMu: go-redis clients are
-	// safe to use concurrently with Close, so operations only need to see a
-	// stable error, not to be held off while the client is torn down. Taking
-	// the mutex on every call would serialize them for nothing.
+	// closed is atomic rather than mutex-guarded: go-redis is safe to use
+	// concurrently with Close, so operations only need a stable error, not
+	// exclusion from the teardown.
 	closed atomic.Bool
 }
 
-// NewFromConnection creates a new instance of Storage using the provided Redis universal client.
-//
+// NewFromConnection creates a Storage from an existing Redis universal client.
 // The client stays the caller's to close: Close stops using it but leaves it
-// open, since the point of this constructor is to share one client across an
-// application.
+// open, since the point is to share one client across an application.
 func NewFromConnection(conn redis.UniversalClient) *Storage {
 	return &Storage{
 		db: conn,
@@ -188,14 +185,9 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database, unless the client was supplied to NewFromConnection, in
-// which case it stays the caller's to close. It is safe to call Close more
-// than once: once the close has succeeded further calls do nothing, and a
-// close that fails is reported so the caller can try again.
-//
-// Either way the storage itself is closed and every later operation reports
-// ErrClosed. A borrowed client is left open for the rest of the application,
-// but this storage stops using it.
+// Close the database, unless the client came from NewFromConnection, which
+// leaves it open for the application. Safe to call more than once, and a failed
+// close is reported. Either way later operations report ErrClosed.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()

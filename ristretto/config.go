@@ -12,13 +12,9 @@ type Config struct {
 	BufferItems int64
 	DefaultCost int64
 
-	// SkipWaitForWrite makes Set return as soon as the write is buffered,
-	// rather than waiting for Ristretto to apply it.
-	//
-	// Ristretto applies writes asynchronously, so with this set a Get issued
-	// straight after a Set can miss. That is Ristretto's own design and it is
-	// faster; leave it off to get the read-after-write behaviour the storage
-	// interface implies.
+	// SkipWaitForWrite makes Set return as soon as the write is buffered. It is
+	// faster, and Ristretto's own design, but a Get straight after a Set can
+	// miss. Leave it off for the read-after-write the storage interface implies.
 	//
 	// Optional. Default is false
 	SkipWaitForWrite bool

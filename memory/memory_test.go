@@ -412,15 +412,9 @@ func Test_Memory_Operations_After_Close(t *testing.T) {
 }
 
 func Test_Memory_Close_Races_With_Set(t *testing.T) {
-	// Set checks the closed flag, then takes the lock. Close can land in
-	// between, and an entry stored after the collector stopped would never be
-	// reclaimed; Set re-checks the flag under the lock to prevent that.
-	//
-	// The interleaving is not reproducible on demand, so this exercises the
-	// two paths against each other under -race rather than proving the
-	// ordering. What it does assert is that Set only ever succeeds or reports
-	// ErrClosed, and that the storage is closed for good once Close returns.
-	// Test_Memory_Operations_After_Close covers the contract deterministically.
+	// Set checks the closed flag then takes the lock, so a Close in between could
+	// store an entry the stopped collector never reclaims. Not reproducible on
+	// demand; Test_Memory_Operations_After_Close covers the contract itself.
 	for range 50 {
 		store := New(Config{GCInterval: time.Hour})
 

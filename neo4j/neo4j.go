@@ -239,10 +239,9 @@ func (s *Storage) Reset() error {
 }
 
 // Close the database
-// Close stops the garbage collector and closes the driver, unless it was
-// supplied through Config.DB, which stays the caller's to close. It is safe to
-// call Close more than once: once the close has succeeded further calls do
-// nothing, and a close that fails is reported so the caller can try again.
+// Close stops the garbage collector and closes the driver, unless it came from
+// Config.DB, which stays the caller's to close. Safe to call more than once; a
+// failed close is reported so the caller can retry.
 func (s *Storage) Close() error {
 	// Stopping the collector happens once, even if the close below fails and
 	// the caller tries again.

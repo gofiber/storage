@@ -172,10 +172,9 @@ func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	// Assert on the same store the key was written to: a second store starts
-	// out empty, so reading the expired key from one asserts nothing.
-	// The deadline is stored in whole seconds and rounded up, so the entry may
-	// outlive its expiration by up to a second.
+	// Assert on the same store the key was written to; a fresh one is empty and
+	// would assert nothing. The deadline is whole seconds rounded up, so the
+	// entry may outlive its expiration by up to a second.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)

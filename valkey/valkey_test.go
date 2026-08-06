@@ -35,10 +35,9 @@ func initBenchmarkStore(b *testing.B) {
 		benchmarkStore = newTestStore(b, testredis.WithReuse("valkey-benchmark"))
 	})
 
-	// The Once runs for the first benchmark only. When that one fails to start
-	// the container it stops there, but every later benchmark still finds the
-	// Once done and would go on to use a nil store, crashing with a SIGSEGV
-	// that says nothing about the container that never came up.
+	// The Once runs for the first benchmark only, so once it fails to start the
+	// container every later benchmark finds the Once done and would use a nil
+	// store, crashing with a SIGSEGV that names no cause.
 	if benchmarkStore == nil {
 		b.Fatal("benchmark store unavailable: the container failed to start, see the first benchmark's failure")
 	}
@@ -499,10 +498,8 @@ func Test_Valkey_ConfigDefault_CacheTTL(t *testing.T) {
 }
 
 func Test_Valkey_Set_Huge_Expiration(t *testing.T) {
-	// Exercises the real conversion rather than re-deriving it here: the
-	// count used to be converted back into a Duration, which overflowed int64
-	// near the maximum and wrapped to a negative expiration the server
-	// rejects.
+	// Exercises the real conversion: the count used to be turned back into a
+	// Duration, which overflowed int64 near the maximum and wrapped negative.
 	ms := expirationMilliseconds(time.Duration(math.MaxInt64))
 
 	require.Positive(t, ms)

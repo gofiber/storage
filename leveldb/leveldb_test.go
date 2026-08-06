@@ -368,10 +368,8 @@ func Test_Get_LegacyEnvelope(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// The same envelope, already expired, must be reported as a miss. Get does
-	// not delete it: LevelDB has no compare-and-delete, so removing it here
-	// could drop a value a concurrent Set had written. The collector reclaims
-	// it instead.
+	// An expired envelope is a miss. Get does not delete it: LevelDB has no
+	// compare-and-delete, so that could drop a value a concurrent Set wrote.
 	expired := []byte(`{"value":"ZG9l","expire_at":"2000-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("expired"), expired, nil))
 

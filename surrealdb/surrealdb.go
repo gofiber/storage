@@ -49,10 +49,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the connection opened above rather than leaking it when a later
-	// step fails. Closing runs on its own bounded context: the caller's may be
-	// exactly what failed, so a done context would skip the close, and an
-	// unbounded one would hang here if the connection is stuck.
+	// Release the connection rather than leaking it when a later step fails, on
+	// its own bounded context: the caller's may be what failed, and an
+	// unbounded one would hang on a stuck connection.
 	closeOwned := func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 		defer cancel()
@@ -244,13 +243,9 @@ func (s *Storage) List() ([]byte, error) {
 	now := time.Now().Unix()
 
 	for _, item := range *records {
-		// Skip an expired record without deleting it: listing must not write,
-		// and an unconditional delete could drop a value a concurrent Set had
-		// already written. The collector reclaims them.
-		//
-		// The comparison matches the collector's exactly: reading an entry as
-		// live that the collector treats as expired made the two disagree for
-		// a whole second around the deadline.
+		// Skip expired records without deleting: listing must not write, and the
+		// collector reclaims them. The comparison matches the collector's
+		// exactly, or the two disagree for a second around the deadline.
 		if item.Exp > 0 && now >= item.Exp {
 			continue
 		}
@@ -299,17 +294,13 @@ func (s *Storage) gc() {
 	}
 }
 
-// cleanupExpired deletes expired keys from storage.
-//
-// The condition is evaluated by the server in a single statement rather than
-// by selecting every record and deleting the expired ones: that read-then-
-// delete could remove a record a concurrent Set had refreshed in between, and
-// it cost one round trip per expired key.
+// cleanupExpired deletes expired keys in a single server-side statement.
+// Selecting then deleting could drop a record a concurrent Set had refreshed,
+// and cost a round trip per key.
 func (s *Storage) cleanupExpired(ctx context.Context) {
-	// The table is bound through type::table rather than spliced into the
-	// statement: a name needing SurrealQL escaping, a hyphen for instance,
-	// produced a query the server rejected, and the error was discarded, so
-	// expiry cleanup stopped happening with nothing to show for it.
+	// The table is bound through type::table, not spliced in: a name needing
+	// escaping produced a rejected query whose error was discarded, so cleanup
+	// silently stopped happening.
 	if _, err := surrealdb.Query[any](
 		ctx,
 		s.db,

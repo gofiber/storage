@@ -17,15 +17,13 @@ import (
 var (
 	// ErrNotFound is returned when the key does not exist.
 	//
-	// Deprecated: Get reports a miss as nil, nil, which is what the storage
-	// interface documents. This is kept so that callers matching on it still
-	// compile.
+	// Deprecated: Get reports a miss as nil, nil per the storage interface.
+	// Kept so callers matching on it still compile.
 	ErrNotFound = fmt.Errorf("key not found")
 	// ErrKeyExpired is returned when the key has expired.
 	//
-	// Deprecated: Get reports an expired entry as a miss, nil, nil, which is
-	// what the storage interface documents. This is kept so that callers
-	// matching on it still compile.
+	// Deprecated: Get reports an expired entry as a miss, nil, nil. Kept so
+	// callers matching on it still compile.
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
@@ -250,14 +248,9 @@ func ttlSeconds(d time.Duration) int {
 
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
-	// Validate key
-	// The storage interface documents an empty key or value as ignored without
-	// error.
-	//
-	// Nothing else about the key is checked: it is a bound query parameter,
-	// not an identifier spliced into the statement, so it does not have to
-	// look like one. Validating it rejected perfectly ordinary keys such as
-	// "user:123" that Get and Delete accept without complaint.
+	// An empty key or value is ignored without error. Nothing else is checked:
+	// the key is a bound parameter, not a spliced identifier, and validating it
+	// rejected ordinary keys like "user:123" that Get and Delete accept.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
 	}
@@ -321,10 +314,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// An expired entry is a miss, which the storage interface documents as
-		// nil, nil. It is not deleted here: an unconditional delete would drop
-		// a value a concurrent Set had already written, and Cassandra reclaims
-		// the row itself through the TTL that Set stores alongside it.
+		// An expired entry is a miss. Not deleted here: that would drop a value
+		// a concurrent Set just wrote, and the TTL reclaims the row anyway.
 		return nil, nil
 	}
 
@@ -373,13 +364,9 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the storage connection. It is safe to call Close more than
-// once, the session is closed only on the first call: gocql panics on a
-// double close.
-//
-// It returns an error so that *Storage satisfies the storage.Storage
-// interface, as this driver's own documentation already stated; gocql's own
-// Close reports nothing, so the error is always nil.
+// Close closes the storage connection. Safe to call more than once; only the
+// first call closes, since gocql panics on a double close. The error exists to
+// satisfy storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		if s.session != nil {

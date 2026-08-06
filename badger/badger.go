@@ -157,13 +157,9 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
-//
-// Close waits for the collector to return. Badger's RunValueLogGC takes no
-// context and cannot be interrupted, so a sweep already under way runs to
-// completion first; it is a bounded operation, not an open-ended one.
+// Close the database. Safe to call more than once; a failed close is reported
+// so the caller can retry. Close waits for the collector: RunValueLogGC takes
+// no context, so a sweep under way runs to completion first.
 func (s *Storage) Close() error {
 	// Stopping the collector happens once, even if the close below fails and
 	// the caller tries again.

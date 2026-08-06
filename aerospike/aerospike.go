@@ -32,13 +32,9 @@ type Storage struct {
 // stops them storing under the same name in the set holding their data.
 const schemaInfoKey = "_schema_info"
 
-// schemaSetSuffix names the set the bookkeeping record lives in, derived from
-// the configured set so that two storages on one namespace stay independent.
-//
-// The suffix is reserved: a SetName carrying it would name another storage's
-// bookkeeping set as its own data set, and Reset would then wipe that
-// storage's schema record. New refuses such a name rather than let the two
-// collide silently.
+// schemaSetSuffix names the set holding the bookkeeping record, derived from the
+// configured set so two storages stay independent. It is reserved: a SetName
+// carrying it would collide with another storage's schema set, so New refuses it.
 const schemaSetSuffix = "_fiber_schema"
 
 // SchemaInfo holds information about the schema structure
@@ -279,10 +275,8 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return err
 	}
 
-	// The storage interface documents an expiration of zero as no expiration,
-	// so it is honoured here rather than being replaced by the configured
-	// default; a negative one means the same thing. Aerospike spells that with
-	// a dedicated sentinel.
+	// Zero means no expiration, and so does negative; the configured default
+	// no longer overrides it. Aerospike spells that with a sentinel.
 	if exp <= 0 {
 		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
@@ -290,10 +284,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	expiration := exp
 
-	// Convert to seconds with a minimum of 1, rounding up so that a
-	// sub-second expiration is not truncated away. Aerospike carries the TTL
-	// in a uint32 whose two highest values are the "never expire" and "do not
-	// update" sentinels, so stop just below them.
+	// Round up to whole seconds, minimum 1, so a sub-second expiration is not
+	// truncated away. Stop below the two highest uint32 values, which Aerospike
+	// reserves as sentinels.
 	const maxTTL = math.MaxUint32 - 2
 
 	secs := int64(expiration / time.Second)
@@ -349,10 +342,8 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
-	// The bookkeeping record is in its own set, which this scan does not
-	// touch, so every record it returns is the caller's to delete.
-	//
-	// Use ScanAll which returns a Recordset
+	// The bookkeeping record is in its own set, which this scan does not touch,
+	// so every record it returns is the caller's to delete.
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
 
@@ -371,10 +362,9 @@ func (s *Storage) Reset() error {
 	// Create a write policy for deletes
 	writePolicy := aerospike.NewWritePolicy(0, 0)
 
-	// Iterate through all records and delete them, collecting failures rather
-	// than swallowing them: New calls Reset to fail fast when cfg.Reset can't
-	// actually wipe the store, so a silent nil here would let it proceed
-	// against a store that still has stale keys in it.
+	// Collect failures rather than swallowing them: New calls Reset to fail
+	// fast, so a silent nil would let it proceed against a store still holding
+	// stale keys.
 	var errs []error
 	for result := range recordset.Results() {
 		if result.Err != nil {
