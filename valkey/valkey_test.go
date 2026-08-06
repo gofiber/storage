@@ -34,6 +34,14 @@ func initBenchmarkStore(b *testing.B) {
 	benchmarkStoreOnce.Do(func() {
 		benchmarkStore = newTestStore(b, testredis.WithReuse("valkey-benchmark"))
 	})
+
+	// The Once runs for the first benchmark only. When that one fails to start
+	// the container it stops there, but every later benchmark still finds the
+	// Once done and would go on to use a nil store, crashing with a SIGSEGV
+	// that says nothing about the container that never came up.
+	if benchmarkStore == nil {
+		b.Fatal("benchmark store unavailable: the container failed to start, see the first benchmark's failure")
+	}
 }
 
 // newConfigFromContainer creates a Redis configuration using Testcontainers.
