@@ -344,11 +344,17 @@ func Test_ScyllaDB_Rejects_Unsafe_Identifiers(t *testing.T) {
 		`"fiber"`,
 		`fiber.storage`,
 		"fibér",
+		// An unquoted CQL identifier must start with a letter.
+		"1table",
+		"_table",
+		"_1keyspace",
 	} {
 		require.Error(t, validateIdentifier(name, "table"), "should reject %q", name)
 	}
 
 	require.NoError(t, validateIdentifier("fiber_storage", "table"))
 	require.NoError(t, validateIdentifier("fiber", "keyspace"))
+	require.NoError(t, validateIdentifier("table1", "table"))
+	require.NoError(t, validateIdentifier("F1", "keyspace"))
 	require.Error(t, validateIdentifier("", "keyspace"))
 }

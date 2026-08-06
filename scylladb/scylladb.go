@@ -54,9 +54,16 @@ func validateIdentifier(name, identifierType string) error {
 		return fmt.Errorf("scylladb: invalid %s name: cannot be empty", identifierType)
 	}
 
-	for _, r := range name {
+	for i, r := range name {
 		if r > unicode.MaxASCII {
 			return fmt.Errorf("scylladb: invalid %s name: cannot contain unicode characters", identifierType)
+		}
+		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so the first
+		// character is letters only. Allowing a digit or underscore to lead
+		// would let a name through here that the server then rejects as a
+		// syntax error, which is the failure this check exists to replace.
+		if i == 0 && !unicode.IsLetter(r) {
+			return fmt.Errorf("scylladb: invalid %s name %q: must start with a letter", identifierType, name)
 		}
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
 			return fmt.Errorf("scylladb: invalid %s name %q: can only contain letters, numbers, and underscores", identifierType, name)

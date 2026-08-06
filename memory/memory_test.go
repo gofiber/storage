@@ -3,6 +3,8 @@ package memory
 import (
 	"context"
 	"math"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -407,4 +409,43 @@ func Test_Memory_Operations_After_Close(t *testing.T) {
 
 	_, err = store.Keys()
 	require.ErrorIs(t, err, ErrClosed)
+}
+
+func Test_Memory_Close_Races_With_Set(t *testing.T) {
+	// Set checks the closed flag, then takes the lock. Close can land in
+	// between, and an entry stored after the collector stopped would never be
+	// reclaimed; Set re-checks the flag under the lock to prevent that.
+	//
+	// The interleaving is not reproducible on demand, so this exercises the
+	// two paths against each other under -race rather than proving the
+	// ordering. What it does assert is that Set only ever succeeds or reports
+	// ErrClosed, and that the storage is closed for good once Close returns.
+	// Test_Memory_Operations_After_Close covers the contract deterministically.
+	for range 50 {
+		store := New(Config{GCInterval: time.Hour})
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			for i := range 200 {
+				err := store.Set(strconv.Itoa(i), []byte("v"), time.Minute)
+				if err != nil {
+					require.ErrorIs(t, err, ErrClosed)
+				}
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+			require.NoError(t, store.Close())
+		}()
+
+		wg.Wait()
+
+		// Once closed the storage refuses every write, so the map cannot grow
+		// past whatever landed before the close.
+		require.ErrorIs(t, store.Set("late", []byte("v"), time.Minute), ErrClosed)
+	}
 }

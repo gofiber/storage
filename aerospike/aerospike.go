@@ -3,8 +3,10 @@ package aerospike
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +34,11 @@ const schemaInfoKey = "_schema_info"
 
 // schemaSetSuffix names the set the bookkeeping record lives in, derived from
 // the configured set so that two storages on one namespace stay independent.
+//
+// The suffix is reserved: a SetName carrying it would name another storage's
+// bookkeeping set as its own data set, and Reset would then wipe that
+// storage's schema record. New refuses such a name rather than let the two
+// collide silently.
 const schemaSetSuffix = "_fiber_schema"
 
 // SchemaInfo holds information about the schema structure
@@ -51,6 +58,12 @@ func New(config ...Config) *Storage {
 	// connect to the host
 	cp := aerospike.NewClientPolicy()
 	cp.Timeout = cfg.InitialConnectionTimeout
+
+	// Checked before the client is opened, so an unusable configuration fails
+	// without a connection to release.
+	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
+		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
+	}
 
 	// Create client
 	client, err := aerospike.NewClientWithPolicyAndHost(cp, cfg.Hosts...)

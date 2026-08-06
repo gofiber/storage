@@ -187,6 +187,20 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	require.Equal(t, schemaBefore.Version, schemaRecord.Bins["version"].(int))
 }
 
+// Test_AeroSpikeDB_Rejects_Reserved_SetName checks that a SetName carrying the
+// schema suffix is refused. Such a name would make one storage's data set
+// another's bookkeeping set, so Reset on the first would wipe the second's
+// schema record.
+func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
+	require.Panics(t, func() {
+		New(Config{
+			Hosts:     []*aerospike.Host{aerospike.NewHost("127.0.0.1", 3000)},
+			Namespace: "test",
+			SetName:   "orders" + schemaSetSuffix,
+		})
+	})
+}
+
 // Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved checks that the name the
 // driver keeps its bookkeeping under is an ordinary key for callers: it is
 // readable, and Reset clears it like any other.

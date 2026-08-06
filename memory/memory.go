@@ -131,8 +131,16 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	e := entry{valCopy, expire}
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	// Re-checked under the lock. The check above can pass just before Close
+	// runs, and without this the entry would land in the map after the
+	// collector has stopped, with nothing left to ever reclaim it.
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	s.db[keyCopy] = e
-	s.mux.Unlock()
 	return nil
 }
 
@@ -153,8 +161,13 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	delete(s.db, key)
-	s.mux.Unlock()
 	return nil
 }
 
@@ -173,8 +186,13 @@ func (s *Storage) Reset() error {
 	}
 	ndb := make(map[string]entry)
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	s.db = ndb
-	s.mux.Unlock()
 	return nil
 }
 
@@ -193,7 +211,15 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // with nothing left to expire it.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		// Held only to publish the flag: an operation that has passed its
+		// first check is either already inside the lock, and so completes
+		// before this, or takes it afterwards and sees the storage closed.
+		s.mux.Lock()
 		s.closed.Store(true)
+		s.mux.Unlock()
+
+		// Released before waiting: the collector takes the same lock, so
+		// holding it here would deadlock against the handshake below.
 		close(s.done)
 		// Wait for the collector to return so it no longer touches the map.
 		<-s.stopped
