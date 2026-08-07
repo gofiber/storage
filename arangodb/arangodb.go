@@ -225,8 +225,13 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return errClosed
 	}
 
-	_, err := s.collection.RemoveDocument(ctx, key)
-	return err
+	// Deleting a key that is not there is not a failure: the interface treats a
+	// missing key as a miss everywhere else, and ArangoDB's 1202 is exactly
+	// that. Reporting it made Delete the only method that failed on one.
+	if _, err := s.collection.RemoveDocument(ctx, key); err != nil && !driver.IsNotFoundGeneral(err) {
+		return err
+	}
+	return nil
 }
 
 // Delete value by key

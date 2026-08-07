@@ -70,14 +70,22 @@ store := ristretto.New(ristretto.Config{
 ### Config
 ```go
 type Config struct {
-  // NumCounters number of keys to track frequency of (10M).
-  NumCounters int64
+	// NumCounters number of keys to track frequency of (10M).
+	NumCounters int64
 
-  // MaxCost maximum cost of cache (1GB).
-  MaxCost     int64
+	// MaxCost maximum cost of cache (1GB).
+	MaxCost int64
 
-  // BufferItems number of keys per Get buffer.
-  BufferItems int64
+	// BufferItems number of keys per Get buffer.
+	BufferItems int64
+	DefaultCost int64
+
+	// SkipWaitForWrite makes Set return as soon as the write is buffered. It is
+	// faster, and Ristretto's own design, but a Get straight after a Set can
+	// miss. Leave it off for the read-after-write the storage interface implies.
+	//
+	// Optional. Default is false
+	SkipWaitForWrite bool
 }
 ```
 

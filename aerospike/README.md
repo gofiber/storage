@@ -91,13 +91,17 @@ type Config struct {
 	// Namespace is the Aerospike namespace
 	Namespace string
 
-	// Set is the Aerospike set
+	// SetName is the Aerospike Set name
 	SetName string
 
 	// Reset clears any existing keys in existing Set
 	Reset bool
 
-	// Expiration is the default expiration time of entries
+	// Expiration was the default expiration time of entries.
+	//
+	// Deprecated: no longer applied. Zero means no expiration, and defaulting
+	// here made Set(key, value, 0) quietly store an expiring entry. Pass the
+	// expiration to Set instead.
 	Expiration time.Duration
 
 	// SchemaVersion indicates the schema version to use
@@ -108,6 +112,10 @@ type Config struct {
 
 	// ForceSchemaUpdate forces schema update even if version matches
 	ForceSchemaUpdate bool
+
+	// Initial host connection timeout duration.  The timeout when opening a connection
+	// to the server host for the first time.
+	InitialConnectionTimeout time.Duration
 }
 ```
 

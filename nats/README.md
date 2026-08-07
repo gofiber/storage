@@ -85,18 +85,20 @@ store := nats.New(Config{
 
 ```go
 type Config struct {
-    // Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
-    URLs string
-    // Nats connection options. See nats_test.go for an example of how to use this.
-    NatsOptions []nats.Option
-    // Nats connection name
-    ClientName string
-    // Nats context
-    Context context.Context
-    // Nats key value config
-    KeyValueConfig jetstream.KeyValueConfig
-    // Wait for connection to be established, default: 100ms
-    WaitForConnection time.Duration
+	// Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
+	URLs string
+	// Nats connection options. See nats_test.go for an example of how to use this.
+	NatsOptions []nats.Option
+	// Nats connection name
+	ClientName string
+	// Nats context
+	Context context.Context
+	// Nats key value config
+	KeyValueConfig jetstream.KeyValueConfig
+	// Wait for connection to be established, default: 250ms
+	WaitForConnection time.Duration
+	// Reset clears any existing keys in existing bucket default: false
+	Reset bool
 }
 ```
 

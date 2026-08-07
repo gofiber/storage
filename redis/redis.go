@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -97,7 +98,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Empty collection if Clear is true. Skipped when the connection check is,
 	// because that option exists precisely so that New makes no network call:
 	// flushing is one, and it would panic on the error that was opted out of.
-	if cfg.Reset && !cfg.SkipConnectionCheck {
+	// Logged rather than dropped in silence, so a storage that starts on top of
+	// keys the caller asked to have cleared says so.
+	switch {
+	case cfg.Reset && cfg.SkipConnectionCheck:
+		log.Println("redis: Reset skipped because SkipConnectionCheck is set; call Reset() once the storage is up to clear the database")
+	case cfg.Reset:
 		if err := db.FlushDB(ctx).Err(); err != nil {
 			closeOwned()
 			panic(err)
