@@ -15,12 +15,26 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// Storage interface that is implemented by storage providers
 // errClosed is returned by every operation attempted after Close. The NATS
 // connection is gone by then, so a call that slipped past would only fail
 // further in with a less obvious error.
 var errClosed = errors.New("nats: storage is closed")
 
+// errNotInitialized is returned by every operation attempted before the bucket
+// has been set up, which is what a connection that has not been established
+// yet looks like.
+var errNotInitialized = errors.New("nats: kv not initialized")
+
+// notInitialized wraps the initialization failure, if one was recorded. There
+// may be none: a connection that has not come up yet has failed at nothing.
+func notInitialized(initErr error) error {
+	if initErr == nil {
+		return errNotInitialized
+	}
+	return fmt.Errorf("%w: %w", errNotInitialized, initErr)
+}
+
+// Storage interface that is implemented by storage providers
 type Storage struct {
 	nc     *nats.Conn
 	kv     jetstream.KeyValue
@@ -170,6 +184,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		if opErr.Op != "dial" {
 			panic(err)
 		}
+		// The retry is expected to succeed, so this is not fatal. Record it all
+		// the same: until it does, operations report an uninitialized bucket and
+		// this is the only account of why. Under the lock, the connect handlers
+		// are already running by now.
+		storage.mu.Lock()
+		storage.err = errors.Join(storage.err, err)
+		storage.mu.Unlock()
 	} else if err != nil {
 		panic(err)
 	}
@@ -207,7 +228,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errClosed
 	}
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %w", initErr)
+		return nil, notInitialized(initErr)
 	}
 
 	data, expired, revision, err := read(ctx, kv, key)
@@ -280,7 +301,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return errClosed
 	}
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %w", initErr)
+		return notInitialized(initErr)
 	}
 
 	// expiry
@@ -343,7 +364,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %w", initErr)
+		return notInitialized(initErr)
 	}
 
 	return kv.Delete(ctx, key)
@@ -437,7 +458,7 @@ func (s *Storage) Keys() ([]string, error) {
 		return nil, errClosed
 	}
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %w", initErr)
+		return nil, notInitialized(initErr)
 	}
 
 	// Watch streams every current entry with its value in one subscription.

@@ -18,13 +18,13 @@ import (
 // never mistaken for an envelope.
 const envelopeVersion = 1
 
-// errUnknownEnvelope is returned when an entry carries an envelope version
+// ErrUnknownEnvelope is returned when an entry carries an envelope version
 // this driver does not understand, which happens after a downgrade.
-var errUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
+var ErrUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
 
-// errCorruptEnvelope is returned when an entry carries this driver's envelope
+// ErrCorruptEnvelope is returned when an entry carries this driver's envelope
 // but not the value that is always written with it.
-var errCorruptEnvelope = errors.New("leveldb: entry is missing its value")
+var ErrCorruptEnvelope = errors.New("leveldb: entry is missing its value")
 
 // ErrReadOnly is returned by every write attempted on a storage opened with
 // Config.ReadOnly.
@@ -169,9 +169,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		// values without an expiration envelope.
 		return data, nil
 	case envelopeUnknown:
-		return nil, errUnknownEnvelope
+		return nil, ErrUnknownEnvelope
 	case envelopeCorrupt:
-		return nil, errCorruptEnvelope
+		return nil, ErrCorruptEnvelope
 	case envelopeEntry:
 	}
 

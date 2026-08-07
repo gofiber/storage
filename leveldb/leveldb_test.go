@@ -391,7 +391,7 @@ func Test_Get_UnknownEnvelopeVersion(t *testing.T) {
 	require.Nil(t, db.Conn().Put([]byte("future"), future, nil))
 
 	result, err := db.Get("future")
-	require.ErrorIs(t, err, errUnknownEnvelope)
+	require.ErrorIs(t, err, ErrUnknownEnvelope)
 	require.Zero(t, len(result))
 }
 
@@ -474,7 +474,7 @@ func Test_Get_CorruptEnvelope(t *testing.T) {
 	require.Nil(t, db.Conn().Put([]byte("corrupt"), corrupt, nil))
 
 	result, err := db.Get("corrupt")
-	require.ErrorIs(t, err, errCorruptEnvelope)
+	require.ErrorIs(t, err, ErrCorruptEnvelope)
 	require.Zero(t, len(result))
 }
 

@@ -182,11 +182,9 @@ type Config struct {
 	// Optional. The default is true
 	AlwaysPipelining bool
 
-	// DisableAlwaysPipelining turns AlwaysPipelining off.
-	//
-	// AlwaysPipelining defaults to true and this config reads a zero value as
-	// "not set", so setting it to false has no effect; this is the way to
-	// disable it, matching DisableRetry and DisableCache.
+	// DisableAlwaysPipelining turns AlwaysPipelining off. That field defaults to
+	// true and a zero value reads as "not set", so setting it false does nothing;
+	// this is the way to disable it, matching DisableRetry and DisableCache.
 	//
 	// Optional. Default is false
 	DisableAlwaysPipelining bool
