@@ -95,14 +95,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// memcachedRelativeExpirationLimit is the largest relative expiration
-// memcached accepts, 30 days. Anything above it is read as an absolute Unix
-// timestamp instead.
+// memcachedRelativeExpirationLimit is memcached's 30 day cutoff, above which a value is an absolute stamp.
 const memcachedRelativeExpirationLimit = 60 * 60 * 24 * 30
 
-// expiration converts exp to the value memcached expects: 0 for no
-// expiration, whole seconds rounded up below the 30 day limit, and an
-// absolute Unix timestamp above it, clamped to what a 32 bit field can hold.
+// expiration converts exp to what memcached expects: 0, rounded seconds below the limit, or a clamped Unix stamp above it.
 func expiration(exp time.Duration) int32 {
 	if exp <= 0 {
 		return 0
@@ -110,18 +106,15 @@ func expiration(exp time.Duration) int32 {
 
 	secs := int64(exp / time.Second)
 	if exp%time.Second != 0 {
-		// Round up, truncating would turn a sub-second expiration into no
-		// expiration at all.
+		// Round up, since truncating would turn a sub-second expiration into no expiration at all.
 		secs++
 	}
 
 	if secs > memcachedRelativeExpirationLimit {
-		// Derive the stamp from the rounded seconds, not from exp, so the
-		// round-up above is not undone here.
+		// Derive the stamp from the rounded seconds, not from exp, so the round-up is not undone.
 		unix := time.Now().Unix() + secs
 		if unix > math.MaxInt32 {
-			// The expiration field is 32 bit, this is the furthest point in
-			// the future memcached can express.
+			// The expiration field is 32 bit, so this is the furthest future memcached can express.
 			return math.MaxInt32
 		}
 		return int32(unix)

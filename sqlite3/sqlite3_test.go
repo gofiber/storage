@@ -28,8 +28,7 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
-	// os.Exit skips deferred cleanup, so release the database before removing
-	// the directory it lives in.
+	// os.Exit skips deferred cleanup, so release the database before removing its directory.
 	_ = testStore.Close()
 	_ = os.RemoveAll(dir)
 	os.Exit(code)
@@ -116,8 +115,7 @@ func Test_SQLite3_Set_Expiration(t *testing.T) {
 func Test_SQLite3_Get_Expired(t *testing.T) {
 	key := "john"
 
-	// The deadline is stored in whole seconds and rounded up, so the entry set
-	// by the previous test may outlive its expiration by up to a second.
+	// The deadline is stored in whole seconds and rounded up, so the entry may outlive it by one.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)
@@ -221,8 +219,7 @@ func Test_SQLite3_ResetWithContext(t *testing.T) {
 func Test_SQLite3_GC(t *testing.T) {
 	testVal := []byte("doe")
 
-	// This key should expire. Its deadline is rounded up to a whole second, so
-	// collect as of a moment safely past it rather than as of now.
+	// Its deadline rounds up to a whole second, so collect as of a moment safely past it.
 	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
@@ -300,8 +297,7 @@ func Benchmark_SQLite3_SetAndDelete(b *testing.B) {
 }
 
 func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
-	// A sub-second interval used to be truncated to zero seconds and silently
-	// replaced by the ten second default.
+	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
 	// Zero and negative still fall back to the default.
@@ -323,8 +319,7 @@ func Test_SQLite3_Set_Sub_Second_Expiration(t *testing.T) {
 	store := New(Config{Database: filepath.Join(t.TempDir(), "exp.sqlite3"), Reset: true})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	// The deadline is stored in whole seconds, so a sub-second expiration must
-	// be rounded up rather than written as a moment already past.
+	// The deadline is stored in whole seconds, so a sub-second expiration must round up.
 	require.NoError(t, store.Set("john", []byte("doe"), 100*time.Millisecond))
 
 	result, err := store.Get("john")

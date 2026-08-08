@@ -81,8 +81,7 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	// Expirations are rounded up to the next whole second, so the entry may
-	// survive for up to one second longer than requested.
+	// Expirations round up to the next whole second, so the entry may outlive the request by up to one.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)
@@ -101,8 +100,7 @@ func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	// Sub-second expirations are rounded up to the next whole second, they
-	// must not expire early, let alone immediately.
+	// Sub-second expirations round up to a whole second; they must not expire early, let alone at once.
 	err := testStore.Set(key, val, 900*time.Millisecond)
 	require.NoError(t, err)
 
@@ -118,8 +116,7 @@ func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
 }
 
 func Test_Pebble_ConfigDefault_NoArgs(t *testing.T) {
-	// configDefault used to call itself when given no config, which made
-	// New() overflow the stack.
+	// configDefault used to call itself when given no config, overflowing the stack in New().
 	require.Equal(t, ConfigDefault, configDefault())
 }
 
@@ -212,8 +209,7 @@ func Test_Pebble_Close_Twice(t *testing.T) {
 }
 
 func Test_Pebble_Close(t *testing.T) {
-	// A store of its own: closing the shared one would break the benchmarks
-	// below, which keep using it.
+	// A store of its own: closing the shared one would break the benchmarks that keep using it.
 	dir, err := os.MkdirTemp("", "pebble-close")
 	require.NoError(t, err)
 	defer func() {
@@ -287,8 +283,7 @@ func Test_Pebble_GC_Reclaims_Expired(t *testing.T) {
 
 	require.NoError(t, store.Set("john", []byte("doe"), time.Second))
 
-	// Get reports the miss without deleting, so the entry stays until the
-	// collector reclaims it.
+	// Get reports the miss without deleting, so the entry stays until the collector reclaims it.
 	deadline := time.Now().Add(6 * time.Second)
 	for {
 		_, closer, getErr := store.Conn().Get([]byte("john"))
@@ -309,13 +304,11 @@ func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	// A long interval keeps the collector out of the way; collect is driven
-	// directly so the batching is what is under test.
+	// A long interval keeps the collector away; collect is driven directly so batching is what is tested.
 	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	// More keys than one batch holds, so the scan has to resume rather than
-	// start over and make no progress past the first batch.
+	// More keys than one batch holds, so the scan has to resume rather than start over each time.
 	total := collectBatchSize + 10
 	for i := 0; i < total; i++ {
 		require.NoError(t, store.Set("key-"+strconv.Itoa(i), []byte("doe"), time.Second))
@@ -358,8 +351,7 @@ func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
 	require.Equal(t, []byte("c"), last)
 	require.True(t, reachedEnd)
 
-	// Resuming after a key must skip it and everything before it, which is
-	// what stops each batch from rescanning the whole database.
+	// Resuming after a key must skip it and everything before, which stops each batch rescanning.
 	candidates, last, reachedEnd = store.expiredCandidates([]byte("a"))
 	require.Equal(t, [][]byte{[]byte("b"), []byte("c")}, candidates)
 	require.Equal(t, []byte("c"), last)
@@ -380,9 +372,7 @@ func Test_Pebble_ExpiredCandidates_Reports_Last_Examined(t *testing.T) {
 	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	// Only the first key expires. The last key reported has to be the last one
-	// examined, not the last one found expired: resuming from the expired one
-	// would walk the live keys again on every batch.
+	// The last key reported is the last examined, not the last expired: otherwise every batch rewalks the live keys.
 	require.NoError(t, store.Set("a", []byte("doe"), time.Second))
 	require.NoError(t, store.Set("b", []byte("doe"), 0))
 	require.NoError(t, store.Set("c", []byte("doe"), 0))
@@ -404,9 +394,7 @@ func Test_Pebble_ExpiredCandidates_Stops_At_Scan_Limit(t *testing.T) {
 	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	// More live keys than one pass examines, and no expired ones at all: the
-	// pass must stop at its scan budget rather than walking the whole
-	// keyspace while holding the read lock.
+	// More live keys than one pass examines and none expired: the pass must stop at its scan budget.
 	total := collectScanLimit + 10
 	for i := 0; i < total; i++ {
 		require.NoError(t, store.Set(fmt.Sprintf("key-%07d", i), []byte("doe"), 0))
@@ -435,13 +423,11 @@ func Test_Pebble_GC_Cursor_Cleared_After_Full_Sweep_And_Reset(t *testing.T) {
 
 	require.NoError(t, store.Set("a", []byte("doe"), 0))
 
-	// A sweep that reaches the end clears the cursor, so the next one starts
-	// over rather than skipping the keys it already passed.
+	// A sweep that reaches the end clears the cursor, so the next one starts over.
 	store.collect()
 	require.Nil(t, store.gcCursor)
 
-	// So does a Reset: the keys the cursor pointed past are gone, and leaving
-	// it set would send the next sweep past everything written afterwards.
+	// So does a Reset: the keys the cursor pointed past are gone, and it would skip everything written after.
 	store.gcCursor = []byte("z")
 	require.NoError(t, store.Reset())
 	require.Nil(t, store.gcCursor)

@@ -66,8 +66,7 @@ func Test_Badger_Set_Expiration(t *testing.T) {
 func Test_Badger_Get_Expired(t *testing.T) {
 	key := "john"
 
-	// Badger TTLs land on a whole second and are rounded up, so the entry set
-	// by the previous test may outlive its expiration by up to a second.
+	// Badger TTLs land on a whole second and round up, so the entry may outlive its expiration by one.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)
@@ -171,8 +170,7 @@ func Benchmark_Badger_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-// newTestStore returns a storage backed by a database of its own, so the test
-// does not depend on the lifecycle of the shared testStore.
+// newTestStore returns a storage with a database of its own, clear of the shared testStore.
 func newTestStore(t *testing.T) *Storage {
 	t.Helper()
 
@@ -189,8 +187,7 @@ func Test_Badger_Close_Twice(t *testing.T) {
 	store := newTestStore(t)
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor block on the done channel, and
-	// must report the same result as the first one.
+	// A second Close must neither panic nor block, and must report the same result as the first.
 	require.NotPanics(t, func() {
 		require.NoError(t, store.Close())
 	})
@@ -221,8 +218,7 @@ func Test_Badger_Set_Sub_Second_Expiration(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	// Badger truncates a TTL to a whole second, so a sub-second expiration
-	// must be rounded up rather than landing on the current second.
+	// Badger truncates a TTL to a whole second, so a sub-second expiration must round up.
 	require.NoError(t, store.Set(key, val, 900*time.Millisecond))
 
 	result, err := store.Get(key)
@@ -231,8 +227,7 @@ func Test_Badger_Set_Sub_Second_Expiration(t *testing.T) {
 }
 
 func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
-	// A sub-second interval used to be truncated to zero seconds and silently
-	// replaced by the ten second default.
+	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
 	// Zero and negative still fall back to the default.

@@ -13,9 +13,7 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
-// errClosed is returned by every operation attempted after Close. ArangoDB has
-// no connection to tear down, so without this a call made after Close would
-// silently keep talking to the server.
+// errClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
 var errClosed = errors.New("arangodb: storage is closed")
 
 // Storage interface that is implemented by storage providers
@@ -131,13 +129,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		done:           make(chan struct{}),
 		stopped:        make(chan struct{}),
 		collectionName: collection.Name(),
-		// doc.exp == 0 never expires and must be excluded, or the sweep deletes
-		// every such key. The collection is bound, not interpolated: a valid
-		// name like "fiber-storage" would parse as a subtraction.
+		// doc.exp == 0 never expires and must be excluded, or the sweep deletes every such key.
 		aqlRemoveGC: "FOR doc IN @@collection\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN @@collection",
-		// One atomic statement: reading whether the document exists and then
-		// creating it left a window where two concurrent writers both saw it
-		// missing and the second one failed with a conflict.
+		// One atomic statement: check-then-create left two concurrent writers racing into a conflict.
 		aqlUpsert: "UPSERT { _key: @key }\n INSERT { _key: @key, val: @val, exp: @exp }\n UPDATE { val: @val, exp: @exp }\n IN @@collection",
 	}
 
@@ -157,9 +151,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errClosed
 	}
 
-	// Read straight away and treat a missing document as a miss. Checking
-	// existence first left a window where a concurrent delete turned the read
-	// into an error instead of a miss.
+	// Read straight away: checking existence first turned a concurrent delete into an error rather than a miss.
 	var model model
 	if _, err := s.collection.ReadDocument(ctx, key, &model); err != nil {
 		if driver.IsNotFoundGeneral(err) {
@@ -193,9 +185,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 	var expireAt int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it up:
-		// truncating expires an entry early, and a sub-second expiration would be
-		// stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expireAt = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -225,9 +215,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return errClosed
 	}
 
-	// Deleting a key that is not there is not a failure: the interface treats a
-	// missing key as a miss everywhere else, and ArangoDB's 1202 is exactly
-	// that. Reporting it made Delete the only method that failed on one.
+	// A missing key is a miss everywhere else in the interface, and ArangoDB's 1202 is exactly that.
 	if _, err := s.collection.RemoveDocument(ctx, key); err != nil && !driver.IsNotFoundGeneral(err) {
 		return err
 	}
@@ -254,30 +242,23 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops the garbage collector and releases the connection parameters.
-// Safe to call more than once. Arango has no connection close, see
-// https://github.com/arangodb/go-driver/issues/43
+// Close stops the collector; Arango has no connection close, see https://github.com/arangodb/go-driver/issues/43
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		// Stop gc and wait for it to return.
 		close(s.done)
 		<-s.stopped
 
-		// Mark closed rather than clearing the connection fields, which raced
-		// calls in flight into a nil dereference. A call already past the check
-		// completes harmlessly; later ones get errClosed.
+		// Mark closed rather than clearing the connection fields, which raced calls in flight into a nil dereference.
 		s.closed.Store(true)
 	})
 
 	return nil
 }
 
-// exec runs query with bindVars. They are passed in rather than held on the
-// Storage, where they were a data race between collector and caller and, being
-// uninitialized, crashed the process on the first sweep.
+// exec takes bindVars rather than holding them on the Storage, where they raced and crashed the first sweep.
 func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
-	// Every query names the collection through this bind parameter, so it is
-	// added here rather than repeated at each call site.
+	// Every query names the collection through this bind parameter, so it is added once here.
 	bindVars["@collection"] = s.collectionName
 
 	cursor, err := s.db.Query(ctx, query, bindVars)
@@ -291,8 +272,7 @@ func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]in
 func (s *Storage) gc() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

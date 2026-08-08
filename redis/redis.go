@@ -23,9 +23,7 @@ type Storage struct {
 	closed  atomic.Bool
 }
 
-// NewFromConnection creates a Storage from an existing Redis universal client.
-// The client stays the caller's to close: Close stops using it but leaves it
-// open, since the point is to share one client across an application.
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
 func NewFromConnection(conn redis.UniversalClient) *Storage {
 	return &Storage{
 		db: conn,
@@ -83,8 +81,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		IsClusterMode:    cfg.IsClusterMode,
 	})
 
-	// This client was opened here, so release it rather than leaking it when
-	// initialization fails.
+	// This client was opened here, so release it rather than leaking it when initialization fails.
 	closeOwned := func() { _ = db.Close() }
 
 	// Test connection, unless the caller opted out of the check
@@ -95,11 +92,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
-	// Empty collection if Clear is true. Skipped when the connection check is,
-	// because that option exists precisely so that New makes no network call:
-	// flushing is one, and it would panic on the error that was opted out of.
-	// Logged rather than dropped in silence, so a storage that starts on top of
-	// keys the caller asked to have cleared says so.
+	// Reset is skipped alongside the connection check, which exists so New makes no network call, but logged rather than dropped in silence.
 	switch {
 	case cfg.Reset && cfg.SkipConnectionCheck:
 		log.Println("redis: Reset skipped because SkipConnectionCheck is set; call Reset() once the storage is up to clear the database")
@@ -145,8 +138,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	// go-redis reads a negative expiration as its KeepTTL sentinel, which
-	// would carry over the previous expiration instead of clearing it.
+	// go-redis reads a negative expiration as KeepTTL, carrying the previous one over instead of clearing it.
 	if exp < 0 {
 		exp = 0
 	}
@@ -187,9 +179,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database, unless the client came from NewFromConnection, which
-// leaves it open for the application. Safe to call more than once, and a failed
-// close is reported. Either way later operations report ErrClosed.
+// Close the database unless the client came from NewFromConnection; later operations report ErrClosed either way.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
@@ -225,9 +215,7 @@ func (s *Storage) Keys() ([][]byte, error) {
 
 	ctx := context.Background()
 
-	// A cluster holds its keyspace across shards, and Scan on the cluster
-	// client only walks one of them, so every other shard's keys were left
-	// out with nothing to say so.
+	// Scan on a cluster client walks one shard, so every other shard's keys were left out silently.
 	if cluster, ok := s.db.(*redis.ClusterClient); ok {
 		var (
 			mu   sync.Mutex

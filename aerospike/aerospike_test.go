@@ -177,8 +177,7 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, retrievedVal2)
 
-	// Ensure the driver's own schema bookkeeping record survived the reset. It
-	// lives in its own set, which the scan Reset runs does not touch.
+	// The bookkeeping record lives in its own set, which the scan Reset runs does not touch.
 	schemaKey, err := aerospike.NewKey(testStore.namespace, testStore.schemaSetName, schemaInfoKey)
 	require.NoError(t, err)
 	schemaRecord, err := testStore.client.Get(nil, schemaKey, "version")
@@ -187,9 +186,7 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	require.Equal(t, schemaBefore.Version, schemaRecord.Bins["version"].(int))
 }
 
-// Test_AeroSpikeDB_Rejects_Reserved_SetName checks a SetName carrying the schema
-// suffix is refused: it would make one storage's data set another's bookkeeping
-// set, so Reset would wipe that storage's schema record.
+// A SetName carrying the schema suffix is refused: it would make one storage's data another's bookkeeping set.
 func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
 	require.Panics(t, func() {
 		New(Config{
@@ -200,9 +197,7 @@ func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
 	})
 }
 
-// Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved checks that the name the
-// driver keeps its bookkeeping under is an ordinary key for callers: it is
-// readable, and Reset clears it like any other.
+// The bookkeeping name is an ordinary key for callers: readable, and cleared by Reset like any other.
 func Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
@@ -287,8 +282,7 @@ func Test_Aerospike_WithContext_Canceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// No server is needed: an already cancelled context is rejected before
-	// the storage is touched.
+	// No server needed: an already cancelled context is rejected before the storage is touched.
 	testStore := &Storage{}
 
 	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)

@@ -158,8 +158,7 @@ func Test_Ristretto_Reset(t *testing.T) {
 }
 
 func Test_Ristretto_Close(t *testing.T) {
-	// A store of its own: closing the shared one would break the benchmarks
-	// below, which keep using it.
+	// A store of its own: closing the shared one would break the benchmarks that keep using it.
 	store := New()
 
 	require.Nil(t, store.Close())
@@ -186,9 +185,7 @@ func Benchmark_Ristretto_Set(b *testing.B) {
 	require.NoError(b, err)
 }
 
-// Benchmark_Ristretto_Set_SkipWaitForWrite measures the opt-out: Set waits for
-// the write buffer to drain by default so a Get after a Set sees the value, and
-// this is what that costs.
+// Benchmark_Ristretto_Set_SkipWaitForWrite measures what waiting for the write buffer costs.
 func Benchmark_Ristretto_Set_SkipWaitForWrite(b *testing.B) {
 	store := New(Config{SkipWaitForWrite: true})
 	defer store.Close() //nolint:errcheck // best effort cleanup
@@ -231,8 +228,7 @@ func Benchmark_Ristretto_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-// newTestStore returns a cache of its own, so the test does not depend on the
-// lifecycle of the shared testStore.
+// newTestStore returns a cache of its own, clear of the shared testStore.
 func newTestStore(t *testing.T) *Storage {
 	t.Helper()
 
@@ -251,8 +247,7 @@ func Test_Ristretto_Set_Then_Get(t *testing.T) {
 		val       = []byte("doe")
 	)
 
-	// Ristretto buffers writes, so this used to require polling. Set now waits
-	// for the write to be applied before returning.
+	// Ristretto buffers writes, so this used to need polling; Set now waits for the write.
 	require.NoError(t, testStore.Set(key, val, 0))
 
 	result, err := testStore.Get(key)
@@ -305,8 +300,7 @@ func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
 	testStore := New(Config{SkipWaitForWrite: true})
 	t.Cleanup(func() { _ = testStore.Close() })
 
-	// Set returns without waiting for the buffered write, so a Get right
-	// after it may or may not see the value. It must at least not error.
+	// Set returns without waiting, so a Get right after may or may not see the value, but must not error.
 	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
 
 	_, err := testStore.Get("john")

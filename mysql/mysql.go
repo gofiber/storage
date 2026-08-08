@@ -53,8 +53,7 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// A caller-supplied connection stays the caller's to close, this driver
-	// must not close it when initialization fails.
+	// A caller-supplied connection stays theirs to close, even when initialization fails.
 	ownsDB := cfg.Db == nil
 
 	if cfg.Db != nil {
@@ -117,8 +116,7 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
-	// checkSchema panics on a schema mismatch, so release a connection this
-	// driver opened rather than leaking it on the way out.
+	// checkSchema panics on a mismatch, so release a connection this driver opened on the way out.
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -158,9 +156,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	// An expired entry is a miss. The row is not deleted here: the delete is
-	// not conditional on what was read, so it could drop a value a concurrent
-	// Set just wrote. The collector reclaims it.
+	// An expired entry is a miss; the row is not deleted here, since an unconditional delete could drop a concurrent Set.
 	if exp != 0 && exp <= time.Now().Unix() {
 		return nil, nil
 	}
@@ -181,9 +177,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expSeconds int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it up:
-		// truncating expires an entry early, and a sub-second expiration would be
-		// stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expSeconds = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -225,25 +219,19 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Close stops the garbage collector and closes the database, unless it came
-// from Config.Db, which stays the caller's to close. Safe to call more than
-// once; a failed close is reported so the caller can retry.
+// Close stops the collector and closes the database unless it came from Config.Db; safe to call more than once.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish any sweep it started, it must
-		// not run against a database that is being closed.
+		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	// A caller-supplied connection stays the caller's to close, other parts of
-	// their application may still be using it.
+	// A caller-supplied connection stays theirs to close; their application may still be using it.
 	if s.closed || !s.ownsDB {
 		return nil
 	}
@@ -265,8 +253,7 @@ func (s *Storage) Conn() *sql.DB {
 func (s *Storage) gcTicker() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

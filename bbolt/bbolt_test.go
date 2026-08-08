@@ -163,8 +163,7 @@ func Benchmark_Bbolt_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-// newTestStore returns a storage backed by a database file of its own, so the
-// test does not depend on the lifecycle of the shared testStore.
+// newTestStore returns a storage with a database file of its own, clear of the shared testStore.
 func newTestStore(t *testing.T) *Storage {
 	t.Helper()
 
@@ -193,9 +192,7 @@ func Test_Bbolt_Get_Value_Outlives_Transaction(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, val, result)
 
-	// The value returned by Get used to point into the memory-mapped file and
-	// was only valid inside the read transaction. Writing enough data to force
-	// bbolt to grow and remap the file must not change what Get returned.
+	// Get used to point into the mmap and stay valid only inside the transaction; growing the file must not change it.
 	for i := 0; i < 512; i++ {
 		require.NoError(t, store.Set("filler-"+strconv.Itoa(i), make([]byte, 4096), 0))
 	}
@@ -206,9 +203,7 @@ func Test_Bbolt_Get_Value_Outlives_Transaction(t *testing.T) {
 func Test_Bbolt_Reset_Removes_Every_Key(t *testing.T) {
 	store := newTestStore(t)
 
-	// Enough keys, with values big enough, to split the bucket across several
-	// leaf pages and a branch level. Deleting through a cursor is only worth
-	// testing past the point where the whole bucket fits on one page.
+	// Enough keys to split the bucket across leaf pages: cursor deletion is only worth testing past one page.
 	const keys = 2000
 	value := bytes.Repeat([]byte("x"), 256)
 
@@ -224,8 +219,7 @@ func Test_Bbolt_Reset_Removes_Every_Key(t *testing.T) {
 		require.Zero(t, len(result))
 	}
 
-	// Count through the bucket as well: a cursor that skipped entries would
-	// leave keys behind that the lookups above never named.
+	// Count through the bucket too: a cursor that skipped entries would leave keys the lookups never named.
 	remaining := 0
 	require.NoError(t, store.Conn().View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(store.bucket))
@@ -298,8 +292,7 @@ func Test_Bbolt_ReadOnly(t *testing.T) {
 	require.NoError(t, writable.Set("john", []byte("doe"), 0))
 	require.NoError(t, writable.Close())
 
-	// Opening read-only used to panic, because bucket creation needs a write
-	// transaction that a read-only database cannot start.
+	// Opening read-only used to panic, since bucket creation needs a write transaction.
 	var store *Storage
 	require.NotPanics(t, func() {
 		store = New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true})
@@ -323,8 +316,7 @@ func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {
 	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
 	require.NoError(t, writable.Close())
 
-	// Resetting means writing, so the combination is rejected rather than
-	// silently dropping one of the two options.
+	// Resetting means writing, so the combination is rejected rather than silently dropping one option.
 	require.Panics(t, func() {
 		New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true, Reset: true})
 	})

@@ -188,8 +188,7 @@ func Test_Expirable_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 
-	// Wait for expiration using Eventually. An expired key is a miss, which
-	// the storage interface documents as nil, nil.
+	// An expired key is a miss, which the storage interface documents as nil, nil.
 	require.Eventually(t, func() bool {
 		val, err := store.Get("test")
 		return err == nil && val == nil
@@ -296,9 +295,7 @@ func Test_Valid_Identifiers(t *testing.T) {
 	}
 }
 
-// Test_Unusual_Keys checks that keys are bound as query parameters, so
-// anything that would be dangerous spliced into a statement is stored and
-// read back unchanged rather than rejected.
+// Keys are bound as query parameters, so anything dangerous spliced into a statement round-trips unchanged.
 func Test_Unusual_Keys(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
@@ -328,8 +325,7 @@ func Test_Unusual_Keys(t *testing.T) {
 	}
 }
 
-// Test_Empty_Key_Or_Value checks the interface contract: both are ignored
-// without an error, and nothing is written for either.
+// Both are ignored without an error, and nothing is written for either.
 func Test_Empty_Key_Or_Value(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
@@ -347,8 +343,7 @@ func Test_Empty_Key_Or_Value(t *testing.T) {
 	require.NoError(t, store.Set("", []byte("value"), 0))
 	require.NoError(t, store.Set("empty-value", nil, 0))
 
-	// Reading back is not enough on its own: a row written under an empty key
-	// would also read back as nothing. Count the rows instead.
+	// Reading back is not enough: a row under an empty key would also read back as nothing, so count rows.
 	require.Zero(t, countRows(), "neither call should have written a row")
 
 	val, err := store.Get("empty-value")

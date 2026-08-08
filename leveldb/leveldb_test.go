@@ -293,8 +293,7 @@ func Test_Get_JSONObjectValue(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_json"))
 	}()
 
-	// A value that is itself a JSON object must not be mistaken for the
-	// expiration envelope this driver stores entries in.
+	// A value that is itself a JSON object must not be mistaken for the expiration envelope.
 	val := []byte(`{"value":"not-an-envelope","expire_at":"nope"}`)
 
 	require.Nil(t, db.Set("json", val, 0))
@@ -345,8 +344,7 @@ func Test_Close_Twice(t *testing.T) {
 	}()
 
 	require.Nil(t, db.Close())
-	// A second Close must neither panic nor block, and must report the same
-	// result as the first one.
+	// A second Close must neither panic nor block, and must report the same result as the first.
 	require.NotPanics(t, func() {
 		require.Nil(t, db.Close())
 	})
@@ -359,8 +357,7 @@ func Test_Get_LegacyEnvelope(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_legacy_envelope"))
 	}()
 
-	// Envelope written by an earlier version of this driver, which did not
-	// carry a version marker.
+	// Envelope written by an earlier version of this driver, which carried no version marker.
 	legacy := []byte(`{"value":"ZG9l","expire_at":"2100-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("legacy"), legacy, nil))
 
@@ -368,8 +365,7 @@ func Test_Get_LegacyEnvelope(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// An expired envelope is a miss. Get does not delete it: LevelDB has no
-	// compare-and-delete, so that could drop a value a concurrent Set wrote.
+	// An expired envelope is a miss; Get does not delete it, which could drop a concurrent Set.
 	expired := []byte(`{"value":"ZG9l","expire_at":"2000-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("expired"), expired, nil))
 
@@ -385,8 +381,7 @@ func Test_Get_UnknownEnvelopeVersion(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_unknown_version"))
 	}()
 
-	// An entry written by a newer version of this driver must be reported as
-	// an error rather than read as if it were a payload.
+	// An entry from a newer driver must be reported as an error rather than read as a payload.
 	future := []byte(`{"_fiber_storage_v":99,"value":"ZG9l","expire_at":"0001-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("future"), future, nil))
 
@@ -402,8 +397,7 @@ func Test_Get_LegacyRawValue(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_legacy"))
 	}()
 
-	// Older versions of this driver stored values with no expiration without
-	// an envelope. A raw JSON object must be returned verbatim.
+	// Older versions stored non-expiring values unenveloped, so a raw JSON object comes back verbatim.
 	for _, raw := range [][]byte{
 		// One field, so not the two-field shape the old envelope had.
 		[]byte(`{"value":"aGk="}`),
@@ -450,9 +444,7 @@ func Test_Get_LegacyValueWithVersionField(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_version_field"))
 	}()
 
-	// A payload that merely happens to carry a field of the version's name is
-	// not an envelope, and must be returned verbatim rather than reported as
-	// written by a newer driver.
+	// A payload that merely carries a field of the version's name is not an envelope.
 	raw := []byte(`{"_fiber_storage_v":99,"other":"data"}`)
 	require.Nil(t, db.Conn().Put([]byte("raw"), raw, nil))
 
@@ -468,8 +460,7 @@ func Test_Get_CorruptEnvelope(t *testing.T) {
 		require.Nil(t, removeAllFiles("./testdb_corrupt"))
 	}()
 
-	// Set never stores an empty value, so an envelope without one is corrupt
-	// and must be reported rather than read back as an ordinary miss.
+	// Set never stores an empty value, so an envelope without one is corrupt rather than a miss.
 	corrupt := []byte(`{"_fiber_storage_v":1,"expire_at":"0001-01-01T00:00:00Z"}`)
 	require.Nil(t, db.Conn().Put([]byte("corrupt"), corrupt, nil))
 
@@ -491,8 +482,7 @@ func Test_ReadOnly(t *testing.T) {
 		require.Nil(t, removeAllFiles(path))
 	}()
 
-	// ReadOnly used to be ignored entirely, along with every other tuning
-	// field, because the options were passed to OpenFile as nil.
+	// ReadOnly used to be ignored along with every tuning field, since options were passed as nil.
 	result, err := db.Get("john")
 	require.Nil(t, err)
 	require.Equal(t, []byte("doe"), result)
@@ -505,8 +495,7 @@ func Test_ReadOnly(t *testing.T) {
 func Test_ErrorIfMissing(t *testing.T) {
 	const path = "./testdb_missing"
 	defer func() {
-		// goleveldb creates the directory before it reports the error, so it
-		// has to be cleaned up here.
+		// goleveldb creates the directory before reporting the error, so clean it up here.
 		require.Nil(t, removeAllFiles(path))
 	}()
 
@@ -527,9 +516,7 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	require.Nil(t, db.Set("b", []byte("doe"), 0))
 	time.Sleep(200 * time.Millisecond)
 
-	// The last key reported is the last one examined, not the last one found
-	// expired: resuming from the expired one would rescan the live keys after
-	// it on every batch.
+	// The last key reported is the last examined, not the last expired: otherwise every batch rescans the live keys.
 	candidates, last, reachedEnd := db.expiredCandidates(nil)
 	require.Equal(t, [][]byte{[]byte("a")}, candidates)
 	require.Equal(t, []byte("b"), last)
@@ -540,8 +527,7 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	require.Empty(t, candidates)
 	require.True(t, reachedEnd)
 
-	// A key refreshed after the snapshot was taken must survive the sweep:
-	// the delete re-reads rather than trusting the stale candidate list.
+	// A key refreshed after the snapshot must survive: the delete re-reads rather than trusting the candidate list.
 	require.Nil(t, db.Set("a", []byte("fresh"), time.Hour))
 	db.deleteIfStillExpired([][]byte{[]byte("a")})
 
@@ -567,8 +553,7 @@ func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 
 	require.Nil(t, db.Set("a", []byte("doe"), 0))
 
-	// The keys the cursor pointed past are gone after a reset, so leaving it
-	// set would send the next sweep past everything written afterwards.
+	// A reset removes the keys the cursor pointed past, so leaving it set would skip everything written after.
 	db.gcCursor = []byte("z")
 	require.Nil(t, db.Reset())
 	require.Nil(t, db.gcCursor)

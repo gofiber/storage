@@ -62,24 +62,20 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	// An expiration of 0 means the key never expires, so it must not be
-	// attached to a lease: etcd would raise the TTL to its own minimum and
-	// drop the key seconds later.
+	// An expiration of 0 never expires, so no lease: etcd would raise the TTL to its minimum and drop the key.
 	if exp <= 0 {
 		_, err := s.db.Put(ctx, key, string(val))
 		return err
 	}
 
-	// Leases have a one-second granularity. Round up, truncating would turn a
-	// sub-second expiration into a lease that etcd expires right away.
+	// Leases have a one-second granularity, so round up rather than letting etcd expire the key at once.
 	lease, err := s.db.Grant(ctx, ttlSeconds(exp))
 	if err != nil {
 		return err
 	}
 
 	if _, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID)); err != nil {
-		// Nothing is attached to the lease, so revoke it rather than leaving
-		// it to occupy the server until it expires on its own.
+		// Nothing is attached to the lease, so revoke it rather than leaving it to occupy the server.
 		revokeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revokeTimeout)
 		defer cancel()
 		_, _ = s.db.Revoke(revokeCtx, lease.ID)
@@ -89,12 +85,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	return nil
 }
 
-// revokeTimeout bounds the cleanup revoke of a lease whose Put failed, so it
-// cannot hang the caller on a server that has stopped responding.
+// revokeTimeout bounds the cleanup revoke, so an unresponsive server cannot hang the caller.
 const revokeTimeout = 5 * time.Second
 
-// ttlSeconds converts exp to whole seconds, rounding up so that an expiration
-// shorter than a second never becomes zero.
+// ttlSeconds rounds exp up so an expiration shorter than a second never becomes zero.
 func ttlSeconds(exp time.Duration) int64 {
 	secs := int64(exp / time.Second)
 	if exp%time.Second != 0 {
@@ -137,9 +131,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the client. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
+// Close the client. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()

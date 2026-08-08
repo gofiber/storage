@@ -40,9 +40,7 @@ var (
 	resetQuery          = `TRUNCATE %s.%s`
 )
 
-// validateIdentifier checks that name is safe to interpolate into CQL, which
-// cannot bind a keyspace or table as a placeholder. Without it a name from
-// untrusted input is an injection point.
+// validateIdentifier checks name is safe to interpolate: CQL cannot bind a keyspace or table as a placeholder.
 func validateIdentifier(name, identifierType string) error {
 	if name == "" {
 		return fmt.Errorf("scylladb: invalid %s name: cannot be empty", identifierType)
@@ -52,8 +50,7 @@ func validateIdentifier(name, identifierType string) error {
 		if r > unicode.MaxASCII {
 			return fmt.Errorf("scylladb: invalid %s name: cannot contain unicode characters", identifierType)
 		}
-		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so a leading digit
-		// or underscore would pass here and then fail on the server.
+		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so a leading digit would pass here and fail on the server.
 		if i == 0 && !unicode.IsLetter(r) {
 			return fmt.Errorf("scylladb: invalid %s name %q: must start with a letter", identifierType, name)
 		}
@@ -77,8 +74,7 @@ func New(config ...Config) *Storage {
 		panic(errKeyspace)
 	}
 
-	// Both names are interpolated into every statement below, so check them
-	// before any of those are built.
+	// Both names are interpolated into every statement below, so check them before any are built.
 	if err := validateIdentifier(cfg.Keyspace, "keyspace"); err != nil {
 		panic(err)
 	}
@@ -116,8 +112,7 @@ func New(config ...Config) *Storage {
 		session = cfg.Session
 	}
 
-	// A caller-supplied session stays the caller's to close, this driver must
-	// not close it when initialization fails.
+	// A caller-supplied session stays theirs to close, even when initialization fails.
 	ownsSession := cfg.Session == nil
 	closeOwned := func() {
 		if ownsSession {
@@ -156,9 +151,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Check schema
-	// checkSchema panics on a schema mismatch, so release a session this
-	// driver opened rather than leaking it on the way out.
+	// checkSchema panics on a mismatch, so release a session this driver opened on the way out.
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -211,23 +204,19 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return s.GetWithContext(context.Background(), key)
 }
 
-// maxTTLSeconds is the largest TTL ScyllaDB accepts, 20 years. It also keeps
-// the value inside a 32 bit int.
+// maxTTLSeconds is the largest TTL ScyllaDB accepts, 20 years, which also fits a 32 bit int.
 const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
 
 // SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
-	// The storage interface documents an empty key or value as ignored
-	// without error; storing one persisted a row nothing could read back.
+	// An empty key or value is ignored; storing one persisted a row nothing could read back.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
 	}
 
 	var expiration int
 	if expire > 0 {
-		// TTLs are whole seconds and 0 means "no TTL", so round up rather than
-		// letting a sub-second expiration become zero. Computed as int64 and
-		// clamped, so it cannot overflow int on a 32 bit build.
+		// TTLs are whole seconds and 0 means "no TTL", so round up, clamped as int64 against a 32 bit int.
 		secs := int64(expire / time.Second)
 		if expire%time.Second != 0 {
 			secs++
@@ -265,8 +254,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the session, unless it came from Config.Session, in which case
-// it stays the caller's to close. Safe to call more than once.
+// Close closes the session unless it came from Config.Session; safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		if s.ownsSession {

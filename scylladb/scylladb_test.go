@@ -334,9 +334,7 @@ func Test_ScyllaDB_Close_Twice(t *testing.T) {
 }
 
 func Test_ScyllaDB_Rejects_Unsafe_Identifiers(t *testing.T) {
-	// CQL cannot bind a keyspace or table name, so these are interpolated into
-	// every statement. Names that are not bare identifiers are refused rather
-	// than spliced in.
+	// CQL cannot bind a keyspace or table, so names that are not bare identifiers are refused rather than spliced.
 	for _, name := range []string{
 		`fiber; DROP TABLE x`,
 		`fiber-storage`,

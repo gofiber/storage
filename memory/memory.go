@@ -11,9 +11,7 @@ import (
 	"time"
 )
 
-// ErrClosed is returned by every operation attempted after Close. Without it a
-// Set landing after Close would store an entry the collector, already stopped,
-// could never reclaim.
+// ErrClosed is returned after Close: a Set landing afterwards would never be reclaimed.
 var ErrClosed = errors.New("memory: storage is closed")
 
 // Storage interface that is implemented by storage providers
@@ -35,15 +33,12 @@ type entry struct {
 	expiry int64
 }
 
-// expired reports whether e is past its expiration. The clock is only read
-// for entries that have one, so entries that never expire cost nothing.
+// expired reports whether e is past its expiration, reading the clock only for entries that have one.
 func (e entry) expired() bool {
 	return e.expiry != 0 && e.expiry <= time.Now().UnixNano()
 }
 
-// expiredAt reports whether e is past its expiration as of now, given in Unix
-// nanoseconds. Sweeps over the whole map use it so they read the clock once
-// instead of once per entry.
+// expiredAt reports whether e is expired as of now in Unix nanoseconds, so sweeps read the clock once.
 func (e entry) expiredAt(now int64) bool {
 	return e.expiry != 0 && e.expiry <= now
 }
@@ -105,16 +100,13 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	var expire int64
 
-	// Copy both key and value to avoid unsafe reuse from sync.Pool.
-	// When Fiber uses pooled buffers, the underlying memory can be reused.
+	// Copy key and value: Fiber's pooled buffers may be reused once the call returns.
 	keyCopy := strings.Clone(key)
 	valCopy := bytes.Clone(val)
 
-	// A negative expiration is not an expiration in the past, it means none,
-	// the same way the other drivers read it.
+	// A negative expiration means none rather than a deadline in the past, as the other drivers read it.
 	if exp > 0 {
-		// Computed in nanoseconds directly so that a deadline past the year
-		// 2262 saturates instead of wrapping to a negative one.
+		// Computed in nanoseconds so a deadline past the year 2262 saturates instead of wrapping negative.
 		expire = time.Now().UnixNano()
 		if int64(exp) > math.MaxInt64-expire {
 			expire = math.MaxInt64
@@ -127,9 +119,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
-	// Re-checked under the lock. The check above can pass just before Close
-	// runs, and without this the entry would land in the map after the
-	// collector has stopped, with nothing left to ever reclaim it.
+	// Re-checked under the lock: the check above can pass just before Close, leaving an entry nothing can reclaim.
 	if s.closed.Load() {
 		return ErrClosed
 	}
@@ -198,20 +188,15 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. Safe to call more than once. Once closed every
-// operation returns ErrClosed: the collector has stopped, so anything stored
-// afterwards would never be reclaimed.
+// Close the storage. Safe to call more than once; afterwards every operation returns ErrClosed.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		// Held only to publish the flag: an operation that has passed its
-		// first check is either already inside the lock, and so completes
-		// before this, or takes it afterwards and sees the storage closed.
+		// Held only to publish the flag, so an operation either completes before this or sees the storage closed.
 		s.mux.Lock()
 		s.closed.Store(true)
 		s.mux.Unlock()
 
-		// Released before waiting: the collector takes the same lock, so
-		// holding it here would deadlock against the handshake below.
+		// Released before waiting: the collector takes the same lock, so holding it would deadlock the handshake.
 		close(s.done)
 		// Wait for the collector to return so it no longer touches the map.
 		<-s.stopped
@@ -251,8 +236,7 @@ func (s *Storage) gc() {
 	}
 }
 
-// Conn returns a snapshot of the stored entries. It is a copy: the live map
-// raced the collector. Writing to the returned map does not affect storage.
+// Conn returns a copy of the stored entries; the live map raced the collector.
 func (s *Storage) Conn() map[string]entry {
 	s.mux.RLock()
 	defer s.mux.RUnlock()

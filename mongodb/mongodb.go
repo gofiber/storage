@@ -32,21 +32,16 @@ type item struct {
 	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
-// ErrClosed is returned by every operation attempted after Close, rather than
-// letting it reach a disconnected client and fail with a driver error that
-// says nothing about why.
+// ErrClosed is returned after Close, rather than a driver error that says nothing about why.
 var ErrClosed = errors.New("mongodb: storage is closed")
 
-// closeTimeout bounds the cleanup disconnect performed when initialization
-// fails.
+// closeTimeout bounds the cleanup disconnect performed when initialization fails.
 const closeTimeout = 10 * time.Second
 
-// initTimeout bounds an initialization step when the caller supplied no
-// deadline of their own.
+// initTimeout bounds an initialization step when the caller supplied no deadline.
 const initTimeout = 20 * time.Second
 
-// withDefaultTimeout bounds ctx at initTimeout unless it already has a
-// deadline, which is the caller's to choose.
+// withDefaultTimeout bounds ctx at initTimeout unless it already has a deadline of the caller's choosing.
 func withDefaultTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	if _, ok := ctx.Deadline(); ok {
 		return context.WithCancel(ctx)
@@ -88,9 +83,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set mongo options
 	opt := options.Client().ApplyURI(dsn)
 
-	// Create and connect the mongo client in one step, bounded so a caller
-	// that passed no deadline does not hang here. A deadline the caller did
-	// set is left alone: shortening it overrode what they asked for.
+	// Create and connect in one bounded step, leaving a deadline the caller did set alone.
 	timeoutCtx, cancel := withDefaultTimeout(ctx)
 	defer cancel()
 
@@ -99,9 +92,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client rather than leaking it when a later step fails, on its
-	// own bounded context: the caller's may be what failed, and an unbounded
-	// one would hang on a stuck connection.
+	// Release the client rather than leak it, on a bounded context of its own: the caller's may be what failed.
 	closeOwned := func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
 		defer closeCancel()
@@ -203,15 +194,12 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	// Compare the deadline itself: truncating both sides to whole seconds
-	// dropped an entry up to a second before it expired.
+	// Compare the deadline itself: truncating both sides to seconds dropped entries up to a second early.
 	if !item.Expiration.IsZero() && !time.Now().Before(item.Expiration) {
 		return nil, nil
 	}
 
-	// Copy before the item goes back to the pool. Releasing only drops the
-	// driver's reference today, but the caller keeps this value for as long
-	// as it likes, so it must not alias anything the pool hands out again.
+	// Copy before the item returns to the pool, which may hand the same buffer out again.
 	return bytes.Clone(item.Value), nil
 }
 
@@ -290,7 +278,6 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
 // isClosed reports whether Close has completed.
 func (s *Storage) isClosed() bool {
 	s.closeMu.Lock()
@@ -299,9 +286,7 @@ func (s *Storage) isClosed() bool {
 	return s.closed
 }
 
-// Close disconnects the client. It is safe to call Close more than once: once
-// the disconnect has succeeded further calls do nothing, and a disconnect that
-// fails is reported so the caller can try again.
+// Close disconnects the client. Safe to call more than once, and a failed disconnect is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
@@ -310,16 +295,12 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Bounded because Close takes no context and a stuck connection must not
-	// hang the caller. A timeout is transient, so it is reported without
-	// latching and a later Close retries.
+	// Bounded because Close takes no context; a timeout is transient, so it is reported without latching.
 	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 	defer cancel()
 
 	if err := s.db.Client().Disconnect(ctx); err != nil {
-		// A client that is already disconnected is closed, which is what this
-		// call was for. Reporting the error instead would leave Close failing
-		// forever after a disconnect that timed out but did complete.
+		// An already-disconnected client is closed, which is what this call was for.
 		if !errors.Is(err, mongo.ErrClientDisconnected) {
 			return err
 		}
@@ -337,9 +318,7 @@ func (s *Storage) acquireItem() *item {
 // Release item from pool
 func (s *Storage) releaseItem(item *item) {
 	if item != nil {
-		// ObjectID has to be cleared too: Get decodes into the pooled item, so
-		// leaving the identifier behind would carry another document's _id
-		// into the next Set that reuses this item.
+		// Get decodes into the pooled item, so a leftover ObjectID would carry another document's _id into the next Set.
 		item.ObjectID = primitive.ObjectID{}
 		item.Key = ""
 		item.Value = nil

@@ -15,15 +15,9 @@ import (
 )
 
 var (
-	// ErrNotFound is returned when the key does not exist.
-	//
-	// Deprecated: Get reports a miss as nil, nil per the storage interface.
-	// Kept so callers matching on it still compile.
+	// Deprecated: Get reports a miss as nil, nil per the storage interface; kept so callers still compile.
 	ErrNotFound = fmt.Errorf("key not found")
-	// ErrKeyExpired is returned when the key has expired.
-	//
-	// Deprecated: Get reports an expired entry as a miss, nil, nil. Kept so
-	// callers matching on it still compile.
+	// Deprecated: Get reports an expired entry as a miss, nil, nil; kept so callers still compile.
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
@@ -143,8 +137,7 @@ func (s *Storage) createOrVerifyKeySpace(reset bool) error {
 	s.session = session
 	s.sx = gocqlx.NewSession(session)
 
-	// New returns nil to the caller when this fails, so nothing can close the
-	// session afterwards. Release it here instead of leaking it.
+	// New returns nil when this fails, so nothing can close the session afterwards; release it here.
 	closeOwned := func() {
 		session.Close()
 		s.session = nil
@@ -226,16 +219,12 @@ type queryResult struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
-// maxTTLSeconds is the largest TTL Cassandra accepts, 20 years. It also keeps
-// the value inside a 32 bit int.
+// maxTTLSeconds is the largest TTL Cassandra accepts, 20 years, which also fits a 32 bit int.
 const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
 
-// ttlSeconds converts d to whole seconds, rounding up. Cassandra TTLs are
-// whole seconds and a TTL of 0 means "no TTL", so truncating a sub-second
-// expiration would disable expiration entirely.
+// ttlSeconds rounds d up to whole seconds: a TTL of 0 means "no TTL", so truncating would disable expiry.
 func ttlSeconds(d time.Duration) int {
-	// Computed as int64 and clamped: int is 32 bit on some builds, and
-	// Cassandra rejects a TTL beyond this anyway.
+	// Computed as int64 and clamped: int is 32 bit on some builds, and Cassandra rejects more anyway.
 	secs := int64(d / time.Second)
 	if d%time.Second != 0 {
 		secs++
@@ -248,9 +237,7 @@ func ttlSeconds(d time.Duration) int {
 
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
-	// An empty key or value is ignored without error. Nothing else is checked:
-	// the key is a bound parameter, not a spliced identifier, and validating it
-	// rejected ordinary keys like "user:123" that Get and Delete accept.
+	// An empty key or value is ignored; the key is a bound parameter, so validating it only rejected ordinary keys.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
 	}
@@ -259,12 +246,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	var expiresAt *time.Time
 	var ttl int
 
-	// The storage interface documents an expiration at or below zero as no
-	// expiration, so the configured default is not substituted here: doing so
-	// meant Set(key, value, 0) quietly stored an entry that expired.
+	// An expiration at or below zero means none, so the configured default is not substituted here.
 	if exp > 0 {
-		// Derive both from the clamped TTL, so the column and Cassandra's own
-		// expiry do not disagree for a duration long enough to be clamped.
+		// Derive both from the clamped TTL, so the column and Cassandra's own expiry cannot disagree.
 		ttl = ttlSeconds(exp)
 		t := time.Now().Add(time.Duration(ttl) * time.Second)
 		expiresAt = &t
@@ -313,8 +297,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// Not deleted here: that would drop a value a concurrent Set just
-		// wrote, and the TTL reclaims the row anyway.
+		// Not deleted here: that would drop a concurrent Set, and the TTL reclaims the row anyway.
 		return nil, nil
 	}
 
@@ -363,9 +346,7 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the storage connection. Safe to call more than once; only the
-// first call closes, since gocql panics on a double close. The error exists to
-// satisfy storage.Storage and is always nil.
+// Close closes the session once; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		if s.session != nil {

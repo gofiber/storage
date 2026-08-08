@@ -81,8 +81,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection. A caller-supplied pool stays the caller's to
-	// close, this driver must not close it when initialization fails.
+	// A caller-supplied pool stays theirs to close, even when initialization fails.
 	var err error
 	db := cfg.DB
 	ownsDB := db == nil
@@ -175,8 +174,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
-	// checkSchema panics on a schema mismatch, so release a pool this driver
-	// opened rather than leaking it on the way out.
+	// checkSchema panics on a mismatch, so release a pool this driver opened on the way out.
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -232,9 +230,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expSeconds int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it up:
-		// truncating expires an entry early, and a sub-second expiration would be
-		// stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expSeconds = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -276,18 +272,13 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Close stops the garbage collector and closes the pool, unless it was
-// supplied through Config.DB, which stays the caller's to close. It is safe
-// to call Close more than once.
+// Close stops the collector and closes the pool unless it came from Config.DB; safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish any sweep it started, it must
-		// not run against a pool that is being closed.
+		// Wait for the collector to finish its sweep, which must not run against a pool being closed.
 		<-s.stopped
-		// A caller-supplied pool stays the caller's to close, other parts of
-		// their application may still be using it.
+		// A caller-supplied pool stays theirs to close; their application may still be using it.
 		if s.ownsDB {
 			s.db.Close()
 		}
@@ -304,8 +295,7 @@ func (s *Storage) Conn() *pgxpool.Pool {
 func (s *Storage) gcTicker() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

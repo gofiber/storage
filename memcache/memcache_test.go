@@ -260,15 +260,13 @@ func Test_Memcache_Expiration_Conversion(t *testing.T) {
 		})
 	}
 
-	// Above 30 days memcached reads the value as an absolute Unix timestamp,
-	// so a relative value would land in the past and expire immediately.
+	// Above 30 days memcached reads an absolute Unix stamp, so a relative value would expire at once.
 	exp := 31 * 24 * time.Hour
 	got := expiration(exp)
 	require.Greater(t, got, int32(memcachedRelativeExpirationLimit))
 	require.InDelta(t, time.Now().Add(exp).Unix(), int64(got), 5)
 
-	// An expiration beyond what a 32 bit field can hold is clamped rather
-	// than wrapped into a timestamp in the past.
+	// An expiration beyond a 32 bit field is clamped rather than wrapped into the past.
 	require.Equal(t, int32(math.MaxInt32), expiration(200*365*24*time.Hour))
 }
 
@@ -276,8 +274,7 @@ func Test_Memcache_WithContext_Canceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// No server is needed: an already cancelled context is rejected before
-	// the storage is touched.
+	// No server needed: an already cancelled context is rejected before the storage is touched.
 	testStore := &Storage{}
 
 	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)

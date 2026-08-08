@@ -49,9 +49,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the connection rather than leaking it when a later step fails, on
-	// its own bounded context: the caller's may be what failed, and an
-	// unbounded one would hang on a stuck connection.
+	// Release the connection rather than leak it, on a bounded context of its own: the caller's may be what failed.
 	closeOwned := func() {
 		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 		defer cancel()
@@ -113,8 +111,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if m.Exp > 0 && time.Now().Unix() >= m.Exp {
-		// Not deleted here: that would drop a value a concurrent Set had
-		// already written. The collector reclaims expired records.
+		// Not deleted here: that would drop a value a concurrent Set wrote; the collector reclaims it.
 		return nil, nil
 	}
 
@@ -126,20 +123,16 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return s.GetWithContext(context.Background(), key)
 }
 
-// SetWithContext sets a value by key with optional expiration, using ctx for
-// the query.
+// SetWithContext sets a value by key with optional expiration, using ctx for the query.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
-	// The storage interface documents an empty key or value as ignored
-	// without error.
+	// The storage interface documents an empty key or value as ignored without error.
 	if len(key) == 0 || len(val) == 0 {
 		return nil
 	}
 
 	var expiresAt int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it
-		// up: truncating expires an entry early, and a sub-second expiration
-		// would be stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expiresAt = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -176,8 +169,7 @@ func (s *Storage) Delete(key string) error {
 	return s.DeleteWithContext(context.Background(), key)
 }
 
-// ResetWithContext clears all keys in the storage table, using ctx for the
-// query.
+// ResetWithContext clears all keys in the storage table, using ctx for the query.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
 	_, err := surrealdb.Delete[[]model](ctx, s.db, models.Table(s.table))
 	return err
@@ -190,12 +182,10 @@ func (s *Storage) Reset() error {
 
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.stopGC)
-		// Wait for the collector to finish any sweep it started, it must not
-		// run against a database that is being closed.
+		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 
@@ -206,8 +196,7 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Bounded, so a stuck connection cannot hang the caller: the interface
-	// gives Close no context of its own.
+	// Bounded so a stuck connection cannot hang the caller: the interface gives Close no context.
 	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 	defer cancel()
 
@@ -242,9 +231,7 @@ func (s *Storage) List() ([]byte, error) {
 	now := time.Now().Unix()
 
 	for _, item := range *records {
-		// Skip expired records without deleting: listing must not write, and the
-		// collector reclaims them. The comparison matches the collector's
-		// exactly, or the two disagree for a second around the deadline.
+		// Skip expired records without deleting, matching the collector's comparison exactly so the two never disagree.
 		if item.Exp > 0 && now >= item.Exp {
 			continue
 		}
@@ -271,8 +258,7 @@ func isTableNotFoundError(err error, table string) bool {
 func (s *Storage) gc() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
@@ -293,22 +279,16 @@ func (s *Storage) gc() {
 	}
 }
 
-// cleanupExpired deletes expired keys in a single server-side statement.
-// Selecting then deleting could drop a record a concurrent Set had refreshed,
-// and cost a round trip per key.
+// cleanupExpired deletes expired keys server-side: select-then-delete costs a round trip per key and could drop a refreshed record.
 func (s *Storage) cleanupExpired(ctx context.Context) {
-	// The table is bound through type::table, not spliced in: a name needing
-	// escaping produced a rejected query whose error was discarded, so cleanup
-	// silently stopped happening.
+	// The table is bound through type::table, not spliced: a name needing escaping silently stopped cleanup.
 	if _, err := surrealdb.Query[any](
 		ctx,
 		s.db,
 		"DELETE type::table($table) WHERE exp != 0 AND exp <= $now",
 		map[string]any{"table": s.table, "now": time.Now().Unix()},
 	); err != nil {
-		// Close cancels ctx to abandon a sweep in flight, so a cancellation
-		// here is an ordinary shutdown rather than a cleanup failure. Logging
-		// it would print an error line on every close that overlapped a sweep.
+		// Close cancels ctx to abandon a sweep, so this is an ordinary shutdown rather than a cleanup failure.
 		if errors.Is(err, context.Canceled) {
 			return
 		}

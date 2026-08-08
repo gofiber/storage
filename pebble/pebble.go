@@ -12,25 +12,19 @@ import (
 	"github.com/cockroachdb/pebble"
 )
 
-// resetBatchSize bounds how many deletions Reset buffers before committing, so
-// that resetting a large database does not have to fit in memory.
+// resetBatchSize bounds the deletions Reset buffers, so a large database need not fit in memory.
 const resetBatchSize = 1000
 
-// collectBatchSize bounds how many expired keys one pass of the collector
-// holds in memory before deleting them.
+// collectBatchSize bounds the expired keys one pass holds before deleting them.
 const collectBatchSize = 1000
 
-// collectScanLimit bounds how many keys one pass of the collector examines, so
-// the read lock is not held across a whole keyspace when few keys are expired.
+// collectScanLimit bounds one pass, so the read lock is not held across a whole keyspace.
 const collectScanLimit = 10000
 
-// collectMaxBatches bounds how many passes one sweep makes, so a database
-// expiring keys as fast as they are reclaimed cannot keep it running forever.
+// collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
 const collectMaxBatches = 100
 
-// ErrClosed is returned by every operation attempted after Close. Pebble
-// panics when a closed database is used, so the storage refuses those calls
-// instead of forwarding them.
+// ErrClosed is returned after Close, since Pebble panics when a closed database is used.
 var ErrClosed = errors.New("pebble: storage is closed")
 
 type Storage struct {
@@ -41,15 +35,13 @@ type Storage struct {
 	stopped      chan struct{}
 	stopOnce     sync.Once
 
-	// mu keeps operations from running against a database Close is tearing
-	// down; Pebble panics when a closed one is used.
+	// mu keeps operations off a database Close is tearing down; Pebble panics on a closed one.
 	mu     sync.RWMutex
 	closed bool
 
 	gcCursor []byte
 
-	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor
-	// pointing into keys Reset already deleted.
+	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
 	gcEpoch uint64
 }
 
@@ -84,9 +76,7 @@ func New(config ...Config) *Storage {
 	return store
 }
 
-// gc reclaims expired entries so that reads do not have to. Pebble has no
-// compare-and-delete, so deleting from Get could drop a value a concurrent
-// Set had just written; sweeping in the background avoids that entirely.
+// gc reclaims expired entries in the background: without compare-and-delete, deleting from Get could drop a concurrent Set.
 func (s *Storage) gc() {
 	defer close(s.stopped)
 
@@ -103,15 +93,11 @@ func (s *Storage) gc() {
 	}
 }
 
-// collect deletes every entry whose expiration has passed. Candidates come
-// from a snapshot and are re-read under the exclusive lock before deletion:
-// Pebble has no compare-and-delete, so a concurrent Set could otherwise lose.
+// collect deletes expired entries, re-reading candidates under the exclusive lock since Pebble has no compare-and-delete.
 func (s *Storage) collect() {
 	after, epoch := s.loadCursor()
 
-	// Bounded so a database expiring keys as fast as they are reclaimed cannot
-	// hold the exclusive lock forever. The rest resumes next tick from
-	// s.gcCursor.
+	// Bounded so keys expiring as fast as they are reclaimed cannot hold the lock forever; the rest resumes next tick.
 	for range collectMaxBatches {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
@@ -124,8 +110,7 @@ func (s *Storage) collect() {
 		}
 		after = last
 
-		// Give up promptly when Close is waiting, rather than making it sit
-		// through the rest of the sweep.
+		// Give up promptly when Close is waiting rather than finishing the sweep.
 		select {
 		case <-s.done:
 			s.storeCursor(after, epoch)
@@ -137,8 +122,7 @@ func (s *Storage) collect() {
 	s.storeCursor(after, epoch)
 }
 
-// loadCursor reports where the next sweep resumes from, along with the epoch
-// that position belongs to.
+// loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
 func (s *Storage) loadCursor() ([]byte, uint64) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -146,8 +130,7 @@ func (s *Storage) loadCursor() ([]byte, uint64) {
 	return s.gcCursor, s.gcEpoch
 }
 
-// storeCursor records where the next sweep resumes, unless a Reset rewound the
-// cursor meanwhile: that position points into keys Reset has already deleted.
+// storeCursor records where the next sweep resumes, unless a Reset rewound the cursor meanwhile.
 func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -159,9 +142,7 @@ func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.gcCursor = cursor
 }
 
-// expiredCandidates lists keys a snapshot shows as expired after the given key,
-// reporting the last one examined and whether it reached the end. Keys examined
-// and collected are both capped, so the read lock never spans a whole keyspace.
+// expiredCandidates lists keys a snapshot shows expired after the given key, capped so the read lock never spans a whole keyspace.
 func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -180,8 +161,7 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 
 	valid := iter.First()
 	if after != nil {
-		// SeekGE lands on the key itself, which the previous batch already
-		// examined, so step past it.
+		// SeekGE lands on the key itself, which the previous batch examined, so step past it.
 		valid = iter.SeekGE(after)
 		if valid && bytes.Equal(iter.Key(), after) {
 			valid = iter.Next()
@@ -211,8 +191,7 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	return candidates, last, true
 }
 
-// deleteIfStillExpired re-reads each key and deletes the ones that are still
-// expired. It reports whether the sweep should continue.
+// deleteIfStillExpired re-reads each key, deletes the still-expired ones and reports whether to continue.
 func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -251,9 +230,7 @@ func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
 	return batch.Commit(s.writeOptions) == nil
 }
 
-// expired reports whether a stored value is past its expiration as of now. An
-// undecodable value counts as not expired so the collector leaves it alone;
-// Get reports it as an error rather than destroying recoverable data.
+// expired reports whether a value is past its expiration; an undecodable one counts as not expired so Get can report it instead.
 func expired(value []byte, now int64) bool {
 	var cache CacheType
 	if err := json.Unmarshal(value, &cache); err != nil {
@@ -290,8 +267,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	// data is only valid until closer is closed, so decode it first.
 	var cache CacheType
 	err = json.Unmarshal(data, &cache)
-	// Report both when both fail: the decode error says the entry is corrupt,
-	// which is the more useful of the two.
+	// Report both when both fail: the decode error says the entry is corrupt, the more useful of the two.
 	if closeErr := closer.Close(); closeErr != nil {
 		return nil, errors.Join(err, closeErr)
 	}
@@ -300,8 +276,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	if isExpired(cache, time.Now().Unix()) {
-		// Not deleted here: Pebble has no compare-and-delete, so that would
-		// drop a value a concurrent Set had already written.
+		// Not deleted here: without compare-and-delete that would drop a value a concurrent Set wrote.
 		return nil, nil
 	}
 
@@ -331,9 +306,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	if exp > 0 {
-		// Expiration is tracked with a one-second granularity. Round the
-		// deadline up rather than deriving it from the truncated Created
-		// timestamp, so an entry is never dropped before it expires.
+		// Round the one-second deadline up rather than deriving it from the truncated Created stamp, so nothing expires early.
 		deadline := now.Add(exp)
 		cache.Expires = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -390,19 +363,16 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset deletes every key in the database
 func (s *Storage) Reset() (err error) {
-	// Exclusive: a Set holding the read lock alongside this would be erased
-	// part way through, or survive it, depending on timing.
+	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Checked before the cursor is touched: a closed storage deletes nothing,
-	// so it has no business rewinding the collector either.
+	// Checked before the cursor is touched: a closed storage has no business rewinding the collector.
 	if s.closed {
 		return ErrClosed
 	}
 
-	// The keys the cursor points at are about to be gone. Bumping the epoch
-	// also stops a sweep already running from writing that position back.
+	// The keys the cursor points at are about to be gone; the epoch stops a running sweep writing it back.
 	s.gcCursor = nil
 	s.gcEpoch++
 
@@ -411,8 +381,7 @@ func (s *Storage) Reset() (err error) {
 		return iterErr
 	}
 	defer func() {
-		// Pebble folds child iterator teardown failures into the error Close
-		// returns, which Error never sees, so it must not be discarded.
+		// Pebble folds child iterator teardown failures into Close's error, which Error never sees.
 		if closeErr := iter.Close(); err == nil {
 			err = closeErr
 		}
@@ -425,9 +394,7 @@ func (s *Storage) Reset() (err error) {
 		}
 	}()
 
-	// Commit in bounded chunks so memory does not scale with the key count.
-	// A reset larger than one chunk is therefore not atomic: Pebble has no
-	// multi-batch transaction, and a reader can observe it part way through.
+	// Commit in bounded chunks so memory does not scale with the key count; a larger reset is therefore not atomic.
 	commit := func() error {
 		if batch.Empty() {
 			return nil
@@ -451,9 +418,7 @@ func (s *Storage) Reset() (err error) {
 		}
 	}
 
-	// Flush what is queued before reporting an iteration failure: earlier
-	// chunks are already committed, so dropping this one would throw away
-	// work for no benefit.
+	// Flush what is queued before reporting an iteration failure: earlier chunks are already committed.
 	iterErr = iter.Error()
 	if err := commit(); err != nil {
 		return err
@@ -470,16 +435,12 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the database. Safe to call more than once; only the first call
-// closes and only it reports a failure. Pebble closes regardless of error and
-// panics if closed again, so there is nothing to retry.
+// Close closes the database. Safe to call more than once; only the first call closes and reports.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to return so it no longer writes to a
-		// database that is being closed.
+		// Wait for the collector to return so it no longer writes to a database being closed.
 		<-s.stopped
 	})
 
@@ -490,9 +451,7 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Pebble marks the database closed whether or not Close reports an error,
-	// and panics on a second call. Record the close before checking the error
-	// so a caller that retries gets the error again rather than that panic.
+	// Pebble closes regardless of error and panics on a second call, so record it before checking the error.
 	s.closed = true
 
 	return s.db.Close()

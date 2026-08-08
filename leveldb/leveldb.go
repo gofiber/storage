@@ -13,65 +13,50 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// envelopeVersion identifies entries written by this driver, under a
-// deliberately unusual key so a raw JSON payload from an older version is
-// never mistaken for an envelope.
+// envelopeVersion marks entries written by this driver, under a key a raw payload would not carry.
 const envelopeVersion = 1
 
-// ErrUnknownEnvelope is returned when an entry carries an envelope version
-// this driver does not understand, which happens after a downgrade.
+// ErrUnknownEnvelope is returned for an entry written by a newer version of this driver.
 var ErrUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
 
-// ErrCorruptEnvelope is returned when an entry carries this driver's envelope
-// but not the value that is always written with it.
+// ErrCorruptEnvelope is returned for an entry carrying this driver's envelope but no value.
 var ErrCorruptEnvelope = errors.New("leveldb: entry is missing its value")
 
-// ErrReadOnly is returned by every write attempted on a storage opened with
-// Config.ReadOnly.
+// ErrReadOnly is returned by every write attempted on a storage opened with Config.ReadOnly.
 var ErrReadOnly = errors.New("leveldb: storage is read-only")
 
 // envelopeKind describes how an entry read from the database is encoded.
 type envelopeKind int
 
 const (
-	// envelopeNone means the entry has no envelope: a bare payload, as
-	// written by earlier versions of this driver for keys with no expiration.
+	// envelopeNone means a bare payload, as earlier versions wrote for keys with no expiration.
 	envelopeNone envelopeKind = iota
 
-	// envelopeEntry carries an envelope this driver can read: the versioned one
-	// written today, or the unversioned one earlier versions wrote. That shape is
-	// ambiguous with a like payload, so it is read as earlier versions did.
+	// envelopeEntry carries an envelope this driver reads: today's versioned one, or the unversioned one, which is ambiguous with a like payload and so read as earlier versions did.
 	envelopeEntry
 
-	// envelopeUnknown means the entry carries an envelope version this driver
-	// does not understand.
+	// envelopeUnknown means an envelope version this driver does not understand.
 	envelopeUnknown
 
-	// envelopeCorrupt means the entry carries this driver's envelope but not
-	// the value it always writes with it.
+	// envelopeCorrupt means this driver's envelope without the value it always writes.
 	envelopeCorrupt
 )
 
-// resetBatchSize bounds how many deletions Reset buffers before flushing, so
-// that resetting a large database does not have to fit in memory.
+// resetBatchSize bounds the deletions Reset buffers, so a large database need not fit in memory.
 const resetBatchSize = 1000
 
-// collectBatchSize bounds how many expired keys one pass of the collector
-// holds in memory before deleting them.
+// collectBatchSize bounds the expired keys one pass holds before deleting them.
 const collectBatchSize = 1000
 
-// collectScanLimit bounds how many keys one pass examines, so the read lock is
-// not held across a whole keyspace when few keys are expired.
+// collectScanLimit bounds one pass, so the read lock is not held across a whole keyspace.
 const collectScanLimit = 10000
 
-// collectMaxBatches bounds how many passes one sweep makes, so a database
-// expiring keys as fast as they are reclaimed cannot keep it running forever.
+// collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
 const collectMaxBatches = 100
 
 // data structure for storing items in the database
 type item struct {
-	// Pointer so an absent version, marking an entry written before versioning,
-	// is distinguishable from 0.
+	// Pointer so an absent version, marking an entry written before versioning, differs from 0.
 	Version  *int      `json:"_fiber_storage_v"`
 	Value    []byte    `json:"value"`
 	ExpireAt time.Time `json:"expire_at"`
@@ -88,12 +73,10 @@ type Storage struct {
 	closeMu    sync.Mutex
 	closed     bool
 
-	// mu orders the collector's delete against writers, so a key a Set has
-	// just refreshed is not reclaimed on the strength of a stale read.
+	// mu orders the collector's delete against writers, so a key a Set just refreshed survives.
 	mu sync.RWMutex
 
-	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor
-	// pointing into keys Reset already deleted.
+	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
 	gcEpoch  uint64
 	gcCursor []byte
 }
@@ -102,8 +85,7 @@ type Storage struct {
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	// Every tuning field of Config used to be ignored: the options were passed
-	// as nil, so only Path and GCInterval had any effect.
+	// Every tuning field used to be ignored: options were nil, so only Path and GCInterval applied.
 	options := &opt.Options{
 		BlockCacheCapacity:     cfg.CacheSize * opt.MiB,
 		BlockSize:              cfg.BlockSize * opt.KiB,
@@ -135,8 +117,7 @@ func New(config ...Config) *Storage {
 		stopped:    make(chan struct{}),
 	}
 
-	// The collector writes, so there is nothing for it to do on a read-only
-	// database. Close still waits on stopped, so signal it here.
+	// The collector writes, so it has nothing to do read-only; Close still waits on stopped.
 	if cfg.ReadOnly {
 		close(store.stopped)
 		return store
@@ -165,8 +146,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	switch kind {
 	case envelopeNone:
-		// Entry written by an older version of this driver, which stored
-		// values without an expiration envelope.
+		// Entry from an older version of this driver, which stored values without an envelope.
 		return data, nil
 	case envelopeUnknown:
 		return nil, ErrUnknownEnvelope
@@ -179,8 +159,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return stored.Value, nil
 	}
 
-	// Not deleted here: LevelDB has no compare-and-delete, so that would drop
-	// a value a concurrent Set had already written. The collector reclaims it.
+	// Not deleted here: without compare-and-delete that would drop a concurrent Set; the collector reclaims it.
 	return nil, nil
 }
 
@@ -254,14 +233,11 @@ func (s *Storage) Reset() error {
 		return ErrReadOnly
 	}
 
-	// Exclusive: a Set holding the read lock alongside this would be erased
-	// part way through, or survive it, depending on timing.
+	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// The keys the collector was working through are about to be gone, so its
-	// cursor would otherwise send the next sweep to a position past everything
-	// written afterwards, delaying expiry by up to one interval.
+	// Reset deletes the keys the sweep was working through, so its cursor would skip everything written afterwards.
 	s.gcCursor = nil
 	s.gcEpoch++
 
@@ -281,9 +257,7 @@ func (s *Storage) Reset() error {
 		batch.Reset()
 	}
 
-	// Flush what is queued before reporting an iteration failure: earlier
-	// chunks are already committed, so dropping this one would throw away
-	// work for no benefit.
+	// Flush what is queued before reporting an iteration failure: earlier chunks are already committed.
 	iterErr := iter.Error()
 	if batch.Len() > 0 {
 		if err := s.db.Write(batch, nil); err != nil {
@@ -302,16 +276,12 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the memory storage. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
+// Close the storage. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done) // GC stop
-		// Wait for the collector to return so it no longer writes to a
-		// database that is being closed.
+		// Wait for the collector to return so it no longer writes to a database being closed.
 		<-s.stopped
 	})
 
@@ -335,8 +305,7 @@ func (s *Storage) Conn() *leveldb.DB {
 	return s.db
 }
 
-// decode classifies an entry read from the database and, when it is an
-// envelope this driver can read, returns its contents.
+// decode classifies an entry and returns its contents when it is an envelope this driver reads.
 func decode(data []byte) (item, envelopeKind) {
 	var stored item
 	if err := json.Unmarshal(data, &stored); err != nil {
@@ -345,24 +314,20 @@ func decode(data []byte) (item, envelopeKind) {
 
 	if stored.Version != nil {
 		if *stored.Version == envelopeVersion {
-			// Set never stores an empty value, so an envelope without one did
-			// not come from this driver intact.
+			// Set never stores an empty value, so an envelope without one did not come from this driver intact.
 			if stored.Value == nil {
 				return item{}, envelopeCorrupt
 			}
 			return stored, envelopeEntry
 		}
-		// Unknown version, but only when a value is present: every envelope
-		// carried one, so a payload that merely shares the field name is not.
+		// Unknown version only when a value is present: a payload merely sharing the field name is not one.
 		if stored.Value != nil {
 			return item{}, envelopeUnknown
 		}
 		return item{}, envelopeNone
 	}
 
-	// No version marker, so this is either a bare payload or the unversioned
-	// envelope earlier versions wrote. That envelope always carried a value,
-	// which rules out most payloads before the second, costlier pass.
+	// No marker: a bare payload or the unversioned envelope, which always carried a value, ruling out most payloads before the costlier pass.
 	if stored.Value == nil || !isUnversionedEnvelope(data) {
 		return item{}, envelopeNone
 	}
@@ -370,8 +335,7 @@ func decode(data []byte) (item, envelopeKind) {
 	return stored, envelopeEntry
 }
 
-// isUnversionedEnvelope reports whether data has exactly the two fields the
-// envelope written by earlier versions of this driver had.
+// isUnversionedEnvelope reports whether data has exactly the two fields the old envelope had.
 func isUnversionedEnvelope(data []byte) bool {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
@@ -404,9 +368,7 @@ func (s *Storage) gc() {
 	}
 }
 
-// collect reclaims expired entries. Candidates come from a snapshot and are
-// re-read under the exclusive lock before deletion, since LevelDB has no
-// compare-and-delete. Bounded so a large database cannot stall Close.
+// collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete, and bounded so it cannot stall Close.
 func (s *Storage) collect() {
 	after, epoch := s.loadCursor()
 
@@ -433,8 +395,7 @@ func (s *Storage) collect() {
 	s.storeCursor(after, epoch)
 }
 
-// loadCursor reports where the next sweep resumes from, along with the epoch
-// that position belongs to.
+// loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
 func (s *Storage) loadCursor() ([]byte, uint64) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -442,8 +403,7 @@ func (s *Storage) loadCursor() ([]byte, uint64) {
 	return s.gcCursor, s.gcEpoch
 }
 
-// storeCursor records where the next sweep resumes, unless a Reset rewound the
-// cursor meanwhile: that position points into keys Reset has already deleted.
+// storeCursor records where the next sweep resumes, unless a Reset rewound the cursor meanwhile.
 func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -455,9 +415,7 @@ func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
 	s.gcCursor = cursor
 }
 
-// expiredCandidates lists the keys a snapshot shows as expired, starting after
-// the given key, and reports the last key it examined along with whether it
-// reached the end of the database.
+// expiredCandidates lists keys a snapshot shows expired after the given key, with the last one examined and whether it reached the end.
 func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -467,8 +425,7 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 
 	valid := iter.Next()
 	if after != nil {
-		// Seek lands on the key itself, which the previous batch already
-		// examined, so step past it.
+		// Seek lands on the key itself, which the previous batch examined, so step past it.
 		valid = iter.Seek(after)
 		if valid && bytes.Equal(iter.Key(), after) {
 			valid = iter.Next()
@@ -499,8 +456,7 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	return candidates, last, true
 }
 
-// deleteIfStillExpired re-reads each key and deletes the ones that are still
-// expired.
+// deleteIfStillExpired re-reads each key and deletes the ones that are still expired.
 func (s *Storage) deleteIfStillExpired(keys [][]byte) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

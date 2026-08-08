@@ -319,15 +319,13 @@ func Test_Redis_Close_DoesNotCloseBorrowedClient(t *testing.T) {
 	borrowed := NewFromConnection(owner.Conn())
 	require.NoError(t, borrowed.Close())
 
-	// The client belongs to owner, so it must still work after borrowed
-	// was closed.
+	// The client belongs to owner, so it must still work after borrowed was closed.
 	require.NoError(t, owner.Set("john", []byte("doe"), 0))
 	val, err := owner.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), val)
 
-	// borrowed itself is closed, though: leaving the client open is not the
-	// same as leaving the storage usable.
+	// borrowed itself is closed: leaving the client open is not leaving the storage usable.
 	_, err = borrowed.Get("john")
 	require.ErrorIs(t, err, ErrClosed)
 	require.ErrorIs(t, borrowed.Set("jane", []byte("doe"), 0), ErrClosed)
@@ -623,8 +621,7 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	t.Parallel()
 
 	connection := New(newConfigFromContainer(t))
-	// Close on a storage built from an existing client is a no-op by design,
-	// so the client stays this test's to close.
+	// Close on a storage built from an existing client is a no-op, so the client stays this test's to close.
 	defer connection.Close() //nolint:errcheck // best effort cleanup
 
 	testStore := NewFromConnection(connection.Conn())
@@ -646,8 +643,7 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 }
 
 func Test_Redis_SkipConnectionCheck(t *testing.T) {
-	// 127.0.0.1:1 is guaranteed to be closed, so New would panic on the
-	// initialization PING if the check was not skipped.
+	// 127.0.0.1:1 is guaranteed closed, so New would panic on the PING if the check were not skipped.
 	cfg := Config{
 		Host:                "127.0.0.1",
 		Port:                1,
@@ -668,8 +664,7 @@ func Test_Redis_SkipConnectionCheck(t *testing.T) {
 }
 
 func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
-	// Reset asks New to flush, which cannot reach a closed port either. Having
-	// opted out of failing on an unreachable server, New must not panic on it.
+	// Reset asks New to flush, which cannot reach a closed port either, and must not panic.
 	cfg := Config{
 		Host:                "127.0.0.1",
 		Port:                1,
@@ -685,7 +680,6 @@ func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
 	require.NotNil(t, testStore)
 	defer testStore.Close() //nolint:errcheck // the server is unreachable
 
-	// The flush is skipped rather than attempted, so New returns at once
-	// instead of waiting on a connection that cannot be made.
+	// The flush is skipped rather than attempted, so New returns at once.
 	require.NotNil(t, testStore.Conn())
 }

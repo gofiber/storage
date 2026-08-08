@@ -26,8 +26,7 @@ func removeBucket(cfg Config, conn *bbolt.DB) error {
 	})
 }
 
-// checkBucket reports whether the configured bucket exists, for a read-only
-// database where it cannot be created.
+// checkBucket reports whether the bucket exists, for a read-only database where it cannot be created.
 func checkBucket(cfg Config, conn *bbolt.DB) error {
 	return conn.View(func(tx *bbolt.Tx) error {
 		if tx.Bucket(utils.UnsafeBytes(cfg.Bucket)) == nil {

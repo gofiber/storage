@@ -37,8 +37,7 @@ func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 		return nil, err
 	}
 
-	// Release the connection opened above rather than leaking it when a later
-	// step fails.
+	// Release the connection opened above rather than leaking it when a later step fails.
 	closeOwned := func() { _ = conn.Close() }
 
 	queryWithEngine := fmt.Sprintf(createTableString, engine)
@@ -72,9 +71,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 	exp := time.Time{}
 	if expiration > 0 {
-		// The deadline is written with a one-second granularity below, so
-		// round it up: truncating expires an entry early, and a sub-second
-		// expiration would be written as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be written as past.
 		deadline := time.Now().Add(expiration).UTC()
 		if deadline.Nanosecond() != 0 {
 			deadline = deadline.Truncate(time.Second).Add(time.Second)
@@ -157,9 +154,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the connection. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
+// Close the connection. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()

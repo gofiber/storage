@@ -11,19 +11,13 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// ErrBucketNotFound is returned when the configured bucket is missing, which
-// happens when it is dropped outside of this driver. It is exported so that
-// callers can tell it apart with errors.Is.
+// ErrBucketNotFound is returned when the bucket is missing, having been dropped outside this driver.
 var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 
-// ErrReadOnly is returned by every write attempted on a storage opened with
-// Config.ReadOnly, rather than leaking bbolt's own error for it.
+// ErrReadOnly is returned by every write attempted on a storage opened with Config.ReadOnly.
 var ErrReadOnly = errors.New("bbolt: storage is read-only")
 
-// Storage interface that is implemented by storage providers.
-//
-// bbolt has no key expiration, so Set ignores exp and entries live until
-// deleted or reset.
+// Storage interface that is implemented by storage providers. bbolt has no expiration, so Set ignores exp.
 type Storage struct {
 	conn     *bbolt.DB
 	bucket   string
@@ -45,16 +39,12 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the file, and with it the OS lock, rather than leaking both
-	// when a later step fails.
+	// Release the file, and with it the OS lock, rather than leaking both when a later step fails.
 	closeOwned := func() { _ = conn.Close() }
 
-	// A read-only database cannot open the write transaction the two steps
-	// below need, so New panicked whenever ReadOnly was set. Check that the
-	// bucket is there instead.
+	// A read-only database cannot open a write transaction, so New panicked; check the bucket instead.
 	if cfg.ReadOnly {
-		// Resetting means writing, so the two options contradict each other.
-		// Say so rather than silently ignoring one of them.
+		// Resetting means writing, so the two options contradict each other rather than one being ignored.
 		if cfg.Reset {
 			closeOwned()
 			panic(errors.New("bbolt: Reset cannot be used with ReadOnly"))
@@ -106,8 +96,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 			return ErrBucketNotFound
 		}
 
-		// The slice returned by Get points into the memory-mapped file and is
-		// only valid for the life of the transaction, so it has to be copied.
+		// Get points into the memory-mapped file and is valid only for the transaction, so copy it.
 		v := b.Get(utils.UnsafeBytes(key))
 		if v == nil {
 			return nil
@@ -197,9 +186,7 @@ func (s *Storage) Reset() error {
 			return ErrBucketNotFound
 		}
 
-		// Delete through the cursor, which bbolt supports while iterating.
-		// Dropping and recreating the bucket would also reset its sequence
-		// counter, which callers reach through Conn.
+		// Delete through the cursor: dropping the bucket would also reset the sequence counter callers reach through Conn.
 		c := b.Cursor()
 		for k, _ := c.First(); k != nil; k, _ = c.Next() {
 			if err := c.Delete(); err != nil {
@@ -219,9 +206,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. It is safe to call Close more than once: once the close has succeeded
-// further calls do nothing, and a close that fails is reported so the
-// caller can try again.
+// Close the database. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()

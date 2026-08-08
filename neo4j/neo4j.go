@@ -61,8 +61,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection. A caller-supplied driver stays the caller's to
-	// close, other parts of their application may still be using it.
+	// A caller-supplied driver stays theirs to close; their application may still be using it.
 	var err error
 	db := cfg.DB
 	ownsDB := db == nil
@@ -77,9 +76,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
-	// Closing runs on its own bounded context: the caller's may be exactly
-	// what failed, so a done context would skip the close, and an unbounded
-	// one would hang here if the connection is stuck rather than refused.
+	// Closing runs on its own bounded context: the caller's may be what failed, and an unbounded one would hang.
 	closeOwned := func() {
 		if !ownsDB {
 			return
@@ -176,9 +173,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expireAt int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it up:
-		// truncating expires an entry early, and a sub-second expiration would be
-		// stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expireAt = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -238,17 +233,12 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Close stops the garbage collector and closes the driver, unless it came from
-// Config.DB, which stays the caller's to close. Safe to call more than once; a
-// failed close is reported so the caller can retry.
+// Close stops the collector and closes the driver unless it came from Config.DB; a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish any sweep it started, it must
-		// not run against a driver that is being closed.
+		// Wait for the collector to finish its sweep, which must not run against a driver being closed.
 		<-s.stopped
 	})
 
@@ -259,9 +249,7 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Bounded, so a stuck connection cannot hang the caller. A timeout is
-	// transient, so it is reported without latching and a later Close tries
-	// again.
+	// Bounded so a stuck connection cannot hang the caller; a timeout is transient, so it is not latched.
 	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
 	defer cancel()
 
@@ -282,8 +270,7 @@ func (s *Storage) Conn() neo4j.DriverWithContext {
 func (s *Storage) gcTicker() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

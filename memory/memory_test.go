@@ -296,8 +296,7 @@ func Test_Storage_Memory_Set_Negative_Expiration(t *testing.T) {
 	testStore := New()
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
-	// A negative expiration means no expiration, it must not wrap into a
-	// far-future deadline nor expire the entry immediately.
+	// A negative expiration means none: no far-future deadline, and no immediate expiry either.
 	require.NoError(t, testStore.Set("john", []byte("doe"), -time.Hour))
 
 	result, err := testStore.Get("john")
@@ -309,8 +308,7 @@ func Test_Storage_Memory_Set_Short_Expiration(t *testing.T) {
 	testStore := New()
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
-	// A short expiration must be honoured exactly, not rounded up to a whole
-	// second nor treated as immediate.
+	// A short expiration must be honoured exactly, not rounded up nor treated as immediate.
 	require.NoError(t, testStore.Set("john", []byte("doe"), 100*time.Millisecond))
 
 	result, err := testStore.Get("john")
@@ -326,8 +324,7 @@ func Test_Storage_Memory_Set_Huge_Expiration(t *testing.T) {
 	testStore := New()
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
-	// A deadline past what a nanosecond timestamp can hold must saturate
-	// rather than wrap into the past.
+	// A deadline past what a nanosecond timestamp holds must saturate rather than wrap into the past.
 	require.NoError(t, testStore.Set("john", []byte("doe"), time.Duration(math.MaxInt64)))
 
 	result, err := testStore.Get("john")
@@ -336,8 +333,7 @@ func Test_Storage_Memory_Set_Huge_Expiration(t *testing.T) {
 }
 
 func Test_Storage_Memory_Config_SubSecond_GCInterval(t *testing.T) {
-	// A sub-second interval used to be truncated to zero seconds and silently
-	// replaced by the ten second default.
+	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
 	// Zero and negative still fall back to the default.
@@ -397,8 +393,7 @@ func Test_Memory_Operations_After_Close(t *testing.T) {
 	store := New()
 	require.NoError(t, store.Close())
 
-	// The collector has stopped, so an entry stored now would never be
-	// reclaimed. Every operation reports that instead.
+	// The collector has stopped, so an entry stored now would never be reclaimed; operations report that.
 	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
 
 	_, err := store.Get("john")
@@ -412,9 +407,7 @@ func Test_Memory_Operations_After_Close(t *testing.T) {
 }
 
 func Test_Memory_Close_Races_With_Set(t *testing.T) {
-	// Set checks the closed flag then takes the lock, so a Close in between could
-	// store an entry the stopped collector never reclaims. Not reproducible on
-	// demand; Test_Memory_Operations_After_Close covers the contract itself.
+	// Set checks the flag then locks, so a Close in between could store an unreclaimable entry; the contract test covers it.
 	for range 50 {
 		store := New(Config{GCInterval: time.Hour})
 
@@ -438,8 +431,7 @@ func Test_Memory_Close_Races_With_Set(t *testing.T) {
 
 		wg.Wait()
 
-		// Once closed the storage refuses every write, so the map cannot grow
-		// past whatever landed before the close.
+		// Once closed the storage refuses every write, so the map cannot grow past what landed before.
 		require.ErrorIs(t, store.Set("late", []byte("v"), time.Minute), ErrClosed)
 	}
 }

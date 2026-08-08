@@ -468,8 +468,7 @@ func Benchmark_Rueidis_SetAndDelete(b *testing.B) {
 }
 
 func Test_Rueidis_ConfigDefault_CacheTTL(t *testing.T) {
-	// An unset CacheTTL used to be forced to zero, which disables client-side
-	// caching, instead of keeping the documented default.
+	// An unset CacheTTL used to be forced to zero, disabling client-side caching.
 	require.Equal(t, ConfigDefault.CacheTTL, configDefault(Config{}).CacheTTL)
 
 	// An explicit value is still honoured.
@@ -477,23 +476,20 @@ func Test_Rueidis_ConfigDefault_CacheTTL(t *testing.T) {
 }
 
 func Test_Rueidis_Set_Huge_Expiration(t *testing.T) {
-	// Exercises the real conversion: the count used to be turned back into a
-	// Duration, which overflowed int64 near the maximum and wrapped negative.
+	// The count used to be turned back into a Duration, which overflowed int64 and wrapped negative.
 	ms := expirationMilliseconds(time.Duration(math.MaxInt64))
 
 	require.Positive(t, ms)
 	require.Negative(t, int64(time.Duration(ms)*time.Millisecond), "the old round trip overflowed")
 
-	// Sub-millisecond expirations round up rather than reaching zero, which
-	// the server also rejects.
+	// Sub-millisecond expirations round up rather than reaching zero, which the server rejects.
 	require.Equal(t, int64(1), expirationMilliseconds(time.Microsecond))
 	require.Equal(t, int64(2), expirationMilliseconds(1500*time.Microsecond))
 	require.Equal(t, int64(1000), expirationMilliseconds(time.Second))
 }
 
 func Test_Rueidis_ConfigDefault_AlwaysPipelining(t *testing.T) {
-	// The documented default is on, and a zero value cannot express "off",
-	// which is why disabling it has its own field.
+	// The documented default is on, and a zero value cannot express "off", hence the separate field.
 	require.True(t, configDefault(Config{}).AlwaysPipelining)
 	require.True(t, configDefault(Config{AlwaysPipelining: false}).AlwaysPipelining)
 	require.False(t, configDefault(Config{DisableAlwaysPipelining: true}).AlwaysPipelining)

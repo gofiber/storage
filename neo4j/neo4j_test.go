@@ -155,14 +155,12 @@ func Test_Neo4jStore_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	// The deadline is stored in whole seconds and rounded up, so the entry may
-	// outlive its expiration by up to a second.
+	// The deadline is stored in whole seconds and rounded up, so the entry may outlive it by one.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
-		// Checked before the break as well: a key that disappears only after
-		// the deadline would otherwise end the loop and pass.
+		// Checked before the break too: a key disappearing only after the deadline would otherwise pass.
 		require.False(t, time.Now().After(deadline), "Key should have expired")
 		if len(result) == 0 {
 			break

@@ -37,8 +37,7 @@ func New(config ...Config) *Storage {
 
 	if cfg.Reset {
 		if err := db.DropAll(); err != nil {
-			// Release the database, and with it the directory lock, rather
-			// than leaking both on the way out.
+			// Release the database, and with it the directory lock, rather than leaking both on the way out.
 			_ = db.Close()
 			panic(err)
 		}
@@ -103,8 +102,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	entry := badger.NewEntry(utils.UnsafeBytes(key), val)
 	if exp > 0 {
-		// WithTTL truncates the deadline to a whole second, which makes any
-		// sub-second expiration immediate, so set the rounded up deadline.
+		// WithTTL truncates the deadline to a whole second, so set the rounded up one instead.
 		deadline := time.Now().Add(exp)
 		secs := deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -157,16 +155,12 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. Safe to call more than once; a failed close is reported
-// so the caller can retry. Close waits for the collector: RunValueLogGC takes
-// no context, so a sweep under way runs to completion first.
+// Close the database once, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish any value log GC it started, it
-		// must not run against a database that is being closed.
+		// Wait for the value log GC to finish; it must not run against a database being closed.
 		<-s.stopped
 	})
 

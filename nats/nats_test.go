@@ -287,8 +287,7 @@ func Test_Storage_Nats_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	// The deadline is stored in whole seconds and rounded up, so the entry may
-	// outlive its expiration by up to a second.
+	// The deadline is stored in whole seconds and rounded up, so the entry may outlive it by one.
 	deadline := time.Now().Add(4 * time.Second)
 	for {
 		result, err := testStore.Get(key)
@@ -328,8 +327,7 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 
-	// The deadline is stored in whole seconds and rounded up, so the entry may
-	// outlive its expiration by up to a second.
+	// The deadline is stored in whole seconds and rounded up, so the entry may outlive it by one.
 	deadline := time.Now().Add(9 * time.Second)
 	for {
 		result, err := testStore.Get(key)

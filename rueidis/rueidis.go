@@ -80,8 +80,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client opened above rather than leaking it when a later
-	// step fails.
+	// Release the client opened above rather than leaking it when a later step fails.
 	closeOwned := func() { db.Close() }
 
 	// Test connection
@@ -140,9 +139,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).PxMilliseconds(expirationMilliseconds(exp)).Build()).Error()
 }
 
-// expirationMilliseconds converts exp to the millisecond count PX takes. Ex
-// truncates to whole seconds, turning a sub-second expiration into a rejected
-// EX 0. It stays a count: the trip back through Duration overflowed int64.
+// expirationMilliseconds converts exp for PX: EX truncates to seconds, and a Duration round trip overflowed int64.
 func expirationMilliseconds(exp time.Duration) int64 {
 	ms := int64(exp / time.Millisecond)
 	if exp%time.Millisecond != 0 {
@@ -185,9 +182,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Close the storage. It is safe to call Close more than once, the client is
-// closed only on the first call.
+// Close the storage. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		s.closed.Store(true)

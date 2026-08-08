@@ -134,9 +134,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	var expSeconds int64
 	if exp > 0 {
-		// The deadline is stored with a one-second granularity, so round it up:
-		// truncating expires an entry early, and a sub-second expiration would be
-		// stored as already past.
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
 		expSeconds = deadline.Unix()
 		if deadline.Nanosecond() != 0 {
@@ -178,17 +176,12 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Close stops the garbage collector and closes the database. It is safe to
-// call Close more than once: once the close has succeeded further calls do
-// nothing, and a close that fails is reported so the caller can try again.
+// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and
-	// the caller tries again.
+	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish any sweep it started, it must
-		// not run against a database that is being closed.
+		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 
@@ -211,8 +204,7 @@ func (s *Storage) Close() error {
 func (s *Storage) gcTicker() {
 	defer close(s.stopped)
 
-	// A sweep is abandoned when Close is called, so a query that stalls
-	// cannot hold Close open indefinitely.
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {

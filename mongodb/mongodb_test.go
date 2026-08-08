@@ -366,8 +366,7 @@ func Test_MongoDB_ReleaseItem_Clears_Every_Field(t *testing.T) {
 
 	s.releaseItem(it)
 
-	// Get decodes into a pooled item, so a leftover identifier would travel
-	// into the next Set that reuses it and be rejected by MongoDB.
+	// Get decodes into a pooled item, so a leftover identifier would travel into the next Set.
 	require.Equal(t, primitive.ObjectID{}, it.ObjectID)
 	require.Empty(t, it.Key)
 	require.Nil(t, it.Value)

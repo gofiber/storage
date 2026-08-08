@@ -10,9 +10,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-// errClosed is returned by every operation attempted after Close. Ristretto
-// panics or blocks forever when its buffers are used after the cache is
-// closed, so the storage refuses those calls instead of forwarding them.
+// errClosed is returned after Close, since Ristretto panics or blocks forever on a closed cache.
 var errClosed = errors.New("ristretto: storage is closed")
 
 // Storage interface that is implemented by storage providers.
@@ -94,8 +92,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	// Store a copy: the caller may reuse or mutate val once Set returns.
 	valCopy := bytes.Clone(val)
 
-	// Ristretto reads a negative TTL as "do nothing", while the storage
-	// interface has no expiration below zero, so clamp it to none.
+	// Ristretto reads a negative TTL as "do nothing", while the interface has none below zero, so clamp it.
 	if exp < 0 {
 		exp = 0
 	}
@@ -107,13 +104,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return errClosed
 	}
 
-	// The result is deliberately ignored: Ristretto is a cache, it may drop a
-	// write under pressure or evict the entry later, which is not an error.
+	// The result is ignored: a cache may drop a write under pressure or evict later, which is not an error.
 	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
 
-	// Ristretto buffers writes, so without this a Get right after Set often
-	// misses. Waiting makes an admitted write visible; it does not guarantee
-	// admission, and the entry can still be evicted later.
+	// Ristretto buffers writes, so without this a Get right after Set often misses; admission is still not guaranteed.
 	if s.waitForWrite {
 		s.cache.Wait()
 	}
@@ -156,8 +150,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
-	// Ristretto documents Clear as not atomic and assumes no operation is in
-	// flight while it runs, so this takes the lock exclusively.
+	// Ristretto documents Clear as not atomic and assumes nothing is in flight, so take the lock exclusively.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -177,9 +170,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the storage and will stop any running garbage
-// collectors and open connections. It is safe to call Close more than once,
-// and it waits for any operation already in flight to finish.
+// Close stops the collector and closes the cache; safe to call more than once, and it waits for calls in flight.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
