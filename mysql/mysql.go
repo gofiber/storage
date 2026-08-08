@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -13,8 +14,13 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *sql.DB
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	sqlSelect string
 	sqlInsert string
@@ -47,6 +53,9 @@ func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
+	// A caller-supplied connection stays theirs to close, even when initialization fails.
+	ownsDB := cfg.Db == nil
+
 	if cfg.Db != nil {
 		// Use passed db
 		db = cfg.Db
@@ -65,6 +74,9 @@ func New(config ...Config) *Storage {
 
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
+		if ownsDB {
+			_ = db.Close()
+		}
 		panic(err)
 	}
 
@@ -72,7 +84,9 @@ func New(config ...Config) *Storage {
 	if cfg.Reset {
 		query := fmt.Sprintf(dropQuery, cfg.Table)
 		if _, err = db.Exec(query); err != nil {
-			_ = db.Close()
+			if ownsDB {
+				_ = db.Close()
+			}
 			panic(err)
 		}
 	}
@@ -81,7 +95,9 @@ func New(config ...Config) *Storage {
 	for _, query := range initQuery {
 		query = fmt.Sprintf(query, cfg.Table)
 		if _, err := db.Exec(query); err != nil {
-			_ = db.Close()
+			if ownsDB {
+				_ = db.Close()
+			}
 			panic(err)
 		}
 	}
@@ -90,7 +106,9 @@ func New(config ...Config) *Storage {
 	store := &Storage{
 		gcInterval: cfg.GCInterval,
 		db:         db,
+		ownsDB:     ownsDB,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf("SELECT v, e FROM %s WHERE k=?;", cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
@@ -98,7 +116,18 @@ func New(config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
 	}
 
-	store.checkSchema(cfg.Table)
+	// checkSchema panics on a mismatch, so release a connection this driver opened on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if ownsDB {
+					_ = db.Close()
+				}
+				panic(r)
+			}
+		}()
+		store.checkSchema(cfg.Table)
+	}()
 
 	// Start garbage collector
 	go store.gcTicker()
@@ -127,9 +156,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	// If the expiration time has already passed, then return nil
+	// An expired entry is a miss; the row is not deleted here, since an unconditional delete could drop a concurrent Set.
 	if exp != 0 && exp <= time.Now().Unix() {
-		_, _ = s.db.ExecContext(ctx, s.sqlDelete, key)
 		return nil, nil
 	}
 
@@ -148,8 +176,13 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expSeconds int64
-	if exp != 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
@@ -186,10 +219,29 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close stops the collector and closes the database unless it came from Config.Db; safe to call more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	return s.db.Close()
+	// Stopping the collector happens once, even if the close below fails and is retried.
+	s.stopOnce.Do(func() {
+		close(s.done)
+		// Wait for the collector to finish its sweep, which must not run against a database being closed.
+		<-s.stopped
+	})
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	// A caller-supplied connection stays theirs to close; their application may still be using it.
+	if s.closed || !s.ownsDB {
+		return nil
+	}
+
+	if err := s.db.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Return database client
@@ -199,6 +251,16 @@ func (s *Storage) Conn() *sql.DB {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -206,14 +268,14 @@ func (s *Storage) gcTicker() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			s.gc(t)
+			s.gc(ctx, t)
 		}
 	}
 }
 
 // gc deletes all expired entries
-func (s *Storage) gc(t time.Time) {
-	_, _ = s.db.Exec(s.sqlGC, t.Unix())
+func (s *Storage) gc(ctx context.Context, t time.Time) {
+	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
 }
 
 func (s *Storage) checkSchema(tableName string) {

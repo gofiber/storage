@@ -36,6 +36,8 @@ func (s *Storage) Conn() redis.UniversalClient
 func (s *Storage) Keys() ([][]byte, error)
 ```
 
+**Note:** An expiration at or below zero means no expiration, and clears any expiration the key already had. In particular a negative one is not passed through to go-redis, which would read it as its `KeepTTL` sentinel.
+
 ### Installation
 
 Redis is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -196,6 +198,13 @@ type Config struct {
 	//
 	// Optional. Default is false
 	IsClusterMode bool
+
+	// SkipConnectionCheck disables the PING New sends, so New makes no network
+	// call and never panics on an unreachable server; errors surface on first
+	// use. Reset is skipped too, being a network call.
+	//
+	// Optional. Default is false
+	SkipConnectionCheck bool
 }
 ```
 
@@ -217,11 +226,14 @@ var ConfigDefault = Config{
 	SentinelUsername:      "",
 	SentinelPassword:      "",
 	IsClusterMode:         false,
+	SkipConnectionCheck:   false,
 }
 ```
 
 ### Using an Existing Redis Connection
 If you already have a Redis client configured in your application, you can create a Storage instance directly from that client. This is useful when you want to share an existing connection throughout your application instead of creating a new one.
+
+The client stays yours to close: `Close` on a storage built this way leaves the client open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

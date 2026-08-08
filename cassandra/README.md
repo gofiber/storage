@@ -30,6 +30,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *gocql.Session
 ```
 
+**Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
+
 ### Installation
 
 Cassandra is supported on the latest two versions of Go:
@@ -79,36 +81,39 @@ store := New(Config{
 ```go
 // Config defines the configuration options for the Cassandra storage
 type Config struct {
-    // Optional. Default is localhost
-    // Hosts is a list of Cassandra nodes to connect to.
-    Hosts []string
-    // Optional. Default is gofiber
-    // Keyspace is the name of the Cassandra keyspace to use.
-    Keyspace string
-    // Optional. Default is kv_store
-    // Table is the name of the Cassandra table to use.
-    Table string
-    // Optional. Default is Quorum
-    // Consistency is the Cassandra consistency level.
-    Consistency gocql.Consistency
-    // Optional. PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
-    // PoolConfig is the Cassandra connection pool configuration.
-    PoolConfig *gocql.PoolConfig
-    // Optional. Default is false
-    // SslOpts is the SSL options for the Cassandra cluster.
-    SslOpts *gocql.SslOptions
-    // Optional. Default is 10 minutes
-    // Expiration is the time after which an entry is considered expired.
-    Expiration time.Duration
-    // Optional. Default is false
-    // Reset is a flag to reset the database.
-    Reset bool
-    // Optional. Default is 3
-    // MaxRetries is the maximum number of retries for a query.
-    MaxRetries int
-    // Optional. Default is 5 seconds
-    // ConnectTimeout is the timeout for connecting to the Cassandra cluster.
-    ConnectTimeout time.Duration
+	// Optional. Default is localhost
+	// Hosts is a list of Cassandra nodes to connect to.
+	Hosts []string
+	// Optional. Default is gofiber
+	// Keyspace is the name of the Cassandra keyspace to use.
+	Keyspace string
+	// Optional. Default is kv_store
+	// Table is the name of the Cassandra table to use.
+	Table string
+	// Optional. Default is Quorum
+	// Consistency is the Cassandra consistency level.
+	Consistency gocql.Consistency
+	// Optional. PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+	// PoolConfig is the Cassandra connection pool configuration.
+	PoolConfig *gocql.PoolConfig
+	// Optional. Default is false
+	// SslOpts is the SSL options for the Cassandra cluster.
+	SslOpts *gocql.SslOptions
+	// Expiration was the time after which an entry was considered expired.
+	//
+	// Deprecated: no longer applied. Zero means no expiration, and defaulting
+	// here made Set(key, value, 0) quietly store an expiring entry. Pass the
+	// expiration to Set instead.
+	Expiration time.Duration
+	// Optional. Default is false
+	// Reset is a flag to reset the database.
+	Reset bool
+	// Optional. Default is 3
+	// MaxRetries is the maximum number of retries for a query.
+	MaxRetries int
+	// Optional. Default is 5 seconds
+	// ConnectTimeout is the timeout for connecting to the Cassandra cluster.
+	ConnectTimeout time.Duration
 }
 ```
 

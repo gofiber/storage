@@ -83,25 +83,33 @@ type Config struct {
 	//
 	// Optional. Default is false
 	IsClusterMode bool
+
+	// SkipConnectionCheck disables the PING New sends, so New makes no network
+	// call and never panics on an unreachable server; errors surface on first
+	// use. Reset is skipped too, being a network call.
+	//
+	// Optional. Default is false
+	SkipConnectionCheck bool
 }
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Host:             "127.0.0.1",
-	Port:             6379,
-	Username:         "",
-	Password:         "",
-	URL:              "",
-	Database:         0,
-	Reset:            false,
-	TLSConfig:        nil,
-	PoolSize:         10 * runtime.GOMAXPROCS(0),
-	Addrs:            []string{},
-	MasterName:       "",
-	ClientName:       "",
-	SentinelUsername: "",
-	SentinelPassword: "",
-	IsClusterMode:    false,
+	Host:                "127.0.0.1",
+	Port:                6379,
+	Username:            "",
+	Password:            "",
+	URL:                 "",
+	Database:            0,
+	Reset:               false,
+	TLSConfig:           nil,
+	PoolSize:            10 * runtime.GOMAXPROCS(0),
+	Addrs:               []string{},
+	MasterName:          "",
+	ClientName:          "",
+	SentinelUsername:    "",
+	SentinelPassword:    "",
+	IsClusterMode:       false,
+	SkipConnectionCheck: false,
 }
 
 // Helper function to set default values

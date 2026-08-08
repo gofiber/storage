@@ -155,6 +155,9 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
 
+	schemaBefore := testStore.GetSchemaInfo()
+	require.NotNil(t, schemaBefore)
+
 	// Set multiple values
 	err := testStore.Set(key1, val1, 0)
 	require.NoError(t, err)
@@ -173,6 +176,46 @@ func Test_AeroSpikeDB_Reset(t *testing.T) {
 	retrievedVal2, err := testStore.Get(key2)
 	require.NoError(t, err)
 	require.Nil(t, retrievedVal2)
+
+	// The bookkeeping record lives in its own set, which the scan Reset runs does not touch.
+	schemaKey, err := aerospike.NewKey(testStore.namespace, testStore.schemaSetName, schemaInfoKey)
+	require.NoError(t, err)
+	schemaRecord, err := testStore.client.Get(nil, schemaKey, "version")
+	require.NoError(t, err)
+	require.NotNil(t, schemaRecord)
+	require.Equal(t, schemaBefore.Version, schemaRecord.Bins["version"].(int))
+}
+
+// A SetName carrying the schema suffix is refused: it would make one storage's data another's bookkeeping set.
+func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
+	require.Panics(t, func() {
+		New(Config{
+			Hosts:     []*aerospike.Host{aerospike.NewHost("127.0.0.1", 3000)},
+			Namespace: "test",
+			SetName:   "orders" + schemaSetSuffix,
+		})
+	})
+}
+
+// The bookkeeping name is an ordinary key for callers: readable, and cleared by Reset like any other.
+func Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set(schemaInfoKey, []byte("user value"), 0))
+
+	val, err := testStore.Get(schemaInfoKey)
+	require.NoError(t, err)
+	require.Equal(t, []byte("user value"), val)
+
+	require.NoError(t, testStore.Reset())
+
+	val, err = testStore.Get(schemaInfoKey)
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	// The bookkeeping itself is still intact, so the storage stays usable.
+	require.NotNil(t, testStore.GetSchemaInfo())
 }
 
 // Test_AeroSpikeDB_GetSchemaInfo tests the GetSchemaInfo method
@@ -233,4 +276,20 @@ func Benchmark_AeroSpikeDB_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Aerospike_WithContext_Canceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// No server needed: an already cancelled context is rejected before the storage is touched.
+	testStore := &Storage{}
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }

@@ -1,23 +1,37 @@
 package bbolt
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
 var testStore *Storage
 
 func TestMain(m *testing.M) {
+	// Keep the generated database out of the package directory.
+	dir, err := os.MkdirTemp("", "bbolt-test")
+	if err != nil {
+		panic(err)
+	}
+
 	testStore = New(Config{
-		Bucket: "fiber-bucket",
-		Reset:  true,
+		Database: filepath.Join(dir, "fiber.db"),
+		Bucket:   "fiber-bucket",
+		Reset:    true,
 	})
 
 	code := m.Run()
 
 	_ = testStore.Close()
+	_ = os.RemoveAll(dir)
 	os.Exit(code)
 }
 
@@ -147,4 +161,163 @@ func Benchmark_Bbolt_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+// newTestStore returns a storage with a database file of its own, clear of the shared testStore.
+func newTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	store := New(Config{
+		Database: filepath.Join(t.TempDir(), "fiber.db"),
+		Bucket:   "fiber-bucket",
+		Reset:    true,
+	})
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
+
+	return store
+}
+
+func Test_Bbolt_Get_Value_Outlives_Transaction(t *testing.T) {
+	var (
+		store = newTestStore(t)
+		key   = "john"
+		val   = []byte("doe")
+	)
+
+	require.NoError(t, store.Set(key, val, 0))
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	// Get used to point into the mmap and stay valid only inside the transaction; growing the file must not change it.
+	for i := 0; i < 512; i++ {
+		require.NoError(t, store.Set("filler-"+strconv.Itoa(i), make([]byte, 4096), 0))
+	}
+
+	require.Equal(t, val, result, "value returned by Get must not be aliased to the database")
+}
+
+func Test_Bbolt_Reset_Removes_Every_Key(t *testing.T) {
+	store := newTestStore(t)
+
+	// Enough keys to split the bucket across leaf pages: cursor deletion is only worth testing past one page.
+	const keys = 2000
+	value := bytes.Repeat([]byte("x"), 256)
+
+	for i := 0; i < keys; i++ {
+		require.NoError(t, store.Set(fmt.Sprintf("key-%06d", i), value, 0))
+	}
+
+	require.NoError(t, store.Reset())
+
+	for i := 0; i < keys; i++ {
+		result, err := store.Get(fmt.Sprintf("key-%06d", i))
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	}
+
+	// Count through the bucket too: a cursor that skipped entries would leave keys the lookups never named.
+	remaining := 0
+	require.NoError(t, store.Conn().View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(store.bucket))
+		require.NotNil(t, b)
+		return b.ForEach(func(_, _ []byte) error {
+			remaining++
+			return nil
+		})
+	}))
+	require.Zero(t, remaining)
+
+	// The bucket must still be usable after a reset.
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_Bbolt_WithContext_Canceled(t *testing.T) {
+	store := newTestStore(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := store.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Bbolt_Close_Twice(t *testing.T) {
+	store := New(Config{
+		Database: filepath.Join(t.TempDir(), "fiber.db"),
+		Bucket:   "fiber-bucket",
+		Reset:    true,
+	})
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
+}
+
+func Test_Bbolt_Reset_Keeps_Bucket_Sequence(t *testing.T) {
+	store := newTestStore(t)
+
+	require.NoError(t, store.Conn().Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket([]byte("fiber-bucket")).SetSequence(42)
+	}))
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	require.NoError(t, store.Reset())
+
+	// Dropping and recreating the bucket would have reset this to zero.
+	require.NoError(t, store.Conn().View(func(tx *bbolt.Tx) error {
+		require.Equal(t, uint64(42), tx.Bucket([]byte("fiber-bucket")).Sequence())
+		return nil
+	}))
+}
+
+func Test_Bbolt_ReadOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fiber.db")
+
+	// Create the bucket with a writable storage first.
+	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
+	require.NoError(t, writable.Set("john", []byte("doe"), 0))
+	require.NoError(t, writable.Close())
+
+	// Opening read-only used to panic, since bucket creation needs a write transaction.
+	var store *Storage
+	require.NotPanics(t, func() {
+		store = New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true})
+	})
+	require.NotNil(t, store)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// Writes report a driver error rather than leaking bbolt's own.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrReadOnly)
+	require.ErrorIs(t, store.Delete("john"), ErrReadOnly)
+	require.ErrorIs(t, store.Reset(), ErrReadOnly)
+}
+
+func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fiber.db")
+
+	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
+	require.NoError(t, writable.Close())
+
+	// Resetting means writing, so the combination is rejected rather than silently dropping one option.
+	require.Panics(t, func() {
+		New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true, Reset: true})
+	})
 }

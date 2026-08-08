@@ -85,7 +85,7 @@ func configDefault(config ...Config) Config {
 		cfg.Collection = ConfigDefault.Collection
 	}
 
-	if int(cfg.GCInterval.Seconds()) <= 0 {
+	if cfg.GCInterval <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	return cfg

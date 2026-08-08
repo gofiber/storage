@@ -33,7 +33,15 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *pebble.DB
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as Pebble does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** Every method returns `ErrClosed` once `Close` has been called, rather than reaching into a closed database, which Pebble panics on.
+
+**Note:** `Reset` deletes in bounded chunks so that resetting a large database does not have to fit in memory. A reset that spans more than one chunk is therefore not atomic: a concurrent reader can observe the database part way through it.
+
+**Note:** Expiration is tracked with a one-second granularity, so an `exp` shorter than a second is rounded up to one second. Expired entries are reported as a miss immediately and reclaimed in the background on `GCInterval`; `Get` does not delete them, since Pebble has no compare-and-delete and doing so could drop a value a concurrent `Set` had just written.
+
+**Note:** `WriteOptions` defaults to `nil`, which Pebble reads as a synchronous write, so every `Set` and `Delete` is flushed to disk before it returns. Pass `&pebble.WriteOptions{}` to let Pebble buffer writes instead, which is far faster but loses the most recent writes if the process dies.
+
+**Note:** Pebble has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 
@@ -74,15 +82,22 @@ store := pebble.New(pebble.Config{
 
 ```go
 type Config struct {
-	// Database name
+	// Path is the directory the database is stored in.
 	//
-	// Optional. Default is "./db"
+	// Optional. Default is "db"
 	Path string
 
-	// Pass write options during write operations
+	// WriteOptions are the options every write is issued with. Pebble reads nil
+	// as synchronous, so each Set and Delete is flushed before returning. Pass
+	// &pebble.WriteOptions{} to buffer instead, losing recent writes on a crash.
 	//
-	// Optional. Default is nil
-	WriteOptions &pebble.WriteOptions{}
+	// Optional. Default is nil.
+	WriteOptions *pebble.WriteOptions
+
+	// GCInterval is how often expired entries are reclaimed in the background.
+	//
+	// Optional. Default is 10 * time.Second
+	GCInterval time.Duration
 }
 ```
 
@@ -91,6 +106,7 @@ type Config struct {
 ```go
 var ConfigDefault = Config{
 	Path:         "db",
-	WriteOptions: &pebble.WriteOptions{},
+	WriteOptions: nil,
+	GCInterval:   10 * time.Second,
 }
 ```

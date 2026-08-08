@@ -31,7 +31,7 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *mc.Client
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as Memcache does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** Memcache has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

@@ -16,10 +16,12 @@ case "$PACKAGE" in
     docker run -d -p 1408:1408 -p 30000:30000 ghcr.io/oracle/coherence-ce:22.06.5
     sleep 30
     ;;
-  rueidis | valkey)
-    docker run -d -p 6379:6379 public.ecr.aws/docker/library/redis:7
-    sleep 15
-    ;;
+  # rueidis and valkey need nothing here. Their tests start their own
+  # containers through testcontainers and connect to the address it reports,
+  # so the server this used to start on 6379 was never connected to. Pulling
+  # it only spent registry quota that the pull the tests actually depend on
+  # then went without, which is how a rate-limited runner turned into
+  # "No such image" once the test tried to create its container.
   mssql)
     docker run -d --name mssql-server \
       --publish 1433:1433 \

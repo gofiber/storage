@@ -1,9 +1,11 @@
 package badger
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,9 +66,17 @@ func Test_Badger_Set_Expiration(t *testing.T) {
 func Test_Badger_Get_Expired(t *testing.T) {
 	key := "john"
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// Badger TTLs land on a whole second and round up, so the entry may outlive its expiration by one.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			return
+		}
+		require.False(t, time.Now().After(deadline), "key should expire")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_Badger_Get_NotExist(t *testing.T) {
@@ -158,4 +168,69 @@ func Benchmark_Badger_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+// newTestStore returns a storage with a database of its own, clear of the shared testStore.
+func newTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	return New(Config{
+		Database:      dir,
+		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		Reset:         true,
+	})
+}
+
+func Test_Badger_Close_Twice(t *testing.T) {
+	store := newTestStore(t)
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor block, and must report the same result as the first.
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
+}
+
+func Test_Badger_WithContext_Canceled(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := store.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Badger_Set_Sub_Second_Expiration(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	// Badger truncates a TTL to a whole second, so a sub-second expiration must round up.
+	require.NoError(t, store.Set(key, val, 900*time.Millisecond))
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result, "key expired before its expiration")
+}
+
+func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
+	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
+	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
+
+	// Zero and negative still fall back to the default.
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
 }

@@ -1,16 +1,38 @@
 package pebble
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/cockroachdb/pebble"
 )
 
-var testStore = New(Config{
-	Path:         "test.db",
-	WriteOptions: nil,
-})
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	// Keep the generated database out of the package directory.
+	dir, err := os.MkdirTemp("", "pebble-test")
+	if err != nil {
+		panic(err)
+	}
+
+	testStore = New(Config{
+		Path:         filepath.Join(dir, "test.db"),
+		WriteOptions: nil,
+	})
+
+	code := m.Run()
+
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
 
 func Test_Pebble_Set(t *testing.T) {
 	var (
@@ -59,7 +81,49 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	// Expirations round up to the next whole second, so the entry may outlive the request by up to one.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should expire")
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	// Sub-second expirations round up to a whole second; they must not expire early, let alone at once.
+	err := testStore.Set(key, val, 900*time.Millisecond)
+	require.NoError(t, err)
+
+	deadline := time.Now().Add(900 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		result, getErr := testStore.Get(key)
+		require.NoError(t, getErr)
+		require.Equal(t, val, result, "key expired before its expiration")
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	require.NoError(t, testStore.Delete(key))
+}
+
+func Test_Pebble_ConfigDefault_NoArgs(t *testing.T) {
+	// configDefault used to call itself when given no config, overflowing the stack in New().
+	require.Equal(t, ConfigDefault, configDefault())
+}
+
+func Test_Pebble_Get_Missing(t *testing.T) {
+	result, err := testStore.Get("not-a-key")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
 }
 
 func Test_Pebble_Delete(t *testing.T) {
@@ -68,14 +132,14 @@ func Test_Pebble_Delete(t *testing.T) {
 		val = []byte("doe")
 	)
 
-	err := testStore.Set(key, val, 20)
+	err := testStore.Set(key, val, 0)
 	require.NoError(t, err)
 
 	err = testStore.Delete(key)
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	require.Equal(t, "pebble: not found", err.Error())
+	require.NoError(t, err)
 	require.Zero(t, len(result))
 }
 
@@ -91,15 +155,77 @@ func Test_Pebble_Reset(t *testing.T) {
 	err = testStore.Reset()
 	require.NoError(t, err)
 
-	_, err = testStore.Get("john1")
+	result, err := testStore.Get("john1")
 	require.NoError(t, err)
+	require.Zero(t, len(result))
 
-	_, err = testStore.Get("john2")
+	result, err = testStore.Get("john2")
 	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Pebble_WithContext_Canceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Pebble_Reset_LargerThanOneBatch(t *testing.T) {
+	total := resetBatchSize + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, testStore.Set("key-"+strconv.Itoa(i), []byte("doe"), 0))
+	}
+
+	require.NoError(t, testStore.Reset())
+
+	for i := 0; i < total; i++ {
+		result, err := testStore.Get("key-" + strconv.Itoa(i))
+		require.NoError(t, err)
+		require.Zero(t, len(result))
+	}
+}
+
+func Test_Pebble_Close_Twice(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-close-twice")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db")})
+
+	require.NoError(t, store.Close())
+	// A second Close must neither panic nor report a spurious error.
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
 }
 
 func Test_Pebble_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	// A store of its own: closing the shared one would break the benchmarks that keep using it.
+	dir, err := os.MkdirTemp("", "pebble-close")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db")})
+
+	require.Nil(t, store.Close())
+
+	// Operations after Close are refused rather than panicking inside Pebble.
+	_, err = store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
 }
 
 func Test_Pebble_Conn(t *testing.T) {
@@ -143,4 +269,166 @@ func Benchmark_Pebble_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Pebble_GC_Reclaims_Expired(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: 100 * time.Millisecond})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, store.Set("john", []byte("doe"), time.Second))
+
+	// Get reports the miss without deleting, so the entry stays until the collector reclaims it.
+	deadline := time.Now().Add(6 * time.Second)
+	for {
+		_, closer, getErr := store.Conn().Get([]byte("john"))
+		if getErr != nil {
+			require.ErrorIs(t, getErr, pebble.ErrNotFound)
+			break
+		}
+		require.NoError(t, closer.Close())
+		require.False(t, time.Now().After(deadline), "collector should reclaim the key")
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-batches")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	// A long interval keeps the collector away; collect is driven directly so batching is what is tested.
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// More keys than one batch holds, so the scan has to resume rather than start over each time.
+	total := collectBatchSize + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, store.Set("key-"+strconv.Itoa(i), []byte("doe"), time.Second))
+	}
+
+	time.Sleep(2100 * time.Millisecond)
+	store.collect()
+
+	iter, err := store.Conn().NewIter(nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, iter.Close())
+	}()
+
+	remaining := 0
+	for iter.First(); iter.Valid(); iter.Next() {
+		remaining++
+	}
+	require.Zero(t, remaining, "every expired key should have been reclaimed")
+}
+
+func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-resume")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	for _, key := range []string{"a", "b", "c"} {
+		require.NoError(t, store.Set(key, []byte("doe"), time.Second))
+	}
+	time.Sleep(2100 * time.Millisecond)
+
+	// From the start, every key is a candidate and the scan reaches the end.
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a"), []byte("b"), []byte("c")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+
+	// Resuming after a key must skip it and everything before, which stops each batch rescanning.
+	candidates, last, reachedEnd = store.expiredCandidates([]byte("a"))
+	require.Equal(t, [][]byte{[]byte("b"), []byte("c")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+
+	candidates, _, reachedEnd = store.expiredCandidates([]byte("c"))
+	require.Empty(t, candidates)
+	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_ExpiredCandidates_Reports_Last_Examined(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-examined")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// The last key reported is the last examined, not the last expired: otherwise every batch rewalks the live keys.
+	require.NoError(t, store.Set("a", []byte("doe"), time.Second))
+	require.NoError(t, store.Set("b", []byte("doe"), 0))
+	require.NoError(t, store.Set("c", []byte("doe"), 0))
+	time.Sleep(2100 * time.Millisecond)
+
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a")}, candidates)
+	require.Equal(t, []byte("c"), last)
+	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_ExpiredCandidates_Stops_At_Scan_Limit(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-scanlimit")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// More live keys than one pass examines and none expired: the pass must stop at its scan budget.
+	total := collectScanLimit + 10
+	for i := 0; i < total; i++ {
+		require.NoError(t, store.Set(fmt.Sprintf("key-%07d", i), []byte("doe"), 0))
+	}
+
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Empty(t, candidates)
+	require.False(t, reachedEnd, "the pass should stop at its scan budget")
+	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectScanLimit-1)), last)
+
+	// Resuming from there reaches the end.
+	candidates, _, reachedEnd = store.expiredCandidates(last)
+	require.Empty(t, candidates)
+	require.True(t, reachedEnd)
+}
+
+func Test_Pebble_GC_Cursor_Cleared_After_Full_Sweep_And_Reset(t *testing.T) {
+	dir, err := os.MkdirTemp("", "pebble-gc-cursor")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(dir))
+	}()
+
+	store := New(Config{Path: filepath.Join(dir, "test.db"), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, store.Set("a", []byte("doe"), 0))
+
+	// A sweep that reaches the end clears the cursor, so the next one starts over.
+	store.collect()
+	require.Nil(t, store.gcCursor)
+
+	// So does a Reset: the keys the cursor pointed past are gone, and it would skip everything written after.
+	store.gcCursor = []byte("z")
+	require.NoError(t, store.Reset())
+	require.Nil(t, store.gcCursor)
 }

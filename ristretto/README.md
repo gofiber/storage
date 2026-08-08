@@ -34,7 +34,9 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *ristretto.Cache
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as Ristretto does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** `Set` waits for Ristretto to process the buffered write before returning, so a `Get` that follows a `Set` observes the value instead of racing the cache's background writer. Ristretto remains a cache with an admission policy: an entry may be rejected on write or evicted later, so `Get` can still report a miss. Set `SkipWaitForWrite: true` to keep Ristretto's buffered write behaviour instead, which is faster but makes a `Get` straight after a `Set` racy.
+
+**Note:** Ristretto has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 Ristretto is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -68,14 +70,22 @@ store := ristretto.New(ristretto.Config{
 ### Config
 ```go
 type Config struct {
-  // NumCounters number of keys to track frequency of (10M).
-  NumCounters int64
+	// NumCounters number of keys to track frequency of (10M).
+	NumCounters int64
 
-  // MaxCost maximum cost of cache (1GB).
-  MaxCost     int64
+	// MaxCost maximum cost of cache (1GB).
+	MaxCost int64
 
-  // BufferItems number of keys per Get buffer.
-  BufferItems int64
+	// BufferItems number of keys per Get buffer.
+	BufferItems int64
+	DefaultCost int64
+
+	// SkipWaitForWrite makes Set return as soon as the write is buffered. It is
+	// faster, and Ristretto's own design, but a Get straight after a Set can
+	// miss. Leave it off for the read-after-write the storage interface implies.
+	//
+	// Optional. Default is false
+	SkipWaitForWrite bool
 }
 ```
 

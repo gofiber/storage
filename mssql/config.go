@@ -139,7 +139,7 @@ func configDefault(config ...Config) Config {
 	if cfg.SslMode == "" {
 		cfg.SslMode = ConfigDefault.SslMode
 	}
-	if int(cfg.GCInterval.Seconds()) <= 0 {
+	if cfg.GCInterval <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	return cfg

@@ -2,16 +2,24 @@ package valkey
 
 import (
 	"context"
+	"errors"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/valkey-io/valkey-go"
 )
 
-var cacheTTL = time.Second
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("valkey: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db valkey.Client
+	db        valkey.Client
+	closeOnce sync.Once
+
+	closed   atomic.Bool
+	cacheTTL time.Duration
 }
 
 // New creates a new valkey storage using context.Background() for initialization.
@@ -27,7 +35,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create new valkey client
 	var db valkey.Client
-	cacheTTL = cfg.CacheTTL
 
 	// Parse the URL and update config values accordingly
 	if cfg.URL != "" {
@@ -73,30 +80,39 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the client opened above rather than leaking it when a later step fails.
+	closeOwned := func() { db.Close() }
+
 	// Test connection
 	if err := db.Do(ctx, db.B().Ping().Build()).Error(); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
 	// Empty collection if Clear is true
 	if cfg.Reset {
 		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
 
 	// Create new store
 	return &Storage{
-		db: db,
+		db:       db,
+		cacheTTL: cfg.CacheTTL,
 	}
 }
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), cacheTTL).AsBytes()
+	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), s.cacheTTL).AsBytes()
 	if err != nil && valkey.IsValkeyNil(err) {
 		return nil, nil
 	}
@@ -110,14 +126,26 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets key with value and expiration with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	if exp > 0 {
-		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Ex(exp).Build()).Error()
-	} else {
+	if exp <= 0 {
 		return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).Build()).Error()
 	}
+
+	return s.db.Do(ctx, s.db.B().Set().Key(key).Value(string(val)).PxMilliseconds(expirationMilliseconds(exp)).Build()).Error()
+}
+
+// expirationMilliseconds converts exp for PX: EX truncates to seconds, and a Duration round trip overflowed int64.
+func expirationMilliseconds(exp time.Duration) int64 {
+	ms := int64(exp / time.Millisecond)
+	if exp%time.Millisecond != 0 {
+		ms++
+	}
+	return ms
 }
 
 // Set sets key with value and expiration
@@ -127,6 +155,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext deletes key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -140,6 +171,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
 }
 
@@ -148,9 +182,12 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close the storage. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
-	s.db.Close()
+	s.closeOnce.Do(func() {
+		s.closed.Store(true)
+		s.db.Close()
+	})
 	return nil
 }
 

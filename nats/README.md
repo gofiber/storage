@@ -36,6 +36,8 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue)
 func (s *Storage) Keys() ([]string, error)
 ```
 
+**Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
+
 ### Installation
 
 [NATS Key/Value Store](https://docs.nats.io/nats-concepts/jetstream/key-value-store) driver is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
@@ -83,18 +85,20 @@ store := nats.New(Config{
 
 ```go
 type Config struct {
-    // Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
-    URLs string
-    // Nats connection options. See nats_test.go for an example of how to use this.
-    NatsOptions []nats.Option
-    // Nats connection name
-    ClientName string
-    // Nats context
-    Context context.Context
-    // Nats key value config
-    KeyValueConfig jetstream.KeyValueConfig
-    // Wait for connection to be established, default: 100ms
-    WaitForConnection time.Duration
+	// Nats URLs, default "nats://127.0.0.1:4222". Can be comma separated list for multiple servers
+	URLs string
+	// Nats connection options. See nats_test.go for an example of how to use this.
+	NatsOptions []nats.Option
+	// Nats connection name
+	ClientName string
+	// Nats context
+	Context context.Context
+	// Nats key value config
+	KeyValueConfig jetstream.KeyValueConfig
+	// Wait for connection to be established, default: 250ms
+	WaitForConnection time.Duration
+	// Reset clears any existing keys in existing bucket default: false
+	Reset bool
 }
 ```
 

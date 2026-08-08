@@ -65,7 +65,7 @@ func configDefault(config ...Config) Config {
 	if cfg.Database == "" {
 		cfg.Database = ConfigDefault.Database
 	}
-	if int(cfg.GCInterval.Seconds()) <= 0 {
+	if cfg.GCInterval <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 	overrideLogger := false

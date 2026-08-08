@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
@@ -13,6 +14,9 @@ import (
 type Storage struct {
 	session driver.Conn
 	table   string
+
+	closeMu sync.Mutex
+	closed  bool
 }
 
 // New returns a new [*Storage] given a [Config], using context.Background() for initialization.
@@ -33,18 +37,24 @@ func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 		return nil, err
 	}
 
+	// Release the connection opened above rather than leaking it when a later step fails.
+	closeOwned := func() { _ = conn.Close() }
+
 	queryWithEngine := fmt.Sprintf(createTableString, engine)
 	if err := conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table)); err != nil {
+		closeOwned()
 		return nil, err
 	}
 
 	if configuration.Clean {
 		if err := conn.Exec(ctx, resetDataString, driver.Named("table", configuration.Table)); err != nil {
+			closeOwned()
 			return nil, err
 		}
 	}
 
 	if err := conn.Ping(ctx); err != nil {
+		closeOwned()
 		return nil, err
 	}
 
@@ -60,8 +70,13 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	}
 
 	exp := time.Time{}
-	if expiration != 0 {
-		exp = time.Now().Add(expiration).UTC()
+	if expiration > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be written as past.
+		deadline := time.Now().Add(expiration).UTC()
+		if deadline.Nanosecond() != 0 {
+			deadline = deadline.Truncate(time.Second).Add(time.Second)
+		}
+		exp = deadline
 	}
 
 	return s.
@@ -139,6 +154,19 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// Close the connection. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
-	return s.session.Close()
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.session.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }

@@ -2,6 +2,7 @@ package valkey
 
 import (
 	"context"
+	"math"
 	"os"
 	"sync"
 	"testing"
@@ -33,6 +34,11 @@ func initBenchmarkStore(b *testing.B) {
 	benchmarkStoreOnce.Do(func() {
 		benchmarkStore = newTestStore(b, testredis.WithReuse("valkey-benchmark"))
 	})
+
+	// The Once runs for the first benchmark only, so a failed container left later ones with a nil store.
+	if benchmarkStore == nil {
+		b.Fatal("benchmark store unavailable: the container failed to start, see the first benchmark's failure")
+	}
 }
 
 // newConfigFromContainer creates a Redis configuration using Testcontainers.
@@ -478,4 +484,32 @@ func Benchmark_Valkey_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Valkey_ConfigDefault_CacheTTL(t *testing.T) {
+	// An unset CacheTTL used to be forced to zero, disabling client-side caching.
+	require.Equal(t, ConfigDefault.CacheTTL, configDefault(Config{}).CacheTTL)
+
+	// An explicit value is still honoured.
+	require.Equal(t, 5*time.Second, configDefault(Config{CacheTTL: 5 * time.Second}).CacheTTL)
+}
+
+func Test_Valkey_Set_Huge_Expiration(t *testing.T) {
+	// The count used to be turned back into a Duration, which overflowed int64 and wrapped negative.
+	ms := expirationMilliseconds(time.Duration(math.MaxInt64))
+
+	require.Positive(t, ms)
+	require.Negative(t, int64(time.Duration(ms)*time.Millisecond), "the old round trip overflowed")
+
+	// Sub-millisecond expirations round up rather than reaching zero, which the server rejects.
+	require.Equal(t, int64(1), expirationMilliseconds(time.Microsecond))
+	require.Equal(t, int64(2), expirationMilliseconds(1500*time.Microsecond))
+	require.Equal(t, int64(1000), expirationMilliseconds(time.Second))
+}
+
+func Test_Valkey_ConfigDefault_AlwaysPipelining(t *testing.T) {
+	// The documented default is on, and a zero value cannot express "off", hence the separate field.
+	require.True(t, configDefault(Config{}).AlwaysPipelining)
+	require.True(t, configDefault(Config{AlwaysPipelining: false}).AlwaysPipelining)
+	require.False(t, configDefault(Config{DisableAlwaysPipelining: true}).AlwaysPipelining)
 }

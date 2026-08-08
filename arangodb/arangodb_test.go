@@ -172,18 +172,36 @@ func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
 
-	time.Sleep(1100 * time.Millisecond)
+	// Assert on the store the key was written to; the deadline rounds up, so it may outlive it by a second.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		if len(result) == 0 {
+			break
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_ArangoDB_Get_Expired(t *testing.T) {
-	key := "john"
-
 	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// Write the key here rather than relying on another test's store.
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get("john")
+		require.NoError(t, err)
+		if len(result) == 0 {
+			return
+		}
+		require.False(t, time.Now().After(deadline), "key should have expired")
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_ArangoDB_Get_NotExist(t *testing.T) {
@@ -361,4 +379,14 @@ func Benchmark_ArangoDB_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_ArangoDB_Close_Twice(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.NoError(t, testStore.Close())
+	// A second Close must neither panic nor block on the done channel.
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
 }

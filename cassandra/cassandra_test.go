@@ -76,9 +76,9 @@ func Test_SetWithContext(t *testing.T) {
 	err := store.SetWithContext(ctx, "test", []byte("value"), 0)
 	require.ErrorIs(t, err, context.Canceled)
 
-	// Verify the value was not set
+	// Verify the value was not set. A missing key is a miss, not an error.
 	val, err := store.Get("test")
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Empty(t, val)
 }
 
@@ -96,9 +96,9 @@ func Test_Get(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 
-	// Test Get non-existent key
+	// Test Get non-existent key, which is reported as a miss.
 	val, err = store.Get("nonexistent")
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Nil(t, val)
 }
 
@@ -142,9 +142,9 @@ func Test_Delete(t *testing.T) {
 	err = store.Delete("test")
 	require.NoError(t, err)
 
-	// Verify deletion
+	// Verify deletion, which leaves the key missing rather than in error.
 	val, err = store.Get("test")
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Nil(t, val)
 }
 
@@ -188,11 +188,11 @@ func Test_Expirable_Keys(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 
-	// Wait for expiration using Eventually
+	// An expired key is a miss, which the storage interface documents as nil, nil.
 	require.Eventually(t, func() bool {
 		val, err := store.Get("test")
-		return err != nil && val == nil
-	}, 3*time.Second, 100*time.Millisecond, "Key should expire within 3 seconds")
+		return err == nil && val == nil
+	}, 4*time.Second, 100*time.Millisecond, "Key should expire")
 }
 
 // Test_Concurrent_Access tests concurrent access to the storage
@@ -234,13 +234,13 @@ func Test_Reset(t *testing.T) {
 	err = store.Reset()
 	require.NoError(t, err)
 
-	// Verify data is gone
+	// Verify data is gone, which reads as a miss rather than an error.
 	val, err := store.Get("test1")
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Nil(t, val)
 
 	val, err = store.Get("test2")
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.Nil(t, val)
 }
 
@@ -295,30 +295,60 @@ func Test_Valid_Identifiers(t *testing.T) {
 	}
 }
 
-// Test_Invalid_Identifiers tests invalid identifier cases
-func Test_Invalid_Identifiers(t *testing.T) {
+// Keys are bound as query parameters, so anything dangerous spliced into a statement round-trips unchanged.
+func Test_Unusual_Keys(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
 
-	invalidCases := []struct {
+	keys := []struct {
 		name string
 		key  string
 	}{
-		{"empty", ""},
 		{"space", "test key"},
 		{"quote", `test"key`},
 		{"semicolon", "test;key"},
 		{"sql_injection", "test' OR '1'='1"},
 		{"unicode", "test\u2028key"},
+		{"colon", "user:123"},
 	}
 
-	for _, tc := range invalidCases {
-		t.Run(fmt.Sprintf("invalid_%s", tc.name), func(t *testing.T) {
-			err := store.Set(tc.key, []byte("value"), 0)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "invalid key name")
+	for _, tc := range keys {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, store.Set(tc.key, []byte("value"), 0))
+
+			val, err := store.Get(tc.key)
+			require.NoError(t, err)
+			require.Equal(t, []byte("value"), val)
+
+			require.NoError(t, store.Delete(tc.key))
 		})
 	}
+}
+
+// Both are ignored without an error, and nothing is written for either.
+func Test_Empty_Key_Or_Value(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	countRows := func() int {
+		var count int
+		require.NoError(t, store.Conn().Query(
+			fmt.Sprintf("SELECT COUNT(*) FROM %s.%s", store.keyspace, store.table),
+		).Scan(&count))
+		return count
+	}
+
+	require.Zero(t, countRows(), "the table should start empty")
+
+	require.NoError(t, store.Set("", []byte("value"), 0))
+	require.NoError(t, store.Set("empty-value", nil, 0))
+
+	// Reading back is not enough: a row under an empty key would also read back as nothing, so count rows.
+	require.Zero(t, countRows(), "neither call should have written a row")
+
+	val, err := store.Get("empty-value")
+	require.NoError(t, err)
+	require.Zero(t, len(val))
 }
 
 func Benchmark_Cassandra_Set(b *testing.B) {

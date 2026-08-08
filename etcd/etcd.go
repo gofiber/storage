@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -9,6 +10,9 @@ import (
 
 type Storage struct {
 	db *clientv3.Client
+
+	closeMu sync.Mutex
+	closed  bool
 }
 
 func New(config ...Config) *Storage {
@@ -58,17 +62,39 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	lease, err := s.db.Grant(ctx, int64(exp.Seconds()))
+	// An expiration of 0 never expires, so no lease: etcd would raise the TTL to its minimum and drop the key.
+	if exp <= 0 {
+		_, err := s.db.Put(ctx, key, string(val))
+		return err
+	}
+
+	// Leases have a one-second granularity, so round up rather than letting etcd expire the key at once.
+	lease, err := s.db.Grant(ctx, ttlSeconds(exp))
 	if err != nil {
 		return err
 	}
 
-	_, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID))
-	if err != nil {
+	if _, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID)); err != nil {
+		// Nothing is attached to the lease, so revoke it rather than leaving it to occupy the server.
+		revokeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revokeTimeout)
+		defer cancel()
+		_, _ = s.db.Revoke(revokeCtx, lease.ID)
 		return err
 	}
 
 	return nil
+}
+
+// revokeTimeout bounds the cleanup revoke, so an unresponsive server cannot hang the caller.
+const revokeTimeout = 5 * time.Second
+
+// ttlSeconds rounds exp up so an expiration shorter than a second never becomes zero.
+func ttlSeconds(exp time.Duration) int64 {
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
+		secs++
+	}
+	return secs
 }
 
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
@@ -105,8 +131,21 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// Close the client. Safe to call more than once, and a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
-	return s.db.Close()
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	if err := s.db.Close(); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 func (s *Storage) Conn() *clientv3.Client {

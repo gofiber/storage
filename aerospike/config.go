@@ -20,7 +20,11 @@ type Config struct {
 	// Reset clears any existing keys in existing Set
 	Reset bool
 
-	// Expiration is the default expiration time of entries
+	// Expiration was the default expiration time of entries.
+	//
+	// Deprecated: no longer applied. Zero means no expiration, and defaulting
+	// here made Set(key, value, 0) quietly store an expiring entry. Pass the
+	// expiration to Set instead.
 	Expiration time.Duration
 
 	// SchemaVersion indicates the schema version to use

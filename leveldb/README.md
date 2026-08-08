@@ -33,7 +33,15 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as LevelDB does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** The tuning fields of `Config` are applied when the database is opened. They used to be ignored: only `Path` and `GCInterval` had any effect.
+
+**Note:** With `ReadOnly` set, `Set`, `Delete` and `Reset` return `ErrReadOnly`, which callers can match with `errors.Is`.
+
+**Note:** Every entry is stored as a JSON envelope carrying the value and its expiration, so a value read directly through `Conn()` is the envelope rather than the raw payload. Entries written by earlier versions of this driver are still read back correctly, both the envelopes they wrote for keys with an expiration and the bare payloads they wrote for keys without one. Those earlier envelopes carry no marker, so a bare payload that is a JSON object with exactly a `value` and an `expire_at` field is read as one; this only affects databases written before this version.
+
+**Note:** An entry this driver cannot read is reported rather than silently dropped: `ErrUnknownEnvelope` for one written by a newer version of the driver, `ErrCorruptEnvelope` for one whose value is missing. Both are matchable with `errors.Is`.
+
+**Note:** LevelDB has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 
