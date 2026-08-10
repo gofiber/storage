@@ -2,6 +2,8 @@ package aerospike
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -31,6 +33,25 @@ const schemaInfoKey = "_schema_info"
 
 // schemaSetSuffix names the bookkeeping set, derived from the configured set and reserved so two storages cannot collide.
 const schemaSetSuffix = "_fiber_schema"
+
+// maxSetNameLen is Aerospike's limit; the server rejects a longer set name.
+const maxSetNameLen = 63
+
+// schemaSetDigestLen is how much of the hash a truncated name carries, enough that two long set names do not converge.
+const schemaSetDigestLen = 8
+
+// schemaSetName derives the bookkeeping set from the configured one, keeping it inside the server's length limit.
+func schemaSetName(setName string) string {
+	if len(setName)+len(schemaSetSuffix) <= maxSetNameLen {
+		return setName + schemaSetSuffix
+	}
+
+	// Truncating alone would map two long set names onto one bookkeeping set, so the digest of the full name is carried.
+	sum := sha256.Sum256([]byte(setName))
+	digest := hex.EncodeToString(sum[:])[:schemaSetDigestLen]
+
+	return setName[:maxSetNameLen-len(schemaSetSuffix)-schemaSetDigestLen] + digest + schemaSetSuffix
+}
 
 // SchemaInfo holds information about the schema structure
 type SchemaInfo struct {
@@ -66,7 +87,7 @@ func New(config ...Config) *Storage {
 		client:        client,
 		namespace:     cfg.Namespace,
 		setName:       cfg.SetName,
-		schemaSetName: cfg.SetName + schemaSetSuffix,
+		schemaSetName: schemaSetName(cfg.SetName),
 		reset:         cfg.Reset,
 	}
 

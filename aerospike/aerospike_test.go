@@ -3,6 +3,7 @@ package aerospike
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -195,6 +196,25 @@ func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
 			SetName:   "orders" + schemaSetSuffix,
 		})
 	})
+}
+
+// A set name the server accepts must still yield a bookkeeping set it accepts, so the derived name is bounded.
+func Test_AeroSpikeDB_SchemaSetName_Bounded(t *testing.T) {
+	short := strings.Repeat("a", 40)
+	require.Equal(t, short+schemaSetSuffix, schemaSetName(short))
+
+	for _, n := range []int{maxSetNameLen - len(schemaSetSuffix), maxSetNameLen - len(schemaSetSuffix) + 1, maxSetNameLen} {
+		name := strings.Repeat("b", n)
+		derived := schemaSetName(name)
+
+		require.LessOrEqual(t, len(derived), maxSetNameLen)
+		require.True(t, strings.HasSuffix(derived, schemaSetSuffix))
+	}
+
+	// Two long names sharing a prefix must not land on the same bookkeeping set.
+	first := strings.Repeat("c", maxSetNameLen-1) + "1"
+	second := strings.Repeat("c", maxSetNameLen-1) + "2"
+	require.NotEqual(t, schemaSetName(first), schemaSetName(second))
 }
 
 // The bookkeeping name is an ordinary key for callers: readable, and cleared by Reset like any other.
