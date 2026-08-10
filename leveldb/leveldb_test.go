@@ -350,6 +350,21 @@ func Test_Close_Twice(t *testing.T) {
 	})
 }
 
+// goleveldb tears the database down even when Close reports an error, so the failure is reported once and not repeated.
+func Test_Close_Failure_Is_Latched(t *testing.T) {
+	db := New(Config{Path: "./testdb_close_failure"})
+	defer func() {
+		require.Nil(t, removeAllFiles("./testdb_close_failure"))
+	}()
+
+	// Closing underneath the storage makes its own Close fail, which is the case the latch exists for.
+	require.Nil(t, db.Conn().Close())
+
+	require.Error(t, db.Close())
+	// The database is already down, so a second call reports success rather than a permanent ErrClosed.
+	require.Nil(t, db.Close())
+}
+
 func Test_Get_LegacyEnvelope(t *testing.T) {
 	db := New(Config{Path: "./testdb_legacy_envelope"})
 	defer func() {
