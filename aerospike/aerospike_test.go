@@ -198,7 +198,7 @@ func Test_AeroSpikeDB_Rejects_Reserved_SetName(t *testing.T) {
 	})
 }
 
-// A set name the server accepts must still yield a bookkeeping set it accepts, so the derived name is bounded.
+// A set name the server accepts must still yield a bookkeeping set it accepts.
 func Test_AeroSpikeDB_SchemaSetName_Bounded(t *testing.T) {
 	short := strings.Repeat("a", 40)
 	require.Equal(t, short+schemaSetSuffix, schemaSetName(short))
@@ -211,7 +211,6 @@ func Test_AeroSpikeDB_SchemaSetName_Bounded(t *testing.T) {
 		require.True(t, strings.HasSuffix(derived, schemaSetSuffix))
 	}
 
-	// Two long names sharing a prefix must not land on the same bookkeeping set.
 	first := strings.Repeat("c", maxSetNameLen-1) + "1"
 	second := strings.Repeat("c", maxSetNameLen-1) + "2"
 	require.NotEqual(t, schemaSetName(first), schemaSetName(second))

@@ -28,19 +28,16 @@ type Storage struct {
 	closeOnce     sync.Once
 }
 
-// schemaInfoKey is where the schema bookkeeping lives, in its own set; to callers it is an ordinary key.
 const schemaInfoKey = "_schema_info"
 
-// schemaSetSuffix names the bookkeeping set, derived from the configured set and reserved so two storages cannot collide.
+// schemaSetSuffix is reserved: it names this driver's bookkeeping set, derived from the configured one.
 const schemaSetSuffix = "_fiber_schema"
 
-// maxSetNameLen is Aerospike's limit; the server rejects a longer set name.
+// maxSetNameLen is Aerospike's set name limit.
 const maxSetNameLen = 63
 
-// schemaSetDigestLen is how much of the hash a truncated name carries, enough that two long set names do not converge.
 const schemaSetDigestLen = 8
 
-// schemaSetName derives the bookkeeping set from the configured one, keeping it inside the server's length limit.
 func schemaSetName(setName string) string {
 	if len(setName)+len(schemaSetSuffix) <= maxSetNameLen {
 		return setName + schemaSetSuffix
