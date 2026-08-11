@@ -276,9 +276,7 @@ func (s *Storage) Reset() error {
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish its sweep, which must not run against a pool being closed.
 		<-s.stopped
-		// A caller-supplied pool stays theirs to close; their application may still be using it.
 		if s.ownsDB {
 			s.db.Close()
 		}

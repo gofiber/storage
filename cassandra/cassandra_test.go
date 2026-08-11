@@ -76,7 +76,6 @@ func Test_SetWithContext(t *testing.T) {
 	err := store.SetWithContext(ctx, "test", []byte("value"), 0)
 	require.ErrorIs(t, err, context.Canceled)
 
-	// Verify the value was not set. A missing key is a miss, not an error.
 	val, err := store.Get("test")
 	require.NoError(t, err)
 	require.Empty(t, val)
@@ -96,7 +95,6 @@ func Test_Get(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 
-	// Test Get non-existent key, which is reported as a miss.
 	val, err = store.Get("nonexistent")
 	require.NoError(t, err)
 	require.Nil(t, val)
@@ -142,7 +140,6 @@ func Test_Delete(t *testing.T) {
 	err = store.Delete("test")
 	require.NoError(t, err)
 
-	// Verify deletion, which leaves the key missing rather than in error.
 	val, err = store.Get("test")
 	require.NoError(t, err)
 	require.Nil(t, val)
@@ -234,7 +231,6 @@ func Test_Reset(t *testing.T) {
 	err = store.Reset()
 	require.NoError(t, err)
 
-	// Verify data is gone, which reads as a miss rather than an error.
 	val, err := store.Get("test1")
 	require.NoError(t, err)
 	require.Nil(t, val)

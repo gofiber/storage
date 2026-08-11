@@ -252,7 +252,6 @@ func Test_SslRequiredMode(t *testing.T) {
 func Test_MSSQL_Close(t *testing.T) {
 	require.Nil(t, testStore.Close())
 
-	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
 		require.Nil(t, testStore.Close())
 	})

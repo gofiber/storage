@@ -248,7 +248,6 @@ func Test_Storage_Memory_Close_Twice(t *testing.T) {
 	testStore := New()
 
 	require.NoError(t, testStore.Close())
-	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})
@@ -268,7 +267,6 @@ func Test_Storage_Memory_Get_Returns_Copy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// Mutating the slice returned by Get must not corrupt it either.
 	result[0] = 'X'
 
 	result, err = testStore.Get("john")
@@ -336,7 +334,6 @@ func Test_Storage_Memory_Config_SubSecond_GCInterval(t *testing.T) {
 	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
-	// Zero and negative still fall back to the default.
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
 	require.Equal(t, ConfigDefault.GCInterval, configDefault().GCInterval)

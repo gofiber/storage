@@ -125,7 +125,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets a value by key with optional expiration, using ctx for the query.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
-	// The storage interface documents an empty key or value as ignored without error.
 	if len(key) == 0 || len(val) == 0 {
 		return nil
 	}
@@ -155,7 +154,6 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext removes a key from storage, using ctx for the query.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
-	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
 		return nil
 	}
@@ -182,10 +180,8 @@ func (s *Storage) Reset() error {
 
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.stopGC)
-		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 

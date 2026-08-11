@@ -33,8 +33,7 @@ type Storage struct {
 	collectionName string
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
-	// AQL query used to store a key, insert or update in one statement
-	aqlUpsert string
+	aqlUpsert   string
 }
 
 type model struct {
@@ -245,7 +244,6 @@ func (s *Storage) Reset() error {
 // Close stops the collector; Arango has no connection close, see https://github.com/arangodb/go-driver/issues/43
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		// Stop gc and wait for it to return.
 		close(s.done)
 		<-s.stopped
 
@@ -258,7 +256,6 @@ func (s *Storage) Close() error {
 
 // exec takes bindVars rather than holding them on the Storage, where they raced and crashed the first sweep.
 func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
-	// Every query names the collection through this bind parameter, so it is added once here.
 	bindVars["@collection"] = s.collectionName
 
 	cursor, err := s.db.Query(ctx, query, bindVars)

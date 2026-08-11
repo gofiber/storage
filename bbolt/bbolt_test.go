@@ -16,7 +16,6 @@ import (
 var testStore *Storage
 
 func TestMain(m *testing.M) {
-	// Keep the generated database out of the package directory.
 	dir, err := os.MkdirTemp("", "bbolt-test")
 	if err != nil {
 		panic(err)
@@ -231,7 +230,6 @@ func Test_Bbolt_Reset_Removes_Every_Key(t *testing.T) {
 	}))
 	require.Zero(t, remaining)
 
-	// The bucket must still be usable after a reset.
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 	result, err := store.Get("john")
 	require.NoError(t, err)
@@ -261,7 +259,6 @@ func Test_Bbolt_Close_Twice(t *testing.T) {
 	})
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor report a spurious error.
 	require.NotPanics(t, func() {
 		require.NoError(t, store.Close())
 	})
@@ -287,7 +284,6 @@ func Test_Bbolt_Reset_Keeps_Bucket_Sequence(t *testing.T) {
 func Test_Bbolt_ReadOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fiber.db")
 
-	// Create the bucket with a writable storage first.
 	writable := New(Config{Database: path, Bucket: "fiber-bucket", Reset: true})
 	require.NoError(t, writable.Set("john", []byte("doe"), 0))
 	require.NoError(t, writable.Close())

@@ -235,7 +235,6 @@ func Test_Neo4jStore_Non_UTF8(t *testing.T) {
 func Test_Neo4jStore_Close(t *testing.T) {
 	require.NoError(t, testStore.Close())
 
-	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})

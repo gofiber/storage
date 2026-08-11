@@ -233,7 +233,6 @@ func Test_AeroSpikeDB_SchemaInfoKey_Is_Not_Reserved(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, val)
 
-	// The bookkeeping itself is still intact, so the storage stays usable.
 	require.NotNil(t, testStore.GetSchemaInfo())
 }
 

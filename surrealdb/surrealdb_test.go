@@ -259,7 +259,6 @@ func Test_Surrealdb_Close_Twice(t *testing.T) {
 	testStore := newTestStore(t)
 
 	require.NoError(t, testStore.Close())
-	// A second Close must neither panic nor close an already closed channel.
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})

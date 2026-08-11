@@ -306,7 +306,6 @@ func Test_Redis_Close(t *testing.T) {
 	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
 
-	// A second Close must neither panic nor report a spurious error.
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})
@@ -680,6 +679,5 @@ func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
 	require.NotNil(t, testStore)
 	defer testStore.Close() //nolint:errcheck // the server is unreachable
 
-	// The flush is skipped rather than attempted, so New returns at once.
 	require.NotNil(t, testStore.Conn())
 }

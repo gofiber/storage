@@ -189,7 +189,6 @@ func Test_ArangoDB_Get_Expired(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
 
-	// Write the key here rather than relying on another test's store.
 	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
 
 	deadline := time.Now().Add(4 * time.Second)
@@ -385,7 +384,6 @@ func Test_ArangoDB_Close_Twice(t *testing.T) {
 	testStore := newTestStore(t)
 
 	require.NoError(t, testStore.Close())
-	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})

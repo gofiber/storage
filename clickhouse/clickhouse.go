@@ -37,7 +37,6 @@ func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 		return nil, err
 	}
 
-	// Release the connection opened above rather than leaking it when a later step fails.
 	closeOwned := func() { _ = conn.Close() }
 
 	queryWithEngine := fmt.Sprintf(createTableString, engine)

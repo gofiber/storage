@@ -99,7 +99,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		_ = client.Disconnect(closeCtx)
 	}
 
-	// verify that the client can connect, bounded the same way.
 	pingCtx, pingCancel := withDefaultTimeout(ctx)
 	defer pingCancel()
 
@@ -278,7 +277,6 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// isClosed reports whether Close has completed.
 func (s *Storage) isClosed() bool {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()

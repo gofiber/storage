@@ -77,7 +77,6 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	// Return a copy to prevent callers from mutating stored data
 	return bytes.Clone(v.data), nil
 }
 

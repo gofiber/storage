@@ -239,7 +239,6 @@ func expired(value []byte, now int64) bool {
 	return isExpired(cache, now)
 }
 
-// isExpired reports whether a decoded entry is past its expiration as of now.
 func isExpired(cache CacheType, now int64) bool {
 	return cache.Expires > 0 && cache.Expires <= now
 }
@@ -361,7 +360,6 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	return s.Delete(key)
 }
 
-// Reset deletes every key in the database
 func (s *Storage) Reset() (err error) {
 	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
 	s.mu.Lock()
@@ -437,7 +435,6 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close closes the database. Safe to call more than once; only the first call closes and reports.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
 		// Wait for the collector to return so it no longer writes to a database being closed.

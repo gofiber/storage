@@ -221,17 +221,14 @@ func (s *Storage) Reset() error {
 
 // Close stops the collector and closes the database unless it came from Config.Db; safe to call more than once.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	// A caller-supplied connection stays theirs to close; their application may still be using it.
 	if s.closed || !s.ownsDB {
 		return nil
 	}

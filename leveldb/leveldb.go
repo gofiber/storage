@@ -35,10 +35,8 @@ const (
 	// envelopeEntry carries an envelope this driver reads: today's versioned one, or the unversioned one, which is ambiguous with a like payload and so read as earlier versions did.
 	envelopeEntry
 
-	// envelopeUnknown means an envelope version this driver does not understand.
 	envelopeUnknown
 
-	// envelopeCorrupt means this driver's envelope without the value it always writes.
 	envelopeCorrupt
 )
 

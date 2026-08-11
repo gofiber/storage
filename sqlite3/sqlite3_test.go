@@ -15,7 +15,6 @@ import (
 var testStore *Storage
 
 func TestMain(m *testing.M) {
-	// Keep the generated database out of the package directory.
 	dir, err := os.MkdirTemp("", "sqlite3-test")
 	if err != nil {
 		panic(err)
@@ -300,7 +299,6 @@ func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
 	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
-	// Zero and negative still fall back to the default.
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
 }
@@ -309,7 +307,6 @@ func Test_SQLite3_Close_Twice(t *testing.T) {
 	store := New(Config{Database: filepath.Join(t.TempDir(), "close.sqlite3"), Reset: true})
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor block on the done channel.
 	require.NotPanics(t, func() {
 		require.NoError(t, store.Close())
 	})

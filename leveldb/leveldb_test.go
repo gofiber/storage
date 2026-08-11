@@ -344,7 +344,6 @@ func Test_Close_Twice(t *testing.T) {
 	}()
 
 	require.Nil(t, db.Close())
-	// A second Close must neither panic nor block, and must report the same result as the first.
 	require.NotPanics(t, func() {
 		require.Nil(t, db.Close())
 	})
@@ -413,13 +412,9 @@ func Test_Get_LegacyRawValue(t *testing.T) {
 
 	// Older versions stored non-expiring values unenveloped, so a raw JSON object comes back verbatim.
 	for _, raw := range [][]byte{
-		// One field, so not the two-field shape the old envelope had.
 		[]byte(`{"value":"aGk="}`),
-		// No value at all, ruled out before the shape is even checked.
 		[]byte(`{"foo":"bar"}`),
-		// Two fields, but not the two the old envelope had.
 		[]byte(`{"value":"aGk=","other":1}`),
-		// The right two fields plus another, so still not that shape.
 		[]byte(`{"value":"aGk=","expire_at":"2100-01-01T00:00:00Z","extra":1}`),
 	} {
 		require.Nil(t, db.Conn().Put([]byte("legacy"), raw, nil))
@@ -513,7 +508,6 @@ func Test_ErrorIfMissing(t *testing.T) {
 		require.Nil(t, removeAllFiles(path))
 	}()
 
-	// Another field that OpenFile never saw.
 	require.Panics(t, func() {
 		New(Config{Path: path, ErrorIfMissing: true})
 	})
@@ -536,7 +530,6 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	require.Equal(t, []byte("b"), last)
 	require.True(t, reachedEnd)
 
-	// Resuming past a key skips it.
 	candidates, _, reachedEnd = db.expiredCandidates([]byte("a"))
 	require.Empty(t, candidates)
 	require.True(t, reachedEnd)
@@ -549,7 +542,6 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, []byte("fresh"), result)
 
-	// A key that is still expired is reclaimed.
 	require.Nil(t, db.Set("c", []byte("doe"), 100*time.Millisecond))
 	time.Sleep(200 * time.Millisecond)
 	db.deleteIfStillExpired([][]byte{[]byte("c")})

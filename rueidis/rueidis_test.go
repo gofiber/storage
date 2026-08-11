@@ -471,7 +471,6 @@ func Test_Rueidis_ConfigDefault_CacheTTL(t *testing.T) {
 	// An unset CacheTTL used to be forced to zero, disabling client-side caching.
 	require.Equal(t, ConfigDefault.CacheTTL, configDefault(Config{}).CacheTTL)
 
-	// An explicit value is still honoured.
 	require.Equal(t, 5*time.Second, configDefault(Config{CacheTTL: 5 * time.Second}).CacheTTL)
 }
 

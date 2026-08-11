@@ -81,10 +81,8 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		IsClusterMode:    cfg.IsClusterMode,
 	})
 
-	// This client was opened here, so release it rather than leaking it when initialization fails.
 	closeOwned := func() { _ = db.Close() }
 
-	// Test connection, unless the caller opted out of the check
 	if !cfg.SkipConnectionCheck {
 		if err := db.Ping(ctx).Err(); err != nil {
 			closeOwned()

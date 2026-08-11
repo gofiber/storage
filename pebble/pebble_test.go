@@ -17,7 +17,6 @@ import (
 var testStore *Storage
 
 func TestMain(m *testing.M) {
-	// Keep the generated database out of the package directory.
 	dir, err := os.MkdirTemp("", "pebble-test")
 	if err != nil {
 		panic(err)
@@ -202,7 +201,6 @@ func Test_Pebble_Close_Twice(t *testing.T) {
 	store := New(Config{Path: filepath.Join(dir, "test.db")})
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor report a spurious error.
 	require.NotPanics(t, func() {
 		require.NoError(t, store.Close())
 	})
@@ -345,7 +343,6 @@ func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
 	}
 	time.Sleep(2100 * time.Millisecond)
 
-	// From the start, every key is a candidate and the scan reaches the end.
 	candidates, last, reachedEnd := store.expiredCandidates(nil)
 	require.Equal(t, [][]byte{[]byte("a"), []byte("b"), []byte("c")}, candidates)
 	require.Equal(t, []byte("c"), last)
@@ -405,7 +402,6 @@ func Test_Pebble_ExpiredCandidates_Stops_At_Scan_Limit(t *testing.T) {
 	require.False(t, reachedEnd, "the pass should stop at its scan budget")
 	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectScanLimit-1)), last)
 
-	// Resuming from there reaches the end.
 	candidates, _, reachedEnd = store.expiredCandidates(last)
 	require.Empty(t, candidates)
 	require.True(t, reachedEnd)

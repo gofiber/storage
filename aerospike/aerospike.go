@@ -88,7 +88,6 @@ func New(config ...Config) *Storage {
 		reset:         cfg.Reset,
 	}
 
-	// Release the client opened above rather than leaking it when a later step fails.
 	closeOwned := func() { client.Close() }
 
 	// Reset keys if set
@@ -113,7 +112,6 @@ func New(config ...Config) *Storage {
 // createOrVerifySchema checks if schema exists and creates or updates if needed
 func (s *Storage) createOrVerifySchema(version int, description string, forceUpdate bool) error {
 
-	// Schema info lives in its own set, clear of the caller's keyspace.
 	schemaKey, err := aerospike.NewKey(s.namespace, s.schemaSetName, schemaInfoKey)
 	if err != nil {
 		return err

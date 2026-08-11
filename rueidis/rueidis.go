@@ -80,7 +80,6 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client opened above rather than leaking it when a later step fails.
 	closeOwned := func() { db.Close() }
 
 	// Test connection

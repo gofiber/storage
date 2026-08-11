@@ -187,7 +187,6 @@ func Test_Badger_Close_Twice(t *testing.T) {
 	store := newTestStore(t)
 
 	require.NoError(t, store.Close())
-	// A second Close must neither panic nor block, and must report the same result as the first.
 	require.NotPanics(t, func() {
 		require.NoError(t, store.Close())
 	})
@@ -230,7 +229,6 @@ func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
 	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
 
-	// Zero and negative still fall back to the default.
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
 }

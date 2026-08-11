@@ -236,10 +236,8 @@ func (s *Storage) Reset() error {
 
 // Close stops the collector and closes the database; safe to call more than once, and a failed close is reported.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the collector to finish its sweep, which must not run against a database being closed.
 		<-s.stopped
 	})
 

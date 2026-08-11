@@ -342,7 +342,6 @@ func Test_ScyllaDB_Rejects_Unsafe_Identifiers(t *testing.T) {
 		`"fiber"`,
 		`fiber.storage`,
 		"fibér",
-		// An unquoted CQL identifier must start with a letter.
 		"1table",
 		"_table",
 		"_1keyspace",

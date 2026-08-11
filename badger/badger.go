@@ -157,10 +157,8 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close the database once, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
 func (s *Storage) Close() error {
-	// Stopping the collector happens once, even if the close below fails and is retried.
 	s.stopOnce.Do(func() {
 		close(s.done)
-		// Wait for the value log GC to finish; it must not run against a database being closed.
 		<-s.stopped
 	})
 

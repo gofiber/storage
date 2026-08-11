@@ -163,7 +163,6 @@ func Test_Ristretto_Close(t *testing.T) {
 
 	require.Nil(t, store.Close())
 
-	// A second Close must neither panic nor report a spurious error.
 	require.NotPanics(t, func() {
 		require.Nil(t, store.Close())
 	})
@@ -271,7 +270,6 @@ func Test_Ristretto_Get_Returns_Copy(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 
-	// Mutating the slice returned by Get must not corrupt it either.
 	result[0] = 'X'
 
 	result, err = testStore.Get(key)
@@ -306,7 +304,6 @@ func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
 	_, err := testStore.Get("john")
 	require.NoError(t, err)
 
-	// The value does land once the buffer drains.
 	require.Eventually(t, func() bool {
 		val, err := testStore.Get("john")
 		return err == nil && len(val) > 0
