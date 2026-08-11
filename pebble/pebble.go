@@ -159,8 +159,10 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 		_ = iter.Close()
 	}()
 
-	valid := iter.First()
-	if after != nil {
+	var valid bool
+	if after == nil {
+		valid = iter.First()
+	} else {
 		// SeekGE lands on the key itself, which the previous batch examined, so step past it.
 		valid = iter.SeekGE(after)
 		if valid && bytes.Equal(iter.Key(), after) {
@@ -231,12 +233,15 @@ func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
 }
 
 // expired reports whether a value is past its expiration; an undecodable one counts as not expired so Get can report it instead.
+// Only the expiry is decoded: the collector walks every key, and pulling in Data would base64-decode and copy each payload for nothing.
 func expired(value []byte, now int64) bool {
-	var cache CacheType
+	var cache struct {
+		Expires int64 `json:"expires"`
+	}
 	if err := json.Unmarshal(value, &cache); err != nil {
 		return false
 	}
-	return isExpired(cache, now)
+	return cache.Expires > 0 && cache.Expires <= now
 }
 
 func isExpired(cache CacheType, now int64) bool {

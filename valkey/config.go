@@ -197,10 +197,6 @@ func configDefault(config ...Config) Config {
 		cfg.DisableCache = true
 	}
 
-	if userConfig.AlwaysPipelining {
-		cfg.AlwaysPipelining = true
-	}
-
 	// A zero value cannot say "off" for an option that defaults to on, so
 	// disabling it has its own field.
 	if userConfig.DisableAlwaysPipelining {

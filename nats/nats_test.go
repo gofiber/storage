@@ -292,10 +292,10 @@ func Test_Storage_Nats_Set_Expiration(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "Key should have expired")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "Key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -332,10 +332,10 @@ func Test_Storage_Nats_Set_Long_Expiration_with_Keys(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should have expired")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 

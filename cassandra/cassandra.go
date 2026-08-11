@@ -229,10 +229,7 @@ func ttlSeconds(d time.Duration) int {
 	if d%time.Second != 0 {
 		secs++
 	}
-	if secs > maxTTLSeconds {
-		secs = maxTTLSeconds
-	}
-	return int(secs)
+	return int(min(secs, maxTTLSeconds))
 }
 
 // SetWithContext stores a key-value pair with optional expiration with context support

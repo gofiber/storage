@@ -16,6 +16,11 @@ import (
 // errClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
 var errClosed = errors.New("arangodb: storage is closed")
 
+// isDocumentNotFound matches 1202 only: any 404 would also swallow a dropped collection, leaving the storage a silent miss forever.
+func isDocumentNotFound(err error) bool {
+	return driver.IsArangoErrorWithErrorNum(err, driver.ErrArangoDocumentNotFound)
+}
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         driver.Database
@@ -153,7 +158,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	// Read straight away: checking existence first turned a concurrent delete into an error rather than a miss.
 	var model model
 	if _, err := s.collection.ReadDocument(ctx, key, &model); err != nil {
-		if driver.IsNotFoundGeneral(err) {
+		if isDocumentNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -215,7 +220,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	// A missing key is a miss everywhere else in the interface, and ArangoDB's 1202 is exactly that.
-	if _, err := s.collection.RemoveDocument(ctx, key); err != nil && !driver.IsNotFoundGeneral(err) {
+	if _, err := s.collection.RemoveDocument(ctx, key); err != nil && !isDocumentNotFound(err) {
 		return err
 	}
 	return nil

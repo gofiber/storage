@@ -85,10 +85,10 @@ func Test_Pebble_Set_Expiration(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should expire")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "key should expire")
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -284,13 +284,15 @@ func Test_Pebble_GC_Reclaims_Expired(t *testing.T) {
 	// Get reports the miss without deleting, so the entry stays until the collector reclaims it.
 	deadline := time.Now().Add(6 * time.Second)
 	for {
+		// Asserted at the top so a key reclaimed only after the deadline fails rather than breaking out.
+		require.False(t, time.Now().After(deadline), "collector should reclaim the key")
+
 		_, closer, getErr := store.Conn().Get([]byte("john"))
 		if getErr != nil {
 			require.ErrorIs(t, getErr, pebble.ErrNotFound)
 			break
 		}
 		require.NoError(t, closer.Close())
-		require.False(t, time.Now().After(deadline), "collector should reclaim the key")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

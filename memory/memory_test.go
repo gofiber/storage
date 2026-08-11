@@ -71,10 +71,10 @@ func requireExpires(t *testing.T, testStore *Storage, key string, within time.Du
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should expire")
 		if len(result) == 0 {
 			return
 		}
-		require.False(t, time.Now().After(deadline), "key should expire")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

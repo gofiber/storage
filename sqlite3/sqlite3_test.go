@@ -119,10 +119,10 @@ func Test_SQLite3_Get_Expired(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should expire")
 		if len(result) == 0 {
 			return
 		}
-		require.False(t, time.Now().After(deadline), "key should expire")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

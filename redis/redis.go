@@ -95,7 +95,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	case cfg.Reset && cfg.SkipConnectionCheck:
 		log.Println("redis: Reset skipped because SkipConnectionCheck is set; call Reset() once the storage is up to clear the database")
 	case cfg.Reset:
-		if err := db.FlushDB(ctx).Err(); err != nil {
+		err := forEachNode(ctx, db, func(ctx context.Context, node redis.Cmdable) error {
+			return node.FlushDB(ctx).Err()
+		})
+		if err != nil {
 			closeOwned()
 			panic(err)
 		}
@@ -169,7 +172,10 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.closed.Load() {
 		return ErrClosed
 	}
-	return s.db.FlushDB(ctx).Err()
+
+	return s.forEachNode(ctx, func(ctx context.Context, node redis.Cmdable) error {
+		return node.FlushDB(ctx).Err()
+	})
 }
 
 // Reset all keys
@@ -211,39 +217,23 @@ func (s *Storage) Keys() ([][]byte, error) {
 		return nil, ErrClosed
 	}
 
-	ctx := context.Background()
+	var (
+		mu   sync.Mutex
+		keys [][]byte
+	)
 
-	// Scan on a cluster client walks one shard, so every other shard's keys were left out silently.
-	if cluster, ok := s.db.(*redis.ClusterClient); ok {
-		var (
-			mu   sync.Mutex
-			keys [][]byte
-		)
-
-		err := cluster.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
-			shardKeys, err := scanKeys(ctx, shard)
-			if err != nil {
-				return err
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-			keys = append(keys, shardKeys...)
-
-			return nil
-		})
+	err := s.forEachNode(context.Background(), func(ctx context.Context, node redis.Cmdable) error {
+		nodeKeys, err := scanKeys(ctx, node)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		if len(keys) == 0 {
-			return nil, nil
-		}
+		mu.Lock()
+		defer mu.Unlock()
+		keys = append(keys, nodeKeys...)
 
-		return keys, nil
-	}
-
-	keys, err := scanKeys(ctx, s.db)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -253,6 +243,21 @@ func (s *Storage) Keys() ([][]byte, error) {
 	}
 
 	return keys, nil
+}
+
+func (s *Storage) forEachNode(ctx context.Context, fn func(context.Context, redis.Cmdable) error) error {
+	return forEachNode(ctx, s.db, fn)
+}
+
+// forEachNode runs fn against every master, since a cluster client scans one keyspace and sends a keyless command such as FLUSHDB to a single shard.
+func forEachNode(ctx context.Context, db redis.UniversalClient, fn func(context.Context, redis.Cmdable) error) error {
+	if cluster, ok := db.(*redis.ClusterClient); ok {
+		return cluster.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
+			return fn(ctx, shard)
+		})
+	}
+
+	return fn(ctx, db)
 }
 
 // scanKeys walks one node's keyspace.

@@ -206,10 +206,10 @@ func TestNoCreateUser(t *testing.T) {
 		for {
 			result, err := limitedStore.Get(key)
 			require.NoError(t, err)
+			require.False(t, time.Now().After(deadline), "key should have expired")
 			if len(result) == 0 {
 				break
 			}
-			require.False(t, time.Now().After(deadline), "key should have expired")
 			time.Sleep(100 * time.Millisecond)
 		}
 	})
@@ -397,10 +397,10 @@ func Test_Postgres_Set_Expiration(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "Key should have expired")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "Key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

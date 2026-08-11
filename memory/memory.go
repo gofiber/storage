@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"maps"
 	"math"
 	"strings"
 	"sync"
@@ -31,11 +32,6 @@ type entry struct {
 
 	// expiry is the Unix nanosecond the entry expires at, 0 meaning never.
 	expiry int64
-}
-
-// expired reports whether e is past its expiration, reading the clock only for entries that have one.
-func (e entry) expired() bool {
-	return e.expiry != 0 && e.expiry <= time.Now().UnixNano()
 }
 
 // expiredAt reports whether e is expired as of now in Unix nanoseconds, so sweeps read the clock once.
@@ -73,7 +69,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok || v.expired() {
+	if !ok || v.expiredAt(time.Now().UnixNano()) {
 		return nil, nil
 	}
 
@@ -137,9 +133,6 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
-	if s.closed.Load() {
-		return ErrClosed
-	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -240,12 +233,7 @@ func (s *Storage) Conn() map[string]entry {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
-	db := make(map[string]entry, len(s.db))
-	for key, v := range s.db {
-		db[key] = v
-	}
-
-	return db
+	return maps.Clone(s.db)
 }
 
 // Keys returns all the keys

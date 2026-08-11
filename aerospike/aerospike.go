@@ -287,22 +287,14 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
 	}
 
-	expiration := exp
-
-	// Round up to whole seconds, minimum 1, and stop below the two uint32 values Aerospike reserves.
+	// Round up to whole seconds, and stop below the two uint32 values Aerospike reserves.
 	const maxTTL = math.MaxUint32 - 2
 
-	secs := int64(expiration / time.Second)
-	if expiration%time.Second != 0 {
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
 		secs++
 	}
-	switch {
-	case secs < 1:
-		secs = 1
-	case secs > maxTTL:
-		secs = maxTTL
-	}
-	ttl := uint32(secs) //nolint:gosec // clamped to the uint32 range above
+	ttl := uint32(min(secs, maxTTL)) //nolint:gosec // clamped to the uint32 range above
 
 	writePolicy := aerospike.NewWritePolicy(0, ttl)
 	bins := aerospike.BinMap{

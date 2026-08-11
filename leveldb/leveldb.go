@@ -308,27 +308,57 @@ func decode(data []byte) (item, envelopeKind) {
 		return item{}, envelopeNone
 	}
 
-	if stored.Version != nil {
-		if *stored.Version == envelopeVersion {
+	kind := classify(data, stored.Version, stored.Value != nil)
+	if kind != envelopeEntry {
+		return item{}, kind
+	}
+
+	return stored, kind
+}
+
+// decodeExpiry classifies an entry and returns only its expiration, leaving the payload as raw bytes.
+// The collector walks every key, so decoding Value there would base64-decode and copy each payload for nothing.
+func decodeExpiry(data []byte) (time.Time, envelopeKind) {
+	var stored struct {
+		Version  *int            `json:"_fiber_storage_v"`
+		Value    json.RawMessage `json:"value"`
+		ExpireAt time.Time       `json:"expire_at"`
+	}
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return time.Time{}, envelopeNone
+	}
+
+	kind := classify(data, stored.Version, stored.Value != nil)
+	if kind != envelopeEntry {
+		return time.Time{}, kind
+	}
+
+	return stored.ExpireAt, kind
+}
+
+// classify decides what an entry is from its version marker and whether it carries a value, so both decoders agree by construction.
+func classify(data []byte, version *int, hasValue bool) envelopeKind {
+	if version != nil {
+		if *version == envelopeVersion {
 			// Set never stores an empty value, so an envelope without one did not come from this driver intact.
-			if stored.Value == nil {
-				return item{}, envelopeCorrupt
+			if !hasValue {
+				return envelopeCorrupt
 			}
-			return stored, envelopeEntry
+			return envelopeEntry
 		}
 		// Unknown version only when a value is present: a payload merely sharing the field name is not one.
-		if stored.Value != nil {
-			return item{}, envelopeUnknown
+		if hasValue {
+			return envelopeUnknown
 		}
-		return item{}, envelopeNone
+		return envelopeNone
 	}
 
 	// No marker: a bare payload or the unversioned envelope, which always carried a value, ruling out most payloads before the costlier pass.
-	if stored.Value == nil || !isUnversionedEnvelope(data) {
-		return item{}, envelopeNone
+	if !hasValue || !isUnversionedEnvelope(data) {
+		return envelopeNone
 	}
 
-	return stored, envelopeEntry
+	return envelopeEntry
 }
 
 // isUnversionedEnvelope reports whether data has exactly the two fields the old envelope had.
@@ -419,8 +449,10 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 
-	valid := iter.Next()
-	if after != nil {
+	var valid bool
+	if after == nil {
+		valid = iter.Next()
+	} else {
 		// Seek lands on the key itself, which the previous batch examined, so step past it.
 		valid = iter.Seek(after)
 		if valid && bytes.Equal(iter.Key(), after) {
@@ -434,8 +466,8 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	for examined := 0; valid; examined++ {
 		key := iter.Key()
 
-		if stored, kind := decode(iter.Value()); kind == envelopeEntry &&
-			!stored.ExpireAt.IsZero() && now.After(stored.ExpireAt) {
+		if expireAt, kind := decodeExpiry(iter.Value()); kind == envelopeEntry &&
+			!expireAt.IsZero() && now.After(expireAt) {
 			candidates = append(candidates, bytes.Clone(key))
 		}
 
@@ -465,8 +497,8 @@ func (s *Storage) deleteIfStillExpired(keys [][]byte) {
 		if err != nil {
 			continue
 		}
-		stored, kind := decode(value)
-		if kind != envelopeEntry || stored.ExpireAt.IsZero() || !now.After(stored.ExpireAt) {
+		expireAt, kind := decodeExpiry(value)
+		if kind != envelopeEntry || expireAt.IsZero() || !now.After(expireAt) {
 			continue
 		}
 		batch.Delete(key)

@@ -177,10 +177,10 @@ func Test_ArangoDB_Set_Expiration(t *testing.T) {
 	for {
 		result, err := testStore.Get(key)
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should have expired")
 		if len(result) == 0 {
 			break
 		}
-		require.False(t, time.Now().After(deadline), "key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -195,10 +195,10 @@ func Test_ArangoDB_Get_Expired(t *testing.T) {
 	for {
 		result, err := testStore.Get("john")
 		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should have expired")
 		if len(result) == 0 {
 			return
 		}
-		require.False(t, time.Now().After(deadline), "key should have expired")
 		time.Sleep(100 * time.Millisecond)
 	}
 }

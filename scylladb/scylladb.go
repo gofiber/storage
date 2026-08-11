@@ -221,10 +221,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 		if expire%time.Second != 0 {
 			secs++
 		}
-		if secs > maxTTLSeconds {
-			secs = maxTTLSeconds
-		}
-		expiration = int(secs)
+		expiration = int(min(secs, maxTTLSeconds))
 	}
 	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
 }
