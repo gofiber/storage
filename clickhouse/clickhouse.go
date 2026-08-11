@@ -153,7 +153,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the connection. Safe to call more than once, and a failed close is reported so it can be retried.
+// Close the connection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
@@ -162,10 +162,9 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.session.Close(); err != nil {
-		return err
-	}
-
+	// Latched even on failure: the driver tears the connection down once, so a retry would report a success that never happened.
+	err := s.session.Close()
 	s.closed = true
-	return nil
+
+	return err
 }

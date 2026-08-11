@@ -234,7 +234,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported.
+// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
@@ -248,12 +248,11 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.db.Close(); err != nil {
-		return err
-	}
-
+	// Latched even on failure: database/sql marks itself closed first, so a retry would report a success that never happened.
+	err := s.db.Close()
 	s.closed = true
-	return nil
+
+	return err
 }
 
 // Return database client

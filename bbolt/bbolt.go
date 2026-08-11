@@ -206,7 +206,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. Safe to call more than once, and a failed close is reported so it can be retried.
+// Close the database. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
@@ -215,12 +215,11 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.conn.Close(); err != nil {
-		return err
-	}
-
+	// Latched even on failure: bbolt clears its opened flag first, so a retry would report a success that never happened.
+	err := s.conn.Close()
 	s.closed = true
-	return nil
+
+	return err
 }
 
 // Conn returns the database client

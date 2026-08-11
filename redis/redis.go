@@ -198,12 +198,11 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.db.Close(); err != nil {
-		return err
-	}
-
+	// Latched even on failure: the client's pools are already closed, so leaving the storage open would let later operations reach them instead of reporting ErrClosed.
+	err := s.db.Close()
 	s.closed.Store(true)
-	return nil
+
+	return err
 }
 
 // Return database client

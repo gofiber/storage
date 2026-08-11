@@ -274,7 +274,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; a failed close is reported once, not retried.
+// Close the storage. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		// Wait for the collector so it no longer writes to a database being closed.
@@ -289,7 +289,7 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// Recorded even on failure: goleveldb has already torn the database down.
+	// Latched even on failure: goleveldb has already torn the database down.
 	err := s.db.Close()
 	s.closed = true
 

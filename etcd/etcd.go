@@ -131,7 +131,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the client. Safe to call more than once, and a failed close is reported so it can be retried.
+// Close the client. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
@@ -140,12 +140,11 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.db.Close(); err != nil {
-		return err
-	}
-
+	// Latched even on failure: the client's context is cancelled before this returns, so a retry cannot undo it.
+	err := s.db.Close()
 	s.closed = true
-	return nil
+
+	return err
 }
 
 func (s *Storage) Conn() *clientv3.Client {
