@@ -100,10 +100,11 @@ func Test_Pebble_Set_Expiration_Sub_Second(t *testing.T) {
 	)
 
 	// Sub-second expirations round up to a whole second; they must not expire early, let alone at once.
+	// The deadline is taken first: Set measures the entry's from inside the call, so starting here would outlast it by however long Set took.
+	deadline := time.Now().Add(900 * time.Millisecond)
+
 	err := testStore.Set(key, val, 900*time.Millisecond)
 	require.NoError(t, err)
-
-	deadline := time.Now().Add(900 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		result, getErr := testStore.Get(key)
 		require.NoError(t, getErr)

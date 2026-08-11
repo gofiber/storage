@@ -156,6 +156,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 }
 
 // Close the database once, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
+// A failed close is reported once and not retried, since Badger tears the database down either way.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
@@ -169,12 +170,11 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	if err := s.db.Close(); err != nil {
-		return err
-	}
-
+	// Recorded even on failure: Badger's own sync.Once already tore the database down, so a second call would report a success that never happened.
+	err := s.db.Close()
 	s.closed = true
-	return nil
+
+	return err
 }
 
 func (s *Storage) gc() {
