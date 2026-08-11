@@ -34,6 +34,11 @@ type entry struct {
 	expiry int64
 }
 
+// expired reports whether e is past its expiration. The guard is repeated so the clock is read only for entries that have one.
+func (e entry) expired() bool {
+	return e.expiry != 0 && e.expiredAt(time.Now().UnixNano())
+}
+
 // expiredAt reports whether e is expired as of now in Unix nanoseconds, so sweeps read the clock once.
 func (e entry) expiredAt(now int64) bool {
 	return e.expiry != 0 && e.expiry <= now
@@ -69,7 +74,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok || v.expiredAt(time.Now().UnixNano()) {
+	if !ok || v.expired() {
 		return nil, nil
 	}
 
