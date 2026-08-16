@@ -19,6 +19,7 @@ A Bbolt storage driver using [etcd-io/bbolt](https://github.com/etcd-io/bbolt). 
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -111,5 +112,30 @@ var ConfigDefault = Config{
 	Timeout:  60 * time.Second,
 	ReadOnly: false,
 	Reset:    false,
+}
+```
+
+### Using an Existing Bbolt Database
+bbolt takes an exclusive lock on its file, so an application that already keeps a `*bbolt.DB` open cannot have the storage open the same file again. Pass the open database instead. Only the `Bucket`, `Reset` and `ReadOnly` options are read.
+
+The database stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    bboltstorage "github.com/gofiber/storage/bbolt/v2"
+    "go.etcd.io/bbolt"
+)
+
+func main() {
+    conn, err := bbolt.Open("fiber.db", 0o666, nil)
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close()
+
+    store := bboltstorage.NewFromConnection(conn, bboltstorage.Config{
+        Bucket: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

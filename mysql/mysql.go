@@ -135,6 +135,19 @@ func New(config ...Config) *Storage {
 	return store
 }
 
+// NewFromConnection creates a new storage on an existing database handle, which stays the caller's to close.
+// It is the same as setting Config.Db.
+func NewFromConnection(db *sql.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("mysql: nil database handle")
+	}
+
+	cfg := configDefault(config...)
+	cfg.Db = db
+
+	return New(cfg)
+}
+
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	if len(key) <= 0 {

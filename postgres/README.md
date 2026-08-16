@@ -24,6 +24,8 @@ A Postgres storage driver using [jackc/pgx](https://github.com/jackc/pgx).
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(db *pgxpool.Pool, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, db *pgxpool.Pool, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -150,5 +152,32 @@ var ConfigDefault = Config{
 	Reset:         false,
 	Unlogged:      false,
 	GCInterval:    10 * time.Second,
+}
+```
+
+### Using an Existing Postgres Connection
+If your application already holds a `*pgxpool.Pool`, you can build the storage on it instead of opening a second pool. This is the same as setting `Config.DB`.
+
+The pool stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the pool open, so the rest of your application keeps working.
+
+```go
+import (
+    "context"
+
+    "github.com/gofiber/storage/postgres/v3"
+    "github.com/jackc/pgx/v5/pgxpool"
+)
+
+func main() {
+    pool, err := pgxpool.New(context.Background(), "postgres://user:password@localhost:5432/fiber")
+    if err != nil {
+        panic(err)
+    }
+    defer pool.Close()
+
+    store := postgres.NewFromConnection(pool, postgres.Config{
+        Table: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

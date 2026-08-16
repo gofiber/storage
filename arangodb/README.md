@@ -133,7 +133,7 @@ If your application already holds a `driver.Client`, you can build the storage o
 import (
     "github.com/arangodb/go-driver"
     "github.com/arangodb/go-driver/http"
-    "github.com/gofiber/storage/arangodb"
+    "github.com/gofiber/storage/arangodb/v2"
 )
 
 func main() {

@@ -23,6 +23,8 @@ A Neo4j storage driver using [neo4j/neo4j-go-driver](https://github.com/neo4j/ne
 ```go
 func New(config ...Config) *Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(db neo4j.DriverWithContext, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, db neo4j.DriverWithContext, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -156,5 +158,32 @@ var ConfigDefault = Config{
  Node:          "fiber_storage",
  Reset:         false,
  GCInterval:    10 * time.Second,
+}
+```
+
+### Using an Existing Neo4j Connection
+If your application already holds a `neo4j.DriverWithContext`, you can build the storage on it instead of creating a second one. This is the same as setting `Config.DB`.
+
+The driver stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the driver open, so the rest of your application keeps working.
+
+```go
+import (
+    "context"
+
+    storage "github.com/gofiber/storage/neo4j"
+    "github.com/neo4j/neo4j-go-driver/v5/neo4j"
+)
+
+func main() {
+    driver, err := neo4j.NewDriverWithContext("neo4j://localhost:7687", neo4j.BasicAuth("neo4j", "password", ""))
+    if err != nil {
+        panic(err)
+    }
+    defer driver.Close(context.Background())
+
+    store := storage.NewFromConnection(driver, storage.Config{
+        Node: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

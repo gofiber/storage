@@ -21,6 +21,7 @@ type Storage struct {
 	conn     *bbolt.DB
 	bucket   string
 	readOnly bool
+	ownsConn bool
 	closeMu  sync.Mutex
 	closed   bool
 }
@@ -38,8 +39,28 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(conn, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// bbolt takes an exclusive lock on its file, so sharing the open handle is the way to back a storage
+// with a database the application already uses. Only the Bucket, Reset and ReadOnly options are read.
+func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage {
+	if conn == nil {
+		panic("bbolt: nil database")
+	}
+
+	return newStorage(conn, false, configDefault(config...))
+}
+
+// newStorage prepares the bucket on conn; conn is released only when this driver opened it.
+func newStorage(conn *bbolt.DB, ownsConn bool, cfg Config) *Storage {
 	// Release the file, and with it the OS lock, rather than leaking both when a later step fails.
-	closeOwned := func() { _ = conn.Close() }
+	closeOwned := func() {
+		if ownsConn {
+			_ = conn.Close()
+		}
+	}
 
 	// A read-only database cannot open a write transaction, so New panicked; check the bucket instead.
 	if cfg.ReadOnly {
@@ -58,6 +79,7 @@ func New(config ...Config) *Storage {
 			conn:     conn,
 			bucket:   cfg.Bucket,
 			readOnly: true,
+			ownsConn: ownsConn,
 		}
 	}
 
@@ -76,8 +98,9 @@ func New(config ...Config) *Storage {
 	}
 
 	return &Storage{
-		conn:   conn,
-		bucket: cfg.Bucket,
+		conn:     conn,
+		bucket:   cfg.Bucket,
+		ownsConn: ownsConn,
 	}
 }
 
@@ -205,12 +228,18 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. Safe to call more than once; a failed close is reported once.
+// Close the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed database is not ours to close, but the storage still is.
+	if !s.ownsConn {
+		s.closed = true
 		return nil
 	}
 

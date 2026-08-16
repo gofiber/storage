@@ -282,3 +282,24 @@ func Benchmark_Neo4jStore_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Neo4jStore_NewFromConnection(t *testing.T) {
+	store := NewFromConnection(testStore.Conn(), Config{Node: "existing_storage"})
+	require.True(t, testStore.Conn() == store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The driver is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, testStore.Set("jane", []byte("doe"), 0))
+}
+
+func Test_Neo4jStore_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

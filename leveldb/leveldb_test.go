@@ -666,3 +666,28 @@ func Test_Set_SubSecondExpiration_BinaryFrame(t *testing.T) {
 	require.Nil(t, err)
 	require.Zero(t, len(result))
 }
+
+func Test_LevelDB_NewFromConnection(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db)
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Put([]byte("jane"), []byte("doe"), nil))
+}
+
+func Test_LevelDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

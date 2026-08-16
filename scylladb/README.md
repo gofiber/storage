@@ -23,6 +23,7 @@ A ScyllaDb storage engine for [Fiber](https://github.com/gofiber/fiber) using [g
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(session *gocql.Session, config ...Config) *Storage
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
@@ -190,5 +191,33 @@ var ConfigDefault = Config{
 	SslOpts:                  nil,
 	Reset:                    false,
 	DisableInitialHostLookup: false,
+}
+```
+
+### Using an Existing ScyllaDB Session
+If your application already holds a `*gocql.Session`, you can build the storage on it instead of creating a second one. This is the same as setting `Config.Session`.
+
+The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/gocql/gocql"
+    "github.com/gofiber/storage/scylladb"
+)
+
+func main() {
+    cluster := gocql.NewCluster("localhost:9042")
+
+    session, err := cluster.CreateSession()
+    if err != nil {
+        panic(err)
+    }
+    defer session.Close()
+
+    store := scylladb.NewFromConnection(session, scylladb.Config{
+        Keyspace: "fiber",
+        Table:    "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

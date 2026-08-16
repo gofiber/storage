@@ -78,6 +78,7 @@ type item struct {
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
+	ownsDB     bool
 	readOnly   bool
 	gcInterval time.Duration
 	done       chan struct{}
@@ -122,8 +123,25 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// LevelDB allows a single process to hold a directory, so sharing the open handle is the way to back a
+// storage with a database the application already uses. Only the GCInterval and ReadOnly options are read.
+func NewFromConnection(db *leveldb.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("leveldb: nil database")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage starts the collector on db; db is released only when this driver opened it.
+func newStorage(db *leveldb.DB, ownsDB bool, cfg Config) *Storage {
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
@@ -289,7 +307,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; a failed close is reported once.
+// Close the storage, and the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		// Wait for the collector so it no longer writes to a database being closed.
@@ -301,6 +319,12 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed database is not ours to close, but the collector above is stopped either way.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

@@ -212,3 +212,33 @@ func Test_MySQL_Close_Twice(t *testing.T) {
 		require.NoError(t, testStore.Close())
 	})
 }
+
+func Test_MYSQL_NewFromConnection(t *testing.T) {
+	c := mustStartMySQL(t)
+
+	dsn, err := c.ConnectionString(context.Background())
+	require.NoError(t, err)
+
+	db, err := sql.Open("mysql", dsn)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{Table: "fiber_storage_existing", Reset: true})
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The handle is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Ping())
+}
+
+func Test_MYSQL_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

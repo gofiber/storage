@@ -156,7 +156,7 @@ The session stays yours to close: `Close` on a storage built this way leaves it 
 import (
     "context"
 
-    "github.com/gofiber/storage/coherence/v2"
+    "github.com/gofiber/storage/coherence"
     coh "github.com/oracle/coherence-go-client/v2/coherence"
 )
 

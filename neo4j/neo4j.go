@@ -55,6 +55,26 @@ func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
 }
 
+// NewFromConnection creates a new Neo4j storage on an existing driver, which stays the caller's to
+// close, using context.Background() for initialization. It is the same as setting Config.DB.
+func NewFromConnection(db neo4j.DriverWithContext, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), db, config...)
+}
+
+// NewFromConnectionWithContext creates a new Neo4j storage on an existing driver, which stays the
+// caller's to close, using ctx for the initialization operations (connectivity check, optional reset,
+// and index creation).
+func NewFromConnectionWithContext(ctx context.Context, db neo4j.DriverWithContext, config ...Config) *Storage {
+	if db == nil {
+		panic("neo4j: nil driver")
+	}
+
+	cfg := configDefault(config...)
+	cfg.DB = db
+
+	return NewWithContext(ctx, cfg)
+}
+
 // NewWithContext creates a new Neo4j storage, using ctx for the initialization
 // operations (connectivity check, optional reset, and index creation).
 func NewWithContext(ctx context.Context, config ...Config) *Storage {

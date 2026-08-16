@@ -144,7 +144,7 @@ The connection stays yours to close: `Close` on a storage built this way leaves 
 ```go
 import (
     driver "github.com/ClickHouse/clickhouse-go/v2"
-    "github.com/gofiber/storage/clickhouse/v2"
+    "github.com/gofiber/storage/clickhouse"
 )
 
 func main() {

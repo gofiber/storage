@@ -75,6 +75,25 @@ func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
 }
 
+// NewFromConnection creates a new storage on an existing pool, which stays the caller's to close,
+// using context.Background() for initialization. It is the same as setting Config.DB.
+func NewFromConnection(db *pgxpool.Pool, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), db, config...)
+}
+
+// NewFromConnectionWithContext creates a new storage on an existing pool, which stays the caller's to
+// close, using ctx for the initialization operations (ping and schema setup/reset).
+func NewFromConnectionWithContext(ctx context.Context, db *pgxpool.Pool, config ...Config) *Storage {
+	if db == nil {
+		panic("postgres: nil pool")
+	}
+
+	cfg := configDefault(config...)
+	cfg.DB = db
+
+	return NewWithContext(ctx, cfg)
+}
+
 // NewWithContext creates a new storage, using ctx for the initialization
 // operations (connection pool creation, ping, and schema setup/reset).
 func NewWithContext(ctx context.Context, config ...Config) *Storage {

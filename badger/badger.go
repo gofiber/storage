@@ -13,6 +13,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *badger.DB
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -35,10 +36,28 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// Only the Reset and GCInterval options are read; Badger allows a single writer per directory, so
+// sharing the open handle is the way to back a storage with a database the application already uses.
+func NewFromConnection(db *badger.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("badger: nil database")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage starts the collector on db; db is released only when this driver opened it.
+func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 	if cfg.Reset {
 		if err := db.DropAll(); err != nil {
 			// Release the database, and with it the directory lock, rather than leaking both on the way out.
-			_ = db.Close()
+			if ownsDB {
+				_ = db.Close()
+			}
 			panic(err)
 		}
 	}
@@ -46,6 +65,7 @@ func New(config ...Config) *Storage {
 	// Create storage
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
@@ -155,7 +175,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database once, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
+// Close the database once unless it came from NewFromConnection, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
 // Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
@@ -167,6 +187,12 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed database is not ours to close, but the collector above is stopped either way.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

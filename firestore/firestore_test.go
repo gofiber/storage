@@ -347,3 +347,27 @@ func Benchmark_Firestore_SetAndDelete(b *testing.B) {
 	require.NoError(b, errSet)
 	require.NoError(b, errDel)
 }
+
+func Test_Firestore_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	store := NewFromConnection(owner.Conn(), "existing_collection")
+	require.Same(t, owner.Conn(), store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The client is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+}
+
+func Test_Firestore_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil, "")
+	})
+}

@@ -62,6 +62,19 @@ func validateIdentifier(name, identifierType string) error {
 	return nil
 }
 
+// NewFromConnection creates a new storage on an existing session, which stays the caller's to close.
+// It is the same as setting Config.Session.
+func NewFromConnection(session *gocql.Session, config ...Config) *Storage {
+	if session == nil {
+		panic("scylladb: nil session")
+	}
+
+	cfg := configDefault(config...)
+	cfg.Session = session
+
+	return New(cfg)
+}
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	var err error

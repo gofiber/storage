@@ -91,7 +91,9 @@ store := firestorage.New(firestorage.Config{
 
 #### Using an Existing Firestore Client
 
-If you already have a Firestore client configured in your application, you can create a Storage instance directly from that client:
+If you already have a Firestore client configured in your application, you can create a Storage instance directly from that client.
+
+The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
 ```go
 import (

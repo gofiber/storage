@@ -125,7 +125,7 @@ The connection stays yours to close: `Close` on a storage built this way leaves 
 
 ```go
 import (
-    "github.com/gofiber/storage/nats/v2"
+    "github.com/gofiber/storage/nats"
     natsgo "github.com/nats-io/nats.go"
     "github.com/nats-io/nats.go/jetstream"
 )

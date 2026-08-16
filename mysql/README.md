@@ -20,6 +20,7 @@ A MySQL storage driver using `database/sql` and [go-sql-driver/mysql](https://gi
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *sql.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -146,5 +147,32 @@ var ConfigDefault = Config{
 	Table:           "fiber_storage",
 	Reset:           false,
 	GCInterval:      10 * time.Second,
+}
+```
+
+### Using an Existing MySQL Connection
+If your application already holds a `*sql.DB`, you can build the storage on it instead of opening a second pool. This is the same as setting `Config.Db`.
+
+The handle stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the pool open, so the rest of your application keeps working.
+
+```go
+import (
+    "database/sql"
+
+    _ "github.com/go-sql-driver/mysql"
+    "github.com/gofiber/storage/mysql/v2"
+)
+
+func main() {
+    db, err := sql.Open("mysql", "user:password@tcp(localhost:3306)/fiber")
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    store := mysql.NewFromConnection(db, mysql.Config{
+        Table: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

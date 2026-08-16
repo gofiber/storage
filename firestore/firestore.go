@@ -27,6 +27,7 @@ type Storage struct {
 	client     *firestore.Client
 	collection string
 	timeout    time.Duration
+	ownsClient bool
 	ctx        context.Context
 	cancel     context.CancelFunc
 }
@@ -73,6 +74,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		client:     client,
 		collection: cfg.Collection,
 		timeout:    cfg.RequestTimeout,
+		ownsClient: true,
 		ctx:        storageCtx,
 		cancel:     storageCancel,
 	}
@@ -230,12 +232,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return nil
 }
 
-// Close the database
+// Close the storage, and the client unless it came from NewFromConnection
 func (s *Storage) Close() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
-	if s.client == nil {
+	// A borrowed client is not ours to close, but the storage still is.
+	if s.client == nil || !s.ownsClient {
 		return nil
 	}
 	return s.client.Close()
@@ -246,8 +249,12 @@ func (s *Storage) Conn() *firestore.Client {
 	return s.client
 }
 
-// NewFromConnection creates a new Storage instance from an existing Firestore client
+// NewFromConnection creates a new Storage instance from an existing Firestore client, which stays the caller's to close
 func NewFromConnection(client *firestore.Client, collection string) *Storage {
+	if client == nil {
+		panic("firestore: nil client")
+	}
+
 	if collection == "" {
 		collection = ConfigDefault.Collection
 	}

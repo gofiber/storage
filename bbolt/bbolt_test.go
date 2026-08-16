@@ -317,3 +317,28 @@ func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {
 		New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true, Reset: true})
 	})
 }
+
+func Test_Bbolt_NewFromConnection(t *testing.T) {
+	conn, err := bbolt.Open(filepath.Join(t.TempDir(), "existing.db"), 0o666, nil)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(conn, Config{Bucket: "existing_bucket", Reset: true})
+	require.Same(t, conn, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, conn.Update(func(tx *bbolt.Tx) error { return nil }))
+}
+
+func Test_Bbolt_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
