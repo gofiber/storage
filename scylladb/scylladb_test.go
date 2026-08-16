@@ -14,7 +14,7 @@ import (
 
 const (
 	// scyllaDBImage is the default image used for running ScyllaDB in tests.
-	scyllaDBImage  = "scylladb/scylla:2026.2.4"
+	scyllaDBImage  = "scylladb/scylla:6.2"
 	scyllaDBEnvVar = "TEST_SCYLLADB_IMAGE"
 )
 

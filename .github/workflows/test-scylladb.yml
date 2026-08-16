@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: scylladb/go.sum
       - name: Run Test
         env:
-          TEST_SCYLLADB_IMAGE: "scylladb/scylla:2026.2.4"
+          TEST_SCYLLADB_IMAGE: "scylladb/scylla:6.2"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./scylladb
