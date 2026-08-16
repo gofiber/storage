@@ -26,6 +26,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -113,6 +117,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -206,6 +214,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -293,6 +305,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -382,6 +398,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -470,6 +490,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:
@@ -561,6 +585,10 @@ updates:
           - "🤖 Dependencies"
       schedule:
           interval: "daily"
+      cooldown:
+          exclude:
+              - "github.com/gofiber/*"
+              - "github.com/valyala/fasthttp*"
       groups:
           testcontainers-modules:
               patterns:

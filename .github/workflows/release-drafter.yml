@@ -32,9 +32,11 @@ jobs:
                   filters+=$'\n'
                   # Add filters for subdirectories
                   filters+=$(find . -maxdepth 1 -type d ! -path ./.git ! -path . ! -path ./testhelpers -exec basename {} \; | grep -v '^\.' | awk '{printf "%s: \"%s/**\"\n", $1, $1}')
-                  echo "filters<<EOF" >> $GITHUB_OUTPUT
-                  echo "$filters" >> $GITHUB_OUTPUT
-                  echo "EOF" >> $GITHUB_OUTPUT
+                  {
+                    echo "filters<<EOF"
+                    echo "$filters"
+                    echo "EOF"
+                  } >> "$GITHUB_OUTPUT"
               shell: bash
             - name: Filter changes
               id: filter
