@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"sync"
 	"time"
 
 	coh "github.com/oracle/coherence-go-client/v2/coherence"
@@ -23,6 +24,7 @@ type Storage struct {
 	session     *coh.Session
 	namedCache  coh.NamedCache[string, []byte]
 	ownsSession bool
+	closeOnce   sync.Once
 }
 
 // Config defines configuration options for Coherence connection.
@@ -220,12 +222,20 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the session unless it came from NewFromConnection.
+// Close the session unless it came from NewFromConnection, in which case only the cache this
+// storage opened on it is released. Safe to call more than once.
 func (s *Storage) Close() error {
-	// A borrowed session is not ours to close.
-	if s.ownsSession {
-		s.session.Close()
-	}
+	s.closeOnce.Do(func() {
+		if s.ownsSession {
+			// Closing the session releases every cache opened on it, this one included.
+			s.session.Close()
+			return
+		}
+
+		// A borrowed session is not ours to close, but the cache opened on it is ours to release:
+		// its listeners and near cache would otherwise outlive the storage on a long-lived session.
+		s.namedCache.Release()
+	})
 
 	return nil
 }

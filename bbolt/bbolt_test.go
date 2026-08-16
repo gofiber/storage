@@ -369,3 +369,26 @@ func Test_Bbolt_NewFromConnection_ReadOnly(t *testing.T) {
 	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrReadOnly)
 	require.NoError(t, store.Close())
 }
+
+func Test_Bbolt_NewFromConnection_ReadOnly_From_Config(t *testing.T) {
+	conn, err := bbolt.Open(filepath.Join(t.TempDir(), "writable.db"), 0o666, nil)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	// A read-only storage checks the bucket rather than creating it, so seed it first.
+	seedStore := NewFromConnection(conn, Config{Bucket: "readonly_bucket"})
+	require.NoError(t, seedStore.Set("john", []byte("doe"), 0))
+	require.NoError(t, seedStore.Close())
+
+	// The handle is writable, so only the config asks for a read-only storage.
+	store := NewFromConnection(conn, Config{Bucket: "readonly_bucket", ReadOnly: true})
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrReadOnly)
+	require.ErrorIs(t, store.Delete("john"), ErrReadOnly)
+	require.ErrorIs(t, store.Reset(), ErrReadOnly)
+	require.NoError(t, store.Close())
+}

@@ -39,6 +39,10 @@ type Storage struct {
 	ctx    context.Context
 	mu     sync.RWMutex
 	closed bool
+
+	// initMu serializes lazy bucket setup on its own, so the network round trip it makes is not
+	// held under mu, where it would stall Close and every other operation behind it.
+	initMu sync.Mutex
 }
 
 type entry struct {
@@ -233,7 +237,10 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	}
 	storage.kv = kv
 
-	if cfg.Reset {
+	// Reset needs a bucket to empty. When the setup above failed there is none yet, and failing here
+	// would panic on exactly the condition the line above treats as recoverable; the lazy resolution
+	// creates the bucket on first use instead, which is as empty as a reset would have left it.
+	if cfg.Reset && storage.kv != nil {
 		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
@@ -242,12 +249,12 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	return storage
 }
 
-// keyValue returns the bucket, resolving it first when it is still missing. A storage built on a
-// borrowed connection installs no handlers of its own, so a bucket that was absent at construction
+// keyValue returns the bucket, resolving it first when a storage on a borrowed connection is still
+// missing one: that storage installs no handlers of its own, so a bucket absent at construction
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed := s.kv, s.closed
+	kv, initErr, nc, kvCfg, closed, ownsNC := s.kv, s.err, s.nc, s.cfg.KeyValueConfig, s.closed, s.ownsNC
 	s.mu.RUnlock()
 
 	if closed {
@@ -257,27 +264,48 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 		return kv, nil
 	}
 
+	// A connection this driver dialed already has handlers that set the bucket up on connect and on
+	// every reconnect, so a round trip here would duplicate them, and stall the caller meanwhile.
+	if ownsNC {
+		return nil, notInitialized(initErr)
+	}
+
+	// Serialized on its own mutex so only one caller sets the bucket up, and held instead of s.mu so
+	// that round trip cannot block Close, or the operations already holding a resolved bucket.
+	s.initMu.Lock()
+	defer s.initMu.Unlock()
+
+	// Re-checked: a handler or another caller may have resolved it while this one waited.
+	s.mu.RLock()
+	kv, closed = s.kv, s.closed
+	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
+	if kv != nil {
+		return kv, nil
+	}
+
+	kv, err := newNatsKV(nc, ctx, kvCfg)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Re-checked under the write lock: a handler or another caller may have resolved it in between.
+	// A Close landing during the setup wins: the bucket is not recorded on a storage that is done.
 	if s.closed {
 		return nil, errClosed
 	}
-	if s.kv != nil {
-		return s.kv, nil
-	}
-
-	kv, err := newNatsKV(s.nc, ctx, s.cfg.KeyValueConfig)
 	if err != nil {
 		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
 		return nil, notInitialized(errors.Join(s.err, err))
 	}
+	if s.kv == nil {
+		s.kv = kv
+		s.err = nil
+	}
 
-	s.kv = kv
-	s.err = nil
-
-	return kv, nil
+	return s.kv, nil
 }
 
 // GetWithContext retrieves the value associated with the given key using the provided context.

@@ -116,7 +116,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Bbolt Database
-bbolt takes an exclusive lock on its file, so an application that already keeps a `*bbolt.DB` open cannot have the storage open the same file again. Pass the open database instead. Only the `Bucket` and `Reset` options are read: whether the storage is read-only is taken from the handle you pass, so a database opened with `bbolt.Options{ReadOnly: true}` needs no extra config.
+bbolt takes an exclusive lock on its file, so an application that already keeps a `*bbolt.DB` open cannot have the storage open the same file again. Pass the open database instead. Only the `Bucket`, `Reset` and `ReadOnly` options are read: a database opened with `bbolt.Options{ReadOnly: true}` makes the storage read-only on its own, so it needs no extra config, and setting `ReadOnly` yourself makes the storage read-only over a writable handle too.
 
 The database stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 

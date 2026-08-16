@@ -44,8 +44,8 @@ func New(config ...Config) *Storage {
 
 // NewFromConnection creates a storage on an already open database, which stays the caller's to close.
 // bbolt takes an exclusive lock on its file, so sharing the open handle is the way to back a storage
-// with a database the application already uses. Only the Bucket and Reset options are read: whether
-// the storage is read-only is the handle's own property, so Config.ReadOnly is not consulted.
+// with a database the application already uses. Only the Bucket, Reset and ReadOnly options are read,
+// and a read-only handle makes the storage read-only whatever Config.ReadOnly says.
 func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage {
 	if conn == nil {
 		panic("bbolt: nil database")
@@ -53,9 +53,10 @@ func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage {
 
 	cfg := configDefault(config...)
 
-	// Taken from the handle rather than the config: a caller who shares a read-only database and
-	// leaves the option unset would otherwise panic here on a write transaction.
-	cfg.ReadOnly = conn.IsReadOnly()
+	// Widened by the handle rather than replaced by it: a caller who shares a read-only database and
+	// leaves the option unset would otherwise panic here on a write transaction, while one who asked
+	// for a read-only storage over a writable handle would silently get a writable one.
+	cfg.ReadOnly = cfg.ReadOnly || conn.IsReadOnly()
 
 	return newStorage(conn, false, cfg)
 }

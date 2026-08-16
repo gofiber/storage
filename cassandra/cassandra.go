@@ -135,9 +135,10 @@ func NewFromConnection(session *gocql.Session, cnfg Config) (*Storage, error) {
 		table:    table,
 	}
 
-	// Drop tables if reset is requested
+	// Only this storage's own table is dropped: the keyspace is the caller's, and schema_info is a
+	// name this driver never creates, so dropping it here could only take out someone else's table.
 	if cfg.Reset {
-		if err := storage.dropTables(); err != nil {
+		if err := storage.dropDataTable(); err != nil {
 			return nil, fmt.Errorf("cassandra storage init: %w", err)
 		}
 	}
@@ -245,14 +246,19 @@ func (s *Storage) createDataTable() error {
 
 // dropTables drops existing tables for reset
 func (s *Storage) dropTables() error {
-	// Drop data table with proper escaping
-	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
-	if err := s.sx.Query(query, []string{}).ExecRelease(); err != nil {
+	if err := s.dropDataTable(); err != nil {
 		return err
 	}
 
 	// Drop schema_info table with proper escaping
-	query = fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
+	return s.sx.Query(query, []string{}).ExecRelease()
+}
+
+// dropDataTable drops the key-value table alone, leaving the rest of the keyspace untouched.
+func (s *Storage) dropDataTable() error {
+	// Drop data table with proper escaping
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
 	return s.sx.Query(query, []string{}).ExecRelease()
 }
 
