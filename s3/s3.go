@@ -62,12 +62,26 @@ func New(config ...Config) *Storage {
 		o.UsePathStyle = true
 	})
 
+	return newStorage(sess, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing S3 client, which stays the caller's to manage.
+// Only the Bucket, RequestTimeout and Reset options are read; the endpoint and credentials come from the client.
+func NewFromConnection(svc *s3.Client, config ...Config) *Storage {
+	if svc == nil {
+		panic("s3: nil client")
+	}
+
+	return newStorage(svc, configDefault(config...))
+}
+
+func newStorage(svc *s3.Client, cfg Config) *Storage {
 	storage := &Storage{
-		svc: sess,
+		svc: svc,
 		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-		downloader: manager.NewDownloader(sess),
+		downloader: manager.NewDownloader(svc),
 		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-		uploader:       manager.NewUploader(sess),
+		uploader:       manager.NewUploader(svc),
 		requestTimeout: cfg.RequestTimeout,
 		bucket:         cfg.Bucket,
 	}

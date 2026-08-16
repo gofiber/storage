@@ -50,17 +50,39 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	storage := &Storage{minio: minioClient, cfg: cfg}
+	return newStorage(ctx, minioClient, cfg)
+}
+
+// NewFromConnection creates a minio storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(client *minio.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), client, config...)
+}
+
+// NewFromConnectionWithContext creates a minio storage on an existing client, which stays the caller's
+// to manage, using ctx for the initialization operations (optional reset and bucket check/creation).
+// Only the Bucket, Region, Reset and object options are read; the endpoint and credentials come from the client.
+func NewFromConnectionWithContext(ctx context.Context, client *minio.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("minio: nil client")
+	}
+
+	return newStorage(ctx, client, configDefault(config...))
+}
+
+// newStorage prepares the bucket on client.
+func newStorage(ctx context.Context, client *minio.Client, cfg Config) *Storage {
+	storage := &Storage{minio: client, cfg: cfg}
 
 	// Reset all entries if set to true
 	if cfg.Reset {
-		if err = storage.ResetWithContext(ctx); err != nil {
+		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
 
 	// check bucket
-	err = storage.CheckBucketWithContext(ctx)
+	err := storage.CheckBucketWithContext(ctx)
 	if err != nil {
 		// Only create the bucket when it is genuinely missing; surface any
 		// other (auth/network/context) error instead of masking it.

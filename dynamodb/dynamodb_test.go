@@ -358,3 +358,32 @@ func Benchmark_DynamoDB_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_DynamoDB_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	testStore := NewFromConnection(owner.Conn(), Config{Table: "fiber_storage_existing"})
+	require.Same(t, owner.Conn(), testStore.Conn())
+
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	require.NoError(t, testStore.Set(key, val, 0))
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	// The client is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set(key, val, 0))
+}
+
+func Test_DynamoDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil, Config{})
+	})
+}

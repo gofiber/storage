@@ -55,6 +55,23 @@ func New(config ...Config) *Storage {
 	return storage
 }
 
+// NewFromConnection builds a Storage on an existing API client, which stays the caller's to manage.
+// Only the Email, AccountID and NamespaceID options are read; the credentials come from the client.
+func NewFromConnection(api APIInterface, config ...Config) *Storage {
+	if api == nil {
+		panic("cloudflarekv: nil api client")
+	}
+
+	cfg := configDefault(config...)
+
+	return &Storage{
+		api:         api,
+		email:       cfg.Email,
+		accountID:   cfg.AccountID,
+		namespaceID: cfg.NamespaceID,
+	}
+}
+
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	resp, err := s.api.GetWorkersKV(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.GetWorkersKVParams{NamespaceID: s.namespaceID, Key: key})
 

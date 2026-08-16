@@ -32,7 +32,30 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	handleError(err)
 	client, err := azblob.NewClientWithSharedKeyCredential(cfg.Endpoint, cred, nil)
 	handleError(err)
-	_, err = client.CreateContainer(ctx, cfg.Container, nil)
+
+	return newStorage(ctx, client, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(client *azblob.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), client, config...)
+}
+
+// NewFromConnectionWithContext creates a new storage on an existing client, which stays the caller's
+// to manage, using ctx for the initialization operations (container creation and optional reset).
+// Only the Container, RequestTimeout and Reset options are read; the endpoint and credentials come from the client.
+func NewFromConnectionWithContext(ctx context.Context, client *azblob.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("azureblob: nil client")
+	}
+
+	return newStorage(ctx, client, configure(config...))
+}
+
+// newStorage prepares the container on client.
+func newStorage(ctx context.Context, client *azblob.Client, cfg Config) *Storage {
+	_, err := client.CreateContainer(ctx, cfg.Container, nil)
 	if err != nil {
 		if !bloberror.HasCode(err, bloberror.ContainerAlreadyExists) {
 			panic(fmt.Sprintf("invalid config:, %v", err))
