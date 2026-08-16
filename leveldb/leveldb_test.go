@@ -2,6 +2,7 @@ package leveldb
 
 import (
 	"context"
+	"encoding/binary"
 	"os"
 	"strconv"
 	"testing"
@@ -563,4 +564,105 @@ func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 	db.gcCursor = []byte("z")
 	require.Nil(t, db.Reset())
 	require.Nil(t, db.gcCursor)
+}
+
+func Test_Set_WritesBinaryFrame(t *testing.T) {
+	db := New(Config{Path: "./testdb_binary_frame"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_binary_frame"))
+	}()
+
+	require.Nil(t, db.Set("john", []byte("doe"), 0))
+
+	// The payload is stored verbatim after a fixed header. JSON would base64 it and cost
+	// four times the bytes, which is what this framing replaced.
+	stored, err := db.Conn().Get([]byte("john"), nil)
+	require.Nil(t, err)
+	require.Equal(t, envelopeHeaderLen+len("doe"), len(stored))
+	require.Equal(t, envelopeMagic[:], stored[:len(envelopeMagic)])
+	require.EqualValues(t, envelopeBinaryVersion, stored[len(envelopeMagic)])
+	require.Equal(t, []byte("doe"), stored[envelopeHeaderLen:])
+
+	// A key with no expiration carries a zero deadline rather than a time near now.
+	require.Zero(t, binary.BigEndian.Uint64(stored[len(envelopeMagic)+1:envelopeHeaderLen]))
+}
+
+func Test_Get_UnknownBinaryVersion(t *testing.T) {
+	db := New(Config{Path: "./testdb_binary_unknown"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_binary_unknown"))
+	}()
+
+	// A frame from a newer driver must be reported rather than read as a payload.
+	future := encode([]byte("doe"), 0)
+	future[len(envelopeMagic)] = envelopeBinaryVersion + 1
+	require.Nil(t, db.Conn().Put([]byte("future"), future, nil))
+
+	result, err := db.Get("future")
+	require.ErrorIs(t, err, ErrUnknownEnvelope)
+	require.Zero(t, len(result))
+}
+
+func Test_Get_LegacyRawValueResemblingFrame(t *testing.T) {
+	db := New(Config{Path: "./testdb_binary_lookalike"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_binary_lookalike"))
+	}()
+
+	// A payload an earlier version stored unenveloped may open with these bytes by chance.
+	// Short of a whole frame it is handed back rather than reported as damaged.
+	for name, raw := range map[string][]byte{
+		"magic_only":  append([]byte{}, envelopeMagic[:]...),
+		"part_header": append(append([]byte{}, envelopeMagic[:]...), 2, 0, 0),
+		"header_only": encode(nil, 0),
+	} {
+		require.Nil(t, db.Conn().Put([]byte(name), raw, nil))
+
+		result, err := db.Get(name)
+		require.Nil(t, err, name)
+		require.Equal(t, raw, result, name)
+	}
+}
+
+func Test_Get_BinaryFrame_Expiry(t *testing.T) {
+	db := New(Config{Path: "./testdb_binary_expiry"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_binary_expiry"))
+	}()
+
+	require.Nil(t, db.Conn().Put([]byte("live"), encode([]byte("doe"), time.Now().Add(time.Hour).UnixNano()), nil))
+	result, err := db.Get("live")
+	require.Nil(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// An expired frame is a miss; Get does not delete it, which could drop a concurrent Set.
+	require.Nil(t, db.Conn().Put([]byte("dead"), encode([]byte("doe"), time.Now().Add(-time.Hour).UnixNano()), nil))
+	result, err = db.Get("dead")
+	require.Nil(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Set_SubSecondExpiration_BinaryFrame(t *testing.T) {
+	db := New(Config{Path: "./testdb_binary_subsecond"})
+	defer func() {
+		require.Nil(t, db.Close())
+		require.Nil(t, removeAllFiles("./testdb_binary_subsecond"))
+	}()
+
+	// The deadline is nanoseconds, so an expiration under a second survives the round trip.
+	require.Nil(t, db.Set("john", []byte("doe"), 300*time.Millisecond))
+
+	result, err := db.Get("john")
+	require.Nil(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	time.Sleep(400 * time.Millisecond)
+
+	result, err = db.Get("john")
+	require.Nil(t, err)
+	require.Zero(t, len(result))
 }

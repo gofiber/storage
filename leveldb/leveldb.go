@@ -3,8 +3,10 @@ package leveldb
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"math"
 	"sync"
 	"time"
 
@@ -13,8 +15,20 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// envelopeVersion marks entries written by this driver, under a key a raw payload would not carry.
+// envelopeVersion marks the JSON envelope earlier builds of this driver wrote, under a key a raw payload would not carry.
 const envelopeVersion = 1
+
+// envelopeBinaryVersion marks the framing this driver writes now. It continues the
+// same version sequence, so an entry from a newer driver reads as unknown whichever
+// encoding carries it.
+const envelopeBinaryVersion = 2
+
+// envelopeMagic marks entries in that framing. The leading NUL keeps it clear of
+// the JSON earlier builds wrote and of the text payloads this driver mostly holds.
+var envelopeMagic = [3]byte{0x00, 'F', 'S'}
+
+// envelopeHeaderLen is the magic, the version byte and the big-endian deadline.
+const envelopeHeaderLen = len(envelopeMagic) + 1 + 8
 
 // ErrUnknownEnvelope is returned for an entry written by a newer version of this driver.
 var ErrUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
@@ -52,7 +66,8 @@ const collectScanLimit = 10000
 // collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
 const collectMaxBatches = 100
 
-// data structure for storing items in the database
+// item is the JSON envelope earlier builds wrote. Entries in it are still read,
+// but nothing writes it any more: see encode for why.
 type item struct {
 	// Pointer so an absent version, marking an entry written before versioning, differs from 0.
 	Version  *int      `json:"_fiber_storage_v"`
@@ -179,21 +194,21 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		return ErrReadOnly
 	}
 
-	version := envelopeVersion
-	data := item{Version: &version, Value: value}
+	var expireAt int64
 	if exp > 0 {
-		data.ExpireAt = time.Now().Add(exp)
-	}
-
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		return err
+		// Computed in nanoseconds so a deadline past the year 2262 saturates instead of wrapping negative.
+		expireAt = time.Now().UnixNano()
+		if int64(exp) > math.MaxInt64-expireAt {
+			expireAt = math.MaxInt64
+		} else {
+			expireAt += int64(exp)
+		}
 	}
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.db.Put([]byte(key), encoded, nil)
+	return s.db.Put([]byte(key), encode(value, expireAt), nil)
 }
 
 // SetWithContext sets key with value, aborting if ctx is already done.
@@ -301,8 +316,66 @@ func (s *Storage) Conn() *leveldb.DB {
 	return s.db
 }
 
+// encode frames value with its deadline: magic, version, deadline, payload.
+//
+// Earlier builds wrapped the value in the JSON envelope above, and encoding/json
+// renders []byte as base64, so every write paid a marshal and every read a decode
+// while a 16-byte value took 104 bytes on disk. The framing carries the same
+// fields in 12 bytes and copies the payload through untouched.
+func encode(value []byte, expireAt int64) []byte {
+	buf := make([]byte, envelopeHeaderLen+len(value))
+
+	copy(buf, envelopeMagic[:])
+	buf[len(envelopeMagic)] = envelopeBinaryVersion
+	binary.BigEndian.PutUint64(buf[len(envelopeMagic)+1:], uint64(expireAt))
+	copy(buf[envelopeHeaderLen:], value)
+
+	return buf
+}
+
+// decodeBinary classifies an entry in this driver's framing and returns the deadline
+// as Unix nanoseconds, 0 meaning none. ok is false for anything else, which the JSON
+// decoders below then get a look at.
+func decodeBinary(data []byte) (value []byte, expireAt int64, kind envelopeKind, ok bool) {
+	if len(data) < len(envelopeMagic) || !bytes.Equal(data[:len(envelopeMagic)], envelopeMagic[:]) {
+		return nil, 0, envelopeNone, false
+	}
+
+	// A frame is claimed only when whole. Earlier versions stored payloads unenveloped,
+	// and one of those may open with these bytes by chance; handing it back is better than
+	// erroring on it. This mirrors the JSON classifier, which reads a version marker without
+	// a value as a payload rather than a damaged envelope.
+	if len(data) <= envelopeHeaderLen {
+		return nil, 0, envelopeNone, false
+	}
+	payload := data[envelopeHeaderLen:]
+
+	// Past a whole header the entry is this driver's, so an unreadable version is not a payload.
+	if data[len(envelopeMagic)] != envelopeBinaryVersion {
+		return nil, 0, envelopeUnknown, true
+	}
+
+	return payload, int64(binary.BigEndian.Uint64(data[len(envelopeMagic)+1:])), envelopeEntry, true
+}
+
+// expiryTime converts a stored deadline to a time, 0 meaning no expiration.
+func expiryTime(expireAt int64) time.Time {
+	if expireAt == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, expireAt)
+}
+
 // decode classifies an entry and returns its contents when it is an envelope this driver reads.
 func decode(data []byte) (item, envelopeKind) {
+	if value, expireAt, kind, ok := decodeBinary(data); ok {
+		if kind != envelopeEntry {
+			return item{}, kind
+		}
+		// Value points into data, which goleveldb allocated for this read alone.
+		return item{Value: value, ExpireAt: expiryTime(expireAt)}, kind
+	}
+
 	var stored item
 	if err := json.Unmarshal(data, &stored); err != nil {
 		return item{}, envelopeNone
@@ -319,6 +392,13 @@ func decode(data []byte) (item, envelopeKind) {
 // decodeExpiry classifies an entry and returns only its expiration, leaving the payload as raw bytes.
 // The collector walks every key, so decoding Value there would base64-decode and copy each payload for nothing.
 func decodeExpiry(data []byte) (time.Time, envelopeKind) {
+	if _, expireAt, kind, ok := decodeBinary(data); ok {
+		if kind != envelopeEntry {
+			return time.Time{}, kind
+		}
+		return expiryTime(expireAt), kind
+	}
+
 	var stored struct {
 		Version  *int            `json:"_fiber_storage_v"`
 		Value    json.RawMessage `json:"value"`
