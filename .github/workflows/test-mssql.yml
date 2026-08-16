@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: mssql/go.sum
       - name: Run Test
         env:
-          TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2025-latest"
+          TEST_MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-latest"
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./mssql

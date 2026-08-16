@@ -16,7 +16,7 @@ import (
 
 const (
 	// mssqlImage is the default image used for running MSSQL in tests.
-	mssqlImage              = "mcr.microsoft.com/mssql/server:2025-latest"
+	mssqlImage              = "mcr.microsoft.com/mssql/server:2022-latest"
 	mssqlImageEnvVar string = "TEST_MSSQL_IMAGE"
 	mssqlPort        string = "1433/tcp"
 	// mssqlPass has to satisfy the SQL Server password policy: at least eight
