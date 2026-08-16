@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	driver "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -367,4 +368,44 @@ func Benchmark_Clickhouse_Set_And_Delete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_Clickhouse_NewFromConnection(t *testing.T) {
+	cfg := newTestConfig(t, Config{
+		Engine: Memory,
+		Table:  "test_table_existing",
+		Clean:  true,
+	})
+
+	options, _, err := defaultConfig(cfg)
+	require.NoError(t, err)
+
+	conn, err := driver.Open(&options)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	client, err := NewFromConnection(conn, cfg)
+	require.NoError(t, err)
+
+	require.NoError(t, client.Set("john", []byte("doe"), 0))
+
+	value, err := client.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, "doe", string(value))
+
+	// The connection is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, client.Close())
+	require.NoError(t, conn.Ping(context.Background()))
+}
+
+func Test_Clickhouse_NewFromConnection_Errors(t *testing.T) {
+	_, err := NewFromConnection(nil, Config{Table: "test_table"})
+	require.Error(t, err)
+
+	conn, err := driver.Open(&driver.Options{Addr: []string{"127.0.0.1:9000"}})
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	_, err = NewFromConnection(conn, Config{})
+	require.Error(t, err)
 }

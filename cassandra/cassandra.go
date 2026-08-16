@@ -23,12 +23,13 @@ var (
 
 // Storage represents a Cassandra storage implementation
 type Storage struct {
-	cluster   *gocql.ClusterConfig
-	session   *gocql.Session
-	sx        gocqlx.Session
-	keyspace  string
-	table     string
-	closeOnce sync.Once
+	cluster     *gocql.ClusterConfig
+	session     *gocql.Session
+	sx          gocqlx.Session
+	keyspace    string
+	table       string
+	ownsSession bool
+	closeOnce   sync.Once
 }
 
 // validateIdentifier checks if an identifier is valid
@@ -93,13 +94,55 @@ func New(cnfg Config) (*Storage, error) {
 
 	// Create storage instance
 	storage := &Storage{
-		cluster:  cluster,
-		keyspace: keyspace,
-		table:    table,
+		cluster:     cluster,
+		keyspace:    keyspace,
+		table:       table,
+		ownsSession: true,
 	}
 
 	// Initialize keyspace
 	if err := storage.createOrVerifyKeySpace(cfg.Reset); err != nil {
+		return nil, fmt.Errorf("cassandra storage init: %w", err)
+	}
+
+	return storage, nil
+}
+
+// NewFromConnection creates a Cassandra storage on an existing session, which stays the caller's to close.
+// The keyspace has to exist already; only the table is created.
+func NewFromConnection(session *gocql.Session, cnfg Config) (*Storage, error) {
+	if session == nil {
+		return nil, errors.New("cassandra: session cannot be nil")
+	}
+
+	// Default config
+	cfg := configDefault(cnfg)
+
+	// Validate and escape identifiers
+	keyspace, err := validateIdentifier(cfg.Keyspace, "keyspace")
+	if err != nil {
+		return nil, err
+	}
+	table, err := validateIdentifier(cfg.Table, "table")
+	if err != nil {
+		return nil, err
+	}
+
+	storage := &Storage{
+		session:  session,
+		sx:       gocqlx.NewSession(session),
+		keyspace: keyspace,
+		table:    table,
+	}
+
+	// Drop tables if reset is requested
+	if cfg.Reset {
+		if err := storage.dropTables(); err != nil {
+			return nil, fmt.Errorf("cassandra storage init: %w", err)
+		}
+	}
+
+	if err := storage.createDataTable(); err != nil {
 		return nil, fmt.Errorf("cassandra storage init: %w", err)
 	}
 
@@ -343,10 +386,11 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the session once; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
+// Close closes the session once unless it came from NewFromConnection; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		if s.session != nil {
+		// A borrowed session is not ours to close.
+		if s.session != nil && s.ownsSession {
 			s.session.Close()
 		}
 	})

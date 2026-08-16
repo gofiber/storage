@@ -18,6 +18,7 @@ A Cassandra storage driver using [gocql/gocql](https://github.com/gocql/gocql)
 
 ```go
 func New(config ...Config) (*Storage, error)
+func NewFromConnection(session *gocql.Session, config Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -133,5 +134,38 @@ var ConfigDefault = Config{
     PoolConfig: &gocql.PoolConfig{
         HostSelectionPolicy: gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy()),
     },
+}
+```
+
+### Using an Existing Cassandra Session
+
+If your application already holds a `*gocql.Session`, you can build the storage on it instead of opening a second one. The keyspace has to exist already; only the table is created. Only the `Keyspace`, `Table` and `Reset` options are read, the rest come from the session you pass.
+
+The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/gocql/gocql"
+    "github.com/gofiber/storage/cassandra"
+)
+
+func main() {
+    cluster := gocql.NewCluster("localhost:9042")
+    cluster.Keyspace = "gofiber"
+
+    session, err := cluster.CreateSession()
+    if err != nil {
+        panic(err)
+    }
+    defer session.Close()
+
+    store, err := cassandra.NewFromConnection(session, cassandra.Config{
+        Keyspace: "gofiber",
+        Table:    "kv_store",
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer store.Close()
 }
 ```
