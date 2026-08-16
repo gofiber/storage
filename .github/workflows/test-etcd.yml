@@ -30,7 +30,6 @@ jobs:
     strategy:
       matrix:
         go-version:
-          # go.etcd.io/etcd/client/v3 v3.7 requires Go 1.26
           - 1.26.x
     steps:
       - name: Fetch Repository
