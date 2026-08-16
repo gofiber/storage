@@ -32,7 +32,7 @@ func (s *Storage) Conn() *clientv3.Client
 ```
 
 ### Installation
-Etcd is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
+Etcd requires Go 1.26 or newer — the version required by [`etcd-io/etcd`](https://github.com/etcd-io/etcd) v3.7 — and is tested on the latest [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
 go mod init github.com/<user>/<repo>
 ```
