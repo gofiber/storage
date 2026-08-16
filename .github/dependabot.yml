@@ -287,6 +287,9 @@ updates:
           google-modules:
               patterns:
                   - "google.golang.org/**"
+          etcd-modules:
+              patterns:
+                  - "go.etcd.io/**"
           opentelemetry-modules:
               patterns:
                   - "go.opentelemetry.io/**"
