@@ -62,3 +62,16 @@ TEST_SURREALDB_IMAGE=surrealdb/surrealdb:v2
 TEST_VALKEY_IMAGE=public.ecr.aws/valkey/valkey:8
 COHERENCE_LOG_LEVEL=ERROR
 EOF
+
+# testcontainers discards registry errors from the pull stream (docker.go:
+# io.Copy(io.Discard, pull)), so a throttled ECR Public pull only ever surfaces
+# as "No such image". Pull up front, where a 429 is visible and worth retrying.
+if [ -d "$PACKAGE" ]; then
+  for var in $(grep -rho --include='*.go' 'TEST_[A-Z0-9_]*_IMAGE' "$PACKAGE" | sort -u); do
+    image=$(grep "^$var=" "$GITHUB_ENV" | tail -n1 | cut -d= -f2-) || continue
+    for attempt in 1 2 3; do
+      docker pull -q "$image" && break
+      [ "$attempt" -eq 3 ] || sleep $((attempt * 10))
+    done
+  done
+fi
