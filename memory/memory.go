@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"maps"
@@ -78,7 +77,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	return bytes.Clone(v.data), nil
+	return cloneBytes(v.data), nil
 }
 
 // GetWithContext gets value by key, aborting if ctx is already done.
@@ -102,7 +101,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 	// Copy key and value: Fiber's pooled buffers may be reused once the call returns.
 	keyCopy := strings.Clone(key)
-	valCopy := bytes.Clone(val)
+	valCopy := cloneBytes(val)
 
 	// A negative expiration means none rather than a deadline in the past, as the other drivers read it.
 	if exp > 0 {
@@ -267,4 +266,18 @@ func (s *Storage) Keys() ([][]byte, error) {
 	}
 
 	return keys, nil
+}
+
+// cloneBytes returns a copy of b sized exactly to it.
+//
+// bytes.Clone appends to an empty slice, so growslice rounds the capacity up to
+// the next size class: a 3-byte value allocates 8. Get and Set are hot enough
+// for that rounding, and the extra call, to show up.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }

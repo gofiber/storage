@@ -1,7 +1,6 @@
 package bbolt
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -101,7 +100,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		if v == nil {
 			return nil
 		}
-		value = bytes.Clone(v)
+		value = cloneBytes(v)
 
 		return nil
 	})
@@ -225,4 +224,15 @@ func (s *Storage) Close() error {
 // Conn returns the database client
 func (s *Storage) Conn() *bbolt.DB {
 	return s.conn
+}
+
+// cloneBytes returns a copy of b sized exactly to it. bytes.Clone appends to an
+// empty slice, so growslice rounds the capacity up to the next size class.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }

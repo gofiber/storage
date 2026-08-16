@@ -1,7 +1,6 @@
 package ristretto
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -70,7 +69,7 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	}
 
 	// Return a copy so callers cannot mutate the cached entry in place.
-	return bytes.Clone(buf), nil
+	return cloneBytes(buf), nil
 }
 
 // GetWithContext gets the value by key, aborting if ctx is already done.
@@ -90,7 +89,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	// Store a copy: the caller may reuse or mutate val once Set returns.
-	valCopy := bytes.Clone(val)
+	valCopy := cloneBytes(val)
 
 	// Ristretto reads a negative TTL as "do nothing", while the interface has none below zero, so clamp it.
 	if exp < 0 {
@@ -187,4 +186,18 @@ func (s *Storage) Close() error {
 // Conn returns the database client
 func (s *Storage) Conn() *ristretto.Cache {
 	return s.cache
+}
+
+// cloneBytes returns a copy of b sized exactly to it.
+//
+// bytes.Clone appends to an empty slice, so growslice rounds the capacity up to
+// the next size class: a 3-byte value allocates 8. Get and Set are hot enough
+// for that rounding, and the extra call, to show up.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }

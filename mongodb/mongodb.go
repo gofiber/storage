@@ -1,7 +1,6 @@
 package mongodb
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -199,7 +198,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	// Copy before the item returns to the pool, which may hand the same buffer out again.
-	return bytes.Clone(item.Value), nil
+	return cloneBytes(item.Value), nil
 }
 
 // Get gets value by key
@@ -329,4 +328,15 @@ func (s *Storage) releaseItem(item *item) {
 // Return database client
 func (s *Storage) Conn() *mongo.Database {
 	return s.db
+}
+
+// cloneBytes returns a copy of b sized exactly to it. bytes.Clone appends to an
+// empty slice, so growslice rounds the capacity up to the next size class.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }
