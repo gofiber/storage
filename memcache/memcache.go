@@ -42,8 +42,20 @@ func New(config ...Config) *Storage {
 		}
 	}
 
-	// Create storage
-	store := &Storage{
+	return newStorage(db)
+}
+
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to manage.
+func NewFromConnection(db *mc.Client) *Storage {
+	if db == nil {
+		panic("memcache: nil client")
+	}
+
+	return newStorage(db)
+}
+
+func newStorage(db *mc.Client) *Storage {
+	return &Storage{
 		db: db,
 		items: &sync.Pool{
 			New: func() interface{} {
@@ -51,8 +63,6 @@ func New(config ...Config) *Storage {
 			},
 		},
 	}
-
-	return store
 }
 
 // Get value by key

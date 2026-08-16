@@ -9,7 +9,8 @@ import (
 )
 
 type Storage struct {
-	db *clientv3.Client
+	db     *clientv3.Client
+	ownsDB bool
 
 	closeMu sync.Mutex
 	closed  bool
@@ -30,10 +31,22 @@ func New(config ...Config) *Storage {
 	}
 
 	store := &Storage{
-		db: cli,
+		db:     cli,
+		ownsDB: true,
 	}
 
 	return store
+}
+
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
+func NewFromConnection(db *clientv3.Client) *Storage {
+	if db == nil {
+		panic("etcd: nil client")
+	}
+
+	return &Storage{
+		db: db,
+	}
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
@@ -131,12 +144,18 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the client. Safe to call more than once; a failed close is reported once.
+// Close the client unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed client is not ours to close, but the storage still is.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

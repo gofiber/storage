@@ -16,9 +16,10 @@ import (
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db    *mongo.Database
-	col   *mongo.Collection
-	items *sync.Pool
+	db     *mongo.Database
+	col    *mongo.Collection
+	ownsDB bool
+	items  *sync.Pool
 
 	closeMu sync.Mutex
 	closed  bool
@@ -106,13 +107,44 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(ctx, client, true, cfg)
+}
+
+// NewFromConnection creates a MongoDB storage on an existing client, which stays the caller's to disconnect.
+func NewFromConnection(client *mongo.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), client, config...)
+}
+
+// NewFromConnectionWithContext creates a MongoDB storage on an existing client, using ctx as the parent
+// context for the initialization operations (optional drop and index creation). Only the Database,
+// Collection and Reset options are read; the connection settings come from the client.
+func NewFromConnectionWithContext(ctx context.Context, client *mongo.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("mongodb: nil client")
+	}
+
+	return newStorage(ctx, client, false, configDefault(config...))
+}
+
+// newStorage prepares the collection on client; client is disconnected only when this driver connected it.
+func newStorage(ctx context.Context, client *mongo.Client, ownsDB bool, cfg Config) *Storage {
+	// Release the client rather than leak it, on a bounded context of its own: the caller's may be what failed.
+	closeOwned := func() {
+		if !ownsDB {
+			return
+		}
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer closeCancel()
+		_ = client.Disconnect(closeCtx)
+	}
+
 	// Get collection from database
 	db := client.Database(cfg.Database)
 	col := db.Collection(cfg.Collection)
 
 	if cfg.Reset {
 		dropCtx, dropCancel := withDefaultTimeout(ctx)
-		if err = col.Drop(dropCtx); err != nil {
+		if err := col.Drop(dropCtx); err != nil {
 			dropCancel()
 			closeOwned()
 			panic(err)
@@ -158,8 +190,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	store := &Storage{
-		db:  db,
-		col: col,
+		db:     db,
+		col:    col,
+		ownsDB: ownsDB,
 		items: &sync.Pool{
 			New: func() interface{} {
 				return new(item)
@@ -283,12 +316,18 @@ func (s *Storage) isClosed() bool {
 	return s.closed
 }
 
-// Close disconnects the client. Safe to call more than once, and a failed disconnect is reported so it can be retried.
+// Close disconnects the client unless it came from NewFromConnection. Safe to call more than once, and a failed disconnect is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed client is not ours to disconnect, but the storage still is.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

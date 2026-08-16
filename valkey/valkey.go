@@ -16,10 +16,24 @@ var ErrClosed = errors.New("valkey: storage is closed")
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db        valkey.Client
+	ownsDB    bool
 	closeOnce sync.Once
 
 	closed   atomic.Bool
 	cacheTTL time.Duration
+}
+
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
+// Only CacheTTL is read from the config; the connection settings come from the client.
+func NewFromConnection(conn valkey.Client, config ...Config) *Storage {
+	if conn == nil {
+		panic("valkey: nil client")
+	}
+
+	return &Storage{
+		db:       conn,
+		cacheTTL: configDefault(config...).CacheTTL,
+	}
 }
 
 // New creates a new valkey storage using context.Background() for initialization.
@@ -99,6 +113,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Create new store
 	return &Storage{
 		db:       db,
+		ownsDB:   true,
 		cacheTTL: cfg.CacheTTL,
 	}
 }
@@ -181,11 +196,15 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the storage. Safe to call more than once; the client is closed on the first call only.
+// Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		s.closed.Store(true)
-		s.db.Close()
+
+		// A borrowed client is not ours to close, but the storage still is.
+		if s.ownsDB {
+			s.db.Close()
+		}
 	})
 	return nil
 }
