@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -308,4 +309,33 @@ func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
 		val, err := testStore.Get("john")
 		return err == nil && len(val) > 0
 	}, time.Second, 10*time.Millisecond)
+}
+
+func Test_Ristretto_NewFromConnection(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: ConfigDefault.NumCounters,
+		MaxCost:     ConfigDefault.MaxCost,
+		BufferItems: ConfigDefault.BufferItems,
+	})
+	require.NoError(t, err)
+	defer cache.Close()
+
+	store := NewFromConnection(cache)
+	require.Same(t, cache, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The cache is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.True(t, cache.Set("jane", []byte("doe"), 1))
+}
+
+func Test_Ristretto_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
 }

@@ -15,6 +15,7 @@ var errClosed = errors.New("ristretto: storage is closed")
 // Storage interface that is implemented by storage providers.
 type Storage struct {
 	cache        *ristretto.Cache
+	ownsCache    bool
 	defaultCost  int64
 	waitForWrite bool
 
@@ -37,11 +38,28 @@ func New(config ...Config) *Storage {
 
 	store := &Storage{
 		cache:        cache,
+		ownsCache:    true,
 		defaultCost:  cfg.DefaultCost,
 		waitForWrite: !cfg.SkipWaitForWrite,
 	}
 
 	return store
+}
+
+// NewFromConnection builds a Storage on an existing cache, which stays the caller's to close.
+// Only DefaultCost and SkipWaitForWrite are read; the sizing options come from the cache.
+func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage {
+	if cache == nil {
+		panic("ristretto: nil cache")
+	}
+
+	cfg := configDefault(config...)
+
+	return &Storage{
+		cache:        cache,
+		defaultCost:  cfg.DefaultCost,
+		waitForWrite: !cfg.SkipWaitForWrite,
+	}
 }
 
 // Get gets the value for the given key.
@@ -169,7 +187,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close stops the collector and closes the cache; safe to call more than once, and it waits for calls in flight.
+// Close stops the collector, and closes the cache unless it came from NewFromConnection; safe to call more than once, and it waits for calls in flight.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -179,7 +197,11 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	s.cache.Close()
+	// A borrowed cache is not ours to close, but the storage still is.
+	if s.ownsCache {
+		s.cache.Close()
+	}
+
 	return nil
 }
 

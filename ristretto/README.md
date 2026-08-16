@@ -22,6 +22,7 @@ A Memory-bound storage driver using [`dgraph-io/ristretto`](https://github.com/d
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -96,5 +97,32 @@ var ConfigDefault = Config{
   MaxCost:     1 << 30,
   BufferItems: 64,
   DefaultCost: 1,
+}
+```
+
+### Using an Existing Ristretto Cache
+If your application already holds a `*ristretto.Cache`, you can build the storage on it instead of creating a second one. Only `DefaultCost` and `SkipWaitForWrite` are read; the sizing options come from the cache.
+
+The cache stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/dgraph-io/ristretto"
+    ristrettostorage "github.com/gofiber/storage/ristretto/v2"
+)
+
+func main() {
+    cache, err := ristretto.NewCache(&ristretto.Config{
+        NumCounters: 1e7,
+        MaxCost:     1 << 30,
+        BufferItems: 64,
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer cache.Close()
+
+    store := ristrettostorage.NewFromConnection(cache)
+    defer store.Close()
 }
 ```

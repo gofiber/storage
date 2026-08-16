@@ -234,7 +234,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	storage.kv = kv
 
 	if cfg.Reset {
-		if err := storage.Reset(); err != nil {
+		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
