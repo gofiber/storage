@@ -77,8 +77,9 @@ jobs:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       working-directory: ${{ matrix.package }}
       benchmark-data-dir-path: benchmarks/${{ matrix.package }}
-      # NOTE: clickhouse requires a newer Go than the org default (see 738edc85)
-      go-version: ${{ matrix.package == 'clickhouse' && 'stable' || '1.25.x' }}
+      # NOTE: clickhouse requires a newer Go than the org default (see 738edc85);
+      # etcd needs 1.26 for go.etcd.io/etcd/client/v3 v3.7
+      go-version: ${{ matrix.package == 'clickhouse' && 'stable' || matrix.package == 'etcd' && '1.26.x' || '1.25.x' }}
       go-test-flags: "-timeout 900s"
       alert-threshold: "300%"
       # ~9 months of per-package publishes (24-27 in the 90 days before 2026-07)
