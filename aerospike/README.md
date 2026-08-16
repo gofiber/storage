@@ -34,7 +34,11 @@ func (s *Storage) Conn() driver.Client
 func (s *Storage) GetSchemaInfo() *SchemaInfo
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as Aerospike does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** Aerospike has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
+
+**Note:** `Config.Expiration` is deprecated and no longer applied. The storage interface documents an expiration of zero as no expiration, and substituting a default here meant `Set(key, value, 0)` quietly stored an entry that expired. Pass the expiration you want to `Set`.
+
+**Note:** `Reset` deletes user data only. This driver keeps its schema bookkeeping in a separate Aerospike set, derived from `SetName` as `SetName + "_fiber_schema"`, so it is untouched by the scan `Reset` runs and no key name is reserved for it. A `SetName` long enough that the derived name would exceed Aerospike's 63-byte limit is truncated and given a digest of the full name, so any `SetName` the server accepts still yields a bookkeeping set it accepts. It reports any scan or delete that failed rather than logging and carrying on, so `New` with `Reset: true` fails loudly when the store could not actually be wiped instead of starting against stale keys.
 
 ### Installation
 
@@ -87,13 +91,17 @@ type Config struct {
 	// Namespace is the Aerospike namespace
 	Namespace string
 
-	// Set is the Aerospike set
+	// SetName is the Aerospike Set name
 	SetName string
 
 	// Reset clears any existing keys in existing Set
 	Reset bool
 
-	// Expiration is the default expiration time of entries
+	// Expiration was the default expiration time of entries.
+	//
+	// Deprecated: no longer applied. Zero means no expiration, and defaulting
+	// here made Set(key, value, 0) quietly store an expiring entry. Pass the
+	// expiration to Set instead.
 	Expiration time.Duration
 
 	// SchemaVersion indicates the schema version to use
@@ -104,6 +112,10 @@ type Config struct {
 
 	// ForceSchemaUpdate forces schema update even if version matches
 	ForceSchemaUpdate bool
+
+	// Initial host connection timeout duration.  The timeout when opening a connection
+	// to the server host for the first time.
+	InitialConnectionTimeout time.Duration
 }
 ```
 

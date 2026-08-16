@@ -36,6 +36,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *pgxpool.Pool
 ```
 
+**Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
+
 ### Installation
 Postgres is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash

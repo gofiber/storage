@@ -33,7 +33,9 @@ func (s *Storage) Conn() *surrealdb.DB
 func (s *Storage) List() ([]byte, error) {
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as SurrealDB does not support context cancellation in its client library. They are provided for compliance with the Fiber storage interface.
+**Note:** The context methods pass the context through to the SurrealDB client, so a cancelled context or an expired deadline aborts the query.
+
+**Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
 ### Installation
 

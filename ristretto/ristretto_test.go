@@ -1,6 +1,7 @@
 package ristretto
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -157,7 +158,14 @@ func Test_Ristretto_Reset(t *testing.T) {
 }
 
 func Test_Ristretto_Close(t *testing.T) {
-	require.Nil(t, testStore.Close())
+	// A store of its own: closing the shared one would break the benchmarks that keep using it.
+	store := New()
+
+	require.Nil(t, store.Close())
+
+	require.NotPanics(t, func() {
+		require.Nil(t, store.Close())
+	})
 }
 
 func Test_Ristretto_Conn(t *testing.T) {
@@ -171,6 +179,22 @@ func Benchmark_Ristretto_Set(b *testing.B) {
 	var err error
 	for i := 0; i < b.N; i++ {
 		err = testStore.Set("john", []byte("doe"), 0)
+	}
+
+	require.NoError(b, err)
+}
+
+// Benchmark_Ristretto_Set_SkipWaitForWrite measures what waiting for the write buffer costs.
+func Benchmark_Ristretto_Set_SkipWaitForWrite(b *testing.B) {
+	store := New(Config{SkipWaitForWrite: true})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var err error
+	for i := 0; i < b.N; i++ {
+		err = store.Set("john", []byte("doe"), 0)
 	}
 
 	require.NoError(b, err)
@@ -201,4 +225,87 @@ func Benchmark_Ristretto_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+// newTestStore returns a cache of its own, clear of the shared testStore.
+func newTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	store := New()
+	t.Cleanup(func() {
+		_ = store.Close()
+	})
+
+	return store
+}
+
+func Test_Ristretto_Set_Then_Get(t *testing.T) {
+	var (
+		testStore = newTestStore(t)
+		key       = "john"
+		val       = []byte("doe")
+	)
+
+	// Ristretto buffers writes, so this used to need polling; Set now waits for the write.
+	require.NoError(t, testStore.Set(key, val, 0))
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	require.NoError(t, testStore.Reset())
+}
+
+func Test_Ristretto_Get_Returns_Copy(t *testing.T) {
+	testStore := newTestStore(t)
+	key := "john"
+	val := []byte("doe")
+
+	require.NoError(t, testStore.Set(key, val, 0))
+
+	// Mutating the slice handed to Set must not corrupt the cached entry.
+	val[0] = 'X'
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	result[0] = 'X'
+
+	result, err = testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, testStore.Reset())
+}
+
+func Test_Ristretto_WithContext_Canceled(t *testing.T) {
+	testStore := newTestStore(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), context.Canceled)
+
+	_, err := testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
+	testStore := New(Config{SkipWaitForWrite: true})
+	t.Cleanup(func() { _ = testStore.Close() })
+
+	// Set returns without waiting, so a Get right after may or may not see the value, but must not error.
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	_, err := testStore.Get("john")
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		val, err := testStore.Get("john")
+		return err == nil && len(val) > 0
+	}, time.Second, 10*time.Millisecond)
 }

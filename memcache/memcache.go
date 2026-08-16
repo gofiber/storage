@@ -2,6 +2,7 @@ package memcache
 
 import (
 	"context"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -69,8 +70,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return item.Value, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -82,7 +86,7 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	item := s.acquireItem()
 	item.Key = key
 	item.Value = val
-	item.Expiration = int32(exp.Seconds())
+	item.Expiration = expiration(exp)
 
 	err := s.db.Set(item)
 
@@ -91,8 +95,36 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// SetWithContext sets key with value (dummy context support)
+// memcachedRelativeExpirationLimit is memcached's 30 day cutoff, above which a value is an absolute stamp.
+const memcachedRelativeExpirationLimit = 60 * 60 * 24 * 30
+
+// expiration converts exp to what memcached expects: 0, rounded seconds below the limit, or a clamped Unix stamp above it.
+func expiration(exp time.Duration) int32 {
+	if exp <= 0 {
+		return 0
+	}
+
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
+		// Round up, since truncating would turn a sub-second expiration into no expiration at all.
+		secs++
+	}
+
+	if secs > memcachedRelativeExpirationLimit {
+		// Derive the stamp from the rounded seconds, not from exp, so the round-up is not undone.
+		// The field is 32 bit, so MaxInt32 is the furthest future memcached can express.
+		unix := time.Now().Unix() + secs
+		return int32(min(unix, math.MaxInt32)) //nolint:gosec // clamped to the int32 range above
+	}
+
+	return int32(secs)
+}
+
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -104,8 +136,11 @@ func (s *Storage) Delete(key string) error {
 	return s.db.Delete(key)
 }
 
-// DeleteWithContext deletes key by key (dummy context support)
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -114,8 +149,11 @@ func (s *Storage) Reset() error {
 	return s.db.DeleteAll()
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 

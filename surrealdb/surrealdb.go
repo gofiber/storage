@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/surrealdb/surrealdb.go"
@@ -16,7 +18,11 @@ type Storage struct {
 	db       *surrealdb.DB
 	table    string
 	stopGC   chan struct{}
+	stopped  chan struct{}
 	interval time.Duration
+	stopOnce sync.Once
+	closeMu  sync.Mutex
+	closed   bool
 }
 
 // model represents a key-value storage record used in SurrealDB.
@@ -25,6 +31,9 @@ type model struct {
 	Body []byte `json:"body"`
 	Exp  int64  `json:"exp"`
 }
+
+// closeTimeout bounds the cleanup close performed when initialization fails.
+const closeTimeout = 10 * time.Second
 
 // New creates a new SurrealDB storage instance using context.Background() for initialization.
 func New(config ...Config) *Storage {
@@ -40,7 +49,15 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	// Release the connection rather than leak it, on a bounded context of its own: the caller's may be what failed.
+	closeOwned := func() {
+		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		_ = db.Close(closeCtx)
+	}
+
 	if err = db.Use(ctx, cfg.Namespace, cfg.Database); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -51,10 +68,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	token, err := db.SignIn(ctx, authData)
 	if err != nil {
+		closeOwned()
 		panic(err)
 	}
 
 	if err = db.Authenticate(ctx, token); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -62,6 +81,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		db:       db,
 		table:    cfg.DefaultTable,
 		stopGC:   make(chan struct{}),
+		stopped:  make(chan struct{}),
 		interval: cfg.GCInterval,
 	}
 
@@ -69,14 +89,15 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	return storage
 }
 
-// Get returns the value by key
-func (s *Storage) Get(key string) ([]byte, error) {
+// GetWithContext returns the value by key, using ctx for the query.
+func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
-		return nil, errors.New("key is required")
+		return nil, nil
 	}
 
 	recordID := models.NewRecordID(s.table, key)
-	m, err := surrealdb.Select[model](context.Background(), s.db, recordID)
+	m, err := surrealdb.Select[model](ctx, s.db, recordID)
 	if err != nil {
 		if isTableNotFoundError(err, s.table) {
 			return nil, nil
@@ -89,31 +110,36 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	if m.Exp > 0 && time.Now().Unix() > m.Exp {
-		_ = s.Delete(key)
+	if m.Exp > 0 && time.Now().Unix() >= m.Exp {
+		// Not deleted here: that would drop a value a concurrent Set wrote; the collector reclaims it.
 		return nil, nil
 	}
 
 	return m.Body, nil
 }
 
-// GetWithContext dummy context support: calls Get ignoring ctx
-func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
-	return s.Get(key)
+// Get returns the value by key
+func (s *Storage) Get(key string) ([]byte, error) {
+	return s.GetWithContext(context.Background(), key)
 }
 
-// Set sets a value by key with optional expiration
-func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
-	if len(key) == 0 {
-		return errors.New("key is required")
+// SetWithContext sets a value by key with optional expiration, using ctx for the query.
+func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if len(key) == 0 || len(val) == 0 {
+		return nil
 	}
 
 	var expiresAt int64
 	if exp > 0 {
-		expiresAt = time.Now().Add(exp).Unix()
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expiresAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expiresAt++
+		}
 	}
 
-	_, err := surrealdb.Upsert[model](context.Background(), s.db, models.NewRecordID(s.table, key), &model{
+	_, err := surrealdb.Upsert[model](ctx, s.db, models.NewRecordID(s.table, key), &model{
 		Key:  key,
 		Body: val,
 		Exp:  expiresAt,
@@ -121,41 +147,61 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return err
 }
 
-// SetWithContext dummy context support: calls Set ignoring ctx
-func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
-	return s.Set(key, val, exp)
+// Set sets a value by key with optional expiration
+func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	return s.SetWithContext(context.Background(), key, val, exp)
+}
+
+// DeleteWithContext removes a key from storage, using ctx for the query.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if len(key) == 0 {
+		return nil
+	}
+
+	_, err := surrealdb.Delete[model](ctx, s.db, models.NewRecordID(s.table, key))
+	return err
 }
 
 // Delete removes a key from storage
 func (s *Storage) Delete(key string) error {
-	if len(key) == 0 {
-		return errors.New("key is required")
-	}
-
-	_, err := surrealdb.Delete[model](context.Background(), s.db, models.NewRecordID(s.table, key))
-	return err
+	return s.DeleteWithContext(context.Background(), key)
 }
 
-// DeleteWithContext dummy context support: calls Delete ignoring ctx
-func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
-	return s.Delete(key)
+// ResetWithContext clears all keys in the storage table, using ctx for the query.
+func (s *Storage) ResetWithContext(ctx context.Context) error {
+	_, err := surrealdb.Delete[[]model](ctx, s.db, models.Table(s.table))
+	return err
 }
 
 // Reset clears all keys in the storage table
 func (s *Storage) Reset() error {
-	_, err := surrealdb.Delete[[]model](context.Background(), s.db, models.Table(s.table))
-	return err
-}
-
-// ResetWithContext dummy context support: calls Reset ignoring ctx
-func (s *Storage) ResetWithContext(ctx context.Context) error {
-	return s.Reset()
+	return s.ResetWithContext(context.Background())
 }
 
 // Close stops GC and closes the DB connection
 func (s *Storage) Close() error {
-	close(s.stopGC)
-	return s.db.Close(context.Background())
+	s.stopOnce.Do(func() {
+		close(s.stopGC)
+		<-s.stopped
+	})
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Bounded so a stuck connection cannot hang the caller: the interface gives Close no context.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Close(ctx); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Conn returns the underlying SurrealDB client
@@ -181,8 +227,8 @@ func (s *Storage) List() ([]byte, error) {
 	now := time.Now().Unix()
 
 	for _, item := range *records {
-		if item.Exp > 0 && now > item.Exp {
-			_ = s.Delete(item.Key)
+		// Skip expired records without deleting, matching the collector's comparison exactly so the two never disagree.
+		if item.Exp > 0 && now >= item.Exp {
 			continue
 		}
 		data[item.Key] = item.Body
@@ -206,29 +252,42 @@ func isTableNotFoundError(err error, table string) bool {
 
 // gc runs periodic cleanup of expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.stopGC
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			s.cleanupExpired()
+			s.cleanupExpired(ctx)
 		case <-s.stopGC:
 			return
 		}
 	}
 }
 
-// cleanupExpired deletes expired keys from storage
-func (s *Storage) cleanupExpired() {
-	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
-	if err != nil || records == nil {
-		return
-	}
-	now := time.Now().Unix()
-	for _, item := range *records {
-		if item.Exp > 0 && now > item.Exp {
-			_ = s.Delete(item.Key)
+// cleanupExpired deletes expired keys server-side: select-then-delete costs a round trip per key and could drop a refreshed record.
+func (s *Storage) cleanupExpired(ctx context.Context) {
+	// The table is bound through type::table, not spliced: a name needing escaping silently stopped cleanup.
+	if _, err := surrealdb.Query[any](
+		ctx,
+		s.db,
+		"DELETE type::table($table) WHERE exp != 0 AND exp <= $now",
+		map[string]any{"table": s.table, "now": time.Now().Unix()},
+	); err != nil {
+		// Close cancels ctx to abandon a sweep, so this is an ordinary shutdown rather than a cleanup failure.
+		if errors.Is(err, context.Canceled) {
+			return
 		}
+		log.Printf("surrealdb: expiry cleanup failed: %v", err)
 	}
 }

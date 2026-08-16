@@ -27,11 +27,10 @@ jobs:
   Tests:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
-    services:
-      mongo:
-        image: 'public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:3.3.0'
-        ports:
-          - '8000:8000'
+    # No service container: the tests start their own DynamoDB Local through
+    # testcontainers and connect to the address it reports, so the one that used
+    # to run here on 8000 was never connected to. It only spent an ECR Public
+    # pull that the pull the tests actually depend on then went without.
     strategy:
       matrix:
         go-version:

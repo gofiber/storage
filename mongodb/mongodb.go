@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -18,6 +19,9 @@ type Storage struct {
 	db    *mongo.Database
 	col   *mongo.Collection
 	items *sync.Pool
+
+	closeMu sync.Mutex
+	closed  bool
 }
 
 type item struct {
@@ -25,6 +29,23 @@ type item struct {
 	Key        string             `json:"key" bson:"key"`
 	Value      []byte             `json:"value" bson:"value"`
 	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
+}
+
+// ErrClosed is returned after Close, rather than a driver error that says nothing about why.
+var ErrClosed = errors.New("mongodb: storage is closed")
+
+// closeTimeout bounds the cleanup disconnect performed when initialization fails.
+const closeTimeout = 10 * time.Second
+
+// initTimeout bounds an initialization step when the caller supplied no deadline.
+const initTimeout = 20 * time.Second
+
+// withDefaultTimeout bounds ctx at initTimeout unless it already has a deadline of the caller's choosing.
+func withDefaultTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); ok {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, initTimeout)
 }
 
 // New creates a new MongoDB storage using context.Background() for initialization.
@@ -61,8 +82,8 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set mongo options
 	opt := options.Client().ApplyURI(dsn)
 
-	// Create and connect the mongo client in one step
-	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	// Create and connect in one bounded step, leaving a deadline the caller did set alone.
+	timeoutCtx, cancel := withDefaultTimeout(ctx)
 	defer cancel()
 
 	client, err := mongo.Connect(timeoutCtx, opt)
@@ -70,8 +91,18 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// verify that the client can connect
-	if err = client.Ping(ctx, nil); err != nil {
+	// Release the client rather than leak it, on a bounded context of its own: the caller's may be what failed.
+	closeOwned := func() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer closeCancel()
+		_ = client.Disconnect(closeCtx)
+	}
+
+	pingCtx, pingCancel := withDefaultTimeout(ctx)
+	defer pingCancel()
+
+	if err = client.Ping(pingCtx, nil); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -80,14 +111,18 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	col := db.Collection(cfg.Collection)
 
 	if cfg.Reset {
-		if err = col.Drop(ctx); err != nil {
+		dropCtx, dropCancel := withDefaultTimeout(ctx)
+		if err = col.Drop(dropCtx); err != nil {
+			dropCancel()
+			closeOwned()
 			panic(err)
 		}
+		dropCancel()
 	}
 
 	// Use a dedicated timeout for index creation so it is not starved by time
 	// already spent on connect/ping above.
-	indexCtx, indexCancel := context.WithTimeout(ctx, 20*time.Second)
+	indexCtx, indexCancel := withDefaultTimeout(ctx)
 	defer indexCancel()
 
 	// expired data may exist for some time beyond the 60 second period between runs of the background task.
@@ -104,6 +139,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	if _, err := col.Indexes().CreateOne(indexCtx, indexModel); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -117,6 +153,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	}
 
 	if _, err := col.Indexes().CreateOne(indexCtx, keyIndexModel); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -137,11 +174,16 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
+
 	res := s.col.FindOne(ctx, bson.M{"key": key})
 	item := s.acquireItem()
+	defer s.releaseItem(item)
 
 	if err := res.Err(); err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
 		return nil, err
@@ -150,14 +192,13 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, err
 	}
 
-	if !item.Expiration.IsZero() && item.Expiration.Unix() <= time.Now().Unix() {
+	// Compare the deadline itself: truncating both sides to seconds dropped entries up to a second early.
+	if !item.Expiration.IsZero() && !time.Now().Before(item.Expiration) {
 		return nil, nil
 	}
-	// // not safe?
-	// res := item.Val
-	// s.releaseItem(item)
-	// return res, nil
-	return item.Value, nil
+
+	// Copy before the item returns to the pool, which may hand the same buffer out again.
+	return cloneBytes(item.Value), nil
 }
 
 // Get gets value by key
@@ -175,12 +216,16 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	filter := bson.M{"key": key}
 	item := s.acquireItem()
 	item.Key = key
 	item.Value = val
 
-	if exp != 0 {
+	if exp > 0 {
 		item.Expiration = time.Now().Add(exp).UTC()
 	}
 	_, err := s.col.ReplaceOne(ctx, filter, item, options.Replace().SetUpsert(true))
@@ -203,6 +248,11 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	_, err := s.col.DeleteOne(ctx, bson.M{"key": key})
 	return err
 }
@@ -214,6 +264,10 @@ func (s *Storage) Delete(key string) error {
 
 // Reset all keys by drop collection with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	return s.col.Drop(ctx)
 }
 
@@ -222,9 +276,35 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	return s.closed
+}
+
+// Close disconnects the client. Safe to call more than once, and a failed disconnect is reported so it can be retried.
 func (s *Storage) Close() error {
-	return s.db.Client().Disconnect(context.Background())
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Bounded because Close takes no context; a timeout is transient, so it is reported without latching.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Client().Disconnect(ctx); err != nil {
+		// An already-disconnected client is closed, which is what this call was for.
+		if !errors.Is(err, mongo.ErrClientDisconnected) {
+			return err
+		}
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Acquire item from pool
@@ -235,6 +315,8 @@ func (s *Storage) acquireItem() *item {
 // Release item from pool
 func (s *Storage) releaseItem(item *item) {
 	if item != nil {
+		// Get decodes into the pooled item, so a leftover ObjectID would carry another document's _id into the next Set.
+		item.ObjectID = primitive.ObjectID{}
 		item.Key = ""
 		item.Value = nil
 		item.Expiration = time.Time{}
@@ -246,4 +328,15 @@ func (s *Storage) releaseItem(item *item) {
 // Return database client
 func (s *Storage) Conn() *mongo.Database {
 	return s.db
+}
+
+// cloneBytes returns a copy of b sized exactly to it. bytes.Clone appends to an
+// empty slice, so growslice rounds the capacity up to the next size class.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }

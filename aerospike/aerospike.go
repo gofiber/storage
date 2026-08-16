@@ -2,7 +2,14 @@ package aerospike
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"log"
+	"math"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
@@ -10,12 +17,37 @@ import (
 
 // Storage interface that is implemented by storage drivers
 type Storage struct {
-	client     *aerospike.Client
-	namespace  string
-	setName    string
-	reset      bool
-	expiration time.Duration
-	schemaInfo *SchemaInfo
+	client    *aerospike.Client
+	namespace string
+	setName   string
+
+	// schemaSetName is separate from setName so user data cannot collide with the bookkeeping record.
+	schemaSetName string
+	reset         bool
+	schemaInfo    *SchemaInfo
+	closeOnce     sync.Once
+}
+
+const schemaInfoKey = "_schema_info"
+
+// schemaSetSuffix is reserved: it names this driver's bookkeeping set, derived from the configured one.
+const schemaSetSuffix = "_fiber_schema"
+
+// maxSetNameLen is Aerospike's set name limit.
+const maxSetNameLen = 63
+
+const schemaSetDigestLen = 8
+
+func schemaSetName(setName string) string {
+	if len(setName)+len(schemaSetSuffix) <= maxSetNameLen {
+		return setName + schemaSetSuffix
+	}
+
+	// Truncating alone would map two long set names onto one bookkeeping set, so the digest of the full name is carried.
+	sum := sha256.Sum256([]byte(setName))
+	digest := hex.EncodeToString(sum[:])[:schemaSetDigestLen]
+
+	return setName[:maxSetNameLen-len(schemaSetSuffix)-schemaSetDigestLen] + digest + schemaSetSuffix
 }
 
 // SchemaInfo holds information about the schema structure
@@ -36,6 +68,11 @@ func New(config ...Config) *Storage {
 	cp := aerospike.NewClientPolicy()
 	cp.Timeout = cfg.InitialConnectionTimeout
 
+	// Checked before the client is opened, so an unusable configuration leaves no connection to release.
+	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
+		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
+	}
+
 	// Create client
 	client, err := aerospike.NewClientWithPolicyAndHost(cp, cfg.Hosts...)
 	if err != nil {
@@ -44,22 +81,26 @@ func New(config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		client:     client,
-		namespace:  cfg.Namespace,
-		setName:    cfg.SetName,
-		reset:      cfg.Reset,
-		expiration: cfg.Expiration,
+		client:        client,
+		namespace:     cfg.Namespace,
+		setName:       cfg.SetName,
+		schemaSetName: schemaSetName(cfg.SetName),
+		reset:         cfg.Reset,
 	}
+
+	closeOwned := func() { client.Close() }
 
 	// Reset keys if set
 	if cfg.Reset {
 		if err := store.Reset(); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
 
 	// Check and create schema
 	if err := store.createOrVerifySchema(cfg.SchemaVersion, cfg.SchemaDescription, cfg.ForceSchemaUpdate); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -71,8 +112,7 @@ func New(config ...Config) *Storage {
 // createOrVerifySchema checks if schema exists and creates or updates if needed
 func (s *Storage) createOrVerifySchema(version int, description string, forceUpdate bool) error {
 
-	// Schema info is stored with a special key
-	schemaKey, err := aerospike.NewKey(s.namespace, s.setName, "_schema_info")
+	schemaKey, err := aerospike.NewKey(s.namespace, s.schemaSetName, schemaInfoKey)
 	if err != nil {
 		return err
 	}
@@ -128,8 +168,8 @@ func (s *Storage) createSchema(schemaKey *aerospike.Key, version int, descriptio
 		"description": description,
 	}
 
-	// Never expire the schema info
-	writePolicy := aerospike.NewWritePolicy(0, 0)
+	// A TTL of zero is the namespace default, not "never", so the bookkeeping quietly expired on namespaces with one.
+	writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 
 	// Store in Aerospike
 	err := s.client.Put(writePolicy, schemaKey, bins)
@@ -160,8 +200,8 @@ func (s *Storage) updateSchema(schemaKey *aerospike.Key, version int, descriptio
 		"description": description,
 	}
 
-	// Never expire the schema info
-	writePolicy := aerospike.NewWritePolicy(0, 0)
+	// Never expire the schema info, see createSchema.
+	writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
 
 	// Store in Aerospike
 	err := s.client.Put(writePolicy, schemaKey, bins)
@@ -196,6 +236,10 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return nil, err
@@ -217,28 +261,40 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return data, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	// The storage interface documents an empty key or value as ignored without error.
+	if len(key) == 0 || len(val) == 0 {
+		return nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err
 	}
 
-	expiration := s.expiration
-	if exp != 0 {
-		expiration = exp
+	// Zero and negative both mean no expiration, which Aerospike spells with a sentinel.
+	if exp <= 0 {
+		writePolicy := aerospike.NewWritePolicy(0, aerospike.TTLDontExpire)
+		return s.client.Put(writePolicy, k, aerospike.BinMap{"value": val})
 	}
 
-	// Convert to seconds with a minimum of 1
-	ttl := uint32(expiration.Seconds())
-	if ttl < 1 {
-		ttl = 1
+	// Round up to whole seconds, and stop below the two uint32 values Aerospike reserves.
+	const maxTTL = math.MaxUint32 - 2
+
+	secs := int64(exp / time.Second)
+	if exp%time.Second != 0 {
+		secs++
 	}
+	ttl := uint32(min(secs, maxTTL)) //nolint:gosec // clamped to the uint32 range above
 
 	writePolicy := aerospike.NewWritePolicy(0, ttl)
 	bins := aerospike.BinMap{
@@ -248,13 +304,20 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	return s.client.Put(writePolicy, k, bins)
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
 // Delete key
 func (s *Storage) Delete(key string) error {
+	if len(key) == 0 {
+		return nil
+	}
+
 	k, err := aerospike.NewKey(s.namespace, s.setName, key)
 	if err != nil {
 		return err
@@ -264,20 +327,23 @@ func (s *Storage) Delete(key string) error {
 	return err
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
 // Reset all keys
 func (s *Storage) Reset() error {
-	// Use ScanAll which returns a Recordset
+	// The bookkeeping record is in its own set, untouched by this scan, so every record here is the caller's.
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
 
-	recordset, err := s.client.ScanAll(scanPolicy, s.namespace, s.setName)
-	if err != nil {
-		return err
+	recordset, scanErr := s.client.ScanAll(scanPolicy, s.namespace, s.setName)
+	if scanErr != nil {
+		return scanErr
 	}
 
 	// Ensure recordset is closed when we're done
@@ -290,32 +356,35 @@ func (s *Storage) Reset() error {
 	// Create a write policy for deletes
 	writePolicy := aerospike.NewWritePolicy(0, 0)
 
-	// Iterate through all records and delete them
+	// Collected rather than swallowed: New calls Reset, and a silent nil would leave stale keys behind.
+	var errs []error
 	for result := range recordset.Results() {
 		if result.Err != nil {
-			// Log the error but continue with other records
-			log.Printf("Error scanning: %v\n", result.Err)
+			errs = append(errs, result.Err)
 			continue
 		}
 
 		// Delete the record
-		_, err = s.client.Delete(writePolicy, result.Record.Key)
-		if err != nil {
-			// Log the error but continue with other records
-			log.Printf("Error deleting key %v: %v\n", result.Record.Key, err)
+		if _, err := s.client.Delete(writePolicy, result.Record.Key); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close the storage
+// Close the storage. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
-	s.client.Close()
+	s.closeOnce.Do(func() {
+		s.client.Close()
+	})
 	return nil
 }

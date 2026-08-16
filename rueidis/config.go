@@ -90,6 +90,13 @@ type Config struct {
 	// Optional. The default is true
 	AlwaysPipelining bool
 
+	// DisableAlwaysPipelining turns AlwaysPipelining off. That field defaults to
+	// true and a zero value reads as "not set", so setting it false does nothing;
+	// this is the way to disable it, matching DisableRetry and DisableCache.
+	//
+	// Optional. Default is false
+	DisableAlwaysPipelining bool
+
 	// Reset clears any existing keys in existing Collection
 	//
 	// Optional. Default is false
@@ -103,24 +110,25 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Username:            "",
-	Password:            "",
-	ClientName:          "",
-	URL:                 "",
-	SelectDB:            0,
-	InitAddress:         []string{"127.0.0.1:6379"},
-	TLSConfig:           nil,
-	CacheSizeEachConn:   rueidis.DefaultCacheBytes,
-	RingScaleEachConn:   rueidis.DefaultRingScale,
-	ReadBufferEachConn:  rueidis.DefaultReadBuffer,
-	WriteBufferEachConn: rueidis.DefaultWriteBuffer,
-	BlockingPoolSize:    rueidis.DefaultPoolSize,
-	PipelineMultiplex:   2,
-	DisableRetry:        false,
-	DisableCache:        false,
-	AlwaysPipelining:    true,
-	Reset:               false,
-	CacheTTL:            time.Minute,
+	Username:                "",
+	Password:                "",
+	ClientName:              "",
+	URL:                     "",
+	SelectDB:                0,
+	InitAddress:             []string{"127.0.0.1:6379"},
+	TLSConfig:               nil,
+	CacheSizeEachConn:       rueidis.DefaultCacheBytes,
+	RingScaleEachConn:       rueidis.DefaultRingScale,
+	ReadBufferEachConn:      rueidis.DefaultReadBuffer,
+	WriteBufferEachConn:     rueidis.DefaultWriteBuffer,
+	BlockingPoolSize:        rueidis.DefaultPoolSize,
+	PipelineMultiplex:       2,
+	DisableRetry:            false,
+	DisableCache:            false,
+	AlwaysPipelining:        true,
+	DisableAlwaysPipelining: false,
+	Reset:                   false,
+	CacheTTL:                time.Minute,
 }
 
 // Helper function to set default values
@@ -175,7 +183,10 @@ func configDefault(config ...Config) Config {
 	if userConfig.PipelineMultiplex != 0 {
 		cfg.PipelineMultiplex = userConfig.PipelineMultiplex
 	}
-	if userConfig.CacheTTL != time.Second {
+	// Only a positive value overrides: the check used to be "!= time.Second",
+	// so a caller who left CacheTTL unset had it forced to zero and lost
+	// client-side caching entirely.
+	if userConfig.CacheTTL > 0 {
 		cfg.CacheTTL = userConfig.CacheTTL
 	}
 	if userConfig.DisableRetry {
@@ -186,8 +197,10 @@ func configDefault(config ...Config) Config {
 		cfg.DisableCache = true
 	}
 
-	if userConfig.AlwaysPipelining {
-		cfg.AlwaysPipelining = true
+	// A zero value cannot say "off" for an option that defaults to on, so
+	// disabling it has its own field.
+	if userConfig.DisableAlwaysPipelining {
+		cfg.AlwaysPipelining = false
 	}
 
 	if userConfig.Reset {

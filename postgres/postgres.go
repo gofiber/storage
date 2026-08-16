@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,8 +17,11 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *pgxpool.Pool
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
 
 	sqlSelect string
 	sqlInsert string
@@ -77,18 +81,26 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection
+	// A caller-supplied pool stays theirs to close, even when initialization fails.
 	var err error
 	db := cfg.DB
-	if db == nil {
+	ownsDB := db == nil
+	if ownsDB {
 		db, err = pgxpool.New(ctx, cfg.getDSN())
 		if err != nil {
 			panic(err)
 		}
 	}
 
+	closeOwned := func() {
+		if ownsDB {
+			db.Close()
+		}
+	}
+
 	// Ping database
 	if err := db.Ping(ctx); err != nil {
+		closeOwned()
 		panic(err)
 	}
 
@@ -105,7 +117,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Drop table if set to true
 	if cfg.Reset {
 		if _, err := db.Exec(ctx, fmt.Sprintf(dropQuery, fullTableName)); err != nil {
-			db.Close()
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -115,7 +127,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	row := db.QueryRow(ctx, checkTableExistsQuery, schema, tableName)
 	var count int
 	if err := row.Scan(&count); err != nil {
-		db.Close()
+		closeOwned()
 		panic(err)
 	}
 	tableExists = count > 0
@@ -127,7 +139,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 			fmt.Sprintf(createIndexQuery, indexName, fullTableName),
 		} {
 			if _, err := db.Exec(ctx, query); err != nil {
-				db.Close()
+				closeOwned()
 				panic(err)
 			}
 		}
@@ -137,16 +149,12 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		const kTypeQuery = `SELECT data_type FROM information_schema.columns
 			WHERE table_schema = $1 AND table_name = $2 AND column_name = 'k';`
 		if err := db.QueryRow(ctx, kTypeQuery, schema, tableName).Scan(&kDataType); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			if cfg.DB == nil {
-				db.Close()
-			}
+			closeOwned()
 			panic(err)
 		}
 		if kDataType == "character varying" {
 			if _, err := db.Exec(ctx, fmt.Sprintf(migrateKeyColumnQuery, fullTableName)); err != nil {
-				if cfg.DB == nil {
-					db.Close()
-				}
+				closeOwned()
 				panic(err)
 			}
 		}
@@ -155,8 +163,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Create storage
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=$1;`, fullTableName),
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES ($1, $2, $3) ON CONFLICT (k) DO UPDATE SET v = $4, e = $5", fullTableName),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=$1", fullTableName),
@@ -164,7 +174,16 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= $1 AND e != 0", fullTableName),
 	}
 
-	store.checkSchema(ctx, cfg.Table)
+	// checkSchema panics on a mismatch, so release a pool this driver opened on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				closeOwned()
+				panic(r)
+			}
+		}()
+		store.checkSchema(ctx, cfg.Table)
+	}()
 
 	// Start garbage collector
 	go store.gcTicker()
@@ -210,8 +229,13 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expSeconds int64
-	if exp != 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	_, err := s.db.Exec(ctx, s.sqlInsert, key, val, expSeconds, val, expSeconds)
 	return err
@@ -248,11 +272,15 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close stops the collector and closes the pool unless it came from Config.DB; safe to call more than once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	s.db.Stat()
-	s.db.Close()
+	s.closeOnce.Do(func() {
+		close(s.done)
+		<-s.stopped
+		if s.ownsDB {
+			s.db.Close()
+		}
+	})
 	return nil
 }
 
@@ -263,6 +291,16 @@ func (s *Storage) Conn() *pgxpool.Pool {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -270,14 +308,14 @@ func (s *Storage) gcTicker() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			s.gc(t)
+			s.gc(ctx, t)
 		}
 	}
 }
 
 // gc deletes all expired entries
-func (s *Storage) gc(t time.Time) {
-	_, _ = s.db.Exec(context.Background(), s.sqlGC, t.Unix())
+func (s *Storage) gc(ctx context.Context, t time.Time) {
+	_, _ = s.db.Exec(ctx, s.sqlGC, t.Unix())
 }
 
 func (s *Storage) checkSchema(ctx context.Context, fullTableName string) {

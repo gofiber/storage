@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
+	"unicode"
 
 	"github.com/gocql/gocql"
 )
@@ -19,6 +21,9 @@ type Storage struct {
 	insertQuery string
 	deleteQuery string
 	resetQuery  string
+
+	ownsSession bool
+	closeOnce   sync.Once
 }
 
 var (
@@ -35,6 +40,28 @@ var (
 	resetQuery          = `TRUNCATE %s.%s`
 )
 
+// validateIdentifier checks name is safe to interpolate: CQL cannot bind a keyspace or table as a placeholder.
+func validateIdentifier(name, identifierType string) error {
+	if name == "" {
+		return fmt.Errorf("scylladb: invalid %s name: cannot be empty", identifierType)
+	}
+
+	for i, r := range name {
+		if r > unicode.MaxASCII {
+			return fmt.Errorf("scylladb: invalid %s name: cannot contain unicode characters", identifierType)
+		}
+		// An unquoted CQL identifier is [a-zA-Z][a-zA-Z0-9_]*, so a leading digit would pass here and fail on the server.
+		if i == 0 && !unicode.IsLetter(r) {
+			return fmt.Errorf("scylladb: invalid %s name %q: must start with a letter", identifierType, name)
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+			return fmt.Errorf("scylladb: invalid %s name %q: can only contain letters, numbers, and underscores", identifierType, name)
+		}
+	}
+
+	return nil
+}
+
 // New creates a new storage
 func New(config ...Config) *Storage {
 	var err error
@@ -45,6 +72,14 @@ func New(config ...Config) *Storage {
 
 	if len(strings.TrimSpace(cfg.Keyspace)) == 0 {
 		panic(errKeyspace)
+	}
+
+	// Both names are interpolated into every statement below, so check them before any are built.
+	if err := validateIdentifier(cfg.Keyspace, "keyspace"); err != nil {
+		panic(err)
+	}
+	if err := validateIdentifier(cfg.Table, "table"); err != nil {
+		panic(err)
 	}
 
 	if cfg.Session == nil {
@@ -77,16 +112,24 @@ func New(config ...Config) *Storage {
 		session = cfg.Session
 	}
 
+	// A caller-supplied session stays theirs to close, even when initialization fails.
+	ownsSession := cfg.Session == nil
+	closeOwned := func() {
+		if ownsSession {
+			session.Close()
+		}
+	}
+
 	// Create keyspace if it does not exist
 	if err = session.Query(fmt.Sprintf(createKeyspaceQuery, cfg.Keyspace)).Exec(); err != nil {
-		session.Close()
+		closeOwned()
 		panic(err)
 	}
 
 	// Drop table if reset is true
 	if cfg.Reset {
 		if err = session.Query(fmt.Sprintf(dropQuery, cfg.Keyspace, cfg.Table)).Exec(); err != nil {
-			session.Close()
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -94,6 +137,7 @@ func New(config ...Config) *Storage {
 	// Create the storage
 	store := &Storage{
 		session:     session,
+		ownsSession: ownsSession,
 		tableName:   cfg.Table,
 		selectQuery: fmt.Sprintf(selectQuery, cfg.Keyspace, cfg.Table),
 		insertQuery: fmt.Sprintf(insertQuery, cfg.Keyspace, cfg.Table),
@@ -103,12 +147,20 @@ func New(config ...Config) *Storage {
 
 	// Create table if not exists
 	if err = store.createTableIfNotExists(cfg.Keyspace); err != nil {
-		session.Close()
+		closeOwned()
 		panic(err)
 	}
 
-	// Check schema
-	store.checkSchema(cfg.Keyspace)
+	// checkSchema panics on a mismatch, so release a session this driver opened on the way out.
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				closeOwned()
+				panic(r)
+			}
+		}()
+		store.checkSchema(cfg.Keyspace)
+	}()
 
 	return store // Return storage
 }
@@ -152,11 +204,24 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	return s.GetWithContext(context.Background(), key)
 }
 
+// maxTTLSeconds is the largest TTL ScyllaDB accepts, 20 years, which also fits a 32 bit int.
+const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
+
 // SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
+	// An empty key or value is ignored; storing one persisted a row nothing could read back.
+	if len(key) == 0 || len(value) == 0 {
+		return nil
+	}
+
 	var expiration int
-	if expire != 0 {
-		expiration = int(expire.Round(time.Second).Seconds())
+	if expire > 0 {
+		// TTLs are whole seconds and 0 means "no TTL", so round up, clamped as int64 against a 32 bit int.
+		secs := int64(expire / time.Second)
+		if expire%time.Second != 0 {
+			secs++
+		}
+		expiration = int(min(secs, maxTTLSeconds))
 	}
 	return s.session.Query(s.insertQuery, key, value, expiration).WithContext(ctx).Exec()
 }
@@ -186,9 +251,13 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close closes the storage
+// Close closes the session unless it came from Config.Session; safe to call more than once.
 func (s *Storage) Close() error {
-	s.session.Close()
+	s.closeOnce.Do(func() {
+		if s.ownsSession {
+			s.session.Close()
+		}
+	})
 	return nil
 }
 

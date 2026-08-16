@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -14,6 +15,10 @@ type Storage struct {
 	db         *sql.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	sqlSelect string
 	sqlInsert string
@@ -52,6 +57,7 @@ func New(config ...Config) *Storage {
 
 	// Ping database
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		panic(err)
 	}
 
@@ -76,6 +82,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 		sqlSelect:  fmt.Sprintf(`SELECT v, e FROM %s WHERE k=?;`, cfg.Table),
 		sqlInsert:  fmt.Sprintf("INSERT OR REPLACE INTO %s (k, v, e) VALUES (?,?,?)", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
@@ -126,8 +133,13 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expSeconds int64
-	if exp != 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds)
 	return err
@@ -164,14 +176,39 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	return s.db.Close()
+	s.stopOnce.Do(func() {
+		close(s.done)
+		<-s.stopped
+	})
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Latched even on failure: database/sql marks itself closed first, so a retry would report a success that never happened.
+	err := s.db.Close()
+	s.closed = true
+
+	return err
 }
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -179,14 +216,14 @@ func (s *Storage) gcTicker() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			s.gc(t)
+			s.gc(ctx, t)
 		}
 	}
 }
 
 // gc deletes all expired entries
-func (s *Storage) gc(t time.Time) {
-	_, _ = s.db.Exec(s.sqlGC, t.Unix())
+func (s *Storage) gc(ctx context.Context, t time.Time) {
+	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
 }
 
 // Return database client

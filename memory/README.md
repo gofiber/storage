@@ -34,7 +34,11 @@ func (s *Storage) Conn() map[string]entry
 func (s *Storage) Keys() ([][]byte, error)
 ```
 
-**Note:** The context methods are dummy methods and don't have any functionality, as memory storage does not support context cancellation. They are provided for compliance with the Fiber storage interface.
+**Note:** `Conn` returns a snapshot copy of the stored entries rather than the live map, so reading it cannot race the garbage collector. Writing to the returned map does not affect the storage.
+
+**Note:** Expirations are stored with nanosecond precision, so an entry stays readable for exactly the duration given, no matter how short. Expired entries are reclaimed by a garbage collector that runs on `GCInterval`, but a `Get` never returns one that is past its expiration.
+
+**Note:** memory storage has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
 Memory is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

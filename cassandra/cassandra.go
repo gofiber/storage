@@ -2,8 +2,10 @@ package cassandra
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -13,20 +15,20 @@ import (
 )
 
 var (
-	// ErrNotFound is returned when the key does not exist
+	// Deprecated: Get reports a miss as nil, nil per the storage interface; kept so callers still compile.
 	ErrNotFound = fmt.Errorf("key not found")
-	// ErrKeyExpired is returned when the key has expired
+	// Deprecated: Get reports an expired entry as a miss, nil, nil; kept so callers still compile.
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
 // Storage represents a Cassandra storage implementation
 type Storage struct {
-	cluster  *gocql.ClusterConfig
-	session  *gocql.Session
-	sx       gocqlx.Session
-	keyspace string
-	table    string
-	ttl      int
+	cluster   *gocql.ClusterConfig
+	session   *gocql.Session
+	sx        gocqlx.Session
+	keyspace  string
+	table     string
+	closeOnce sync.Once
 }
 
 // validateIdentifier checks if an identifier is valid
@@ -89,21 +91,11 @@ func New(cnfg Config) (*Storage, error) {
 	cluster.ConnectTimeout = cfg.ConnectTimeout
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: cfg.MaxRetries}
 
-	// Convert expiration to seconds for TTL
-	ttl := 0
-	if cfg.Expiration > 0 {
-		ttl = int(cfg.Expiration.Seconds())
-	} else if cfg.Expiration < 0 {
-		// Expiration < 0 means indefinite storage
-		cfg.Expiration = 0
-	}
-
 	// Create storage instance
 	storage := &Storage{
 		cluster:  cluster,
 		keyspace: keyspace,
 		table:    table,
-		ttl:      ttl,
 	}
 
 	// Initialize keyspace
@@ -145,15 +137,23 @@ func (s *Storage) createOrVerifyKeySpace(reset bool) error {
 	s.session = session
 	s.sx = gocqlx.NewSession(session)
 
+	// New returns nil when this fails, so nothing can close the session afterwards; release it here.
+	closeOwned := func() {
+		session.Close()
+		s.session = nil
+	}
+
 	// Drop tables if reset is requested
 	if reset {
 		if err := s.dropTables(); err != nil {
+			closeOwned()
 			return err
 		}
 	}
 
 	// Create data table if necessary
 	if err := s.createDataTable(); err != nil {
+		closeOwned()
 		return err
 	}
 
@@ -219,29 +219,37 @@ type queryResult struct {
 	ExpiresAt time.Time `db:"expires_at"`
 }
 
+// maxTTLSeconds is the largest TTL Cassandra accepts, 20 years, which also fits a 32 bit int.
+const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
+
+// ttlSeconds rounds d up to whole seconds: a TTL of 0 means "no TTL", so truncating would disable expiry.
+func ttlSeconds(d time.Duration) int {
+	// Computed as int64 and clamped: int is 32 bit on some builds, and Cassandra rejects more anyway.
+	secs := int64(d / time.Second)
+	if d%time.Second != 0 {
+		secs++
+	}
+	return int(min(secs, maxTTLSeconds))
+}
+
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
-	// Validate key
-	if _, err := validateIdentifier(key, "key"); err != nil {
-		return err
+	// An empty key or value is ignored; the key is a bound parameter, so validating it only rejected ordinary keys.
+	if len(key) == 0 || len(value) == 0 {
+		return nil
 	}
 
 	// Calculate expiration time
 	var expiresAt *time.Time
 	var ttl int
 
+	// An expiration at or below zero means none, so the configured default is not substituted here.
 	if exp > 0 {
-		// Specific expiration provided
-		ttl = int(exp.Seconds())
-		t := time.Now().Add(exp)
-		expiresAt = &t
-	} else if exp == 0 && s.ttl > 0 {
-		// Use default TTL from config
-		ttl = s.ttl
-		t := time.Now().Add(time.Duration(s.ttl) * time.Second)
+		// Derive both from the clamped TTL, so the column and Cassandra's own expiry cannot disagree.
+		ttl = ttlSeconds(exp)
+		t := time.Now().Add(time.Duration(ttl) * time.Second)
 		expiresAt = &t
 	}
-	// If exp == 0 and s.ttl == 0, no TTL will be set (live forever)
 
 	// Use query builder for insert
 	stmt, names := qb.Insert(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
@@ -278,19 +286,16 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
 		"key": key,
 	}).WithContext(ctx).GetRelease(&result); err != nil {
-		if err == gocql.ErrNotFound {
-			return nil, ErrNotFound
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, nil
 		}
 		return nil, err
 	}
 
 	// Check if the key has expired
 	if !result.ExpiresAt.IsZero() && time.Now().After(result.ExpiresAt) {
-		// Delete the expired key
-		if err := s.Delete(key); err != nil {
-			return nil, err
-		}
-		return nil, ErrKeyExpired
+		// Not deleted here: that would drop a concurrent Set, and the TTL reclaims the row anyway.
+		return nil, nil
 	}
 
 	return result.Value, nil
@@ -338,10 +343,12 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the storage connection.
-// This method is not thread-safe and should not be called concurrently with other methods.
-func (s *Storage) Close() {
-	if s.session != nil {
-		s.session.Close()
-	}
+// Close closes the session once; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
+func (s *Storage) Close() error {
+	s.closeOnce.Do(func() {
+		if s.session != nil {
+			s.session.Close()
+		}
+	})
+	return nil
 }

@@ -94,7 +94,7 @@ func configDefault(config ...Config) Config {
 		cfg.Node = ConfigDefault.Node
 	}
 
-	if int(cfg.GCInterval.Seconds()) <= 0 {
+	if cfg.GCInterval <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 

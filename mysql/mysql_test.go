@@ -118,7 +118,8 @@ func Test_MYSQL_GC(t *testing.T) {
 	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	// The deadline rounds up to a whole second, so collect as of a moment safely past it.
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, sql.ErrNoRows, err)
@@ -127,7 +128,7 @@ func Test_MYSQL_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	val, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, val)
@@ -201,4 +202,13 @@ func Benchmark_MYSQL_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_MySQL_Close_Twice(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.NoError(t, testStore.Close())
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
 }

@@ -2,12 +2,17 @@ package memory
 
 import (
 	"context"
+	"errors"
+	"maps"
+	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/gofiber/storage/memory/v2/internal"
 )
+
+// ErrClosed is returned after Close: a Set landing afterwards would never be reclaimed.
+var ErrClosed = errors.New("memory: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -15,11 +20,27 @@ type Storage struct {
 	db         map[string]entry
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
+
+	closed atomic.Bool
 }
 
 type entry struct {
-	data   []byte
-	expiry uint32 // max value is 4294967295 -> Sun Feb 07 2106 06:28:15 GMT+0000
+	data []byte
+
+	// expiry is the Unix nanosecond the entry expires at, 0 meaning never.
+	expiry int64
+}
+
+// expired reports whether e is past its expiration. The guard is repeated so the clock is read only for entries that have one.
+func (e entry) expired() bool {
+	return e.expiry != 0 && e.expiredAt(time.Now().UnixNano())
+}
+
+// expiredAt reports whether e is expired as of now in Unix nanoseconds, so sweeps read the clock once.
+func (e entry) expiredAt(now int64) bool {
+	return e.expiry != 0 && e.expiry <= now
 }
 
 // New creates a new memory storage
@@ -32,10 +53,10 @@ func New(config ...Config) *Storage {
 		db:         make(map[string]entry),
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 
 	// Start garbage collector
-	internal.StartTimeStampUpdater()
 	go store.gc()
 
 	return store
@@ -43,53 +64,74 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
 	s.mux.RLock()
 	v, ok := s.db[key]
 	s.mux.RUnlock()
-	if !ok || (v.expiry != 0 && v.expiry <= atomic.LoadUint32(&internal.Timestamp)) {
+	if !ok || v.expired() {
 		return nil, nil
 	}
 
-// Return a copy to prevent callers from mutating stored data
-valCopy := make([]byte, len(v.data))
-copy(valCopy, v.data)
-return valCopy, nil
+	return cloneBytes(v.data), nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
-	var expire uint32
-// Copy both key and value to avoid unsafe reuse from sync.Pool
-// When Fiber uses pooled buffers, the underlying memory can be reused
-keyCopy := string([]byte(key))
-valCopy := make([]byte, len(val))
-copy(valCopy, val)
+	var expire int64
 
-	if exp != 0 {
-		expire = uint32(exp.Seconds()) + atomic.LoadUint32(&internal.Timestamp)
+	// Copy key and value: Fiber's pooled buffers may be reused once the call returns.
+	keyCopy := strings.Clone(key)
+	valCopy := cloneBytes(val)
+
+	// A negative expiration means none rather than a deadline in the past, as the other drivers read it.
+	if exp > 0 {
+		// Computed in nanoseconds so a deadline past the year 2262 saturates instead of wrapping negative.
+		expire = time.Now().UnixNano()
+		if int64(exp) > math.MaxInt64-expire {
+			expire = math.MaxInt64
+		} else {
+			expire += int64(exp)
+		}
 	}
 
 	e := entry{valCopy, expire}
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	// Re-checked under the lock: the check above can pass just before Close, leaving an entry nothing can reclaim.
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	s.db[keyCopy] = e
-	s.mux.Unlock()
 	return nil
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -99,37 +141,68 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	delete(s.db, key)
-	s.mux.Unlock()
 	return nil
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	ndb := make(map[string]entry)
 	s.mux.Lock()
+	defer s.mux.Unlock()
+
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
 	s.db = ndb
-	s.mux.Unlock()
 	return nil
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close the memory storage
+// Close the storage. Safe to call more than once; afterwards every operation returns ErrClosed.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
+	s.closeOnce.Do(func() {
+		// Held only to publish the flag, so an operation either completes before this or sees the storage closed.
+		s.mux.Lock()
+		s.closed.Store(true)
+		s.mux.Unlock()
+
+		// Released before waiting: the collector takes the same lock, so holding it would deadlock the handshake.
+		close(s.done)
+		// Wait for the collector to return so it no longer touches the map.
+		<-s.stopped
+	})
 	return nil
 }
 
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	var expired []string
@@ -139,19 +212,18 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			ts := atomic.LoadUint32(&internal.Timestamp)
+			now := time.Now().UnixNano()
 			expired = expired[:0]
 			s.mux.RLock()
 			for id, v := range s.db {
-				if v.expiry != 0 && v.expiry < ts {
+				if v.expiredAt(now) {
 					expired = append(expired, id)
 				}
 			}
 			s.mux.RUnlock()
 			s.mux.Lock()
 			for i := range expired {
-				v := s.db[expired[i]]
-				if v.expiry != 0 && v.expiry <= ts {
+				if s.db[expired[i]].expiredAt(now) {
 					delete(s.db, expired[i])
 				}
 			}
@@ -160,15 +232,20 @@ func (s *Storage) gc() {
 	}
 }
 
-// Conn returns database client
+// Conn returns a copy of the stored entries; the live map raced the collector.
 func (s *Storage) Conn() map[string]entry {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
-	return s.db
+
+	return maps.Clone(s.db)
 }
 
 // Keys returns all the keys
 func (s *Storage) Keys() ([][]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
+
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 
@@ -176,10 +253,10 @@ func (s *Storage) Keys() ([][]byte, error) {
 		return nil, nil
 	}
 
-	ts := atomic.LoadUint32(&internal.Timestamp)
+	now := time.Now().UnixNano()
 	keys := make([][]byte, 0, len(s.db))
 	for key, v := range s.db {
-		if v.expiry == 0 || v.expiry > ts {
+		if !v.expiredAt(now) {
 			keys = append(keys, []byte(key))
 		}
 	}
@@ -189,4 +266,18 @@ func (s *Storage) Keys() ([][]byte, error) {
 	}
 
 	return keys, nil
+}
+
+// cloneBytes returns a copy of b sized exactly to it.
+//
+// bytes.Clone appends to an empty slice, so growslice rounds the capacity up to
+// the next size class: a 3-byte value allocates 8. Get and Set are hot enough
+// for that rounding, and the extra call, to show up.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }

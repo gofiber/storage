@@ -2,7 +2,10 @@ package arangodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/arangodb/go-driver"
@@ -10,20 +13,32 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
+// errClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
+var errClosed = errors.New("arangodb: storage is closed")
+
+// isDocumentNotFound matches 1202 only: any 404 would also swallow a dropped collection, leaving the storage a silent miss forever.
+func isDocumentNotFound(err error) bool {
+	return driver.IsArangoErrorWithErrorNum(err, driver.ErrArangoDocumentNotFound)
+}
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         driver.Database
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	closeOnce  sync.Once
+
+	closed atomic.Bool
 
 	// Arango mandatory fields
-	connection    driver.Connection
-	client        driver.Client
-	collection    driver.Collection
-	bindingParams map[string]interface{}
-	config        Config
+	connection     driver.Connection
+	client         driver.Client
+	collection     driver.Collection
+	collectionName string
 	// AQL query used to remove expired keys
 	aqlRemoveGC string
+	aqlUpsert   string
 }
 
 type model struct {
@@ -110,14 +125,18 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 	// Create storage
 	store := &Storage{
-		gcInterval:  cfg.GCInterval,
-		db:          database,
-		collection:  collection,
-		client:      client,
-		connection:  conn,
-		config:      cfg,
-		done:        make(chan struct{}),
-		aqlRemoveGC: fmt.Sprintf("FOR doc IN %s\n  FILTER doc.exp <= @exp \n REMOVE { _key: doc._key } IN %s", collection.Name(), collection.Name()),
+		gcInterval:     cfg.GCInterval,
+		db:             database,
+		collection:     collection,
+		client:         client,
+		connection:     conn,
+		done:           make(chan struct{}),
+		stopped:        make(chan struct{}),
+		collectionName: collection.Name(),
+		// doc.exp == 0 never expires and must be excluded, or the sweep deletes every such key.
+		aqlRemoveGC: "FOR doc IN @@collection\n  FILTER doc.exp != 0 AND doc.exp <= @exp \n REMOVE { _key: doc._key } IN @@collection",
+		// One atomic statement: check-then-create left two concurrent writers racing into a conflict.
+		aqlUpsert: "UPSERT { _key: @key }\n INSERT { _key: @key, val: @val, exp: @exp }\n UPDATE { val: @val, exp: @exp }\n IN @@collection",
 	}
 
 	// Start garbage collector
@@ -132,23 +151,16 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	// Check if the document exists
-	// to avoid errors later
-	exists, err := s.collection.DocumentExists(ctx, key)
-	if err != nil {
-		return nil, err
+	if s.closed.Load() {
+		return nil, errClosed
 	}
 
-	// instead of returning an error if not exists
-	// return nil
-	if !exists {
-		return nil, nil
-	}
-
-	// result model
+	// Read straight away: checking existence first turned a concurrent delete into an error rather than a miss.
 	var model model
-	_, err = s.collection.ReadDocument(ctx, key, &model)
-	if err != nil {
+	if _, err := s.collection.ReadDocument(ctx, key, &model); err != nil {
+		if isDocumentNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	// If the expiration time has already passed, then return nil
@@ -170,34 +182,25 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+
+	if s.closed.Load() {
+		return errClosed
+	}
+
 	var expireAt int64
-	if exp != 0 {
-		expireAt = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
 	}
-	valStr := utils.UnsafeString(val)
-
-	// create the structure for the storage
-	data := model{
-		Key: key,
-		Val: valStr,
-		Exp: expireAt,
-	}
-
-	// Arango does not support documents with the same key
-	// So we need to check if the document exists
-	exists, err := s.collection.DocumentExists(ctx, key)
-	if err != nil {
-		return err
-	}
-	// Update the document if exists
-	if exists {
-		_, err = s.collection.UpdateDocument(ctx, key, data)
-		return err
-	}
-	// Otherwise create it
-	_, err = s.collection.CreateDocument(ctx, data)
-
-	return err
+	return s.exec(ctx, s.aqlUpsert, map[string]interface{}{
+		"key": key,
+		"val": utils.UnsafeString(val),
+		"exp": expireAt,
+	})
 }
 
 // Set key with value
@@ -211,8 +214,16 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	_, err := s.collection.RemoveDocument(ctx, key)
-	return err
+
+	if s.closed.Load() {
+		return errClosed
+	}
+
+	// A missing key is a miss everywhere else in the interface, and ArangoDB's 1202 is exactly that.
+	if _, err := s.collection.RemoveDocument(ctx, key); err != nil && !isDocumentNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 // Delete value by key
@@ -222,6 +233,10 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with given context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return errClosed
+	}
+
 	return s.collection.Truncate(ctx)
 }
 
@@ -231,35 +246,42 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
-// Arango does not provide a method to close the connection
-// more info @https://github.com/arangodb/go-driver/issues/43
+// Close stops the collector; Arango has no connection close, see https://github.com/arangodb/go-driver/issues/43
 func (s *Storage) Close() error {
-	// Stop gc
-	s.done <- struct{}{}
-	// reset connection params
-	s.db = nil
-	s.collection = nil
-	s.connection = nil
-	s.bindingParams = nil
+	s.closeOnce.Do(func() {
+		close(s.done)
+		<-s.stopped
+
+		// Mark closed rather than clearing the connection fields, which raced calls in flight into a nil dereference.
+		s.closed.Store(true)
+	})
 
 	return nil
 }
 
-// execute query
-func (s *Storage) exec(query string) error {
-	// execute query
-	_, err := s.db.Query(context.Background(), query, s.bindingParams)
+// exec takes bindVars rather than holding them on the Storage, where they raced and crashed the first sweep.
+func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
+	bindVars["@collection"] = s.collectionName
+
+	cursor, err := s.db.Query(ctx, query, bindVars)
 	if err != nil {
 		return err
 	}
-	// reset binding params
-	s.bindingParams = map[string]interface{}{}
-	return nil
+	return cursor.Close()
 }
 
 // Garbage collector to delete expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -267,9 +289,7 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			// set the expiration
-			s.bindingParams["exp"] = t.Unix()
-			_ = s.exec(s.aqlRemoveGC)
+			_ = s.exec(ctx, s.aqlRemoveGC, map[string]interface{}{"exp": t.Unix()})
 		}
 	}
 }

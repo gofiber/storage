@@ -3,6 +3,8 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,9 +12,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testStore = New(Config{
-	Reset: true,
-})
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "sqlite3-test")
+	if err != nil {
+		panic(err)
+	}
+
+	testStore = New(Config{
+		Database: filepath.Join(dir, "fiber.sqlite3"),
+		Reset:    true,
+	})
+
+	code := m.Run()
+
+	// os.Exit skips deferred cleanup, so release the database before removing its directory.
+	_ = testStore.Close()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
 
 func Test_SQLite3_Set(t *testing.T) {
 	var (
@@ -90,16 +109,22 @@ func Test_SQLite3_Set_Expiration(t *testing.T) {
 
 	err := testStore.Set(key, val, exp)
 	require.NoError(t, err)
-
-	time.Sleep(1100 * time.Millisecond)
 }
 
 func Test_SQLite3_Get_Expired(t *testing.T) {
 	key := "john"
 
-	result, err := testStore.Get(key)
-	require.NoError(t, err)
-	require.Zero(t, len(result))
+	// The deadline is stored in whole seconds and rounded up, so the entry may outlive it by one.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.False(t, time.Now().After(deadline), "key should expire")
+		if len(result) == 0 {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func Test_SQLite3_Get_NotExist(t *testing.T) {
@@ -193,11 +218,11 @@ func Test_SQLite3_ResetWithContext(t *testing.T) {
 func Test_SQLite3_GC(t *testing.T) {
 	testVal := []byte("doe")
 
-	// This key should expire
+	// Its deadline rounds up to a whole second, so collect as of a moment safely past it.
 	err := testStore.Set("john", testVal, time.Nanosecond)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
 	row := testStore.db.QueryRow(testStore.sqlSelect, "john")
 	err = row.Scan(nil, nil)
 	require.Equal(t, sql.ErrNoRows, err)
@@ -206,7 +231,7 @@ func Test_SQLite3_GC(t *testing.T) {
 	err = testStore.Set("john", testVal, 0)
 	require.NoError(t, err)
 
-	testStore.gc(time.Now())
+	testStore.gc(context.Background(), time.Now())
 	val, err := testStore.Get("john")
 	require.NoError(t, err)
 	require.Equal(t, testVal, val)
@@ -268,4 +293,33 @@ func Benchmark_SQLite3_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
+	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
+	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
+
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
+	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
+}
+
+func Test_SQLite3_Close_Twice(t *testing.T) {
+	store := New(Config{Database: filepath.Join(t.TempDir(), "close.sqlite3"), Reset: true})
+
+	require.NoError(t, store.Close())
+	require.NotPanics(t, func() {
+		require.NoError(t, store.Close())
+	})
+}
+
+func Test_SQLite3_Set_Sub_Second_Expiration(t *testing.T) {
+	store := New(Config{Database: filepath.Join(t.TempDir(), "exp.sqlite3"), Reset: true})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// The deadline is stored in whole seconds, so a sub-second expiration must round up.
+	require.NoError(t, store.Set("john", []byte("doe"), 100*time.Millisecond))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result, "key expired before its expiration")
 }

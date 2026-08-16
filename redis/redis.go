@@ -2,18 +2,28 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("redis: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	db redis.UniversalClient
+	db      redis.UniversalClient
+	ownsDB  bool
+	closeMu sync.Mutex
+	closed  atomic.Bool
 }
 
-// NewFromConnection creates a new instance of Storage using the provided Redis universal client.
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
 func NewFromConnection(conn redis.UniversalClient) *Storage {
 	return &Storage{
 		db: conn,
@@ -71,26 +81,41 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		IsClusterMode:    cfg.IsClusterMode,
 	})
 
-	// Test connection
-	if err := db.Ping(ctx).Err(); err != nil {
-		panic(err)
+	closeOwned := func() { _ = db.Close() }
+
+	if !cfg.SkipConnectionCheck {
+		if err := db.Ping(ctx).Err(); err != nil {
+			closeOwned()
+			panic(err)
+		}
 	}
 
-	// Empty collection if Clear is true
-	if cfg.Reset {
-		if err := db.FlushDB(ctx).Err(); err != nil {
+	// Reset is skipped alongside the connection check, which exists so New makes no network call, but logged rather than dropped in silence.
+	switch {
+	case cfg.Reset && cfg.SkipConnectionCheck:
+		log.Println("redis: Reset skipped because SkipConnectionCheck is set; call Reset() once the storage is up to clear the database")
+	case cfg.Reset:
+		err := forEachNode(ctx, db, func(ctx context.Context, node redis.Cmdable) error {
+			return node.FlushDB(ctx).Err()
+		})
+		if err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
 
 	// Create new store
 	return &Storage{
-		db: db,
+		db:     db,
+		ownsDB: true,
 	}
 }
 
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -108,8 +133,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
+	}
+	// go-redis reads a negative expiration as KeepTTL, carrying the previous one over instead of clearing it.
+	if exp < 0 {
+		exp = 0
 	}
 	return s.db.Set(ctx, key, val, exp).Err()
 }
@@ -121,6 +153,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -134,7 +169,13 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	return s.db.FlushDB(ctx).Err()
+	if s.closed.Load() {
+		return ErrClosed
+	}
+
+	return s.forEachNode(ctx, func(ctx context.Context, node redis.Cmdable) error {
+		return node.FlushDB(ctx).Err()
+	})
 }
 
 // Reset all keys
@@ -142,9 +183,26 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close the database unless the client came from NewFromConnection; later operations report ErrClosed either way.
 func (s *Storage) Close() error {
-	return s.db.Close()
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed.Load() {
+		return nil
+	}
+
+	// A borrowed client is not ours to close, but the storage still is.
+	if !s.ownsDB {
+		s.closed.Store(true)
+		return nil
+	}
+
+	// Latched even on failure: the client's pools are already closed, so leaving the storage open would let later operations reach them instead of reporting ErrClosed.
+	err := s.db.Close()
+	s.closed.Store(true)
+
+	return err
 }
 
 // Return database client
@@ -154,14 +212,65 @@ func (s *Storage) Conn() redis.UniversalClient {
 
 // Return all the keys
 func (s *Storage) Keys() ([][]byte, error) {
-	var keys [][]byte
-	var cursor uint64
-	var err error
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
+
+	var (
+		mu   sync.Mutex
+		keys [][]byte
+	)
+
+	err := s.forEachNode(context.Background(), func(ctx context.Context, node redis.Cmdable) error {
+		nodeKeys, err := scanKeys(ctx, node)
+		if err != nil {
+			return err
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+		keys = append(keys, nodeKeys...)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	return keys, nil
+}
+
+func (s *Storage) forEachNode(ctx context.Context, fn func(context.Context, redis.Cmdable) error) error {
+	return forEachNode(ctx, s.db, fn)
+}
+
+// forEachNode runs fn against every master, since a cluster client scans one keyspace and sends a keyless command such as FLUSHDB to a single shard.
+func forEachNode(ctx context.Context, db redis.UniversalClient, fn func(context.Context, redis.Cmdable) error) error {
+	if cluster, ok := db.(*redis.ClusterClient); ok {
+		return cluster.ForEachMaster(ctx, func(ctx context.Context, shard *redis.Client) error {
+			return fn(ctx, shard)
+		})
+	}
+
+	return fn(ctx, db)
+}
+
+// scanKeys walks one node's keyspace.
+func scanKeys(ctx context.Context, client redis.Cmdable) ([][]byte, error) {
+	var (
+		keys   [][]byte
+		cursor uint64
+		err    error
+	)
 
 	for {
 		var batch []string
 
-		if batch, cursor, err = s.db.Scan(context.Background(), cursor, "*", 10).Result(); err != nil {
+		if batch, cursor, err = client.Scan(ctx, cursor, "*", 10).Result(); err != nil {
 			return nil, err
 		}
 
@@ -170,13 +279,7 @@ func (s *Storage) Keys() ([][]byte, error) {
 		}
 
 		if cursor == 0 {
-			break
+			return keys, nil
 		}
 	}
-
-	if len(keys) == 0 {
-		return nil, nil
-	}
-
-	return keys, nil
 }

@@ -2,6 +2,8 @@ package badger
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
@@ -13,6 +15,10 @@ type Storage struct {
 	db         *badger.DB
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 }
 
 // New creates a new memory storage
@@ -31,6 +37,8 @@ func New(config ...Config) *Storage {
 
 	if cfg.Reset {
 		if err := db.DropAll(); err != nil {
+			// Release the database, and with it the directory lock, rather than leaking both on the way out.
+			_ = db.Close()
 			panic(err)
 		}
 	}
@@ -40,6 +48,7 @@ func New(config ...Config) *Storage {
 		db:         db,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 	}
 
 	// Start garbage collector
@@ -67,15 +76,20 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return err
 	})
 	// If no value was found return false
-	if err == badger.ErrKeyNotFound {
+	if errors.Is(err, badger.ErrKeyNotFound) {
 		return nil, nil
 	}
-	return data, err
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-// GetWithContext gets value by key.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -87,17 +101,25 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	}
 
 	entry := badger.NewEntry(utils.UnsafeBytes(key), val)
-	if exp != 0 {
-		entry.WithTTL(exp)
+	if exp > 0 {
+		// WithTTL truncates the deadline to a whole second, so set the rounded up one instead.
+		deadline := time.Now().Add(exp)
+		secs := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			secs++
+		}
+		entry.ExpiresAt = uint64(secs) //nolint:gosec // a deadline is never negative
 	}
 	return s.db.Update(func(tx *badger.Txn) error {
 		return tx.SetEntry(entry)
 	})
 }
 
-// SetWithContext sets key with value.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -112,9 +134,11 @@ func (s *Storage) Delete(key string) error {
 	})
 }
 
-// DeleteWithContext deletes key by key.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
@@ -123,19 +147,39 @@ func (s *Storage) Reset() error {
 	return s.db.DropAll()
 }
 
-// ResetWithContext resets all keys.
-// Note: This method is not used in the current implementation, but is included to satisfy the Storage interface.
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	return s.db.DropAll()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.Reset()
 }
 
-// Close the memory storage
+// Close the database once, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
+// Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
-	return s.db.Close()
+	s.stopOnce.Do(func() {
+		close(s.done)
+		<-s.stopped
+	})
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Latched even on failure: Badger's own sync.Once already tore the database down, so a retry would report a success that never happened.
+	err := s.db.Close()
+	s.closed = true
+
+	return err
 }
 
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 

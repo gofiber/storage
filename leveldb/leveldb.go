@@ -1,15 +1,76 @@
 package leveldb
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"math"
+	"sync"
 	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// data structure for storing items in the database
+// envelopeVersion marks the JSON envelope earlier builds of this driver wrote, under a key a raw payload would not carry.
+const envelopeVersion = 1
+
+// envelopeBinaryVersion marks the framing this driver writes now. It continues the
+// same version sequence, so an entry from a newer driver reads as unknown whichever
+// encoding carries it.
+const envelopeBinaryVersion = 2
+
+// envelopeMagic marks entries in that framing. The leading NUL keeps it clear of
+// the JSON earlier builds wrote and of the text payloads this driver mostly holds.
+var envelopeMagic = [3]byte{0x00, 'F', 'S'}
+
+// envelopeHeaderLen is the magic, the version byte and the big-endian deadline.
+const envelopeHeaderLen = len(envelopeMagic) + 1 + 8
+
+// ErrUnknownEnvelope is returned for an entry written by a newer version of this driver.
+var ErrUnknownEnvelope = errors.New("leveldb: entry was written by a newer version of this driver")
+
+// ErrCorruptEnvelope is returned for an entry carrying this driver's envelope but no value.
+var ErrCorruptEnvelope = errors.New("leveldb: entry is missing its value")
+
+// ErrReadOnly is returned by every write attempted on a storage opened with Config.ReadOnly.
+var ErrReadOnly = errors.New("leveldb: storage is read-only")
+
+// envelopeKind describes how an entry read from the database is encoded.
+type envelopeKind int
+
+const (
+	// envelopeNone means a bare payload, as earlier versions wrote for keys with no expiration.
+	envelopeNone envelopeKind = iota
+
+	// envelopeEntry carries an envelope this driver reads: today's versioned one, or the unversioned one, which is ambiguous with a like payload and so read as earlier versions did.
+	envelopeEntry
+
+	envelopeUnknown
+
+	envelopeCorrupt
+)
+
+// resetBatchSize bounds the deletions Reset buffers, so a large database need not fit in memory.
+const resetBatchSize = 1000
+
+// collectBatchSize bounds the expired keys one pass holds before deleting them.
+const collectBatchSize = 1000
+
+// collectScanLimit bounds one pass, so the read lock is not held across a whole keyspace.
+const collectScanLimit = 10000
+
+// collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
+const collectMaxBatches = 100
+
+// item is the JSON envelope earlier builds wrote. Entries in it are still read,
+// but nothing writes it any more: see encode for why.
 type item struct {
+	// Pointer so an absent version, marking an entry written before versioning, differs from 0.
+	Version  *int      `json:"_fiber_storage_v"`
 	Value    []byte    `json:"value"`
 	ExpireAt time.Time `json:"expire_at"`
 }
@@ -17,23 +78,62 @@ type item struct {
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
+	readOnly   bool
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
+
+	// mu orders the collector's delete against writers, so a key a Set just refreshed survives.
+	mu sync.RWMutex
+
+	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
+	gcEpoch  uint64
+	gcCursor []byte
 }
 
 // New creates a new memory storage
 func New(config ...Config) *Storage {
 	cfg := configDefault(config...)
 
-	db, err := leveldb.OpenFile(cfg.Path, nil)
+	// Every tuning field used to be ignored: options were nil, so only Path and GCInterval applied.
+	options := &opt.Options{
+		BlockCacheCapacity:     cfg.CacheSize * opt.MiB,
+		BlockSize:              cfg.BlockSize * opt.KiB,
+		WriteBuffer:            cfg.WriteBuffer * opt.MiB,
+		CompactionL0Trigger:    cfg.CompactionL0Trigger,
+		WriteL0PauseTrigger:    cfg.WriteL0PauseTrigger,
+		WriteL0SlowdownTrigger: cfg.WriteL0SlowdownTrigger,
+		OpenFilesCacheCapacity: cfg.MaxOpenFiles,
+		CompactionTableSize:    cfg.CompactionTableSize * opt.MiB,
+		NoSync:                 cfg.NoSync,
+		ReadOnly:               cfg.ReadOnly,
+		ErrorIfMissing:         cfg.ErrorIfMissing,
+		ErrorIfExist:           cfg.ErrorIfExist,
+	}
+	if cfg.BloomFilterBits > 0 {
+		options.Filter = filter.NewBloomFilter(cfg.BloomFilterBits)
+	}
+
+	db, err := leveldb.OpenFile(cfg.Path, options)
 	if err != nil {
 		panic(err)
 	}
 
 	store := &Storage{
 		db:         db,
+		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
+	}
+
+	// The collector writes, so it has nothing to do read-only; Close still waits on stopped.
+	if cfg.ReadOnly {
+		close(store.stopped)
+		return store
 	}
 
 	go store.gc()
@@ -49,26 +149,38 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 	data, err := s.db.Get([]byte(key), nil)
 	if err != nil {
-		return nil, nil
-	}
-
-	var stored item
-	if err := json.Unmarshal(data, &stored); err != nil {
-		return data, nil
-	}
-
-	if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-		if err := s.Delete(string(key)); err != nil {
-			return nil, err
+		if errors.Is(err, leveldb.ErrNotFound) {
+			return nil, nil
 		}
-		return nil, nil
+		return nil, err
 	}
 
-	return stored.Value, nil
+	stored, kind := decode(data)
+
+	switch kind {
+	case envelopeNone:
+		// Entry from an older version of this driver, which stored values without an envelope.
+		return data, nil
+	case envelopeUnknown:
+		return nil, ErrUnknownEnvelope
+	case envelopeCorrupt:
+		return nil, ErrCorruptEnvelope
+	case envelopeEntry:
+	}
+
+	if stored.ExpireAt.IsZero() || !time.Now().After(stored.ExpireAt) {
+		return stored.Value, nil
+	}
+
+	// Not deleted here: without compare-and-delete that would drop a concurrent Set; the collector reclaims it.
+	return nil, nil
 }
 
-// GetWithContext gets value by key (dummy context support)
+// GetWithContext gets value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -77,24 +189,33 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
-	if exp == 0 {
-		return s.db.Put([]byte(key), value, nil)
+
+	if s.readOnly {
+		return ErrReadOnly
 	}
 
-	data := item{
-		Value:    value,
-		ExpireAt: time.Now().Add(exp),
+	var expireAt int64
+	if exp > 0 {
+		// Computed in nanoseconds so a deadline past the year 2262 saturates instead of wrapping negative.
+		expireAt = time.Now().UnixNano()
+		if int64(exp) > math.MaxInt64-expireAt {
+			expireAt = math.MaxInt64
+		} else {
+			expireAt += int64(exp)
+		}
 	}
 
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	return s.db.Put([]byte(key), encoded, nil)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.db.Put([]byte(key), encode(value, expireAt), nil)
 }
 
-// SetWithContext sets key with value (dummy context support)
+// SetWithContext sets key with value, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, value, exp)
 }
 
@@ -104,34 +225,90 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
 	return s.db.Delete([]byte(key), nil)
+}
+
+// DeleteWithContext deletes key by key, aborting if ctx is already done.
+func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.Delete(key)
 }
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.readOnly {
+		return ErrReadOnly
+	}
+
+	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Reset deletes the keys the sweep was working through, so its cursor would skip everything written afterwards.
+	s.gcCursor = nil
+	s.gcEpoch++
+
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 
+	batch := new(leveldb.Batch)
 	for iter.Next() {
-		key := iter.Key()
-		if err := s.db.Delete(key, nil); err != nil {
+		batch.Delete(iter.Key())
+
+		if batch.Len() < resetBatchSize {
+			continue
+		}
+		if err := s.db.Write(batch, nil); err != nil {
+			return err
+		}
+		batch.Reset()
+	}
+
+	// Flush what is queued before reporting an iteration failure: earlier chunks are already committed.
+	iterErr := iter.Error()
+	if batch.Len() > 0 {
+		if err := s.db.Write(batch, nil); err != nil {
 			return err
 		}
 	}
 
-	return iter.Error()
+	return iterErr
 }
 
-// ResetWithContext resets all keys (dummy context support)
+// ResetWithContext resets all keys, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close the memory storage
+// Close the storage. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
-	s.done <- struct{}{} // GC stop
-	close(s.done)
-	return s.db.Close()
+	s.stopOnce.Do(func() {
+		// Wait for the collector so it no longer writes to a database being closed.
+		close(s.done)
+		<-s.stopped
+	})
+
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	// Latched even on failure: goleveldb has already torn the database down.
+	err := s.db.Close()
+	s.closed = true
+
+	return err
 }
 
 // Return database client
@@ -139,8 +316,151 @@ func (s *Storage) Conn() *leveldb.DB {
 	return s.db
 }
 
+// encode frames value with its deadline: magic, version, deadline, payload.
+//
+// Earlier builds wrapped the value in the JSON envelope above, and encoding/json
+// renders []byte as base64, so every write paid a marshal and every read a decode
+// while a 16-byte value took 104 bytes on disk. The framing carries the same
+// fields in 12 bytes and copies the payload through untouched.
+func encode(value []byte, expireAt int64) []byte {
+	buf := make([]byte, envelopeHeaderLen+len(value))
+
+	copy(buf, envelopeMagic[:])
+	buf[len(envelopeMagic)] = envelopeBinaryVersion
+	binary.BigEndian.PutUint64(buf[len(envelopeMagic)+1:], uint64(expireAt))
+	copy(buf[envelopeHeaderLen:], value)
+
+	return buf
+}
+
+// decodeBinary classifies an entry in this driver's framing and returns the deadline
+// as Unix nanoseconds, 0 meaning none. ok is false for anything else, which the JSON
+// decoders below then get a look at.
+func decodeBinary(data []byte) (value []byte, expireAt int64, kind envelopeKind, ok bool) {
+	if len(data) < len(envelopeMagic) || !bytes.Equal(data[:len(envelopeMagic)], envelopeMagic[:]) {
+		return nil, 0, envelopeNone, false
+	}
+
+	// A frame is claimed only when whole. Earlier versions stored payloads unenveloped,
+	// and one of those may open with these bytes by chance; handing it back is better than
+	// erroring on it. This mirrors the JSON classifier, which reads a version marker without
+	// a value as a payload rather than a damaged envelope.
+	if len(data) <= envelopeHeaderLen {
+		return nil, 0, envelopeNone, false
+	}
+	payload := data[envelopeHeaderLen:]
+
+	// Past a whole header the entry is this driver's, so an unreadable version is not a payload.
+	if data[len(envelopeMagic)] != envelopeBinaryVersion {
+		return nil, 0, envelopeUnknown, true
+	}
+
+	return payload, int64(binary.BigEndian.Uint64(data[len(envelopeMagic)+1:])), envelopeEntry, true
+}
+
+// expiryTime converts a stored deadline to a time, 0 meaning no expiration.
+func expiryTime(expireAt int64) time.Time {
+	if expireAt == 0 {
+		return time.Time{}
+	}
+	return time.Unix(0, expireAt)
+}
+
+// decode classifies an entry and returns its contents when it is an envelope this driver reads.
+func decode(data []byte) (item, envelopeKind) {
+	if value, expireAt, kind, ok := decodeBinary(data); ok {
+		if kind != envelopeEntry {
+			return item{}, kind
+		}
+		// Value points into data, which goleveldb allocated for this read alone.
+		return item{Value: value, ExpireAt: expiryTime(expireAt)}, kind
+	}
+
+	var stored item
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return item{}, envelopeNone
+	}
+
+	kind := classify(data, stored.Version, stored.Value != nil)
+	if kind != envelopeEntry {
+		return item{}, kind
+	}
+
+	return stored, kind
+}
+
+// decodeExpiry classifies an entry and returns only its expiration, leaving the payload as raw bytes.
+// The collector walks every key, so decoding Value there would base64-decode and copy each payload for nothing.
+func decodeExpiry(data []byte) (time.Time, envelopeKind) {
+	if _, expireAt, kind, ok := decodeBinary(data); ok {
+		if kind != envelopeEntry {
+			return time.Time{}, kind
+		}
+		return expiryTime(expireAt), kind
+	}
+
+	var stored struct {
+		Version  *int            `json:"_fiber_storage_v"`
+		Value    json.RawMessage `json:"value"`
+		ExpireAt time.Time       `json:"expire_at"`
+	}
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return time.Time{}, envelopeNone
+	}
+
+	kind := classify(data, stored.Version, stored.Value != nil)
+	if kind != envelopeEntry {
+		return time.Time{}, kind
+	}
+
+	return stored.ExpireAt, kind
+}
+
+// classify decides what an entry is from its version marker and whether it carries a value, so both decoders agree by construction.
+func classify(data []byte, version *int, hasValue bool) envelopeKind {
+	if version != nil {
+		if *version == envelopeVersion {
+			// Set never stores an empty value, so an envelope without one did not come from this driver intact.
+			if !hasValue {
+				return envelopeCorrupt
+			}
+			return envelopeEntry
+		}
+		// Unknown version only when a value is present: a payload merely sharing the field name is not one.
+		if hasValue {
+			return envelopeUnknown
+		}
+		return envelopeNone
+	}
+
+	// No marker: a bare payload or the unversioned envelope, which always carried a value, ruling out most payloads before the costlier pass.
+	if !hasValue || !isUnversionedEnvelope(data) {
+		return envelopeNone
+	}
+
+	return envelopeEntry
+}
+
+// isUnversionedEnvelope reports whether data has exactly the two fields the old envelope had.
+func isUnversionedEnvelope(data []byte) bool {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return false
+	}
+	if len(fields) != 2 {
+		return false
+	}
+
+	_, hasValue := fields["value"]
+	_, hasExpireAt := fields["expire_at"]
+
+	return hasValue && hasExpireAt
+}
+
 // gc is a helper function to clean up expired keys
 func (s *Storage) gc() {
+	defer close(s.stopped)
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 
@@ -149,27 +469,122 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			iter := s.db.NewIterator(nil, nil)
-			batch := new(leveldb.Batch)
-
-			for iter.Next() {
-				key := iter.Key()
-				data := iter.Value()
-
-				var stored item
-				if err := json.Unmarshal(data, &stored); err != nil {
-					continue
-				}
-				if !stored.ExpireAt.IsZero() && time.Now().After(stored.ExpireAt) {
-					batch.Delete(key)
-				}
-			}
-
-			iter.Release()
-
-			if batch.Len() > 0 {
-				_ = s.db.Write(batch, nil)
-			}
+			s.collect()
 		}
+	}
+}
+
+// collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete, and bounded so it cannot stall Close.
+func (s *Storage) collect() {
+	after, epoch := s.loadCursor()
+
+	for range collectMaxBatches {
+		candidates, last, reachedEnd := s.expiredCandidates(after)
+		if len(candidates) > 0 {
+			s.deleteIfStillExpired(candidates)
+		}
+		if reachedEnd {
+			s.storeCursor(nil, epoch)
+			return
+		}
+		after = last
+
+		// Give up promptly when Close is waiting.
+		select {
+		case <-s.done:
+			s.storeCursor(after, epoch)
+			return
+		default:
+		}
+	}
+
+	s.storeCursor(after, epoch)
+}
+
+// loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
+func (s *Storage) loadCursor() ([]byte, uint64) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.gcCursor, s.gcEpoch
+}
+
+// storeCursor records where the next sweep resumes, unless a Reset rewound the cursor meanwhile.
+func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.gcEpoch != epoch {
+		return
+	}
+
+	s.gcCursor = cursor
+}
+
+// expiredCandidates lists keys a snapshot shows expired after the given key, with the last one examined and whether it reached the end.
+func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	iter := s.db.NewIterator(nil, nil)
+	defer iter.Release()
+
+	var valid bool
+	if after == nil {
+		valid = iter.Next()
+	} else {
+		// Seek lands on the key itself, which the previous batch examined, so step past it.
+		valid = iter.Seek(after)
+		if valid && bytes.Equal(iter.Key(), after) {
+			valid = iter.Next()
+		}
+	}
+
+	candidates = make([][]byte, 0, collectBatchSize)
+	now := time.Now()
+
+	for examined := 0; valid; examined++ {
+		key := iter.Key()
+
+		if expireAt, kind := decodeExpiry(iter.Value()); kind == envelopeEntry &&
+			!expireAt.IsZero() && now.After(expireAt) {
+			candidates = append(candidates, bytes.Clone(key))
+		}
+
+		if len(candidates) == collectBatchSize || examined+1 == collectScanLimit {
+			return candidates, bytes.Clone(key), false
+		}
+
+		valid = iter.Next()
+		if !valid {
+			return candidates, bytes.Clone(key), true
+		}
+	}
+
+	return candidates, last, true
+}
+
+// deleteIfStillExpired re-reads each key and deletes the ones that are still expired.
+func (s *Storage) deleteIfStillExpired(keys [][]byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	batch := new(leveldb.Batch)
+	now := time.Now()
+
+	for _, key := range keys {
+		value, err := s.db.Get(key, nil)
+		if err != nil {
+			continue
+		}
+		expireAt, kind := decodeExpiry(value)
+		if kind != envelopeEntry || expireAt.IsZero() || !now.After(expireAt) {
+			continue
+		}
+		batch.Delete(key)
+	}
+
+	if batch.Len() > 0 {
+		_ = s.db.Write(batch, nil)
 	}
 }

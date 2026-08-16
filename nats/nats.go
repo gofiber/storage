@@ -15,14 +15,29 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// errClosed is returned after Close, when the connection is gone and calls would fail obscurely.
+var errClosed = errors.New("nats: storage is closed")
+
+// errNotInitialized is returned before the bucket exists, which is how an unestablished connection looks.
+var errNotInitialized = errors.New("nats: kv not initialized")
+
+// notInitialized wraps the initialization failure, if one was recorded; there may be none.
+func notInitialized(initErr error) error {
+	if initErr == nil {
+		return errNotInitialized
+	}
+	return fmt.Errorf("%w: %w", errNotInitialized, initErr)
+}
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
-	nc  *nats.Conn
-	kv  jetstream.KeyValue
-	err error
-	cfg Config
-	ctx context.Context
-	mu  sync.RWMutex
+	nc     *nats.Conn
+	kv     jetstream.KeyValue
+	err    error
+	cfg    Config
+	ctx    context.Context
+	mu     sync.RWMutex
+	closed bool
 }
 
 type entry struct {
@@ -164,6 +179,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		if opErr.Op != "dial" {
 			panic(err)
 		}
+		// The retry is expected to succeed, but record the dial error under the lock: until it does, this is the only account of why the bucket is missing.
+		storage.mu.Lock()
+		storage.err = errors.Join(storage.err, err)
+		storage.mu.Unlock()
 	} else if err != nil {
 		panic(err)
 	}
@@ -184,36 +203,67 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	// Checked before the empty-key no-op so a cancelled context is reported whatever the key is.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %v", s.err)
+		return nil, notInitialized(initErr)
 	}
 
-	v, err := kv.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get: %w", err)
+	data, expired, revision, err := read(ctx, kv, key)
+	if err != nil || data == nil {
+		return nil, err
 	}
 
-	e := entry{}
-	err = gob.NewDecoder(
-		bytes.NewBuffer(v.Value())).
-		Decode(&e)
-	// Expiry == 0 means the entry never expires (see SetWithContext).
-	if err != nil || (e.Expiry != 0 && e.Expiry <= time.Now().Unix()) {
-		_ = kv.Delete(ctx, key)
+	if expired {
+		// Reclaim it conditional on the revision read: there is no collector here, and an unconditional delete would drop a concurrent Set.
+		_ = kv.Delete(ctx, key, jetstream.LastRevision(revision))
 		return nil, nil
 	}
 
-	return e.Data, nil
+	return data, nil
+}
+
+// read fetches key and reports its value, whether it expired, and the revision it was read at.
+func read(ctx context.Context, kv jetstream.KeyValue, key string) (data []byte, expired bool, revision uint64, err error) {
+	v, err := kv.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, false, 0, nil
+		}
+		return nil, false, 0, fmt.Errorf("get: %w", err)
+	}
+
+	data, expired, err = decodeEntry(v.Value())
+	if err != nil {
+		return nil, false, 0, err
+	}
+
+	return data, expired, v.Revision(), nil
+}
+
+// decodeEntry decodes a stored value and reports whether it has expired.
+func decodeEntry(value []byte) (data []byte, expired bool, err error) {
+	e := entry{}
+	if err := gob.NewDecoder(bytes.NewBuffer(value)).Decode(&e); err != nil {
+		// A value this driver cannot decode is a real failure; reporting it as an expiry deleted the data.
+		return nil, false, fmt.Errorf("decode: %w", err)
+	}
+
+	// Expiry == 0 means the entry never expires (see SetWithContext).
+	return e.Data, e.Expiry != 0 && e.Expiry <= time.Now().Unix(), nil
 }
 
 // Get value by key
@@ -223,21 +273,33 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiry with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return errClosed
+	}
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %v", s.err)
+		return notInitialized(initErr)
 	}
 
 	// expiry
 	var expSeconds int64
-	if exp != 0 {
-		expSeconds = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expSeconds = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expSeconds++
+		}
 	}
 	// encode
 	e := new(bytes.Buffer)
@@ -250,15 +312,17 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	// set
-	_, err = kv.Put(ctx, key, e.Bytes())
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		_, err := kv.Create(ctx, key, e.Bytes())
-		if err != nil {
+	if _, err = kv.Put(ctx, key, e.Bytes()); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return fmt.Errorf("put: %w", err)
+		}
+		// The inner error used to shadow this one, so a Create that succeeded still reported ErrKeyNotFound.
+		if _, err = kv.Create(ctx, key, e.Bytes()); err != nil {
 			return fmt.Errorf("create: %w", err)
 		}
 	}
 
-	return err
+	return nil
 }
 
 // Set key with value and expiry
@@ -268,16 +332,23 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if len(key) <= 0 {
 		return nil
 	}
 
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
 
+	if closed {
+		return errClosed
+	}
+
 	if kv == nil {
-		return fmt.Errorf("kv not initialized: %v", s.err)
+		return notInitialized(initErr)
 	}
 
 	return kv.Delete(ctx, key)
@@ -290,6 +361,19 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	// Checked before the lock, which is held across a bucket delete and recreate a cancelled caller would otherwise wait out.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	// Held for the whole call: a Close landing between the delete and the recreate left the bucket gone.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	js, err := jetstream.New(s.nc)
 	if err != nil {
 		return fmt.Errorf("get jetstream: %w", err)
@@ -302,8 +386,6 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	}
 
 	// Create the bucket
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.kv, err = newNatsKV(
 		s.nc,
 		ctx,
@@ -323,11 +405,17 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the nats connection
+// Close the connection. Safe to call more than once; the write lock keeps operations off a connection being torn down.
 func (s *Storage) Close() error {
-	s.mu.RLock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
 	s.nc.Close()
-	s.mu.RUnlock()
 	return nil
 }
 
@@ -341,23 +429,43 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue) {
 // Return all the keys
 func (s *Storage) Keys() ([]string, error) {
 	s.mu.RLock()
-	kv := s.kv
+	kv, initErr, closed := s.kv, s.err, s.closed
 	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
 	if kv == nil {
-		return nil, fmt.Errorf("kv not initialized: %v", s.err)
+		return nil, notInitialized(initErr)
 	}
 
-	keyLister, err := kv.ListKeys(context.Background())
-
+	// Watch streams every entry with its value in one subscription; ListKeys is metadata only, so filtering expiries would cost a Get per key.
+	watcher, err := kv.Watch(context.Background(), ">", jetstream.IgnoreDeletes())
 	if err != nil {
 		return nil, fmt.Errorf("keys: %w", err)
 	}
+	defer func() {
+		_ = watcher.Stop()
+	}()
 
 	var keys []string
-	for key := range keyLister.Keys() {
-		keys = append(keys, key)
+	for e := range watcher.Updates() {
+		// A nil entry marks the end of the initial replay.
+		if e == nil {
+			break
+		}
+
+		// An undecodable value still has its key listed, expired ones are skipped, and nothing is deleted: listing must not write.
+		data, expired, err := decodeEntry(e.Value())
+		if err != nil {
+			keys = append(keys, e.Key())
+			continue
+		}
+		if expired || len(data) == 0 {
+			continue
+		}
+		keys = append(keys, e.Key())
 	}
-	_ = keyLister.Stop()
 
 	// Double check if no valid keys were found
 	if len(keys) == 0 {

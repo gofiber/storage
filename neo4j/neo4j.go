@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -15,8 +16,13 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         neo4j.DriverWithContext
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
+	stopped    chan struct{}
+	stopOnce   sync.Once
+	closeMu    sync.Mutex
+	closed     bool
 
 	cypherMatch  string
 	cypherMerge  string
@@ -41,6 +47,9 @@ func newDriverWithContext(cfg neo4jConnConfig) (neo4j.DriverWithContext, error) 
 	return neo4j.NewDriverWithContext(cfg.URI, cfg.Auth, cfg.Configurations...)
 }
 
+// closeTimeout bounds the cleanup close performed when initialization fails.
+const closeTimeout = 10 * time.Second
+
 // New creates a new Neo4j storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
@@ -52,10 +61,11 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
 
-	// Select db connection
+	// A caller-supplied driver stays theirs to close; their application may still be using it.
 	var err error
 	db := cfg.DB
-	if db == nil {
+	ownsDB := db == nil
+	if ownsDB {
 		db, err = newDriverWithContext(neo4jConnConfig{
 			URI:            cfg.URI,
 			Auth:           cfg.Auth,
@@ -66,32 +76,43 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		}
 	}
 
+	// Closing runs on its own bounded context: the caller's may be what failed, and an unbounded one would hang.
+	closeOwned := func() {
+		if !ownsDB {
+			return
+		}
+		closeCtx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+		defer cancel()
+		if err := db.Close(closeCtx); err != nil {
+			log.Printf("Error closing storage: %v\n", err)
+		}
+	}
+
 	if err := db.VerifyConnectivity(ctx); err != nil {
+		closeOwned()
 		log.Panicf("Unable to verify connection: %v\n", err)
 	}
 
 	// delete all nodes if reset set to true
 	if cfg.Reset {
 		if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
-			if err := db.Close(ctx); err != nil {
-				log.Printf("Error closing storage: %v\n", err)
-			}
+			closeOwned()
 			log.Panicf("Unable to reset storage: %v\n", err)
 		}
 	}
 
 	// create index on key
 	if _, err := neo4j.ExecuteQuery(ctx, db, fmt.Sprintf("CREATE INDEX neo4jstore_key_idx IF NOT EXISTS FOR (n:%s) ON (n.k)", cfg.Node), nil, neo4j.EagerResultTransformer); err != nil {
-		if err := db.Close(ctx); err != nil {
-			log.Printf("Error closing storage: %v\n", err)
-		}
+		closeOwned()
 		log.Panicf("Unable to create index on key: %v\n", err)
 	}
 
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
+		stopped:    make(chan struct{}),
 
 		cypherMatch:  fmt.Sprintf("OPTIONAL MATCH (n:%s{ k: $key }) RETURN n { .* } AS data", cfg.Node),
 		cypherMerge:  fmt.Sprintf("MERGE (n:%s{ k: $key }) SET n.v = $val, n.e = $exp FINISH", cfg.Node),
@@ -151,8 +172,13 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 	var expireAt int64
-	if exp != 0 {
-		expireAt = time.Now().Add(exp).Unix()
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt = deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
 	}
 
 	// create the structure for the storage
@@ -207,11 +233,30 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the database
+// Close stops the collector and closes the driver unless it came from Config.DB; a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
-	s.done <- struct{}{}
+	s.stopOnce.Do(func() {
+		close(s.done)
+		<-s.stopped
+	})
 
-	return s.db.Close(context.Background())
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed || !s.ownsDB {
+		return nil
+	}
+
+	// Bounded so a stuck connection cannot hang the caller; a timeout is transient, so it is not latched.
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+
+	if err := s.db.Close(ctx); err != nil {
+		return err
+	}
+
+	s.closed = true
+	return nil
 }
 
 // Return database client
@@ -221,6 +266,16 @@ func (s *Storage) Conn() neo4j.DriverWithContext {
 
 // gcTicker starts the gc ticker
 func (s *Storage) gcTicker() {
+	defer close(s.stopped)
+
+	// A sweep is abandoned on Close, so a stalled query cannot hold Close open indefinitely.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-s.done
+		cancel()
+	}()
+
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
 	for {
@@ -228,12 +283,12 @@ func (s *Storage) gcTicker() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			s.gc(t)
+			s.gc(ctx, t)
 		}
 	}
 }
 
 // gc deletes all expired entries
-func (s *Storage) gc(t time.Time) {
-	_, _ = neo4j.ExecuteQuery(context.Background(), s.db, s.cypherGC, map[string]any{"exp": t.Unix()}, neo4j.EagerResultTransformer)
+func (s *Storage) gc(ctx context.Context, t time.Time) {
+	_, _ = neo4j.ExecuteQuery(ctx, s.db, s.cypherGC, map[string]any{"exp": t.Unix()}, neo4j.EagerResultTransformer)
 }

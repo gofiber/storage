@@ -105,7 +105,7 @@ func configDefault(config ...Config) Config {
 		log.Printf("Warning: ConnectionString %s doesn't start with ws://, wss://, http:// or https://", cfg.ConnectionString)
 	}
 
-	if int(cfg.GCInterval.Seconds()) <= 0 {
+	if cfg.GCInterval <= 0 {
 		cfg.GCInterval = ConfigDefault.GCInterval
 	}
 

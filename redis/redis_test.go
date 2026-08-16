@@ -305,6 +305,33 @@ func Test_Redis_ResetWithContext(t *testing.T) {
 func Test_Redis_Close(t *testing.T) {
 	testStore := newTestStore(t)
 	require.NoError(t, testStore.Close())
+
+	require.NotPanics(t, func() {
+		require.NoError(t, testStore.Close())
+	})
+}
+
+func Test_Redis_Close_DoesNotCloseBorrowedClient(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close() //nolint:errcheck // best effort cleanup
+
+	borrowed := NewFromConnection(owner.Conn())
+	require.NoError(t, borrowed.Close())
+
+	// The client belongs to owner, so it must still work after borrowed was closed.
+	require.NoError(t, owner.Set("john", []byte("doe"), 0))
+	val, err := owner.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+
+	// borrowed itself is closed: leaving the client open is not leaving the storage usable.
+	_, err = borrowed.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, borrowed.Set("jane", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, borrowed.Delete("john"), ErrClosed)
+	require.ErrorIs(t, borrowed.Reset(), ErrClosed)
+	_, err = borrowed.Keys()
+	require.ErrorIs(t, err, ErrClosed)
 }
 
 func Test_Redis_Conn(t *testing.T) {
@@ -593,6 +620,8 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	t.Parallel()
 
 	connection := New(newConfigFromContainer(t))
+	// Close on a storage built from an existing client is a no-op, so the client stays this test's to close.
+	defer connection.Close() //nolint:errcheck // best effort cleanup
 
 	testStore := NewFromConnection(connection.Conn())
 	defer testStore.Close()
@@ -610,4 +639,45 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	val, err = testStore.Get("foo")
 	require.NoError(t, err)
 	require.Nil(t, val, "expected value to be nil after deletion")
+}
+
+func Test_Redis_SkipConnectionCheck(t *testing.T) {
+	// 127.0.0.1:1 is guaranteed closed, so New would panic on the PING if the check were not skipped.
+	cfg := Config{
+		Host:                "127.0.0.1",
+		Port:                1,
+		SkipConnectionCheck: true,
+	}
+
+	var testStore *Storage
+	require.NotPanics(t, func() {
+		testStore = New(cfg)
+	}, "New must not panic when the connection check is skipped")
+
+	require.NotNil(t, testStore)
+	defer testStore.Close() //nolint:errcheck // the server is unreachable
+
+	// The connection error is reported by the first operation instead.
+	_, err := testStore.Get("foo")
+	require.Error(t, err, "an unreachable server must fail on use")
+}
+
+func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
+	// Reset asks New to flush, which cannot reach a closed port either, and must not panic.
+	cfg := Config{
+		Host:                "127.0.0.1",
+		Port:                1,
+		Reset:               true,
+		SkipConnectionCheck: true,
+	}
+
+	var testStore *Storage
+	require.NotPanics(t, func() {
+		testStore = New(cfg)
+	}, "New must not panic when the connection check is skipped")
+
+	require.NotNil(t, testStore)
+	defer testStore.Close() //nolint:errcheck // the server is unreachable
+
+	require.NotNil(t, testStore.Conn())
 }

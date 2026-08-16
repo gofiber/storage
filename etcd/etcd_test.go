@@ -15,7 +15,7 @@ import (
 
 const (
 	// etcdImage is the default image used for running etcd in tests.
-	etcdImage              = "gcr.io/etcd-development/etcd:v3.6.6"
+	etcdImage              = "gcr.io/etcd-development/etcd:v3.7.1"
 	etcdImageEnvVar string = "TEST_ETCD_IMAGE"
 )
 
@@ -292,4 +292,23 @@ func Benchmark_Etcd_SetAndDelete(b *testing.B) {
 	b.StopTimer()
 	_ = testStore.Delete(key)
 	b.StartTimer()
+}
+
+func Test_Etcd_TTLSeconds(t *testing.T) {
+	tests := []struct {
+		name     string
+		exp      time.Duration
+		expected int64
+	}{
+		{name: "sub second rounds up", exp: 500 * time.Millisecond, expected: 1},
+		{name: "one nanosecond rounds up", exp: time.Nanosecond, expected: 1},
+		{name: "whole seconds", exp: 90 * time.Second, expected: 90},
+		{name: "fractional rounds up", exp: 1500 * time.Millisecond, expected: 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, ttlSeconds(tt.exp))
+		})
+	}
 }

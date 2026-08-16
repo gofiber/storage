@@ -2,15 +2,25 @@ package ristretto
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
 )
 
+// errClosed is returned after Close, since Ristretto panics or blocks forever on a closed cache.
+var errClosed = errors.New("ristretto: storage is closed")
+
 // Storage interface that is implemented by storage providers.
 type Storage struct {
-	cache       *ristretto.Cache
-	defaultCost int64
+	cache        *ristretto.Cache
+	defaultCost  int64
+	waitForWrite bool
+
+	// mu keeps operations from running against a cache Close is tearing down.
+	mu     sync.RWMutex
+	closed bool
 }
 
 // New creates a new storage.
@@ -26,8 +36,9 @@ func New(config ...Config) *Storage {
 	}
 
 	store := &Storage{
-		cache:       cache,
-		defaultCost: cfg.DefaultCost,
+		cache:        cache,
+		defaultCost:  cfg.DefaultCost,
+		waitForWrite: !cfg.SkipWaitForWrite,
 	}
 
 	return store
@@ -40,6 +51,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, errClosed
+	}
+
 	item, found := s.cache.Get(key)
 	if !found {
 		return nil, nil
@@ -50,11 +68,15 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	return buf, nil
+	// Return a copy so callers cannot mutate the cached entry in place.
+	return cloneBytes(buf), nil
 }
 
-// GetWithContext gets the value by key (dummy context support)
+// GetWithContext gets the value by key, aborting if ctx is already done.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return s.Get(key)
 }
 
@@ -65,15 +87,38 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
-	saved := s.cache.SetWithTTL(key, val, s.defaultCost, exp)
-	if !saved {
-		return nil
+
+	// Store a copy: the caller may reuse or mutate val once Set returns.
+	valCopy := cloneBytes(val)
+
+	// Ristretto reads a negative TTL as "do nothing", while the interface has none below zero, so clamp it.
+	if exp < 0 {
+		exp = 0
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
+	// The result is ignored: a cache may drop a write under pressure or evict later, which is not an error.
+	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
+
+	// Ristretto buffers writes, so without this a Get right after Set often misses; admission is still not guaranteed.
+	if s.waitForWrite {
+		s.cache.Wait()
+	}
+
 	return nil
 }
 
-// SetWithContext sets value by key (dummy context support)
+// SetWithContext sets value by key, aborting if ctx is already done.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Set(key, val, exp)
 }
 
@@ -82,29 +127,58 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	s.cache.Del(key)
 	return nil
 }
 
-// DeleteWithContext deletes key (dummy context support)
+// DeleteWithContext deletes key, aborting if ctx is already done.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Delete(key)
 }
 
 // Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
+	// Ristretto documents Clear as not atomic and assumes nothing is in flight, so take the lock exclusively.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return errClosed
+	}
+
 	s.cache.Clear()
 	return nil
 }
 
-// ResetWithContext resets storage (dummy context support)
+// ResetWithContext resets storage, aborting if ctx is already done.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.Reset()
 }
 
-// Close closes the storage and will stop any running garbage
-// collectors and open connections.
+// Close stops the collector and closes the cache; safe to call more than once, and it waits for calls in flight.
 func (s *Storage) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
 	s.cache.Close()
 	return nil
 }
@@ -112,4 +186,18 @@ func (s *Storage) Close() error {
 // Conn returns the database client
 func (s *Storage) Conn() *ristretto.Cache {
 	return s.cache
+}
+
+// cloneBytes returns a copy of b sized exactly to it.
+//
+// bytes.Clone appends to an empty slice, so growslice rounds the capacity up to
+// the next size class: a 3-byte value allocates 8. Get and Set are hot enough
+// for that rounding, and the extra call, to show up.
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
 }
