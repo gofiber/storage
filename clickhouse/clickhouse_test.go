@@ -18,7 +18,7 @@ import (
 
 const (
 	// clickhouseImage is the default image used for running clickhouse in tests.
-	clickhouseImage              = "clickhouse/clickhouse-server:23-alpine"
+	clickhouseImage              = "clickhouse/clickhouse-server:26.7-alpine"
 	clickhouseImageEnvVar string = "TEST_CLICKHOUSE_IMAGE"
 	clickhouseUser        string = "default"
 	clickhousePass        string = "password"

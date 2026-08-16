@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	cockroachdbImage              = "cockroachdb/cockroach:latest-v23.2"
+	cockroachdbImage              = "cockroachdb/cockroach:latest-v26.2"
 	cockroachdbImageEnvVar string = "TEST_COCKROACHDB_IMAGE"
 	cockroachdbDatabase    string = "fiber"
 )

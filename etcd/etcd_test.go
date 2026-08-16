@@ -15,7 +15,7 @@ import (
 
 const (
 	// etcdImage is the default image used for running etcd in tests.
-	etcdImage              = "gcr.io/etcd-development/etcd:v3.6.6"
+	etcdImage              = "gcr.io/etcd-development/etcd:v3.7.1"
 	etcdImageEnvVar string = "TEST_ETCD_IMAGE"
 )
 

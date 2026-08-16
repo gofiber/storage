@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: etcd/go.sum
       - name: Run Test
         env:
-          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.6.6
+          TEST_ETCD_IMAGE: gcr.io/etcd-development/etcd:v3.7.1
         uses: gofiber/.github/.github/actions/gotestsum@main
         with:
           working-directory: ./etcd
