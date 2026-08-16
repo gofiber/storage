@@ -23,16 +23,32 @@ type Storage struct {
 	cacheTTL time.Duration
 }
 
-// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
-// Only CacheTTL is read from the config; the connection settings come from the client.
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close,
+// using context.Background() for the optional reset.
 func NewFromConnection(conn valkey.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), conn, config...)
+}
+
+// NewFromConnectionWithContext builds a Storage on an existing client, which stays the caller's to
+// close, using ctx for the optional reset. Only CacheTTL and Reset are read from the config; the
+// connection settings come from the client, and nothing touches the network unless Reset is set.
+func NewFromConnectionWithContext(ctx context.Context, conn valkey.Client, config ...Config) *Storage {
 	if conn == nil {
 		panic("valkey: nil client")
 	}
 
+	cfg := configDefault(config...)
+
+	// Emptied here rather than silently ignored: a caller who asked for a clean database gets one.
+	if cfg.Reset {
+		if err := conn.Do(ctx, conn.B().Flushdb().Build()).Error(); err != nil {
+			panic(err)
+		}
+	}
+
 	return &Storage{
 		db:       conn,
-		cacheTTL: configDefault(config...).CacheTTL,
+		cacheTTL: cfg.CacheTTL,
 	}
 }
 

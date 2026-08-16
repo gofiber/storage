@@ -211,8 +211,8 @@ func NewFromConnection(nc *nats.Conn, config ...Config) *Storage {
 
 // NewFromConnectionWithContext creates a nats kv storage on an existing connection, which stays the
 // caller's to close, using ctx for the key-value bucket setup. Only KeyValueConfig and Reset are read;
-// the connection settings come from the connection. The caller's own reconnect handlers are left alone,
-// so a connection that drops and comes back has its bucket re-resolved on the next operation instead.
+// the connection settings come from the connection. The caller's own connect and reconnect handlers are
+// left alone; the bucket is resolved lazily instead, so an operation retries it when it is still missing.
 func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...Config) *Storage {
 	if nc == nil {
 		panic("nats: nil connection")
@@ -242,6 +242,44 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	return storage
 }
 
+// keyValue returns the bucket, resolving it first when it is still missing. A storage built on a
+// borrowed connection installs no handlers of its own, so a bucket that was absent at construction
+// (JetStream not up yet, connection down) is retried here rather than being missing for good.
+func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
+	s.mu.RLock()
+	kv, closed := s.kv, s.closed
+	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
+	if kv != nil {
+		return kv, nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Re-checked under the write lock: a handler or another caller may have resolved it in between.
+	if s.closed {
+		return nil, errClosed
+	}
+	if s.kv != nil {
+		return s.kv, nil
+	}
+
+	kv, err := newNatsKV(s.nc, ctx, s.cfg.KeyValueConfig)
+	if err != nil {
+		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
+		return nil, notInitialized(errors.Join(s.err, err))
+	}
+
+	s.kv = kv
+	s.err = nil
+
+	return kv, nil
+}
+
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	// Checked before the empty-key no-op so a cancelled context is reported whatever the key is.
@@ -252,15 +290,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return nil, errClosed
-	}
-	if kv == nil {
-		return nil, notInitialized(initErr)
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	data, expired, revision, err := read(ctx, kv, key)
@@ -321,15 +353,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return errClosed
-	}
-	if kv == nil {
-		return notInitialized(initErr)
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return err
 	}
 
 	// expiry
@@ -344,11 +370,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	// encode
 	e := new(bytes.Buffer)
-	err := gob.NewEncoder(e).Encode(entry{
+	if err := gob.NewEncoder(e).Encode(entry{
 		Data:   val,
 		Expiry: expSeconds,
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
 
@@ -380,16 +405,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return errClosed
-	}
-
-	if kv == nil {
-		return notInitialized(initErr)
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return err
 	}
 
 	return kv.Delete(ctx, key)
@@ -473,15 +491,9 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue) {
 
 // Return all the keys
 func (s *Storage) Keys() ([]string, error) {
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return nil, errClosed
-	}
-	if kv == nil {
-		return nil, notInitialized(initErr)
+	kv, err := s.keyValue(context.Background())
+	if err != nil {
+		return nil, err
 	}
 
 	// Watch streams every entry with its value in one subscription; ListKeys is metadata only, so filtering expiries would cost a Get per key.

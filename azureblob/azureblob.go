@@ -44,13 +44,14 @@ func NewFromConnection(client *azblob.Client, config ...Config) *Storage {
 
 // NewFromConnectionWithContext creates a new storage on an existing client, which stays the caller's
 // to manage, using ctx for the initialization operations (container creation and optional reset).
-// Only the Container, RequestTimeout and Reset options are read; the endpoint and credentials come from the client.
+// Only the Container, RequestTimeout and Reset options are read; the account, key and endpoint come
+// from the client, so Container is the one option this constructor requires.
 func NewFromConnectionWithContext(ctx context.Context, client *azblob.Client, config ...Config) *Storage {
 	if client == nil {
 		panic("azureblob: nil client")
 	}
 
-	return newStorage(ctx, client, configure(config...))
+	return newStorage(ctx, client, configureFromConnection(config...))
 }
 
 // newStorage prepares the container on client.

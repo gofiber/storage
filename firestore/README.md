@@ -95,6 +95,8 @@ If you already have a Firestore client configured in your application, you can c
 
 The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
+> **Behavior change:** `Close` used to close the client passed to `NewFromConnection`. It no longer does. If your application relied on `store.Close()` to release a client it created itself, close that client directly (`defer client.Close()`).
+
 ```go
 import (
 	"cloud.google.com/go/firestore"

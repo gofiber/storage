@@ -23,6 +23,7 @@ A fast Redis Storage that does auto pipelining and supports client side caching.
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
 func NewFromConnection(conn rueidis.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, conn rueidis.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -227,7 +228,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Rueidis Connection
-If your application already holds a `rueidis.Client`, you can build the storage on it instead of creating a second one. Only `CacheTTL` is read from the config; the connection settings come from the client.
+If your application already holds a `rueidis.Client`, you can build the storage on it instead of creating a second one. Only `CacheTTL` and `Reset` are read from the config; the connection settings come from the client, and nothing touches the network unless `Reset` is set.
 
 The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
 

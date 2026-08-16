@@ -16,6 +16,10 @@ type Storage struct {
 	closed  bool
 }
 
+// transcoder is passed on every operation rather than left to the cluster: values here are raw bytes,
+// and gocb's default JSONTranscoder rejects them, so a cluster the caller configured would fail on Set.
+var transcoder = gocb.NewLegacyTranscoder()
+
 func New(config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)
@@ -29,7 +33,7 @@ func New(config ...Config) *Storage {
 			ConnectTimeout: cfg.ConnectionTimeout,
 			KVTimeout:      cfg.KVTimeout,
 		},
-		Transcoder: gocb.NewLegacyTranscoder(),
+		Transcoder: transcoder,
 	})
 	if err != nil {
 		panic(err)
@@ -62,7 +66,8 @@ func NewFromConnection(cluster *gocb.Cluster, config ...Config) *Storage {
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	out, err := s.bucket.DefaultCollection().Get(key, &gocb.GetOptions{
-		Context: ctx,
+		Context:    ctx,
+		Transcoder: transcoder,
 	})
 	if err != nil {
 		switch e := err.(type) {
@@ -91,8 +96,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
 	if _, err := s.bucket.DefaultCollection().Upsert(key, val, &gocb.UpsertOptions{
-		Context: ctx,
-		Expiry:  exp,
+		Context:    ctx,
+		Expiry:     exp,
+		Transcoder: transcoder,
 	}); err != nil {
 		return err
 	}

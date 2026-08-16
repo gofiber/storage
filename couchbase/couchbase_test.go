@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/gocb/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/couchbase"
@@ -22,6 +23,13 @@ const (
 )
 
 func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return New(newTestConfig(t))
+}
+
+// newTestConfig starts a couchbase testcontainer and returns the config pointing at it.
+func newTestConfig(t testing.TB) Config {
 	t.Helper()
 
 	img := couchbaseImage
@@ -45,12 +53,12 @@ func newTestStore(t testing.TB) *Storage {
 	conn, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
 
-	return New(Config{
+	return Config{
 		Username: couchbaseUser,
 		Password: couchbasePass,
 		Host:     conn,
 		Bucket:   couchbaseBucket,
-	})
+	}
 }
 
 func TestSetCouchbase_ShouldReturnNoError(t *testing.T) {
@@ -199,11 +207,23 @@ func Benchmark_Couchbase_SetAndDelete(b *testing.B) {
 }
 
 func TestCouchbase_NewFromConnection(t *testing.T) {
-	owner := newTestStore(t)
-	defer owner.Close()
+	cfg := newTestConfig(t)
 
-	store := NewFromConnection(owner.Conn(), Config{Bucket: couchbaseBucket})
-	require.Same(t, owner.Conn(), store.Conn())
+	// A cluster the caller built carries gocb's default JSON transcoder, which rejects raw bytes.
+	cluster, err := gocb.Connect(cfg.Host, gocb.ClusterOptions{
+		Authenticator: gocb.PasswordAuthenticator{
+			Username: cfg.Username,
+			Password: cfg.Password,
+		},
+	})
+	require.NoError(t, err)
+	defer cluster.Close(nil) //nolint:errcheck // best effort cleanup
+
+	_, err = cluster.Ping(&gocb.PingOptions{Timeout: ConfigDefault.ConnectionTimeout})
+	require.NoError(t, err)
+
+	store := NewFromConnection(cluster, Config{Bucket: cfg.Bucket})
+	require.Same(t, cluster, store.Conn())
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 
@@ -213,7 +233,11 @@ func TestCouchbase_NewFromConnection(t *testing.T) {
 
 	// The cluster is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, store.Close())
-	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+
+	_, err = cluster.Bucket(cfg.Bucket).DefaultCollection().Upsert("jane", []byte("doe"), &gocb.UpsertOptions{
+		Transcoder: gocb.NewLegacyTranscoder(),
+	})
+	require.NoError(t, err)
 }
 
 func TestCouchbase_NewFromConnection_Nil(t *testing.T) {

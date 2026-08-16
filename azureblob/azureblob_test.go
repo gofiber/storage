@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/stretchr/testify/require"
@@ -363,5 +364,19 @@ func Test_AzureBlob_NewFromConnection(t *testing.T) {
 func Test_AzureBlob_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
+	})
+}
+
+func Test_AzureBlob_ConfigureFromConnection(t *testing.T) {
+	// The credential checks configure applies have nothing to validate on a borrowed client.
+	cfg := configureFromConnection(Config{Container: "existing", RequestTimeout: time.Second})
+	require.Equal(t, "existing", cfg.Container)
+	require.Equal(t, time.Second, cfg.RequestTimeout)
+
+	require.Panics(t, func() {
+		configureFromConnection(Config{})
+	})
+	require.Panics(t, func() {
+		configureFromConnection()
 	})
 }
