@@ -21,6 +21,7 @@ An Aerospike client driver using `aerospike/aerospike-client-go` and [aerospike/
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(client *aerospike.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -131,5 +132,31 @@ var ConfigDefault = Config{
 	SchemaVersion:     1,
 	SchemaDescription: "Default Fiber storage schema",
 	ForceSchemaUpdate: false,
+}
+```
+
+### Using an Existing Aerospike Connection
+If your application already holds an `*aerospike.Client`, you can build the storage on it instead of connecting a second time. Only the `Namespace`, `SetName`, `Reset` and schema options are read; the connection settings come from the client.
+
+The client stays yours to close: `Close` on a storage built this way leaves it connected, so the rest of your application keeps working.
+
+```go
+import (
+    as "github.com/aerospike/aerospike-client-go/v8"
+    "github.com/gofiber/storage/aerospike"
+)
+
+func main() {
+    client, err := as.NewClient("127.0.0.1", 3000)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    store := aerospike.NewFromConnection(client, aerospike.Config{
+        Namespace: "test",
+        SetName:   "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

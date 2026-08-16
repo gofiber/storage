@@ -24,6 +24,7 @@ type Storage struct {
 	// schemaSetName is separate from setName so user data cannot collide with the bookkeeping record.
 	schemaSetName string
 	reset         bool
+	ownsClient    bool
 	schemaInfo    *SchemaInfo
 	closeOnce     sync.Once
 }
@@ -79,6 +80,27 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(client, true, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing client, which stays the caller's to close.
+// Only the Namespace, SetName, Reset and schema options are read; the connection settings come from the client.
+func NewFromConnection(client *aerospike.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("aerospike: nil client")
+	}
+
+	cfg := configDefault(config...)
+
+	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
+		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
+	}
+
+	return newStorage(client, false, cfg)
+}
+
+// newStorage prepares the schema on client; client is released only when this driver opened it.
+func newStorage(client *aerospike.Client, ownsClient bool, cfg Config) *Storage {
 	// Create storage
 	store := &Storage{
 		client:        client,
@@ -86,9 +108,14 @@ func New(config ...Config) *Storage {
 		setName:       cfg.SetName,
 		schemaSetName: schemaSetName(cfg.SetName),
 		reset:         cfg.Reset,
+		ownsClient:    ownsClient,
 	}
 
-	closeOwned := func() { client.Close() }
+	closeOwned := func() {
+		if ownsClient {
+			client.Close()
+		}
+	}
 
 	// Reset keys if set
 	if cfg.Reset {
@@ -381,10 +408,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; the client is closed on the first call only.
+// Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		s.client.Close()
+		// A borrowed client is not ours to close.
+		if s.ownsClient {
+			s.client.Close()
+		}
 	})
 	return nil
 }

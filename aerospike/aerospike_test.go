@@ -311,3 +311,40 @@ func Test_Aerospike_WithContext_Canceled(t *testing.T) {
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
+
+// Test_AeroSpikeDB_NewFromConnection checks a storage built on a client the caller owns.
+func Test_AeroSpikeDB_NewFromConnection(t *testing.T) {
+	c := startAerospikeContainer(t, context.Background())
+
+	host, err := c.Host(context.Background())
+	require.NoError(t, err)
+
+	port, err := c.MappedPort(context.Background(), aerospikePort)
+	require.NoError(t, err)
+
+	client, err := aerospike.NewClient(host, int(port.Num()))
+	require.NoError(t, err)
+	defer client.Close()
+
+	store := NewFromConnection(client, Config{
+		Namespace: aerospikeNamespace,
+		SetName:   "existing_set",
+		Reset:     true,
+	})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The client is the caller's, so closing the storage must leave it connected.
+	require.NoError(t, store.Close())
+	require.True(t, client.IsConnected())
+}
+
+func Test_AeroSpikeDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
