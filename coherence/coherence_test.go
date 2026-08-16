@@ -448,3 +448,27 @@ func Benchmark_Coherence_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Coherence_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	testStore, err := NewFromConnection(owner.Conn(), Config{ScopeName: "existing-store"})
+	require.NoError(t, err)
+	require.Same(t, owner.Conn(), testStore.Conn())
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+
+	val, err := testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+
+	// The session is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set(key2, value2, 0))
+}
+
+func Test_Coherence_NewFromConnection_Nil(t *testing.T) {
+	_, err := NewFromConnection(nil)
+	require.Error(t, err)
+}

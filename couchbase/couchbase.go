@@ -2,14 +2,18 @@ package couchbase
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
 
 type Storage struct {
-	cb     *gocb.Cluster
-	bucket *gocb.Bucket
+	cb      *gocb.Cluster
+	bucket  *gocb.Bucket
+	ownsCb  bool
+	closeMu sync.Mutex
+	closed  bool
 }
 
 func New(config ...Config) *Storage {
@@ -41,7 +45,19 @@ func New(config ...Config) *Storage {
 
 	b := cb.Bucket(cfg.Bucket)
 
-	return &Storage{cb: cb, bucket: b}
+	return &Storage{cb: cb, bucket: b, ownsCb: true}
+}
+
+// NewFromConnection builds a Storage on an existing cluster, which stays the caller's to close.
+// Only the Bucket option is read; the connection settings come from the cluster.
+func NewFromConnection(cluster *gocb.Cluster, config ...Config) *Storage {
+	if cluster == nil {
+		panic("couchbase: nil cluster")
+	}
+
+	cfg := configDefault(config...)
+
+	return &Storage{cb: cluster, bucket: cluster.Bucket(cfg.Bucket)}
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
@@ -111,7 +127,22 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// Close the cluster unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+
+	s.closed = true
+
+	// A borrowed cluster is not ours to close, but the storage still is.
+	if !s.ownsCb {
+		return nil
+	}
+
 	return s.cb.Close(nil)
 }
 

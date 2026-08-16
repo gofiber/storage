@@ -542,3 +542,36 @@ func Benchmark_Nats_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Storage_Nats_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	nc, _ := owner.Conn()
+
+	testStore := NewFromConnection(nc, Config{
+		KeyValueConfig: jetstream.KeyValueConfig{
+			Bucket:  "existing",
+			Storage: jetstream.MemoryStorage,
+		},
+	})
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	borrowed, _ := testStore.Conn()
+	require.Same(t, nc, borrowed)
+
+	// The connection is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+}
+
+func Test_Storage_Nats_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

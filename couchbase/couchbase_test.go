@@ -197,3 +197,27 @@ func Benchmark_Couchbase_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func TestCouchbase_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	store := NewFromConnection(owner.Conn(), Config{Bucket: couchbaseBucket})
+	require.Same(t, owner.Conn(), store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The cluster is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+}
+
+func TestCouchbase_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

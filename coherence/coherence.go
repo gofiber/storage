@@ -20,8 +20,9 @@ const (
 
 // Storage represents an implementation of Coherence storage provider.
 type Storage struct {
-	session    *coh.Session
-	namedCache coh.NamedCache[string, []byte]
+	session     *coh.Session
+	namedCache  coh.NamedCache[string, []byte]
+	ownsSession bool
 }
 
 // Config defines configuration options for Coherence connection.
@@ -91,6 +92,35 @@ func NewWithContext(ctx context.Context, config ...Config) (*Storage, error) {
 	session, err := coh.NewSession(ctx, options...)
 	if err != nil {
 		return nil, err
+	}
+
+	store, err := newCoherenceStorage(session, cfg.ScopeName, cfg.NearCacheTimeout)
+	if err != nil {
+		session.Close()
+		return nil, err
+	}
+	store.ownsSession = true
+
+	// if Reset is true then reset the store
+	if cfg.Reset {
+		return store, store.Reset()
+	}
+
+	return store, nil
+}
+
+// NewFromConnection returns a new [Storage] on an existing session, which stays the caller's to close.
+// Only the ScopeName, NearCacheTimeout and Reset options are read; the connection settings come from the session.
+func NewFromConnection(session *coh.Session, config ...Config) (*Storage, error) {
+	if session == nil {
+		return nil, fmt.Errorf("session cannot be nil")
+	}
+
+	cfg := setupConfig(config...)
+
+	if cfg.NearCacheTimeout != 0 && cfg.NearCacheTimeout > cfg.Timeout {
+		return nil, fmt.Errorf("you cannot set the near cache timeout (%v) to less than session timeout (%v)",
+			cfg.NearCacheTimeout, cfg.Timeout)
 	}
 
 	store, err := newCoherenceStorage(session, cfg.ScopeName, cfg.NearCacheTimeout)
@@ -190,8 +220,13 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// Close the session unless it came from NewFromConnection.
 func (s *Storage) Close() error {
-	s.session.Close()
+	// A borrowed session is not ours to close.
+	if s.ownsSession {
+		s.session.Close()
+	}
+
 	return nil
 }
 

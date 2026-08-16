@@ -19,6 +19,7 @@ A Couchbase storage driver using [couchbase/gocb](https://github.com/couchbase/g
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(cluster *gocb.Cluster, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -90,5 +91,35 @@ var ConfigDefault = Config{
     Bucket:            "fiber_storage",
     ConnectionTimeout: 3 * time.Second,
     KVTimeout:         1 * time.Second,
+}
+```
+
+### Using an Existing Couchbase Connection
+If your application already holds a `*gocb.Cluster`, you can build the storage on it instead of connecting a second time. Only the `Bucket` option is read; the connection settings come from the cluster.
+
+The cluster stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/couchbase/gocb/v2"
+    "github.com/gofiber/storage/couchbase/v2"
+)
+
+func main() {
+    cluster, err := gocb.Connect("127.0.0.1", gocb.ClusterOptions{
+        Authenticator: gocb.PasswordAuthenticator{
+            Username: "user",
+            Password: "password",
+        },
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer cluster.Close(nil)
+
+    store := couchbase.NewFromConnection(cluster, couchbase.Config{
+        Bucket: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

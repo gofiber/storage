@@ -16,6 +16,7 @@ import (
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db       *surrealdb.DB
+	ownsDB   bool
 	table    string
 	stopGC   chan struct{}
 	stopped  chan struct{}
@@ -77,8 +78,23 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a SurrealDB storage on an existing client, which stays the caller's to close.
+// The namespace, database and authentication are the caller's to set up; only DefaultTable and GCInterval are read.
+func NewFromConnection(db *surrealdb.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("surrealdb: nil client")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+func newStorage(db *surrealdb.DB, ownsDB bool, cfg Config) *Storage {
 	storage := &Storage{
 		db:       db,
+		ownsDB:   ownsDB,
 		table:    cfg.DefaultTable,
 		stopGC:   make(chan struct{}),
 		stopped:  make(chan struct{}),
@@ -178,7 +194,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops GC and closes the DB connection
+// Close stops GC, and closes the DB connection unless it came from NewFromConnection
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.stopGC)
@@ -189,6 +205,12 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	// A borrowed connection is not ours to close, but the collector above is stopped either way.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

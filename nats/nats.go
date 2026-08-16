@@ -32,6 +32,7 @@ func notInitialized(initErr error) error {
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	nc     *nats.Conn
+	ownsNC bool
 	kv     jetstream.KeyValue
 	err    error
 	cfg    Config
@@ -148,8 +149,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	storage := &Storage{
-		cfg: cfg,
-		ctx: ctx,
+		cfg:    cfg,
+		ctx:    ctx,
+		ownsNC: true,
 	}
 
 	// Set the nats options with default custom handlers
@@ -194,6 +196,45 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	if cfg.Reset {
 		err = storage.Reset()
 		if err != nil {
+			panic(err)
+		}
+	}
+
+	return storage
+}
+
+// NewFromConnection creates a nats kv storage on an existing connection, using context.Background()
+// for the key-value bucket setup.
+func NewFromConnection(nc *nats.Conn, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), nc, config...)
+}
+
+// NewFromConnectionWithContext creates a nats kv storage on an existing connection, which stays the
+// caller's to close, using ctx for the key-value bucket setup. Only KeyValueConfig and Reset are read;
+// the connection settings come from the connection. The caller's own reconnect handlers are left alone,
+// so a connection that drops and comes back has its bucket re-resolved on the next operation instead.
+func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...Config) *Storage {
+	if nc == nil {
+		panic("nats: nil connection")
+	}
+
+	cfg := configDefault(config...)
+
+	storage := &Storage{
+		cfg: cfg,
+		ctx: ctx,
+		nc:  nc,
+	}
+
+	kv, err := newNatsKV(nc, ctx, cfg.KeyValueConfig)
+	if err != nil {
+		// Recorded rather than fatal, the same way a failed dial is: operations report it as not initialized.
+		storage.err = err
+	}
+	storage.kv = kv
+
+	if cfg.Reset {
+		if err := storage.Reset(); err != nil {
 			panic(err)
 		}
 	}
@@ -405,7 +446,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the connection. Safe to call more than once; the write lock keeps operations off a connection being torn down.
+// Close the connection unless it came from NewFromConnection. Safe to call more than once; the write lock keeps operations off a connection being torn down.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -415,7 +456,11 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	s.nc.Close()
+	// A borrowed connection is not ours to close, but the storage still is.
+	if s.ownsNC {
+		s.nc.Close()
+	}
+
 	return nil
 }
 

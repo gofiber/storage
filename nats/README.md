@@ -23,6 +23,8 @@ A NATS Key/Value storage driver.
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(nc *nats.Conn, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -113,5 +115,33 @@ var ConfigDefault = Config{
     Bucket: "fiber_storage",
     },
     WaitForConnection: 100 * time.Millisecond,
+}
+```
+
+### Using an Existing NATS Connection
+If your application already holds a `*nats.Conn`, you can build the storage on it instead of connecting a second time. Only the `KeyValueConfig` and `Reset` options are read; the connection settings come from the connection. Your own connect and reconnect handlers are left alone.
+
+The connection stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/gofiber/storage/nats/v2"
+    natsgo "github.com/nats-io/nats.go"
+    "github.com/nats-io/nats.go/jetstream"
+)
+
+func main() {
+    nc, err := natsgo.Connect("nats://127.0.0.1:4222")
+    if err != nil {
+        panic(err)
+    }
+    defer nc.Close()
+
+    store := nats.NewFromConnection(nc, nats.Config{
+        KeyValueConfig: jetstream.KeyValueConfig{
+            Bucket: "fiber_storage",
+        },
+    })
+    defer store.Close()
 }
 ```
