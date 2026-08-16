@@ -21,33 +21,15 @@ case "$PACKAGE" in
     docker run -d -p 1408:1408 -p 30000:30000 "$TEST_COHERENCE_IMAGE"
     sleep 30
     ;;
-  # rueidis and valkey need nothing here. Their tests start their own
+  # mssql, rueidis and valkey need nothing here. Their tests start their own
   # containers through testcontainers and connect to the address it reports,
   # so the server this used to start on 6379 was never connected to. Pulling
   # it only spent registry quota that the pull the tests actually depend on
   # then went without, which is how a rate-limited runner turned into
   # "No such image" once the test tried to create its container.
-  mssql)
-    docker run -d --name mssql-server \
-      --publish 1433:1433 \
-      --env ACCEPT_EULA=Y \
-      --env SA_PASSWORD=MsSql!1234 \
-      --env MSSQL_DB=master \
-      --env MSSQL_USER=sa \
-      --env MSSQL_PASSWORD=MsSql!1234 \
-      --health-cmd "/opt/mssql-tools/bin/sqlcmd -U sa -P MsSql!1234 -Q 'select 1' -b -o /dev/null" \
-      --health-interval 1s \
-      --health-timeout 30s \
-      --health-start-period 10s \
-      --health-retries 20 \
-      mcmoe/mssqldocker:latest
-    ;;
 esac
 
 cat >> "$GITHUB_ENV" <<'EOF'
-MSSQL_DATABASE=master
-MSSQL_USERNAME=sa
-MSSQL_PASSWORD=MsSql!1234
 TEST_AEROSPIKE_IMAGE=aerospike/aerospike-server:latest
 TEST_ARANGODB_IMAGE=public.ecr.aws/docker/library/arangodb:latest
 TEST_AZURITE_IMAGE=mcr.microsoft.com/azure-storage/azurite:latest
@@ -61,6 +43,7 @@ TEST_FIRESTORE_IMAGE=gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
 TEST_MEMCACHED_IMAGE=public.ecr.aws/docker/library/memcached:latest
 TEST_MINIO_IMAGE=quay.io/minio/minio:latest
 TEST_MONGODB_IMAGE=public.ecr.aws/docker/library/mongo:7
+TEST_MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-latest
 TEST_MYSQL_IMAGE=public.ecr.aws/docker/library/mysql:9
 TEST_NATS_IMAGE=public.ecr.aws/docker/library/nats:2-alpine
 TEST_POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres:16-alpine

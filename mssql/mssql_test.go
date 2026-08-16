@@ -3,19 +3,83 @@ package mssql
 import (
 	"context"
 	"database/sql"
+	"log"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var testStore = New(Config{
-	Database: os.Getenv("MSSQL_DATABASE"),
-	Username: os.Getenv("MSSQL_USERNAME"),
-	Password: os.Getenv("MSSQL_PASSWORD"),
-	Reset:    true,
-})
+const (
+	// mssqlImage is the default image used for running MSSQL in tests.
+	mssqlImage              = "mcr.microsoft.com/mssql/server:2022-latest"
+	mssqlImageEnvVar string = "TEST_MSSQL_IMAGE"
+	mssqlPort        string = "1433/tcp"
+	// mssqlPass has to satisfy the SQL Server password policy: at least eight
+	// characters drawn from upper case, lower case, digits and symbols.
+	mssqlPass string = "MsSql!1234"
+)
+
+var testStore *Storage
+
+func TestMain(m *testing.M) {
+	os.Exit(runTests(m))
+}
+
+// runTests starts a single MSSQL container for the whole package, points
+// testStore at it and runs the tests. It is kept separate from TestMain so the
+// deferred cleanup still runs before os.Exit is called.
+func runTests(m *testing.M) int {
+	ctx := context.Background()
+
+	img := mssqlImage
+	if imgFromEnv := os.Getenv(mssqlImageEnvVar); imgFromEnv != "" {
+		img = imgFromEnv
+	}
+
+	c, err := tcmssql.Run(ctx, img,
+		tcmssql.WithAcceptEULA(),
+		tcmssql.WithPassword(mssqlPass),
+		// SQL Server takes a while to recover its databases on a cold start, so
+		// allow more time than the module default of one minute.
+		testcontainers.WithWaitStrategyAndDeadline(5*time.Minute,
+			wait.ForListeningPort(mssqlPort),
+			wait.ForLog("Recovery is complete."),
+		),
+	)
+	defer func() {
+		if c == nil {
+			return
+		}
+		if err := c.Terminate(ctx); err != nil {
+			log.Printf("terminate mssql container: %v", err)
+		}
+	}()
+	if err != nil {
+		log.Printf("run mssql container: %v", err)
+		return 1
+	}
+
+	// The driver defaults to an unencrypted connection, so the tests exercise it
+	// the same way against the container.
+	conn, err := c.ConnectionString(ctx, "database=master", "encrypt=disable")
+	if err != nil {
+		log.Printf("mssql connection string: %v", err)
+		return 1
+	}
+
+	testStore = New(Config{
+		ConnectionURI: conn,
+		Reset:         true,
+	})
+	defer testStore.Close()
+
+	return m.Run()
+}
 
 func Test_MSSQL_Set(t *testing.T) {
 	var (
