@@ -34,7 +34,7 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *ristretto.Cache
 ```
 
-**Note:** `Set` waits for Ristretto to process the buffered write before returning, so a `Get` that follows a `Set` observes the value instead of racing the cache's background writer. Ristretto remains a cache with an admission policy: an entry may be rejected on write or evicted later, so `Get` can still report a miss. Set `SkipWaitForWrite: true` to keep Ristretto's buffered write behaviour instead, which is faster but makes a `Get` straight after a `Set` racy.
+**Note:** `Set` calls Ristretto's `Wait` before returning, so a `Get` that follows a `Set` no longer races the cache's background writer. `Wait` drains the write buffer; it does not guarantee the entry was admitted. Ristretto is a cache with an admission policy, so an entry may be rejected on write or evicted later and a `Get` can still report a miss — read-after-write here is best-effort, not a guarantee, and this driver should not be used where a value must be readable once stored. Set `SkipWaitForWrite: true` to keep Ristretto's buffered write behaviour instead, which is roughly 3x faster on `Set` but makes a `Get` straight after a `Set` racy.
 
 **Note:** Ristretto has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
