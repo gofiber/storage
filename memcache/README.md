@@ -89,6 +89,8 @@ If your application already holds a `*memcache.Client`, you can build the storag
 
 The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
 
+> **Warning:** `Reset` runs `DeleteAll` against the memcached instance, deleting every item on it, not just this storage's entries.
+
 ```go
 import (
     mc "github.com/bradfitz/gomemcache/memcache"

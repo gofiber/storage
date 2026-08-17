@@ -105,6 +105,8 @@ If your application already holds a `*ristretto.Cache`, you can build the storag
 
 The cache stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
+> **Warning:** `Reset` clears the entire shared cache, not just this storage's entries.
+
 ```go
 import (
     "github.com/dgraph-io/ristretto"

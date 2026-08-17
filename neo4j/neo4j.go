@@ -263,7 +263,13 @@ func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	if s.closed || !s.ownsDB {
+	if s.closed {
+		return nil
+	}
+
+	// A borrowed driver is not ours to close, but the storage still is.
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

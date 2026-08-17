@@ -65,17 +65,26 @@ func validateIdentifier(name, identifierType string) (string, error) {
 	return name, nil
 }
 
+// validatedConfig applies the defaults and validates the identifiers every constructor interpolates
+// into its statements.
+func validatedConfig(cnfg Config) (cfg Config, keyspace, table string, err error) {
+	cfg = configDefault(cnfg)
+
+	keyspace, err = validateIdentifier(cfg.Keyspace, "keyspace")
+	if err != nil {
+		return Config{}, "", "", err
+	}
+	table, err = validateIdentifier(cfg.Table, "table")
+	if err != nil {
+		return Config{}, "", "", err
+	}
+
+	return cfg, keyspace, table, nil
+}
+
 // New creates a new Cassandra storage instance
 func New(cnfg Config) (*Storage, error) {
-	// Default config
-	cfg := configDefault(cnfg)
-
-	// Validate and escape identifiers
-	keyspace, err := validateIdentifier(cfg.Keyspace, "keyspace")
-	if err != nil {
-		return nil, err
-	}
-	table, err := validateIdentifier(cfg.Table, "table")
+	cfg, keyspace, table, err := validatedConfig(cnfg)
 	if err != nil {
 		return nil, err
 	}
@@ -109,21 +118,15 @@ func New(cnfg Config) (*Storage, error) {
 }
 
 // NewFromConnection creates a Cassandra storage on an existing session, which stays the caller's to close.
-// The keyspace has to exist already; only the table is created.
+// The keyspace has to exist already; only the table is created. Only the Keyspace, Table and Reset options
+// are read: Consistency, ConnectTimeout, MaxRetries, PoolConfig and SslOpts shape a cluster this driver
+// would build itself, so on a borrowed session they are fixed by the session and ignored here.
 func NewFromConnection(session *gocql.Session, cnfg Config) (*Storage, error) {
 	if session == nil {
 		return nil, errors.New("cassandra: session cannot be nil")
 	}
 
-	// Default config
-	cfg := configDefault(cnfg)
-
-	// Validate and escape identifiers
-	keyspace, err := validateIdentifier(cfg.Keyspace, "keyspace")
-	if err != nil {
-		return nil, err
-	}
-	table, err := validateIdentifier(cfg.Table, "table")
+	cfg, keyspace, table, err := validatedConfig(cnfg)
 	if err != nil {
 		return nil, err
 	}

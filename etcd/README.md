@@ -92,6 +92,8 @@ If your application already holds a `*clientv3.Client`, you can build the storag
 
 The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
+> **Warning:** the storage does not namespace its keys. `Reset` deletes **every key** reachable through the client — on a cluster shared with service discovery or configuration, that is all of it.
+
 ```go
 import (
     "github.com/gofiber/storage/etcd/v2"

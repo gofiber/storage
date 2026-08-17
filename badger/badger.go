@@ -42,6 +42,9 @@ func New(config ...Config) *Storage {
 // NewFromConnection creates a storage on an already open database, which stays the caller's to close.
 // Only the Reset and GCInterval options are read; Badger allows a single writer per directory, so
 // sharing the open handle is the way to back a storage with a database the application already uses.
+//
+// Keys are not namespaced: Reset — the config option here and the method later — runs DropAll on the
+// shared database, deleting every key the application stored in it, not just this storage's entries.
 func NewFromConnection(db *badger.DB, config ...Config) *Storage {
 	if db == nil {
 		panic("badger: nil database")

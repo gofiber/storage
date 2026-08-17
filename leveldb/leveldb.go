@@ -129,6 +129,10 @@ func New(config ...Config) *Storage {
 // NewFromConnection creates a storage on an already open database, which stays the caller's to close.
 // LevelDB allows a single process to hold a directory, so sharing the open handle is the way to back a
 // storage with a database the application already uses. Only the GCInterval and ReadOnly options are read.
+//
+// The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
+// in the database, and the background collector scans all of them — reclaiming any value that decodes
+// as an entry whose deadline passed. Keep application data out of a database backing this storage.
 func NewFromConnection(db *leveldb.DB, config ...Config) *Storage {
 	if db == nil {
 		panic("leveldb: nil database")

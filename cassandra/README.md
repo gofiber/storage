@@ -139,7 +139,7 @@ var ConfigDefault = Config{
 
 ### Using an Existing Cassandra Session
 
-If your application already holds a `*gocql.Session`, you can build the storage on it instead of opening a second one. The keyspace has to exist already; only the table is created. Only the `Keyspace`, `Table` and `Reset` options are read, the rest come from the session you pass.
+If your application already holds a `*gocql.Session`, you can build the storage on it instead of opening a second one. The keyspace has to exist already; only the table is created. Only the `Keyspace`, `Table` and `Reset` options are read, the rest come from the session you pass. In particular `Consistency`, `ConnectTimeout` and `MaxRetries` are fixed by the session and ignored here.
 
 The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 

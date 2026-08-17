@@ -36,14 +36,7 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	store := &Storage{
-		cache:        cache,
-		ownsCache:    true,
-		defaultCost:  cfg.DefaultCost,
-		waitForWrite: !cfg.SkipWaitForWrite,
-	}
-
-	return store
+	return newStorage(cache, true, cfg)
 }
 
 // NewFromConnection builds a Storage on an existing cache, which stays the caller's to close.
@@ -53,10 +46,13 @@ func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage {
 		panic("ristretto: nil cache")
 	}
 
-	cfg := configDefault(config...)
+	return newStorage(cache, false, configDefault(config...))
+}
 
+func newStorage(cache *ristretto.Cache, ownsCache bool, cfg Config) *Storage {
 	return &Storage{
 		cache:        cache,
+		ownsCache:    ownsCache,
 		defaultCost:  cfg.DefaultCost,
 		waitForWrite: !cfg.SkipWaitForWrite,
 	}

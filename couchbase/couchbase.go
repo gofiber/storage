@@ -33,6 +33,8 @@ func New(config ...Config) *Storage {
 			ConnectTimeout: cfg.ConnectionTimeout,
 			KVTimeout:      cfg.KVTimeout,
 		},
+		// Kept although operations pass their own transcoder: callers using Conn() rely on the
+		// cluster this driver built handling raw bytes.
 		Transcoder: transcoder,
 	})
 	if err != nil {

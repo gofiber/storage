@@ -82,33 +82,13 @@ func NewWithContext(ctx context.Context, config ...Config) (*Storage, error) {
 
 	options = append(options, coh.WithRequestTimeout(cfg.Timeout))
 
-	// validate near cache options
-	if cfg.NearCacheTimeout != 0 {
-		if cfg.NearCacheTimeout > cfg.Timeout {
-			return nil, fmt.Errorf("you cannot set the near cache timeout (%v) to less than session timeout (%v)",
-				cfg.NearCacheTimeout, cfg.Timeout)
-		}
-	}
-
 	// create the Coherence session
 	session, err := coh.NewSession(ctx, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	store, err := newCoherenceStorage(session, cfg.ScopeName, cfg.NearCacheTimeout)
-	if err != nil {
-		session.Close()
-		return nil, err
-	}
-	store.ownsSession = true
-
-	// if Reset is true then reset the store
-	if cfg.Reset {
-		return store, store.Reset()
-	}
-
-	return store, nil
+	return newStorage(session, true, cfg)
 }
 
 // NewFromConnection returns a new [Storage] on an existing session, which stays the caller's to close.
@@ -118,21 +98,41 @@ func NewFromConnection(session *coh.Session, config ...Config) (*Storage, error)
 		return nil, fmt.Errorf("session cannot be nil")
 	}
 
-	cfg := setupConfig(config...)
+	return newStorage(session, false, setupConfig(config...))
+}
 
-	if cfg.NearCacheTimeout != 0 && cfg.NearCacheTimeout > cfg.Timeout {
-		return nil, fmt.Errorf("you cannot set the near cache timeout (%v) to less than session timeout (%v)",
-			cfg.NearCacheTimeout, cfg.Timeout)
+// newStorage opens the named cache on session; the session is closed on failure only when this driver opened it.
+func newStorage(session *coh.Session, ownsSession bool, cfg Config) (*Storage, error) {
+	closeOwned := func() {
+		if ownsSession {
+			session.Close()
+		}
+	}
+
+	// Validated against the session's actual request timeout: on a borrowed session Config.Timeout was
+	// never applied to it, so only the session itself knows the limit a near cache must stay under.
+	if cfg.NearCacheTimeout != 0 && cfg.NearCacheTimeout > session.GetRequestTimeout() {
+		closeOwned()
+		return nil, fmt.Errorf("you cannot set the near cache timeout (%v) to more than the session timeout (%v)",
+			cfg.NearCacheTimeout, session.GetRequestTimeout())
 	}
 
 	store, err := newCoherenceStorage(session, cfg.ScopeName, cfg.NearCacheTimeout)
 	if err != nil {
+		closeOwned()
 		return nil, err
 	}
+	store.ownsSession = ownsSession
 
 	// if Reset is true then reset the store
 	if cfg.Reset {
-		return store, store.Reset()
+		if err := store.Reset(); err != nil {
+			// Not (store, err): a caller following convention discards the storage on error, and a
+			// session this driver opened would leak with it. The named cache stays registered on a
+			// borrowed session — it is shared per cache name, and a retry picks the same one up.
+			closeOwned()
+			return nil, err
+		}
 	}
 
 	return store, nil
@@ -222,19 +222,17 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the session unless it came from NewFromConnection, in which case only the cache this
-// storage opened on it is released. Safe to call more than once.
+// Close the session unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		// A borrowed session is not ours to close — and its named cache is not released either:
+		// the client hands out one instance per session and cache name, so releasing it here would
+		// break sibling storages built on the same scope. It stays registered, reused by the next
+		// storage with this scope, until the session itself closes.
 		if s.ownsSession {
 			// Closing the session releases every cache opened on it, this one included.
 			s.session.Close()
-			return
 		}
-
-		// A borrowed session is not ours to close, but the cache opened on it is ours to release:
-		// its listeners and near cache would otherwise outlive the storage on a long-lived session.
-		s.namedCache.Release()
 	})
 
 	return nil

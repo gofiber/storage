@@ -241,6 +241,8 @@ If your application already holds a `valkey.Client`, you can build the storage o
 
 The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
 
+> **Warning:** `Reset` — the config option and the method — issues `FLUSHDB` on the client's database, deleting every key in it, not just this storage's entries.
+
 ```go
 import (
     "github.com/gofiber/storage/valkey"

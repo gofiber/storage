@@ -70,9 +70,7 @@ func New(config ...Config) *Storage {
 	cp.Timeout = cfg.InitialConnectionTimeout
 
 	// Checked before the client is opened, so an unusable configuration leaves no connection to release.
-	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
-		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
-	}
+	mustValidSetName(cfg.SetName)
 
 	// Create client
 	client, err := aerospike.NewClientWithPolicyAndHost(cp, cfg.Hosts...)
@@ -91,12 +89,16 @@ func NewFromConnection(client *aerospike.Client, config ...Config) *Storage {
 	}
 
 	cfg := configDefault(config...)
-
-	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
-		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
-	}
+	mustValidSetName(cfg.SetName)
 
 	return newStorage(client, false, cfg)
+}
+
+// mustValidSetName rejects a set name that would collide with this driver's own schema set.
+func mustValidSetName(setName string) {
+	if strings.HasSuffix(setName, schemaSetSuffix) {
+		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", setName, schemaSetSuffix))
+	}
 }
 
 // newStorage prepares the schema on client; client is released only when this driver opened it.

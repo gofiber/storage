@@ -126,6 +126,8 @@ Badger allows a single writer per directory, so an application that already keep
 
 The database stays yours to close: `Close` on a storage built this way stops the value-log collector but leaves the database open, so the rest of your application keeps working.
 
+> **Warning:** keys are not namespaced. `Reset` — the config option and the method — runs `DropAll` on the shared database, deleting every key your application stored in it, not just this storage's entries.
+
 ```go
 import (
     "github.com/dgraph-io/badger/v3"

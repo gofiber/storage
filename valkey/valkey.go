@@ -32,22 +32,31 @@ func NewFromConnection(conn valkey.Client, config ...Config) *Storage {
 // NewFromConnectionWithContext builds a Storage on an existing client, which stays the caller's to
 // close, using ctx for the optional reset. Only CacheTTL and Reset are read from the config; the
 // connection settings come from the client, and nothing touches the network unless Reset is set.
+// Reset empties the whole logical database the client points at, not just this storage's keys.
 func NewFromConnectionWithContext(ctx context.Context, conn valkey.Client, config ...Config) *Storage {
 	if conn == nil {
 		panic("valkey: nil client")
 	}
 
-	cfg := configDefault(config...)
+	return newStorage(ctx, conn, false, configDefault(config...))
+}
 
+// newStorage runs the optional reset and builds the store; db is released on failure only when this
+// driver opened it.
+func newStorage(ctx context.Context, db valkey.Client, ownsDB bool, cfg Config) *Storage {
 	// Emptied here rather than silently ignored: a caller who asked for a clean database gets one.
 	if cfg.Reset {
-		if err := conn.Do(ctx, conn.B().Flushdb().Build()).Error(); err != nil {
+		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
+			if ownsDB {
+				db.Close()
+			}
 			panic(err)
 		}
 	}
 
 	return &Storage{
-		db:       conn,
+		db:       db,
+		ownsDB:   ownsDB,
 		cacheTTL: cfg.CacheTTL,
 	}
 }
@@ -110,28 +119,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	closeOwned := func() { db.Close() }
-
 	// Test connection
 	if err := db.Do(ctx, db.B().Ping().Build()).Error(); err != nil {
-		closeOwned()
+		db.Close()
 		panic(err)
 	}
 
-	// Empty collection if Clear is true
-	if cfg.Reset {
-		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
-			closeOwned()
-			panic(err)
-		}
-	}
-
-	// Create new store
-	return &Storage{
-		db:       db,
-		ownsDB:   true,
-		cacheTTL: cfg.CacheTTL,
-	}
+	return newStorage(ctx, db, true, cfg)
 }
 
 // GetWithContext gets value by key with context

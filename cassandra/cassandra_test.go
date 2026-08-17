@@ -398,9 +398,8 @@ func Test_Cassandra_NewFromConnection(t *testing.T) {
 	defer store.Close()
 
 	shared, err := NewFromConnection(store.Conn(), Config{
-		Keyspace:    "test_cassandra",
-		Table:       "test_kv_existing",
-		Consistency: gocql.One,
+		Keyspace: "test_cassandra",
+		Table:    "test_kv_existing",
 	})
 	require.NoError(t, err)
 	require.Same(t, store.Conn(), shared.Conn())
