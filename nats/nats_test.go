@@ -575,3 +575,24 @@ func Test_Storage_Nats_NewFromConnection_Nil(t *testing.T) {
 		NewFromConnection(nil)
 	})
 }
+
+// A bucket deleted externally is exactly what Reset's own delete leaves behind, so
+// Reset recreates it and reports success instead of the delete's not-found error.
+func Test_Storage_Nats_Reset_BucketGone(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	nc, _ := testStore.Conn()
+	js, err := jetstream.New(nc)
+	require.NoError(t, err)
+	require.NoError(t, js.DeleteKeyValue(context.Background(), testStore.cfg.KeyValueConfig.Bucket))
+
+	require.NoError(t, testStore.Reset())
+
+	require.NoError(t, testStore.Set("jane", []byte("doe"), 0))
+	result, err := testStore.Get("jane")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}

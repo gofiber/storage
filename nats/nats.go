@@ -503,9 +503,10 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return fmt.Errorf("get jetstream: %w", err)
 	}
 
-	// Delete the bucket
+	// Delete the bucket. One already gone — deleted externally, say — is exactly
+	// what this delete would leave behind, so continue to the recreate.
 	err = js.DeleteKeyValue(ctx, s.cfg.KeyValueConfig.Bucket)
-	if err != nil {
+	if err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) && !errors.Is(err, jetstream.ErrStreamNotFound) {
 		return fmt.Errorf("delete kv: %w", err)
 	}
 
