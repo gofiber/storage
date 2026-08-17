@@ -317,11 +317,15 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 // invalidateOnStreamGone drops the cached bucket when err says its backing stream no longer exists,
 // so the next operation on a borrowed connection re-resolves (and recreates) the bucket instead of
 // failing forever; an owned connection's reconnect handlers already re-resolve it.
+// Writes against a deleted stream report ErrNoStreamResponse — the publish simply gets no answer —
+// rather than a not-found; it can also be transient, but invalidating then just costs one re-lookup.
 func (s *Storage) invalidateOnStreamGone(kv jetstream.KeyValue, err error) {
 	if err == nil || s.ownsNC {
 		return
 	}
-	if !errors.Is(err, jetstream.ErrStreamNotFound) && !errors.Is(err, jetstream.ErrBucketNotFound) {
+	if !errors.Is(err, jetstream.ErrStreamNotFound) &&
+		!errors.Is(err, jetstream.ErrBucketNotFound) &&
+		!errors.Is(err, jetstream.ErrNoStreamResponse) {
 		return
 	}
 
