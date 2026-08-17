@@ -19,7 +19,7 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ### Signatures
 ```go
 func New(config ...Config) Storage
-func NewFromConnection(db *memcache.Client) *Storage
+func NewFromConnection(db *memcache.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -85,7 +85,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Memcache Connection
-If your application already holds a `*memcache.Client`, you can build the storage on it instead of creating a second one.
+If your application already holds a `*memcache.Client`, you can build the storage on it instead of creating a second one. Only `Reset` is read from the config; connection settings stay with your client.
 
 The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
 

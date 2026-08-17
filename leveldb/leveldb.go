@@ -90,12 +90,54 @@ type Storage struct {
 	closeMu    sync.Mutex
 	closed     bool
 
-	// mu orders the collector's delete against writers, so a key a Set just refreshed survives.
-	mu sync.RWMutex
+	// mu orders the collector's delete against writers, so a key a Set just refreshed
+	// survives. It is shared by every storage on the same database, since a sibling's
+	// Set needs the same protection from this storage's collector.
+	mu *dbMu
 
 	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
 	gcEpoch  uint64
 	gcCursor []byte
+}
+
+// dbMu is the write-order lock of one database, shared by every storage built on it.
+type dbMu struct {
+	sync.RWMutex
+	refs int
+}
+
+var (
+	dbMusMu sync.Mutex
+	dbMus   = map[*leveldb.DB]*dbMu{}
+)
+
+// acquireDBMu hands out the database's shared lock, creating it for the first storage.
+func acquireDBMu(db *leveldb.DB) *dbMu {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		m = &dbMu{}
+		dbMus[db] = m
+	}
+	m.refs++
+
+	return m
+}
+
+// releaseDBMu lets go of the database's shared lock, dropping it with the last storage.
+func releaseDBMu(db *leveldb.DB) {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		return
+	}
+	if m.refs--; m.refs == 0 {
+		delete(dbMus, db)
+	}
 }
 
 // New creates a new memory storage
@@ -136,6 +178,9 @@ func New(config ...Config) *Storage {
 // The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
 // in the database, and the background collector scans all of them — reclaiming any value that decodes
 // as an entry whose deadline passed. Keep application data out of a database backing this storage.
+//
+// Storages built on the same database share one write-order lock, so each one's collector
+// coordinates with the others' writes the same way it does with its own.
 func NewFromConnection(db *leveldb.DB, config ...Config) *Storage {
 	if db == nil {
 		panic("leveldb: nil database")
@@ -151,6 +196,7 @@ func newStorage(db *leveldb.DB, ownsDB bool, cfg Config) *Storage {
 		ownsDB:     ownsDB,
 		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
+		mu:         acquireDBMu(db),
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
 	}
@@ -347,6 +393,8 @@ func (s *Storage) Close() error {
 	if s.closed {
 		return nil
 	}
+
+	releaseDBMu(s.db)
 
 	if !s.ownsDB {
 		s.closed = true
