@@ -146,7 +146,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing DynamoDB Client
-If your application already holds a `*dynamodb.Client`, you can build the storage on it instead of creating a second one. Only the table options are read; the endpoint and credentials come from the client.
+If your application already holds a `*dynamodb.Client`, you can build the storage on it instead of creating a second one. Only the table options and `Reset` are read; the endpoint and credentials come from the client. `Reset` drops the table and recreates it empty.
 
 The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
 

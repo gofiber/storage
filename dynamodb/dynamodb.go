@@ -64,8 +64,9 @@ func NewFromConnection(db *awsdynamodb.Client, config Config) *Storage {
 }
 
 // NewFromConnectionWithContext creates a DynamoDB storage on an existing client, which stays the
-// caller's to manage, using ctx as the parent context for the initialization operations (table
-// description and creation). Only the table options are read; the endpoint and credentials come from the client.
+// caller's to manage, using ctx as the parent context for the initialization operations (optional
+// reset, table description and creation). Only the table options and Reset are read; the endpoint
+// and credentials come from the client. Reset drops the table and recreates it empty.
 func NewFromConnectionWithContext(ctx context.Context, db *awsdynamodb.Client, config Config) *Storage {
 	if db == nil {
 		panic("dynamodb: nil client")
@@ -74,10 +75,11 @@ func NewFromConnectionWithContext(ctx context.Context, db *awsdynamodb.Client, c
 	return newStorage(ctx, db, configDefault(config))
 }
 
+// resetWaitTimeout bounds the wait for an asynchronous table deletion during a reset.
+const resetWaitTimeout = 2 * time.Minute
+
 // newStorage prepares the table on db.
 func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storage {
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	describeTableInput := awsdynamodb.DescribeTableInput{
 		TableName: &cfg.Table,
 	}
@@ -87,6 +89,26 @@ func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storag
 		db:    db,
 		table: cfg.Table,
 	}
+
+	// Reset drops the table, and the describe below then rebuilds it empty. Deletion is
+	// asynchronous, so it is waited out before the table can be recreated.
+	if cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
+			var rnfe *types.ResourceNotFoundException
+			// A table that does not exist is already as empty as a reset leaves it.
+			if !errors.As(err, &rnfe) {
+				panic(err)
+			}
+		} else {
+			waiter := awsdynamodb.NewTableNotExistsWaiter(db)
+			if err := waiter.Wait(ctx, &describeTableInput, resetWaitTimeout); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	// Create table
 	_, err := db.DescribeTable(timeoutCtx, &describeTableInput)

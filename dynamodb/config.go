@@ -32,7 +32,7 @@ type Config struct {
 	// Optional. Default is 3
 	MaxAttempts int
 
-	// Reset clears any existing keys in existing Bucket
+	// Reset drops the table on initialization and recreates it empty
 	//
 	// Optional. Default is false
 	Reset bool
