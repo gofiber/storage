@@ -164,7 +164,7 @@ var ConfigDefault = Config{
 ### Using an Existing Neo4j Connection
 If your application already holds a `neo4j.DriverWithContext`, you can build the storage on it instead of creating a second one. This is the same as setting `Config.DB`.
 
-The driver stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the driver open, so the rest of your application keeps working.
+The driver stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the driver open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

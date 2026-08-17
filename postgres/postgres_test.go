@@ -648,6 +648,7 @@ func Test_Postgres_NewFromConnection(t *testing.T) {
 	// The pool is the caller's, so closing the storage must leave it usable.
 	require.NoError(t, store.Close())
 	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Postgres_NewFromConnection_Nil(t *testing.T) {

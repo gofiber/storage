@@ -190,7 +190,7 @@ var ConfigDefault = Config{
 ### Using an Existing LevelDB Database
 LevelDB lets a single process hold a directory, so an application that already keeps a `*leveldb.DB` open cannot have the storage open the same path again. Pass the open database instead. Only the `GCInterval` and `ReadOnly` options are read.
 
-The database stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working.
+The database stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 > **Warning:** the storage treats the whole keyspace as its own — `Reset` deletes every key in the database, and the background collector reclaims any value that looks like an expired entry. Keep application data out of a database backing this storage.
 

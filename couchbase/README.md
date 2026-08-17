@@ -97,7 +97,7 @@ var ConfigDefault = Config{
 ### Using an Existing Couchbase Connection
 If your application already holds a `*gocb.Cluster`, you can build the storage on it instead of connecting a second time. Only the `Bucket` option is read; the connection settings come from the cluster. Values are read and written with a legacy transcoder passed per operation, so a cluster left on gocb's default JSON transcoder still stores raw bytes.
 
-The cluster stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+The cluster stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

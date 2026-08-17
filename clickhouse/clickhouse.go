@@ -11,6 +11,9 @@ import (
 	driver "github.com/ClickHouse/clickhouse-go/v2"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("clickhouse: storage is closed")
+
 type Storage struct {
 	session  driver.Conn
 	table    string
@@ -96,6 +99,9 @@ func newStorage(ctx context.Context, conn driver.Conn, ownsConn bool, engine Cli
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -127,6 +133,9 @@ func (s *Storage) Set(key string, value []byte, expiration time.Duration) error 
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) == 0 {
 		return []byte{}, nil
 	}
@@ -166,6 +175,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) == 0 {
 		return nil
 	}
@@ -178,11 +190,21 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	return s.session.Exec(ctx, resetDataString, driver.Named("table", s.table))
 }
 
 func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
+}
+
+// isClosed reports whether Close ran; a borrowed connection stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // Close the connection unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.

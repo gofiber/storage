@@ -6,8 +6,10 @@ package coherence
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	coh "github.com/oracle/coherence-go-client/v2/coherence"
@@ -19,8 +21,12 @@ const (
 	defaultAddress   = "localhost:1408"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed session stays open, so the latch is the only signal.
+var ErrClosed = errors.New("coherence: storage is closed")
+
 // Storage represents an implementation of Coherence storage provider.
 type Storage struct {
+	closed      atomic.Bool
 	session     *coh.Session
 	namedCache  coh.NamedCache[string, []byte]
 	ownsSession bool
@@ -182,6 +188,9 @@ func newCoherenceStorage(session *coh.Session, cacheName string, nearCacheTimeou
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	v, err := s.namedCache.Get(ctx, key)
 	if err != nil {
 		return nil, err
@@ -197,6 +206,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	_, err := s.namedCache.PutWithExpiry(ctx, key, val, exp)
 	return err
 }
@@ -206,6 +218,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	_, err := s.namedCache.Remove(ctx, key)
 	return err
 }
@@ -215,6 +230,9 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.namedCache.Truncate(ctx)
 }
 
@@ -225,6 +243,7 @@ func (s *Storage) Reset() error {
 // Close the session unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		// A borrowed session is not ours to close — and its named cache is not released either:
 		// the client hands out one instance per session and cache name, so releasing it here would
 		// break sibling storages built on the same scope. It stays registered, reused by the next

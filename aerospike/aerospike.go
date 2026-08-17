@@ -10,13 +10,18 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed client stays open, so the latch is the only signal.
+var ErrClosed = errors.New("aerospike: storage is closed")
+
 // Storage interface that is implemented by storage drivers
 type Storage struct {
+	closed    atomic.Bool
 	client    *aerospike.Client
 	namespace string
 	setName   string
@@ -265,6 +270,9 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) == 0 {
 		return nil, nil
 	}
@@ -300,6 +308,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// The storage interface documents an empty key or value as ignored without error.
 	if len(key) == 0 || len(val) == 0 {
 		return nil
@@ -343,6 +354,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key
 func (s *Storage) Delete(key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) == 0 {
 		return nil
 	}
@@ -366,6 +380,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// The bookkeeping record is in its own set, untouched by this scan, so every record here is the caller's.
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
@@ -413,6 +430,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		if s.ownsClient {
 			s.client.Close()
 		}

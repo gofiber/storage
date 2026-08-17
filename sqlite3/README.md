@@ -126,7 +126,7 @@ var ConfigDefault = Config{
 ### Using an Existing SQLite3 Connection
 If your application already holds a `*sql.DB`, you can build the storage on it instead of opening a second handle. The remaining config options (table name, GC interval, reset) still apply.
 
-The handle stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working.
+The handle stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

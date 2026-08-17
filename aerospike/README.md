@@ -138,7 +138,7 @@ var ConfigDefault = Config{
 ### Using an Existing Aerospike Connection
 If your application already holds an `*aerospike.Client`, you can build the storage on it instead of connecting a second time. Only the `Namespace`, `SetName`, `Reset` and schema options are read; the connection settings come from the client.
 
-The client stays yours to close: `Close` on a storage built this way leaves it connected, so the rest of your application keeps working.
+The client stays yours to close: `Close` on a storage built this way leaves it connected, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

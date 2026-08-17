@@ -139,7 +139,7 @@ var DefaultConfig = Config{
 
 If your application already holds a `clickhouse.Conn`, you can build the storage on it instead of opening a second connection. Only the `Table`, `Engine` and `Clean` options are read; the connection details are taken from the connection you pass.
 
-The connection stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+The connection stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

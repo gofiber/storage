@@ -364,6 +364,7 @@ func Test_Firestore_NewFromConnection(t *testing.T) {
 	// The client is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, store.Close())
 	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Firestore_NewFromConnection_Nil(t *testing.T) {

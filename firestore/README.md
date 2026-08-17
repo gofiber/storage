@@ -93,7 +93,7 @@ store := firestorage.New(firestorage.Config{
 
 If you already have a Firestore client configured in your application, you can create a Storage instance directly from that client.
 
-The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 > **Behavior change:** `Close` used to close the client passed to `NewFromConnection`. It no longer does. If your application relied on `store.Close()` to release a client it created itself, close that client directly (`defer client.Close()`).
 

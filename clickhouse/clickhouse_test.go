@@ -396,6 +396,7 @@ func Test_Clickhouse_NewFromConnection(t *testing.T) {
 	// The connection is the caller's, so closing the storage must leave it usable.
 	require.NoError(t, client.Close())
 	require.NoError(t, conn.Ping(context.Background()))
+	require.ErrorIs(t, client.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Clickhouse_NewFromConnection_Errors(t *testing.T) {

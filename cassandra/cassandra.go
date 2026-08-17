@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -21,8 +22,12 @@ var (
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed session stays open, so the latch is the only signal.
+var ErrClosed = errors.New("cassandra: storage is closed")
+
 // Storage represents a Cassandra storage implementation
 type Storage struct {
+	closed      atomic.Bool
 	cluster     *gocql.ClusterConfig
 	session     *gocql.Session
 	sx          gocqlx.Session
@@ -285,6 +290,9 @@ func ttlSeconds(d time.Duration) int {
 
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// An empty key or value is ignored; the key is a bound parameter, so validating it only rejected ordinary keys.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
@@ -326,6 +334,9 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 
 // GetWithContext retrieves a value by key with context support.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	// Use query builder for select
 	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Columns("value", "expires_at").
@@ -359,6 +370,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // DeleteWithContext removes a key from storage with context support.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Use query builder for delete
 	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Where(qb.Eq("key")).
@@ -378,6 +392,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext clears all keys from storage with context support.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Use direct TRUNCATE query with proper escaping
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
 	return s.sx.Query(query, []string{}).WithContext(ctx).ExecRelease()
@@ -397,6 +414,7 @@ func (s *Storage) Conn() *gocql.Session {
 // Close closes the session once unless it came from NewFromConnection; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		if s.session != nil && s.ownsSession {
 			s.session.Close()
 		}

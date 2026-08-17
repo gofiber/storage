@@ -128,7 +128,7 @@ GCInterval:       time.Second * 10,
 ### Using an Existing SurrealDB Connection
 If your application already holds a `*surrealdb.DB`, you can build the storage on it instead of connecting a second time. Selecting the namespace and database and signing in stay yours to do; only the `DefaultTable` and `GCInterval` options are read.
 
-The connection stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the connection open, so the rest of your application keeps working.
+The connection stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the connection open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

@@ -335,6 +335,7 @@ func Test_Bbolt_NewFromConnection(t *testing.T) {
 	// The database is the caller's, so closing the storage must leave it open.
 	require.NoError(t, store.Close())
 	require.NoError(t, conn.Update(func(tx *bbolt.Tx) error { return nil }))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Bbolt_NewFromConnection_Nil(t *testing.T) {

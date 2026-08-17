@@ -342,6 +342,7 @@ func Test_SQLite3_NewFromConnection(t *testing.T) {
 	// The handle is the caller's, so closing the storage must leave it usable.
 	require.NoError(t, store.Close())
 	require.NoError(t, db.Ping())
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_SQLite3_NewFromConnection_Nil(t *testing.T) {

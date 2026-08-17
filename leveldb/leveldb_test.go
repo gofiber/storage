@@ -684,6 +684,7 @@ func Test_LevelDB_NewFromConnection(t *testing.T) {
 	// The database is the caller's, so closing the storage must leave it open.
 	require.NoError(t, store.Close())
 	require.NoError(t, db.Put([]byte("jane"), []byte("doe"), nil))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_LevelDB_NewFromConnection_Nil(t *testing.T) {

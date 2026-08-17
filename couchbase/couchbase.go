@@ -2,11 +2,15 @@ package couchbase
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
+
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("couchbase: storage is closed")
 
 type Storage struct {
 	cb      *gocb.Cluster
@@ -67,6 +71,9 @@ func NewFromConnection(cluster *gocb.Cluster, config ...Config) *Storage {
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	out, err := s.bucket.DefaultCollection().Get(key, &gocb.GetOptions{
 		Context:    ctx,
 		Transcoder: transcoder,
@@ -97,6 +104,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if _, err := s.bucket.DefaultCollection().Upsert(key, val, &gocb.UpsertOptions{
 		Context:    ctx,
 		Expiry:     exp,
@@ -113,6 +123,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if _, err := s.bucket.DefaultCollection().Remove(key, &gocb.RemoveOptions{
 		Context: ctx,
 	}); err != nil {
@@ -126,6 +139,9 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	return s.cb.Buckets().FlushBucket(s.bucket.Name(), &gocb.FlushBucketOptions{
 		Context: ctx,
 	})
@@ -133,6 +149,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
+}
+
+// isClosed reports whether Close ran; a borrowed cluster stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // Close the cluster unless it came from NewFromConnection. Safe to call more than once.

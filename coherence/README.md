@@ -150,7 +150,7 @@ var DefaultConfig = Config{
 ### Using an Existing Coherence Session
 If your application already holds a `*coherence.Session`, you can build the storage on it instead of creating a second one. Only the `ScopeName`, `NearCacheTimeout` and `Reset` options are read; the connection settings come from the session.
 
-The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
+The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

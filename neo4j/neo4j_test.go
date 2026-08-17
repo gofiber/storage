@@ -302,6 +302,7 @@ func Test_Neo4jStore_NewFromConnection(t *testing.T) {
 	// The driver is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, store.Close())
 	require.NoError(t, driver.VerifyConnectivity(context.Background()))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Neo4jStore_NewFromConnection_Nil(t *testing.T) {

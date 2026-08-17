@@ -10,9 +10,11 @@ package firestore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -22,8 +24,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed client stays open, so the latch is the only signal.
+var ErrClosed = errors.New("firestore: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	closed     atomic.Bool
 	client     *firestore.Client
 	collection string
 	timeout    time.Duration
@@ -97,6 +103,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -145,6 +154,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // SetWithContext key with value and expiration with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -177,6 +189,9 @@ func (s *Storage) Delete(key string) error {
 
 // DeleteWithContext deletes entry by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -203,6 +218,9 @@ func (s *Storage) Reset() error {
 
 // ResetWithContext reset all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, s.timeout)
@@ -234,6 +252,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close the storage, and the client unless it came from NewFromConnection
 func (s *Storage) Close() error {
+	s.closed.Store(true)
 	if s.cancel != nil {
 		s.cancel()
 	}

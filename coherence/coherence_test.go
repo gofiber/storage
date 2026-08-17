@@ -466,6 +466,7 @@ func Test_Coherence_NewFromConnection(t *testing.T) {
 	// The session is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, testStore.Close())
 	require.NoError(t, owner.Set(key2, value2, 0))
+	require.ErrorIs(t, testStore.Set(key1, value1, 0), ErrClosed)
 
 	// The client shares one named cache per session and scope, so closing one storage must not
 	// release the cache out from under a sibling built on the same scope.

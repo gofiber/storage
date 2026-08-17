@@ -238,6 +238,7 @@ func TestCouchbase_NewFromConnection(t *testing.T) {
 		Transcoder: gocb.NewLegacyTranscoder(),
 	})
 	require.NoError(t, err)
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func TestCouchbase_NewFromConnection_Nil(t *testing.T) {

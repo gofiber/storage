@@ -75,6 +75,9 @@ type item struct {
 	ExpireAt time.Time `json:"expire_at"`
 }
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("leveldb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
@@ -165,6 +168,9 @@ func newStorage(db *leveldb.DB, ownsDB bool, cfg Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -208,6 +214,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -243,6 +252,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -264,6 +276,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if s.readOnly {
 		return ErrReadOnly
 	}
@@ -309,6 +324,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return err
 	}
 	return s.Reset()
+}
+
+// isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // Close the storage, and the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.

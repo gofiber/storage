@@ -17,6 +17,9 @@ var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 var ErrReadOnly = errors.New("bbolt: storage is read-only")
 
 // Storage interface that is implemented by storage providers. bbolt has no expiration, so Set ignores exp.
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("bbolt: storage is closed")
+
 type Storage struct {
 	conn     *bbolt.DB
 	bucket   string
@@ -104,6 +107,9 @@ func newStorage(conn *bbolt.DB, ownsConn bool, cfg Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -142,6 +148,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -169,6 +178,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 // Delete entry by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -196,6 +208,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all entries
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if s.readOnly {
 		return ErrReadOnly
 	}
@@ -224,6 +239,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return err
 	}
 	return s.Reset()
+}
+
+// isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // Close the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.

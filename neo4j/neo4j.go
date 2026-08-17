@@ -3,6 +3,7 @@ package neo4j
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -12,6 +13,9 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 )
+
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("neo4j: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -150,6 +154,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -191,6 +198,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiration time with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -227,6 +237,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext value by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -242,6 +255,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context. Remove all nodes
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := neo4j.ExecuteQuery(
 		ctx, s.db, s.cypherReset,
 		nil,
@@ -254,6 +270,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // Reset all keys. Remove all nodes
 func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
+}
+
+// isClosed reports whether Close ran; a borrowed driver stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // Close stops the collector and closes the driver unless it came from Config.DB; a failed close is reported so it can be retried.

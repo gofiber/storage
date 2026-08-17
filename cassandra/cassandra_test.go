@@ -412,6 +412,7 @@ func Test_Cassandra_NewFromConnection(t *testing.T) {
 	// The session is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, shared.Close())
 	require.NoError(t, store.Set("jane", []byte("doe"), 0))
+	require.ErrorIs(t, shared.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_Cassandra_NewFromConnection_Nil(t *testing.T) {

@@ -8,14 +8,19 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed pool stays open, so the latch is the only signal.
+var ErrClosed = errors.New("postgres: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	closed     atomic.Bool
 	db         *pgxpool.Pool
 	ownsDB     bool
 	gcInterval time.Duration
@@ -215,6 +220,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -246,6 +254,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets key with value
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -270,6 +281,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext deletes entry by key
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
@@ -285,6 +299,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all entries with context, including unexpired ones
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	_, err := s.db.Exec(ctx, s.sqlReset)
 	return err
 }
@@ -297,6 +314,7 @@ func (s *Storage) Reset() error {
 // Close stops the collector and closes the pool unless it came from Config.DB; safe to call more than once.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
+		s.closed.Store(true)
 		close(s.done)
 		<-s.stopped
 		if s.ownsDB {

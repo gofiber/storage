@@ -158,7 +158,7 @@ var ConfigDefault = Config{
 ### Using an Existing Postgres Connection
 If your application already holds a `*pgxpool.Pool`, you can build the storage on it instead of opening a second pool. This is the same as setting `Config.DB`.
 
-The pool stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the pool open, so the rest of your application keeps working.
+The pool stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the pool open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 ```go
 import (

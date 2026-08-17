@@ -343,6 +343,7 @@ func Test_AeroSpikeDB_NewFromConnection(t *testing.T) {
 	// The client is the caller's, so closing the storage must leave it connected.
 	require.NoError(t, store.Close())
 	require.True(t, client.IsConnected())
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
 }
 
 func Test_AeroSpikeDB_NewFromConnection_Nil(t *testing.T) {
