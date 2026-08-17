@@ -115,7 +115,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Cloudflare API Client
-If your application already holds a Cloudflare API client, you can build the storage on it instead of creating a second one. Only the `Email`, `AccountID` and `NamespaceID` options are read; the credentials come from the client.
+If your application already holds a Cloudflare API client, you can build the storage on it instead of creating a second one. Only the `Email`, `AccountID`, `NamespaceID` and `Reset` options are read; the credentials come from the client.
 
 The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
 

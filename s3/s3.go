@@ -191,6 +191,11 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			})
 		}
 
+		// An empty page yields no batch: DeleteObjects rejects an empty Objects list.
+		if len(objects) == 0 {
+			continue
+		}
+
 		_, err = s.svc.DeleteObjects(ctx, &s3.DeleteObjectsInput{
 			Bucket: &s.bucket,
 			Delete: &types.Delete{

@@ -74,14 +74,7 @@ func NewFromConnectionWithContext(ctx context.Context, client *minio.Client, con
 func newStorage(ctx context.Context, client *minio.Client, cfg Config) *Storage {
 	storage := &Storage{minio: client, cfg: cfg}
 
-	// Reset all entries if set to true
-	if cfg.Reset {
-		if err := storage.ResetWithContext(ctx); err != nil {
-			panic(err)
-		}
-	}
-
-	// check bucket
+	// check bucket — before the reset, which lists the bucket and so needs it to exist
 	err := storage.CheckBucketWithContext(ctx)
 	if err != nil {
 		// Only create the bucket when it is genuinely missing; surface any
@@ -90,6 +83,13 @@ func newStorage(ctx context.Context, client *minio.Client, cfg Config) *Storage 
 			panic(err)
 		}
 		if err = storage.CreateBucketWithContext(ctx); err != nil {
+			panic(err)
+		}
+	}
+
+	// Reset all entries if set to true
+	if cfg.Reset {
+		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}

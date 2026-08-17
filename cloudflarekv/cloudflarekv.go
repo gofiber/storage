@@ -30,14 +30,12 @@ func New(config ...Config) *Storage {
 			baseUrl: "http://localhost:8787",
 		}
 
-		storage := &Storage{
-			api:         api,
-			email:       "example@cloudflare.org",
-			accountID:   "dummy-ID",
-			namespaceID: "dummy-ID",
-		}
-
-		return storage
+		return newStorage(api, Config{
+			Email:       "example@cloudflare.org",
+			AccountID:   "dummy-ID",
+			NamespaceID: "dummy-ID",
+			Reset:       cfg.Reset,
+		})
 	}
 
 	api, err := cloudflare.NewWithAPIToken(cfg.Key)
@@ -49,7 +47,7 @@ func New(config ...Config) *Storage {
 }
 
 // NewFromConnection builds a Storage on an existing API client, which stays the caller's to manage.
-// Only the Email, AccountID and NamespaceID options are read; the credentials come from the client.
+// Only the Email, AccountID, NamespaceID and Reset options are read; the credentials come from the client.
 func NewFromConnection(api APIInterface, config ...Config) *Storage {
 	if api == nil {
 		panic("cloudflarekv: nil api client")
@@ -59,12 +57,21 @@ func NewFromConnection(api APIInterface, config ...Config) *Storage {
 }
 
 func newStorage(api APIInterface, cfg Config) *Storage {
-	return &Storage{
+	storage := &Storage{
 		api:         api,
 		email:       cfg.Email,
 		accountID:   cfg.AccountID,
 		namespaceID: cfg.NamespaceID,
 	}
+
+	// Reset all entries if set to true
+	if cfg.Reset {
+		if err := storage.Reset(); err != nil {
+			log.Panicf("cloudflarekv: reset: %v", err)
+		}
+	}
+
+	return storage
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
