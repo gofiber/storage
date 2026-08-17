@@ -252,6 +252,11 @@ func Test_Badger_NewFromConnection(t *testing.T) {
 	// The database is the caller's, so closing the storage must leave it open.
 	require.NoError(t, store.Close())
 	require.False(t, db.IsClosed())
+
+	// The storage itself is closed even though the database stays open.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err = store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
 }
 
 func Test_Badger_NewFromConnection_Nil(t *testing.T) {

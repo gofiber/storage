@@ -10,6 +10,9 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("badger: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *badger.DB
@@ -82,6 +85,9 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -118,6 +124,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -148,6 +157,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
@@ -167,7 +179,17 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	return s.db.DropAll()
+}
+
+// isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
 }
 
 // ResetWithContext resets all keys, aborting if ctx is already done.
