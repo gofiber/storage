@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	neo4jdriver "github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/neo4j"
@@ -284,8 +285,13 @@ func Benchmark_Neo4jStore_SetAndDelete(b *testing.B) {
 }
 
 func Test_Neo4jStore_NewFromConnection(t *testing.T) {
-	store := NewFromConnection(testStore.Conn(), Config{Node: "existing_storage"})
-	require.True(t, testStore.Conn() == store.Conn())
+	// A driver of its own: Test_Neo4jStore_Close has already closed the shared testStore's.
+	driver, err := neo4jdriver.NewDriverWithContext(testConfig.URI, neo4jdriver.BasicAuth(testConfig.Username, testConfig.Password, ""))
+	require.NoError(t, err)
+	defer driver.Close(context.Background()) //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(driver, Config{Node: "existing_storage"})
+	require.True(t, driver == store.Conn())
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 
@@ -295,7 +301,7 @@ func Test_Neo4jStore_NewFromConnection(t *testing.T) {
 
 	// The driver is the caller's, so closing this storage must leave it usable.
 	require.NoError(t, store.Close())
-	require.NoError(t, testStore.Set("jane", []byte("doe"), 0))
+	require.NoError(t, driver.VerifyConnectivity(context.Background()))
 }
 
 func Test_Neo4jStore_NewFromConnection_Nil(t *testing.T) {
