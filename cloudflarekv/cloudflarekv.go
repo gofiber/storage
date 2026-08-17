@@ -143,21 +143,23 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			return err
 		}
 
-		keys = make([]string, len(resp.Result))
+		keys = make([]string, 0, len(resp.Result))
 
 		for _, element := range resp.Result {
-			name := element.Name
-			keys = append(keys, name)
+			keys = append(keys, element.Name)
 		}
 
-		_, err = s.api.DeleteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
-			NamespaceID: s.namespaceID,
-			Keys:        keys,
-		})
+		// An empty batch is rejected by the API, and an empty namespace is already reset.
+		if len(keys) > 0 {
+			_, err = s.api.DeleteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
+				NamespaceID: s.namespaceID,
+				Keys:        keys,
+			})
 
-		if err != nil {
-			log.Printf("Error occur in DeleteWorker: %v", err)
-			return err
+			if err != nil {
+				log.Printf("Error occur in DeleteWorker: %v", err)
+				return err
+			}
 		}
 
 		if len(resp.Cursor) == 0 {

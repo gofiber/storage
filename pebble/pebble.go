@@ -36,14 +36,57 @@ type Storage struct {
 	stopped      chan struct{}
 	stopOnce     sync.Once
 
-	// mu keeps operations off a database Close is tearing down; Pebble panics on a closed one.
-	mu     sync.RWMutex
+	// mu keeps operations off a database Close is tearing down (Pebble panics on a closed
+	// one) and orders the collector's delete against writers. It is shared by every storage
+	// on the same database, since a sibling's Set needs the same protection from this
+	// storage's collector.
+	mu     *dbMu
 	closed bool
 
 	gcCursor []byte
 
 	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
 	gcEpoch uint64
+}
+
+// dbMu is the write-order lock of one database, shared by every storage built on it.
+type dbMu struct {
+	sync.RWMutex
+	refs int
+}
+
+var (
+	dbMusMu sync.Mutex
+	dbMus   = map[*pebble.DB]*dbMu{}
+)
+
+// acquireDBMu hands out the database's shared lock, creating it for the first storage.
+func acquireDBMu(db *pebble.DB) *dbMu {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		m = &dbMu{}
+		dbMus[db] = m
+	}
+	m.refs++
+
+	return m
+}
+
+// releaseDBMu lets go of the database's shared lock, dropping it with the last storage.
+func releaseDBMu(db *pebble.DB) {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		return
+	}
+	if m.refs--; m.refs == 0 {
+		delete(dbMus, db)
+	}
 }
 
 type CacheType struct {
@@ -74,6 +117,9 @@ func New(config ...Config) *Storage {
 // The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
 // in the database, and the background collector scans all of them — reclaiming any value that decodes
 // as an entry whose deadline passed. Keep application data out of a database backing this storage.
+//
+// Storages built on the same database share one write-order lock, so each one's collector
+// coordinates with the others' writes the same way it does with its own.
 func NewFromConnection(db *pebble.DB, config ...Config) *Storage {
 	if db == nil {
 		panic("pebble: nil database")
@@ -89,6 +135,7 @@ func newStorage(db *pebble.DB, ownsDB bool, cfg Config) *Storage {
 		ownsDB:       ownsDB,
 		writeOptions: cfg.WriteOptions,
 		gcInterval:   cfg.GCInterval,
+		mu:           acquireDBMu(db),
 		done:         make(chan struct{}),
 		stopped:      make(chan struct{}),
 	}
@@ -474,6 +521,8 @@ func (s *Storage) Close() error {
 	if s.closed {
 		return nil
 	}
+
+	releaseDBMu(s.db)
 
 	if !s.ownsDB {
 		s.closed = true
