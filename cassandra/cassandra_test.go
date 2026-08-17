@@ -392,7 +392,6 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 	require.NoError(b, err)
 }
 
-// Test_Cassandra_NewFromConnection checks a storage built on a session the caller owns.
 func Test_Cassandra_NewFromConnection(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()

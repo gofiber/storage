@@ -92,22 +92,22 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	// Release the client rather than leak it, on a bounded context of its own: the caller's may be what failed.
-	closeOwned := func() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
-		defer closeCancel()
-		_ = client.Disconnect(closeCtx)
-	}
-
 	pingCtx, pingCancel := withDefaultTimeout(ctx)
 	defer pingCancel()
 
 	if err = client.Ping(pingCtx, nil); err != nil {
-		closeOwned()
+		disconnectBounded(client)
 		panic(err)
 	}
 
 	return newStorage(ctx, client, true, cfg)
+}
+
+// disconnectBounded releases client on a bounded context of its own: the caller's may be what failed.
+func disconnectBounded(client *mongo.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), closeTimeout)
+	defer cancel()
+	_ = client.Disconnect(ctx)
 }
 
 // NewFromConnection creates a MongoDB storage on an existing client, which stays the caller's to disconnect.
@@ -128,14 +128,10 @@ func NewFromConnectionWithContext(ctx context.Context, client *mongo.Client, con
 
 // newStorage prepares the collection on client; client is disconnected only when this driver connected it.
 func newStorage(ctx context.Context, client *mongo.Client, ownsDB bool, cfg Config) *Storage {
-	// Release the client rather than leak it, on a bounded context of its own: the caller's may be what failed.
 	closeOwned := func() {
-		if !ownsDB {
-			return
+		if ownsDB {
+			disconnectBounded(client)
 		}
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), closeTimeout)
-		defer closeCancel()
-		_ = client.Disconnect(closeCtx)
 	}
 
 	// Get collection from database
@@ -325,7 +321,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed client is not ours to disconnect, but the storage still is.
 	if !s.ownsDB {
 		s.closed = true
 		return nil

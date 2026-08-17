@@ -534,19 +534,12 @@ func Test_Valkey_NewFromConnection(t *testing.T) {
 	// borrowed itself is closed: leaving the client open is not leaving the storage usable.
 	_, err = borrowed.Get("john")
 	require.ErrorIs(t, err, ErrClosed)
-}
-
-func Test_Valkey_NewFromConnection_Reset(t *testing.T) {
-	owner := newTestStore(t)
-	defer owner.Close()
-
-	require.NoError(t, owner.Set("john", []byte("doe"), 0))
 
 	// Reset is honoured on a borrowed client rather than quietly dropped.
-	borrowed := NewFromConnection(owner.Conn(), Config{Reset: true})
-	defer borrowed.Close()
+	flushed := NewFromConnection(owner.Conn(), Config{Reset: true})
+	defer flushed.Close()
 
-	val, err := borrowed.Get("john")
+	val, err = flushed.Get("jane")
 	require.NoError(t, err)
 	require.Nil(t, val)
 }

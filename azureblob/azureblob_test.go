@@ -368,7 +368,6 @@ func Test_AzureBlob_NewFromConnection_Nil(t *testing.T) {
 }
 
 func Test_AzureBlob_ConfigureFromConnection(t *testing.T) {
-	// The credential checks configure applies have nothing to validate on a borrowed client.
 	cfg := configureFromConnection(Config{Container: "existing", RequestTimeout: time.Second})
 	require.Equal(t, "existing", cfg.Container)
 	require.Equal(t, time.Second, cfg.RequestTimeout)

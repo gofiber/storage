@@ -53,13 +53,10 @@ func NewFromConnectionWithContext(ctx context.Context, conn driver.Conn, configu
 		return nil, errors.New("connection not provided")
 	}
 
-	if configuration.Table == "" {
-		return nil, errors.New("table name not provided")
-	}
-
-	engine := configuration.Engine
-	if engine == "" {
-		engine = Memory
+	// defaultConfig validates the table name and defaults the engine; its dial options go unused here.
+	_, engine, err := defaultConfig(configuration)
+	if err != nil {
+		return nil, err
 	}
 
 	return newStorage(ctx, conn, false, engine, configuration)
@@ -197,7 +194,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed connection is not ours to close, but the storage still is.
 	if !s.ownsConn {
 		s.closed = true
 		return nil

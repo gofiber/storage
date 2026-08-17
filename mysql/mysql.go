@@ -142,7 +142,10 @@ func NewFromConnection(db *sql.DB, config ...Config) *Storage {
 		panic("mysql: nil database handle")
 	}
 
-	cfg := configDefault(config...)
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	cfg.Db = db
 
 	return New(cfg)
@@ -246,7 +249,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed handle is not ours to close, but the storage still is.
 	if !s.ownsDB {
 		s.closed = true
 		return nil

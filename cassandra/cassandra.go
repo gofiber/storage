@@ -260,7 +260,6 @@ func (s *Storage) dropTables() error {
 
 // dropDataTable drops the key-value table alone, leaving the rest of the keyspace untouched.
 func (s *Storage) dropDataTable() error {
-	// Drop data table with proper escaping
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
 	return s.sx.Query(query, []string{}).ExecRelease()
 }
@@ -398,7 +397,6 @@ func (s *Storage) Conn() *gocql.Session {
 // Close closes the session once unless it came from NewFromConnection; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		// A borrowed session is not ours to close.
 		if s.session != nil && s.ownsSession {
 			s.session.Close()
 		}

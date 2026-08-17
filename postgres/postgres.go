@@ -88,7 +88,10 @@ func NewFromConnectionWithContext(ctx context.Context, db *pgxpool.Pool, config 
 		panic("postgres: nil pool")
 	}
 
-	cfg := configDefault(config...)
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	cfg.DB = db
 
 	return NewWithContext(ctx, cfg)

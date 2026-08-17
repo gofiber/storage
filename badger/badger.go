@@ -193,7 +193,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed database is not ours to close, but the collector above is stopped either way.
 	if !s.ownsDB {
 		s.closed = true
 		return nil

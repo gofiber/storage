@@ -69,7 +69,10 @@ func NewFromConnectionWithContext(ctx context.Context, db neo4j.DriverWithContex
 		panic("neo4j: nil driver")
 	}
 
-	cfg := configDefault(config...)
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	cfg.DB = db
 
 	return NewWithContext(ctx, cfg)
@@ -267,7 +270,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed driver is not ours to close, but the storage still is.
 	if !s.ownsDB {
 		s.closed = true
 		return nil

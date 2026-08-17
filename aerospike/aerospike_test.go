@@ -50,21 +50,30 @@ func startAerospikeContainer(t testing.TB, ctx context.Context) testcontainers.C
 	return ctr
 }
 
+// newTestHostPort starts a container and returns its mapped Aerospike address.
+func newTestHostPort(t testing.TB) (string, int) {
+	t.Helper()
+
+	ctx := context.Background()
+	c := startAerospikeContainer(t, ctx)
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+
+	port, err := c.MappedPort(ctx, aerospikePort)
+	require.NoError(t, err)
+
+	return host, int(port.Num())
+}
+
 // newTestStore creates a client connected to the test container
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	c := startAerospikeContainer(t, context.Background())
-
-	// Extract host and port
-	host, err := c.Host(context.TODO())
-	require.NoError(t, err)
-
-	port, err := c.MappedPort(context.TODO(), aerospikePort)
-	require.NoError(t, err)
+	host, port := newTestHostPort(t)
 
 	return New(Config{
-		Hosts:     []*aerospike.Host{aerospike.NewHost(host, int(port.Num()))},
+		Hosts:     []*aerospike.Host{aerospike.NewHost(host, port)},
 		Reset:     true,
 		Namespace: aerospikeNamespace,
 	})
@@ -312,18 +321,11 @@ func Test_Aerospike_WithContext_Canceled(t *testing.T) {
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
 
-// Test_AeroSpikeDB_NewFromConnection checks a storage built on a client the caller owns.
 func Test_AeroSpikeDB_NewFromConnection(t *testing.T) {
-	c := startAerospikeContainer(t, context.Background())
+	host, port := newTestHostPort(t)
 
-	host, err := c.Host(context.Background())
-	require.NoError(t, err)
-
-	port, err := c.MappedPort(context.Background(), aerospikePort)
-	require.NoError(t, err)
-
-	client, err := aerospike.NewClient(host, int(port.Num()))
-	require.NoError(t, err)
+	client, cerr := aerospike.NewClient(host, port)
+	require.NoError(t, cerr)
 	defer client.Close()
 
 	store := NewFromConnection(client, Config{

@@ -413,7 +413,6 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 // Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		// A borrowed client is not ours to close.
 		if s.ownsClient {
 			s.client.Close()
 		}

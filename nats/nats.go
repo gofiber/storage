@@ -235,8 +235,6 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	kv, err := newNatsKV(nc, ctx, cfg.KeyValueConfig)
 	switch {
 	case err != nil && cfg.Reset:
-		// Reset promises a clean bucket, and with the setup failed the bucket's state is unknown —
-		// it may exist and still hold old data — so this fails as loudly as New does on a failed reset.
 		panic(fmt.Errorf("nats: reset requested but bucket setup failed: %w", err))
 	case err != nil:
 		// Recorded rather than fatal, the same way a failed dial is: operations report it as not
@@ -279,8 +277,6 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 		return nil, notInitialized(initErr)
 	}
 
-	// Serialized on its own mutex so only one caller sets the bucket up, and held instead of s.mu so
-	// that round trip cannot block Close, or the operations already holding a resolved bucket.
 	s.initMu.Lock()
 	defer s.initMu.Unlock()
 
@@ -539,7 +535,6 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	// A borrowed connection is not ours to close, but the storage still is.
 	if s.ownsNC {
 		s.nc.Close()
 	}

@@ -69,7 +69,10 @@ func NewFromConnection(session *gocql.Session, config ...Config) *Storage {
 		panic("scylladb: nil session")
 	}
 
-	cfg := configDefault(config...)
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
 	cfg.Session = session
 
 	return New(cfg)

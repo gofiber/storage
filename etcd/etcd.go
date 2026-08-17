@@ -153,7 +153,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed client is not ours to close, but the storage still is.
 	if !s.ownsDB {
 		s.closed = true
 		return nil

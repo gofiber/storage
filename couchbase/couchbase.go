@@ -146,7 +146,6 @@ func (s *Storage) Close() error {
 
 	s.closed = true
 
-	// A borrowed cluster is not ours to close, but the storage still is.
 	if !s.ownsCb {
 		return nil
 	}

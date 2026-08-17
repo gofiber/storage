@@ -45,14 +45,7 @@ func New(config ...Config) *Storage {
 		log.Panicf("error with cloudflare api initialization: %v", err)
 	}
 
-	storage := &Storage{
-		api:         api,
-		email:       cfg.Email,
-		accountID:   cfg.AccountID,
-		namespaceID: cfg.NamespaceID,
-	}
-
-	return storage
+	return newStorage(api, cfg)
 }
 
 // NewFromConnection builds a Storage on an existing API client, which stays the caller's to manage.
@@ -62,8 +55,10 @@ func NewFromConnection(api APIInterface, config ...Config) *Storage {
 		panic("cloudflarekv: nil api client")
 	}
 
-	cfg := configDefault(config...)
+	return newStorage(api, configDefault(config...))
+}
 
+func newStorage(api APIInterface, cfg Config) *Storage {
 	return &Storage{
 		api:         api,
 		email:       cfg.Email,

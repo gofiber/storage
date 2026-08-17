@@ -51,14 +51,7 @@ func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage {
 		panic("bbolt: nil database")
 	}
 
-	cfg := configDefault(config...)
-
-	// Widened by the handle rather than replaced by it: a caller who shares a read-only database and
-	// leaves the option unset would otherwise panic here on a write transaction, while one who asked
-	// for a read-only storage over a writable handle would silently get a writable one.
-	cfg.ReadOnly = cfg.ReadOnly || conn.IsReadOnly()
-
-	return newStorage(conn, false, cfg)
+	return newStorage(conn, false, configDefault(config...))
 }
 
 // newStorage prepares the bucket on conn; conn is released only when this driver opened it.
@@ -69,6 +62,9 @@ func newStorage(conn *bbolt.DB, ownsConn bool, cfg Config) *Storage {
 			_ = conn.Close()
 		}
 	}
+
+	// A read-only handle forces a read-only storage; Config.ReadOnly can only add to that.
+	cfg.ReadOnly = cfg.ReadOnly || conn.IsReadOnly()
 
 	// A read-only database cannot open a write transaction, so New panicked; check the bucket instead.
 	if cfg.ReadOnly {
@@ -82,32 +78,26 @@ func newStorage(conn *bbolt.DB, ownsConn bool, cfg Config) *Storage {
 			closeOwned()
 			panic(err)
 		}
-
-		return &Storage{
-			conn:     conn,
-			bucket:   cfg.Bucket,
-			readOnly: true,
-			ownsConn: ownsConn,
+	} else {
+		// Reset bucket if field selected
+		if cfg.Reset {
+			if err := removeBucket(cfg, conn); err != nil {
+				closeOwned()
+				panic(err)
+			}
 		}
-	}
 
-	// Reset bucket if field selected
-	if cfg.Reset {
-		if err := removeBucket(cfg, conn); err != nil {
+		// Create bucket if not exists
+		if err := createBucket(cfg, conn); err != nil {
 			closeOwned()
 			panic(err)
 		}
 	}
 
-	// Create bucket if not exists
-	if err := createBucket(cfg, conn); err != nil {
-		closeOwned()
-		panic(err)
-	}
-
 	return &Storage{
 		conn:     conn,
 		bucket:   cfg.Bucket,
+		readOnly: cfg.ReadOnly,
 		ownsConn: ownsConn,
 	}
 }
@@ -245,7 +235,6 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	// A borrowed database is not ours to close, but the storage still is.
 	if !s.ownsConn {
 		s.closed = true
 		return nil

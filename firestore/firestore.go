@@ -237,7 +237,6 @@ func (s *Storage) Close() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
-	// A borrowed client is not ours to close, but the storage still is.
 	if s.client == nil || !s.ownsClient {
 		return nil
 	}
@@ -249,10 +248,8 @@ func (s *Storage) Conn() *firestore.Client {
 	return s.client
 }
 
-// NewFromConnection creates a new Storage instance from an existing Firestore client, which stays the caller's to close.
-//
-// Note: Close used to close that client. It no longer does, so an application that relied on
-// store.Close() to release a client it built itself has to close the client on its own now.
+// NewFromConnection creates a new Storage instance from an existing Firestore client, which stays the
+// caller's to close. Note: Close used to close that client and no longer does.
 func NewFromConnection(client *firestore.Client, collection string) *Storage {
 	if client == nil {
 		panic("firestore: nil client")

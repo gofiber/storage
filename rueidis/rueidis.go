@@ -44,7 +44,6 @@ func NewFromConnectionWithContext(ctx context.Context, conn rueidis.Client, conf
 // newStorage runs the optional reset and builds the store; db is released on failure only when this
 // driver opened it.
 func newStorage(ctx context.Context, db rueidis.Client, ownsDB bool, cfg Config) *Storage {
-	// Emptied here rather than silently ignored: a caller who asked for a clean database gets one.
 	if cfg.Reset {
 		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
 			if ownsDB {
@@ -211,7 +210,6 @@ func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		s.closed.Store(true)
 
-		// A borrowed client is not ours to close, but the storage still is.
 		if s.ownsDB {
 			s.db.Close()
 		}

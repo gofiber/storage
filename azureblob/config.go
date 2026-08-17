@@ -63,9 +63,7 @@ func configure(config ...Config) Config {
 	return cfg
 }
 
-// configureFromConnection checks the config a storage built on an existing client needs.
-// The checks in configure have nothing to validate here: the account, key and endpoint are the
-// client's, not the config's, so only the container this storage writes to is required.
+// configureFromConnection requires only Container: the account, key and endpoint are the client's.
 func configureFromConnection(config ...Config) Config {
 	if len(config) < 1 || config[0].Container == "" {
 		panic("azureblob: NewFromConnection requires a Config with Container set")

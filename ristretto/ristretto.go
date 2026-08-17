@@ -193,7 +193,6 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	// A borrowed cache is not ours to close, but the storage still is.
 	if s.ownsCache {
 		s.cache.Close()
 	}
