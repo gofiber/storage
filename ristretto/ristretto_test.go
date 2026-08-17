@@ -339,3 +339,30 @@ func Test_Ristretto_NewFromConnection_Nil(t *testing.T) {
 		NewFromConnection(nil)
 	})
 }
+
+// Storages on one cache must share the operation lock, or one's Reset — a Clear,
+// which Ristretto documents as non-atomic — could overlap another's Set.
+func Test_Ristretto_NewFromConnection_SharedCache(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: ConfigDefault.NumCounters,
+		MaxCost:     ConfigDefault.MaxCost,
+		BufferItems: ConfigDefault.BufferItems,
+	})
+	require.NoError(t, err)
+	defer cache.Close()
+
+	s1 := NewFromConnection(cache)
+	s2 := NewFromConnection(cache)
+	require.Same(t, s1.mu, s2.mu)
+
+	// The lock outlives each storage but not all of them.
+	require.NoError(t, s1.Close())
+	require.NoError(t, s2.Set("john", []byte("doe"), 0))
+	require.NoError(t, s2.Close())
+	require.NoError(t, s2.Close())
+
+	cacheMusMu.Lock()
+	_, held := cacheMus[cache]
+	cacheMusMu.Unlock()
+	require.False(t, held)
+}

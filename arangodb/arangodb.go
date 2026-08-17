@@ -94,7 +94,15 @@ func NewFromConnectionWithContext(ctx context.Context, client driver.Client, con
 		panic("arangodb: nil client")
 	}
 
-	return newStorage(ctx, client, client.Connection(), configDefault(config...))
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	// The endpoint and credentials come from the client, so leftover values in these
+	// fields must not fail validation meant for the dialing constructor.
+	cfg.Host, cfg.Port, cfg.Username, cfg.Password = "", 0, "", ""
+
+	return newStorage(ctx, client, client.Connection(), configDefault(cfg))
 }
 
 // newStorage prepares the database and collection on client and starts the collector.

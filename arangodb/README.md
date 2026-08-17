@@ -125,7 +125,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing ArangoDB Connection
-If your application already holds a `driver.Client`, you can build the storage on it instead of creating a second one. Only the `Database`, `Collection`, `Reset` and `GCInterval` options are read; the endpoint and credentials come from the client.
+If your application already holds a `driver.Client`, you can build the storage on it instead of creating a second one. Only the `Database`, `Collection`, `Reset` and `GCInterval` options are read; the endpoint and credentials come from the client, and connection fields left over in the config (`Host`, `Port`, `Username`, `Password`) are ignored.
 
 `Close` on a storage built this way stops the garbage collector; ArangoDB's driver has no connection to close, so the client keeps working.
 

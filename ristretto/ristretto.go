@@ -19,9 +19,51 @@ type Storage struct {
 	defaultCost  int64
 	waitForWrite bool
 
-	// mu keeps operations from running against a cache Close is tearing down.
-	mu     sync.RWMutex
+	// mu keeps operations from running against a cache Close is tearing down, and keeps
+	// Reset's non-atomic Clear exclusive of them. It is shared by every storage on the
+	// same cache, since a sibling's Set needs the same protection from this storage's Clear.
+	mu     *cacheMu
 	closed bool
+}
+
+// cacheMu is the operation lock of one cache, shared by every storage built on it.
+type cacheMu struct {
+	sync.RWMutex
+	refs int
+}
+
+var (
+	cacheMusMu sync.Mutex
+	cacheMus   = map[*ristretto.Cache]*cacheMu{}
+)
+
+// acquireCacheMu hands out the cache's shared lock, creating it for the first storage.
+func acquireCacheMu(cache *ristretto.Cache) *cacheMu {
+	cacheMusMu.Lock()
+	defer cacheMusMu.Unlock()
+
+	m := cacheMus[cache]
+	if m == nil {
+		m = &cacheMu{}
+		cacheMus[cache] = m
+	}
+	m.refs++
+
+	return m
+}
+
+// releaseCacheMu lets go of the cache's shared lock, dropping it with the last storage.
+func releaseCacheMu(cache *ristretto.Cache) {
+	cacheMusMu.Lock()
+	defer cacheMusMu.Unlock()
+
+	m := cacheMus[cache]
+	if m == nil {
+		return
+	}
+	if m.refs--; m.refs == 0 {
+		delete(cacheMus, cache)
+	}
 }
 
 // New creates a new storage.
@@ -41,6 +83,10 @@ func New(config ...Config) *Storage {
 
 // NewFromConnection builds a Storage on an existing cache, which stays the caller's to close.
 // Only DefaultCost and SkipWaitForWrite are read; the sizing options come from the cache.
+//
+// Storages built on the same cache share one operation lock, so each one's Reset — a
+// Clear, which Ristretto documents as non-atomic — excludes the others' operations
+// the same way it excludes its own.
 func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage {
 	if cache == nil {
 		panic("ristretto: nil cache")
@@ -55,6 +101,7 @@ func newStorage(cache *ristretto.Cache, ownsCache bool, cfg Config) *Storage {
 		ownsCache:    ownsCache,
 		defaultCost:  cfg.DefaultCost,
 		waitForWrite: !cfg.SkipWaitForWrite,
+		mu:           acquireCacheMu(cache),
 	}
 }
 
@@ -192,6 +239,8 @@ func (s *Storage) Close() error {
 		return nil
 	}
 	s.closed = true
+
+	releaseCacheMu(s.cache)
 
 	if s.ownsCache {
 		s.cache.Close()

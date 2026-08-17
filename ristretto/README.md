@@ -105,6 +105,8 @@ If your application already holds a `*ristretto.Cache`, you can build the storag
 
 The cache stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
+Storages built on the same cache share one operation lock, so each one's `Reset` excludes the others' operations the same way it excludes its own.
+
 > **Warning:** `Reset` clears the entire shared cache, not just this storage's entries.
 
 ```go

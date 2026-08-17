@@ -393,7 +393,9 @@ func Test_ArangoDB_NewFromConnection(t *testing.T) {
 	owner := newTestStore(t)
 	defer owner.Close()
 
-	testStore := NewFromConnection(owner.Conn(), Config{Collection: "fiber_storage_existing"})
+	// Host is a leftover from a dialing config: the borrowed path documents it as
+	// ignored, so a value the dialing validation would reject must not panic here.
+	testStore := NewFromConnection(owner.Conn(), Config{Collection: "fiber_storage_existing", Host: "127.0.0.1"})
 	require.True(t, owner.Conn() == testStore.Conn())
 
 	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
