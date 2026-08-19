@@ -23,8 +23,30 @@ type Storage struct {
 	closed  atomic.Bool
 }
 
-// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
-func NewFromConnection(conn redis.UniversalClient) *Storage {
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close,
+// using context.Background() for the initialization operations.
+func NewFromConnection(conn redis.UniversalClient, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), conn, config...)
+}
+
+// NewFromConnectionWithContext builds a Storage on an existing client, which stays the caller's
+// to close, using ctx for the initialization operations (optional reset). Only Reset is read
+// from the config; the connection settings come from the client. Reset flushes every database
+// the client's nodes hold, not just this storage's keys.
+func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClient, config ...Config) *Storage {
+	if conn == nil {
+		panic("redis: nil client")
+	}
+
+	if cfg := configDefault(config...); cfg.Reset {
+		err := forEachNode(ctx, conn, func(ctx context.Context, node redis.Cmdable) error {
+			return node.FlushDB(ctx).Err()
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &Storage{
 		db: conn,
 	}

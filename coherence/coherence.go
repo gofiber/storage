@@ -94,21 +94,30 @@ func NewWithContext(ctx context.Context, config ...Config) (*Storage, error) {
 		return nil, err
 	}
 
-	return newStorage(session, true, cfg)
+	return newStorage(ctx, session, true, cfg)
 }
 
-// NewFromConnection returns a new [Storage] on an existing session, which stays the caller's to close.
+// NewFromConnection returns a new [Storage] on an existing session, which stays the caller's to close,
+// using context.Background() for the initialization operations.
 // Only the ScopeName, NearCacheTimeout and Reset options are read; the connection settings come from the session.
 func NewFromConnection(session *coh.Session, config ...Config) (*Storage, error) {
+	return NewFromConnectionWithContext(context.Background(), session, config...)
+}
+
+// NewFromConnectionWithContext returns a new [Storage] on an existing session, which stays the
+// caller's to close, using ctx for the initialization operations (optional reset).
+// Only the ScopeName, NearCacheTimeout and Reset options are read; the connection settings come from the session.
+func NewFromConnectionWithContext(ctx context.Context, session *coh.Session, config ...Config) (*Storage, error) {
 	if session == nil {
 		return nil, fmt.Errorf("session cannot be nil")
 	}
 
-	return newStorage(session, false, setupConfig(config...))
+	return newStorage(ctx, session, false, setupConfig(config...))
 }
 
-// newStorage opens the named cache on session; the session is closed on failure only when this driver opened it.
-func newStorage(session *coh.Session, ownsSession bool, cfg Config) (*Storage, error) {
+// newStorage opens the named cache on session, using ctx for the optional reset; the session is
+// closed on failure only when this driver opened it.
+func newStorage(ctx context.Context, session *coh.Session, ownsSession bool, cfg Config) (*Storage, error) {
 	closeOwned := func() {
 		if ownsSession {
 			session.Close()
@@ -132,7 +141,7 @@ func newStorage(session *coh.Session, ownsSession bool, cfg Config) (*Storage, e
 
 	// if Reset is true then reset the store
 	if cfg.Reset {
-		if err := store.Reset(); err != nil {
+		if err := store.ResetWithContext(ctx); err != nil {
 			// Not (store, err): a caller following convention discards the storage on error, and a
 			// session this driver opened would leak with it. The named cache stays registered on a
 			// borrowed session — it is shared per cache name, and a retry picks the same one up.

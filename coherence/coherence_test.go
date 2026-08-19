@@ -489,3 +489,31 @@ func Test_Coherence_NewFromConnection_Nil(t *testing.T) {
 	_, err := NewFromConnection(nil)
 	require.Error(t, err)
 }
+
+func Test_Coherence_NewFromConnectionWithContext(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	// Reset must clear entries already in the scope.
+	seed, err := NewFromConnection(owner.Conn(), Config{ScopeName: "ctx-store"})
+	require.NoError(t, err)
+	require.NoError(t, seed.Set(key1, value1, 0))
+
+	testStore, err := NewFromConnectionWithContext(context.Background(), owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
+	require.NoError(t, err)
+
+	val, err := testStore.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+
+	// A reset under an already cancelled context must fail construction, not skip the wipe.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
+	require.Error(t, err)
+}
