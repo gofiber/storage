@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-20251121011818-7435afb6bca2
 	github.com/redis/rueidis v1.0.77
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 )
 
 replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
@@ -58,7 +58,7 @@ require (
 	go.opentelemetry.io/otel v1.45.0 // indirect
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
