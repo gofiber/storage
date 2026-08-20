@@ -2,6 +2,6 @@ module github.com/gofiber/storage/memory/v2
 
 go 1.25.0
 
-require github.com/stretchr/testify v1.12.0
+require github.com/stretchr/testify v1.12.1
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require go.yaml.in/yaml/v3 v3.0.5 // indirect
