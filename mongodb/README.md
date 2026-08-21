@@ -20,6 +20,8 @@ A MongoDB storage driver using [mongodb/mongo-go-driver](https://github.com/mong
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(client *mongo.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, client *mongo.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -125,5 +127,34 @@ var ConfigDefault = Config{
 	Database:      "fiber",
 	Collection:    "fiber_storage",
 	Reset:         false,
+}
+```
+
+### Using an Existing MongoDB Connection
+If your application already holds a `*mongo.Client`, you can build the storage on it instead of connecting a second time. Only the `Database`, `Collection` and `Reset` options are read; the connection settings come from the client.
+
+The client stays yours to disconnect: `Close` on a storage built this way leaves it connected, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+    "context"
+
+    "github.com/gofiber/storage/mongodb/v2"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() {
+    client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+    if err != nil {
+        panic(err)
+    }
+    defer client.Disconnect(context.Background())
+
+    store := mongodb.NewFromConnection(client, mongodb.Config{
+        Database:   "fiber",
+        Collection: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

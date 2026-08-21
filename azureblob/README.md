@@ -22,6 +22,8 @@ title: Azure Blob
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(client *azblob.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, client *azblob.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -109,5 +111,34 @@ var ConfigDefault = Config{
     RequestTimeout: 0,
     Reset:          false,
     MaxAttempts:    3,
+}
+```
+
+### Using an Existing Azure Blob Client
+If your application already holds an `*azblob.Client`, you can build the storage on it instead of creating a second one. Only the `Container`, `RequestTimeout` and `Reset` options are read; the endpoint and credentials come from the client.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+    "github.com/gofiber/storage/azureblob/v2"
+)
+
+func main() {
+    cred, err := azblob.NewSharedKeyCredential("account", "key")
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := azblob.NewClientWithSharedKeyCredential("https://account.blob.core.windows.net/", cred, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    store := azureblob.NewFromConnection(client, azureblob.Config{
+        Container: "fiber",
+    })
+    defer store.Close()
 }
 ```

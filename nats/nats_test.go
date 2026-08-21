@@ -542,3 +542,57 @@ func Benchmark_Nats_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Storage_Nats_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	nc, _ := owner.Conn()
+
+	testStore := NewFromConnection(nc, Config{
+		KeyValueConfig: jetstream.KeyValueConfig{
+			Bucket:  "existing",
+			Storage: jetstream.MemoryStorage,
+		},
+	})
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	borrowed, _ := testStore.Conn()
+	require.Same(t, nc, borrowed)
+
+	// The connection is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+}
+
+func Test_Storage_Nats_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+// A bucket deleted externally is exactly what Reset's own delete leaves behind, so
+// Reset recreates it and reports success instead of the delete's not-found error.
+func Test_Storage_Nats_Reset_BucketGone(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	nc, _ := testStore.Conn()
+	js, err := jetstream.New(nc)
+	require.NoError(t, err)
+	require.NoError(t, js.DeleteKeyValue(context.Background(), testStore.cfg.KeyValueConfig.Bucket))
+
+	require.NoError(t, testStore.Reset())
+
+	require.NoError(t, testStore.Set("jane", []byte("doe"), 0))
+	result, err := testStore.Get("jane")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}

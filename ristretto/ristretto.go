@@ -15,12 +15,55 @@ var errClosed = errors.New("ristretto: storage is closed")
 // Storage interface that is implemented by storage providers.
 type Storage struct {
 	cache        *ristretto.Cache
+	ownsCache    bool
 	defaultCost  int64
 	waitForWrite bool
 
-	// mu keeps operations from running against a cache Close is tearing down.
-	mu     sync.RWMutex
+	// mu keeps operations from running against a cache Close is tearing down, and keeps
+	// Reset's non-atomic Clear exclusive of them. It is shared by every storage on the
+	// same cache, since a sibling's Set needs the same protection from this storage's Clear.
+	mu     *cacheMu
 	closed bool
+}
+
+// cacheMu is the operation lock of one cache, shared by every storage built on it.
+type cacheMu struct {
+	sync.RWMutex
+	refs int
+}
+
+var (
+	cacheMusMu sync.Mutex
+	cacheMus   = map[*ristretto.Cache]*cacheMu{}
+)
+
+// acquireCacheMu hands out the cache's shared lock, creating it for the first storage.
+func acquireCacheMu(cache *ristretto.Cache) *cacheMu {
+	cacheMusMu.Lock()
+	defer cacheMusMu.Unlock()
+
+	m := cacheMus[cache]
+	if m == nil {
+		m = &cacheMu{}
+		cacheMus[cache] = m
+	}
+	m.refs++
+
+	return m
+}
+
+// releaseCacheMu lets go of the cache's shared lock, dropping it with the last storage.
+func releaseCacheMu(cache *ristretto.Cache) {
+	cacheMusMu.Lock()
+	defer cacheMusMu.Unlock()
+
+	m := cacheMus[cache]
+	if m == nil {
+		return
+	}
+	if m.refs--; m.refs == 0 {
+		delete(cacheMus, cache)
+	}
 }
 
 // New creates a new storage.
@@ -35,13 +78,31 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	store := &Storage{
-		cache:        cache,
-		defaultCost:  cfg.DefaultCost,
-		waitForWrite: !cfg.SkipWaitForWrite,
+	return newStorage(cache, true, cfg)
+}
+
+// NewFromConnection builds a Storage on an existing cache, which stays the caller's to close.
+// Only DefaultCost and SkipWaitForWrite are read; the sizing options come from the cache.
+//
+// Storages built on the same cache share one operation lock, so each one's Reset — a
+// Clear, which Ristretto documents as non-atomic — excludes the others' operations
+// the same way it excludes its own.
+func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage {
+	if cache == nil {
+		panic("ristretto: nil cache")
 	}
 
-	return store
+	return newStorage(cache, false, configDefault(config...))
+}
+
+func newStorage(cache *ristretto.Cache, ownsCache bool, cfg Config) *Storage {
+	return &Storage{
+		cache:        cache,
+		ownsCache:    ownsCache,
+		defaultCost:  cfg.DefaultCost,
+		waitForWrite: !cfg.SkipWaitForWrite,
+		mu:           acquireCacheMu(cache),
+	}
 }
 
 // Get gets the value for the given key.
@@ -169,7 +230,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close stops the collector and closes the cache; safe to call more than once, and it waits for calls in flight.
+// Close stops the collector, and closes the cache unless it came from NewFromConnection; safe to call more than once, and it waits for calls in flight.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -179,7 +240,12 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	s.cache.Close()
+	releaseCacheMu(s.cache)
+
+	if s.ownsCache {
+		s.cache.Close()
+	}
+
 	return nil
 }
 

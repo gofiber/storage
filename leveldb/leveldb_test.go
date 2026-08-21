@@ -666,3 +666,52 @@ func Test_Set_SubSecondExpiration_BinaryFrame(t *testing.T) {
 	require.Nil(t, err)
 	require.Zero(t, len(result))
 }
+
+func Test_LevelDB_NewFromConnection(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db)
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Put([]byte("jane"), []byte("doe"), nil))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_LevelDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+// Storages on one handle must share the write-order lock, or one's collector could
+// delete a key another just refreshed.
+func Test_LevelDB_NewFromConnection_SharedDB(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	s1 := NewFromConnection(db)
+	s2 := NewFromConnection(db)
+	require.Same(t, s1.mu, s2.mu)
+
+	// The lock outlives each storage but not all of them.
+	require.NoError(t, s1.Close())
+	require.NoError(t, s2.Set("john", []byte("doe"), 0))
+	require.NoError(t, s2.Close())
+	require.NoError(t, s2.Close())
+
+	dbMusMu.Lock()
+	_, held := dbMus[db]
+	dbMusMu.Unlock()
+	require.False(t, held)
+}

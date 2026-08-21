@@ -11,9 +11,13 @@ import (
 	driver "github.com/ClickHouse/clickhouse-go/v2"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("clickhouse: storage is closed")
+
 type Storage struct {
-	session driver.Conn
-	table   string
+	session  driver.Conn
+	table    string
+	ownsConn bool
 
 	closeMu sync.Mutex
 	closed  bool
@@ -37,7 +41,37 @@ func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 		return nil, err
 	}
 
-	closeOwned := func() { _ = conn.Close() }
+	return newStorage(ctx, conn, true, engine, configuration)
+}
+
+// NewFromConnection returns a new [*Storage] on an existing connection, which stays the caller's to close.
+func NewFromConnection(conn driver.Conn, configuration Config) (*Storage, error) {
+	return NewFromConnectionWithContext(context.Background(), conn, configuration)
+}
+
+// NewFromConnectionWithContext returns a new [*Storage] on an existing connection, using ctx for the
+// initialization operations (table creation, optional reset, and ping). The connection stays the caller's to close.
+func NewFromConnectionWithContext(ctx context.Context, conn driver.Conn, configuration Config) (*Storage, error) {
+	if conn == nil {
+		return nil, errors.New("connection not provided")
+	}
+
+	// defaultConfig validates the table name and defaults the engine; its dial options go unused here.
+	_, engine, err := defaultConfig(configuration)
+	if err != nil {
+		return nil, err
+	}
+
+	return newStorage(ctx, conn, false, engine, configuration)
+}
+
+// newStorage prepares the table on conn; conn is released only when this driver opened it.
+func newStorage(ctx context.Context, conn driver.Conn, ownsConn bool, engine ClickhouseEngine, configuration Config) (*Storage, error) {
+	closeOwned := func() {
+		if ownsConn {
+			_ = conn.Close()
+		}
+	}
 
 	queryWithEngine := fmt.Sprintf(createTableString, engine)
 	if err := conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table)); err != nil {
@@ -58,12 +92,16 @@ func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
 	}
 
 	return &Storage{
-		session: conn,
-		table:   configuration.Table,
+		session:  conn,
+		table:    configuration.Table,
+		ownsConn: ownsConn,
 	}, nil
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -95,6 +133,9 @@ func (s *Storage) Set(key string, value []byte, expiration time.Duration) error 
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) == 0 {
 		return []byte{}, nil
 	}
@@ -134,6 +175,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) == 0 {
 		return nil
 	}
@@ -146,6 +190,9 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	return s.session.Exec(ctx, resetDataString, driver.Named("table", s.table))
 }
 
@@ -153,12 +200,24 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the connection. Safe to call more than once; a failed close is reported once.
+// isClosed reports whether Close ran; a borrowed connection stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
+// Close the connection unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	if !s.ownsConn {
+		s.closed = true
 		return nil
 	}
 

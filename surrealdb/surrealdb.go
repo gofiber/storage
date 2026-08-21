@@ -13,9 +13,13 @@ import (
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("surrealdb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db       *surrealdb.DB
+	ownsDB   bool
 	table    string
 	stopGC   chan struct{}
 	stopped  chan struct{}
@@ -77,8 +81,23 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a SurrealDB storage on an existing client, which stays the caller's to close.
+// The namespace, database and authentication are the caller's to set up; only DefaultTable and GCInterval are read.
+func NewFromConnection(db *surrealdb.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("surrealdb: nil client")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+func newStorage(db *surrealdb.DB, ownsDB bool, cfg Config) *Storage {
 	storage := &Storage{
 		db:       db,
+		ownsDB:   ownsDB,
 		table:    cfg.DefaultTable,
 		stopGC:   make(chan struct{}),
 		stopped:  make(chan struct{}),
@@ -91,6 +110,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 
 // GetWithContext returns the value by key, using ctx for the query.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	// The storage interface documents an empty key as ignored without error.
 	if len(key) == 0 {
 		return nil, nil
@@ -125,6 +147,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets a value by key with optional expiration, using ctx for the query.
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) == 0 || len(val) == 0 {
 		return nil
 	}
@@ -154,6 +179,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext removes a key from storage, using ctx for the query.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) == 0 {
 		return nil
 	}
@@ -169,6 +197,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext clears all keys in the storage table, using ctx for the query.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := surrealdb.Delete[[]model](ctx, s.db, models.Table(s.table))
 	return err
 }
@@ -178,7 +209,14 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops GC and closes the DB connection
+// isClosed reports whether Close ran; a borrowed connection stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
+// Close stops GC, and closes the DB connection unless it came from NewFromConnection
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.stopGC)
@@ -189,6 +227,11 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 
@@ -211,6 +254,9 @@ func (s *Storage) Conn() *surrealdb.DB {
 
 // List returns all stored keys and values as JSON
 func (s *Storage) List() ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	records, err := surrealdb.Select[[]model, models.Table](context.Background(), s.db, models.Table(s.table))
 	if err != nil {
 		if isTableNotFoundError(err, s.table) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -21,14 +22,19 @@ var (
 	ErrKeyExpired = fmt.Errorf("key expired")
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed session stays open, so the latch is the only signal.
+var ErrClosed = errors.New("cassandra: storage is closed")
+
 // Storage represents a Cassandra storage implementation
 type Storage struct {
-	cluster   *gocql.ClusterConfig
-	session   *gocql.Session
-	sx        gocqlx.Session
-	keyspace  string
-	table     string
-	closeOnce sync.Once
+	closed      atomic.Bool
+	cluster     *gocql.ClusterConfig
+	session     *gocql.Session
+	sx          gocqlx.Session
+	keyspace    string
+	table       string
+	ownsSession bool
+	closeOnce   sync.Once
 }
 
 // validateIdentifier checks if an identifier is valid
@@ -64,17 +70,26 @@ func validateIdentifier(name, identifierType string) (string, error) {
 	return name, nil
 }
 
+// validatedConfig applies the defaults and validates the identifiers every constructor interpolates
+// into its statements.
+func validatedConfig(cnfg Config) (cfg Config, keyspace, table string, err error) {
+	cfg = configDefault(cnfg)
+
+	keyspace, err = validateIdentifier(cfg.Keyspace, "keyspace")
+	if err != nil {
+		return Config{}, "", "", err
+	}
+	table, err = validateIdentifier(cfg.Table, "table")
+	if err != nil {
+		return Config{}, "", "", err
+	}
+
+	return cfg, keyspace, table, nil
+}
+
 // New creates a new Cassandra storage instance
 func New(cnfg Config) (*Storage, error) {
-	// Default config
-	cfg := configDefault(cnfg)
-
-	// Validate and escape identifiers
-	keyspace, err := validateIdentifier(cfg.Keyspace, "keyspace")
-	if err != nil {
-		return nil, err
-	}
-	table, err := validateIdentifier(cfg.Table, "table")
+	cfg, keyspace, table, err := validatedConfig(cnfg)
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +108,50 @@ func New(cnfg Config) (*Storage, error) {
 
 	// Create storage instance
 	storage := &Storage{
-		cluster:  cluster,
-		keyspace: keyspace,
-		table:    table,
+		cluster:     cluster,
+		keyspace:    keyspace,
+		table:       table,
+		ownsSession: true,
 	}
 
 	// Initialize keyspace
 	if err := storage.createOrVerifyKeySpace(cfg.Reset); err != nil {
+		return nil, fmt.Errorf("cassandra storage init: %w", err)
+	}
+
+	return storage, nil
+}
+
+// NewFromConnection creates a Cassandra storage on an existing session, which stays the caller's to close.
+// The keyspace has to exist already; only the table is created. Only the Keyspace, Table and Reset options
+// are read: Consistency, ConnectTimeout, MaxRetries, PoolConfig and SslOpts shape a cluster this driver
+// would build itself, so on a borrowed session they are fixed by the session and ignored here.
+func NewFromConnection(session *gocql.Session, cnfg Config) (*Storage, error) {
+	if session == nil {
+		return nil, errors.New("cassandra: session cannot be nil")
+	}
+
+	cfg, keyspace, table, err := validatedConfig(cnfg)
+	if err != nil {
+		return nil, err
+	}
+
+	storage := &Storage{
+		session:  session,
+		sx:       gocqlx.NewSession(session),
+		keyspace: keyspace,
+		table:    table,
+	}
+
+	// Only this storage's own table is dropped: the keyspace is the caller's, and schema_info is a
+	// name this driver never creates, so dropping it here could only take out someone else's table.
+	if cfg.Reset {
+		if err := storage.dropDataTable(); err != nil {
+			return nil, fmt.Errorf("cassandra storage init: %w", err)
+		}
+	}
+
+	if err := storage.createDataTable(); err != nil {
 		return nil, fmt.Errorf("cassandra storage init: %w", err)
 	}
 
@@ -202,14 +254,18 @@ func (s *Storage) createDataTable() error {
 
 // dropTables drops existing tables for reset
 func (s *Storage) dropTables() error {
-	// Drop data table with proper escaping
-	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
-	if err := s.sx.Query(query, []string{}).ExecRelease(); err != nil {
+	if err := s.dropDataTable(); err != nil {
 		return err
 	}
 
 	// Drop schema_info table with proper escaping
-	query = fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.schema_info", s.keyspace)
+	return s.sx.Query(query, []string{}).ExecRelease()
+}
+
+// dropDataTable drops the key-value table alone, leaving the rest of the keyspace untouched.
+func (s *Storage) dropDataTable() error {
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", s.keyspace, s.table)
 	return s.sx.Query(query, []string{}).ExecRelease()
 }
 
@@ -234,6 +290,9 @@ func ttlSeconds(d time.Duration) int {
 
 // SetWithContext stores a key-value pair with optional expiration with context support
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// An empty key or value is ignored; the key is a bound parameter, so validating it only rejected ordinary keys.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
@@ -275,6 +334,9 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 
 // GetWithContext retrieves a value by key with context support.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	// Use query builder for select
 	stmt, names := qb.Select(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Columns("value", "expires_at").
@@ -308,6 +370,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // DeleteWithContext removes a key from storage with context support.
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Use query builder for delete
 	stmt, names := qb.Delete(fmt.Sprintf("%s.%s", s.keyspace, s.table)).
 		Where(qb.Eq("key")).
@@ -327,6 +392,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext clears all keys from storage with context support.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// Use direct TRUNCATE query with proper escaping
 	query := fmt.Sprintf("TRUNCATE TABLE %s.%s", s.keyspace, s.table)
 	return s.sx.Query(query, []string{}).WithContext(ctx).ExecRelease()
@@ -343,10 +411,11 @@ func (s *Storage) Conn() *gocql.Session {
 	return s.session
 }
 
-// Close closes the session once; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
+// Close closes the session once unless it came from NewFromConnection; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
-		if s.session != nil {
+		s.closed.Store(true)
+		if s.session != nil && s.ownsSession {
 			s.session.Close()
 		}
 	})

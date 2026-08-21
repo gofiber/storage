@@ -641,6 +641,43 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 	require.Nil(t, val, "expected value to be nil after deletion")
 }
 
+func Test_Redis_NewFromConnectionWithContext(t *testing.T) {
+	t.Parallel()
+
+	connection := New(newConfigFromContainer(t))
+	defer connection.Close() //nolint:errcheck // best effort cleanup
+
+	// Reset must flush entries already on the server.
+	require.NoError(t, connection.Set("stale", []byte("value"), 0))
+
+	testStore := NewFromConnectionWithContext(context.Background(), connection.Conn(), Config{Reset: true})
+	defer testStore.Close()
+
+	val, err := testStore.Get("stale")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, testStore.Set("foo", []byte("bar"), 0))
+	val, err = testStore.Get("foo")
+	require.NoError(t, err)
+	require.Equal(t, []byte("bar"), val)
+
+	// A reset under an already cancelled context must fail construction, not skip the flush.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.Panics(t, func() {
+		NewFromConnectionWithContext(ctx, connection.Conn(), Config{Reset: true})
+	})
+}
+
+func Test_Redis_NewFromConnection_Nil(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
 func Test_Redis_SkipConnectionCheck(t *testing.T) {
 	// 127.0.0.1:1 is guaranteed closed, so New would panic on the PING if the check were not skipped.
 	cfg := Config{

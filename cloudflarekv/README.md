@@ -21,6 +21,7 @@ A Cloudflare KV storage driver using [cloudflare/cloudflare-go](https://github.c
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(api APIInterface, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -110,5 +111,31 @@ var ConfigDefault = Config{
 	AccountID:   "fiber",
 	NamespaceID: "fiber",
 	Reset:       false,
+}
+```
+
+### Using an Existing Cloudflare API Client
+If your application already holds a Cloudflare API client, you can build the storage on it instead of creating a second one. Only the `Email`, `AccountID`, `NamespaceID` and `Reset` options are read; the credentials come from the client.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+```go
+import (
+    "github.com/cloudflare/cloudflare-go"
+    "github.com/gofiber/storage/cloudflarekv"
+)
+
+func main() {
+    api, err := cloudflare.NewWithAPIToken("token")
+    if err != nil {
+        panic(err)
+    }
+
+    store := cloudflarekv.NewFromConnection(api, cloudflarekv.Config{
+        Email:       "user@example.com",
+        AccountID:   "account-id",
+        NamespaceID: "namespace-id",
+    })
+    defer store.Close()
 }
 ```

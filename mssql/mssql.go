@@ -3,6 +3,7 @@ package mssql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -12,9 +13,13 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("mssql: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *sql.DB
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
@@ -94,16 +99,36 @@ func New(config ...Config) *Storage {
 	db.SetMaxIdleConns(cfg.maxIdleConns)
 	db.SetConnMaxLifetime(cfg.connMaxLifetime)
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing database handle, which stays the caller's to close.
+func NewFromConnection(db *sql.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("mssql: nil database handle")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage prepares the table on db and starts the collector; db is released only when this driver opened it.
+func newStorage(db *sql.DB, ownsDB bool, cfg Config) *Storage {
+	closeOwned := func() {
+		if ownsDB {
+			_ = db.Close()
+		}
+	}
+
 	// Ping database to ensure a connection has been made
 	if err := db.Ping(); err != nil {
-		_ = db.Close()
+		closeOwned()
 		panic(err)
 	}
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err = db.Exec(strings.ReplaceAll(dropQuery, "%s", cfg.Table)); err != nil {
-			_ = db.Close()
+		if _, err := db.Exec(strings.ReplaceAll(dropQuery, "%s", cfg.Table)); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -111,7 +136,7 @@ func New(config ...Config) *Storage {
 	// Init database queries
 	for _, query := range initQuery {
 		if _, err := db.Exec(strings.ReplaceAll(query, "%s", cfg.Table)); err != nil {
-			_ = db.Close()
+			closeOwned()
 
 			panic(err)
 		}
@@ -120,6 +145,7 @@ func New(config ...Config) *Storage {
 	// Create storage
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
@@ -132,11 +158,11 @@ func New(config ...Config) *Storage {
 		sqlGC:     fmt.Sprintf("DELETE FROM %s WHERE e <= @p1 AND e != 0", cfg.Table),
 	}
 
-	// checkSchema panics on a mismatch, so release the connection rather than leaking it on the way out.
+	// checkSchema panics on a mismatch, so release a connection this driver opened rather than leaking it on the way out.
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				_ = db.Close()
+				closeOwned()
 				panic(r)
 			}
 		}()
@@ -151,6 +177,9 @@ func New(config ...Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -185,6 +214,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiration time with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -210,6 +242,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext entry by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -225,6 +260,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all entries, including unexpired with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
 }
@@ -234,7 +272,14 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported once.
+// isClosed reports whether Close ran; a borrowed handle stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
+// Close stops the collector and closes the database unless it came from NewFromConnection; safe to call more than once, and a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
@@ -245,6 +290,11 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

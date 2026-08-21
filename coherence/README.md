@@ -17,6 +17,8 @@ A Coherence storage driver using [https://github.com/oracle/coherence-go-client]
 ```go
 func New(config ...Config) (*Storage, error)
 func NewWithContext(ctx context.Context, config ...Config) (*Storage, error)
+func NewFromConnection(session *coherence.Session, config ...Config) (*Storage, error)
+func NewFromConnectionWithContext(ctx context.Context, session *coherence.Session, config ...Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -143,5 +145,35 @@ var DefaultConfig = Config{
     ScopeName: defaultScopeName,
     Reset:     false,
     NearCacheTimeout: time.Duration(60) * time.Seconds,
+}
+```
+
+### Using an Existing Coherence Session
+If your application already holds a `*coherence.Session`, you can build the storage on it instead of creating a second one. Only the `ScopeName`, `NearCacheTimeout` and `Reset` options are read; the connection settings come from the session. `NewFromConnectionWithContext` uses the given context for the optional reset.
+
+The session stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+    "context"
+
+    "github.com/gofiber/storage/coherence"
+    coh "github.com/oracle/coherence-go-client/v2/coherence"
+)
+
+func main() {
+    session, err := coh.NewSession(context.Background(), coh.WithPlainText())
+    if err != nil {
+        panic(err)
+    }
+    defer session.Close()
+
+    store, err := coherence.NewFromConnection(session, coherence.Config{
+        ScopeName: "my-store",
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer store.Close()
 }
 ```

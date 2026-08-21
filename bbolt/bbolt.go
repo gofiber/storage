@@ -17,10 +17,14 @@ var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 var ErrReadOnly = errors.New("bbolt: storage is read-only")
 
 // Storage interface that is implemented by storage providers. bbolt has no expiration, so Set ignores exp.
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("bbolt: storage is closed")
+
 type Storage struct {
 	conn     *bbolt.DB
 	bucket   string
 	readOnly bool
+	ownsConn bool
 	closeMu  sync.Mutex
 	closed   bool
 }
@@ -38,8 +42,32 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(conn, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// bbolt takes an exclusive lock on its file, so sharing the open handle is the way to back a storage
+// with a database the application already uses. Only the Bucket, Reset and ReadOnly options are read,
+// and a read-only handle makes the storage read-only whatever Config.ReadOnly says.
+func NewFromConnection(conn *bbolt.DB, config ...Config) *Storage {
+	if conn == nil {
+		panic("bbolt: nil database")
+	}
+
+	return newStorage(conn, false, configDefault(config...))
+}
+
+// newStorage prepares the bucket on conn; conn is released only when this driver opened it.
+func newStorage(conn *bbolt.DB, ownsConn bool, cfg Config) *Storage {
 	// Release the file, and with it the OS lock, rather than leaking both when a later step fails.
-	closeOwned := func() { _ = conn.Close() }
+	closeOwned := func() {
+		if ownsConn {
+			_ = conn.Close()
+		}
+	}
+
+	// A read-only handle forces a read-only storage; Config.ReadOnly can only add to that.
+	cfg.ReadOnly = cfg.ReadOnly || conn.IsReadOnly()
 
 	// A read-only database cannot open a write transaction, so New panicked; check the bucket instead.
 	if cfg.ReadOnly {
@@ -53,36 +81,35 @@ func New(config ...Config) *Storage {
 			closeOwned()
 			panic(err)
 		}
-
-		return &Storage{
-			conn:     conn,
-			bucket:   cfg.Bucket,
-			readOnly: true,
+	} else {
+		// Reset bucket if field selected
+		if cfg.Reset {
+			if err := removeBucket(cfg, conn); err != nil {
+				closeOwned()
+				panic(err)
+			}
 		}
-	}
 
-	// Reset bucket if field selected
-	if cfg.Reset {
-		if err := removeBucket(cfg, conn); err != nil {
+		// Create bucket if not exists
+		if err := createBucket(cfg, conn); err != nil {
 			closeOwned()
 			panic(err)
 		}
 	}
 
-	// Create bucket if not exists
-	if err := createBucket(cfg, conn); err != nil {
-		closeOwned()
-		panic(err)
-	}
-
 	return &Storage{
-		conn:   conn,
-		bucket: cfg.Bucket,
+		conn:     conn,
+		bucket:   cfg.Bucket,
+		readOnly: cfg.ReadOnly,
+		ownsConn: ownsConn,
 	}
 }
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -121,6 +148,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -148,6 +178,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 // Delete entry by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -175,6 +208,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all entries
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if s.readOnly {
 		return ErrReadOnly
 	}
@@ -205,12 +241,24 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database. Safe to call more than once; a failed close is reported once.
+// isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
+// Close the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	if !s.ownsConn {
+		s.closed = true
 		return nil
 	}
 

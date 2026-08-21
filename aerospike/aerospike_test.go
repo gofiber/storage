@@ -50,21 +50,30 @@ func startAerospikeContainer(t testing.TB, ctx context.Context) testcontainers.C
 	return ctr
 }
 
+// newTestHostPort starts a container and returns its mapped Aerospike address.
+func newTestHostPort(t testing.TB) (string, int) {
+	t.Helper()
+
+	ctx := context.Background()
+	c := startAerospikeContainer(t, ctx)
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+
+	port, err := c.MappedPort(ctx, aerospikePort)
+	require.NoError(t, err)
+
+	return host, int(port.Num())
+}
+
 // newTestStore creates a client connected to the test container
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	c := startAerospikeContainer(t, context.Background())
-
-	// Extract host and port
-	host, err := c.Host(context.TODO())
-	require.NoError(t, err)
-
-	port, err := c.MappedPort(context.TODO(), aerospikePort)
-	require.NoError(t, err)
+	host, port := newTestHostPort(t)
 
 	return New(Config{
-		Hosts:     []*aerospike.Host{aerospike.NewHost(host, int(port.Num()))},
+		Hosts:     []*aerospike.Host{aerospike.NewHost(host, port)},
 		Reset:     true,
 		Namespace: aerospikeNamespace,
 	})
@@ -310,4 +319,35 @@ func Test_Aerospike_WithContext_Canceled(t *testing.T) {
 
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
+}
+
+func Test_AeroSpikeDB_NewFromConnection(t *testing.T) {
+	host, port := newTestHostPort(t)
+
+	client, cerr := aerospike.NewClient(host, port)
+	require.NoError(t, cerr)
+	defer client.Close()
+
+	store := NewFromConnection(client, Config{
+		Namespace: aerospikeNamespace,
+		SetName:   "existing_set",
+		Reset:     true,
+	})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The client is the caller's, so closing the storage must leave it connected.
+	require.NoError(t, store.Close())
+	require.True(t, client.IsConnected())
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_AeroSpikeDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
 }

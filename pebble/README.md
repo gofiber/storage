@@ -21,6 +21,7 @@ A fast key-value DB using [cockroachdb/pebble](https://github.com/cockroachdb/pe
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *pebble.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -108,5 +109,32 @@ var ConfigDefault = Config{
 	Path:         "db",
 	WriteOptions: nil,
 	GCInterval:   10 * time.Second,
+}
+```
+
+### Using an Existing Pebble Database
+Pebble takes a directory lock, so an application that already keeps a `*pebble.DB` open cannot have the storage open the same path again. Pass the open database instead. Only the `WriteOptions` and `GCInterval` options are read.
+
+The database stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+Storages built on the same database share one write-order lock, so each one's collector coordinates with the others' writes the same way it does with its own.
+
+> **Warning:** the storage treats the whole keyspace as its own — `Reset` deletes every key in the database, and the background collector reclaims any value that looks like an expired entry. Keep application data out of a database backing this storage.
+
+```go
+import (
+    "github.com/cockroachdb/pebble"
+    pebblestorage "github.com/gofiber/storage/pebble/v2"
+)
+
+func main() {
+    db, err := pebble.Open("./fiber.pebble", &pebble.Options{})
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    store := pebblestorage.NewFromConnection(db)
+    defer store.Close()
 }
 ```

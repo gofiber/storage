@@ -312,3 +312,28 @@ func Test_Etcd_TTLSeconds(t *testing.T) {
 		})
 	}
 }
+
+func TestEtcd_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	store := NewFromConnection(owner.Conn())
+	require.Same(t, owner.Conn(), store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The client is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func TestEtcd_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

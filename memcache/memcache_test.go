@@ -285,3 +285,32 @@ func Test_Memcache_WithContext_Canceled(t *testing.T) {
 	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), context.Canceled)
 	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 }
+
+func Test_Memcache_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	// Reset must flush entries already on the server.
+	require.NoError(t, owner.Set("stale", []byte("value"), 0))
+
+	store := NewFromConnection(owner.Conn(), Config{Reset: true})
+	require.Same(t, owner.Conn(), store.Conn())
+
+	result, err := store.Get("stale")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err = store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, store.Close())
+}
+
+func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

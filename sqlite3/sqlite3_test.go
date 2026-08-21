@@ -323,3 +323,30 @@ func Test_SQLite3_Set_Sub_Second_Expiration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result, "key expired before its expiration")
 }
+
+func Test_SQLite3_NewFromConnection(t *testing.T) {
+	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "existing.sqlite3"))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{Table: "existing_storage", Reset: true})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.Same(t, db, store.Conn())
+
+	// The handle is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Ping())
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_SQLite3_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

@@ -75,9 +75,13 @@ type item struct {
 	ExpireAt time.Time `json:"expire_at"`
 }
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("leveldb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
+	ownsDB     bool
 	readOnly   bool
 	gcInterval time.Duration
 	done       chan struct{}
@@ -86,12 +90,54 @@ type Storage struct {
 	closeMu    sync.Mutex
 	closed     bool
 
-	// mu orders the collector's delete against writers, so a key a Set just refreshed survives.
-	mu sync.RWMutex
+	// mu orders the collector's delete against writers, so a key a Set just refreshed
+	// survives. It is shared by every storage on the same database, since a sibling's
+	// Set needs the same protection from this storage's collector.
+	mu *dbMu
 
 	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
 	gcEpoch  uint64
 	gcCursor []byte
+}
+
+// dbMu is the write-order lock of one database, shared by every storage built on it.
+type dbMu struct {
+	sync.RWMutex
+	refs int
+}
+
+var (
+	dbMusMu sync.Mutex
+	dbMus   = map[*leveldb.DB]*dbMu{}
+)
+
+// acquireDBMu hands out the database's shared lock, creating it for the first storage.
+func acquireDBMu(db *leveldb.DB) *dbMu {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		m = &dbMu{}
+		dbMus[db] = m
+	}
+	m.refs++
+
+	return m
+}
+
+// releaseDBMu lets go of the database's shared lock, dropping it with the last storage.
+func releaseDBMu(db *leveldb.DB) {
+	dbMusMu.Lock()
+	defer dbMusMu.Unlock()
+
+	m := dbMus[db]
+	if m == nil {
+		return
+	}
+	if m.refs--; m.refs == 0 {
+		delete(dbMus, db)
+	}
 }
 
 // New creates a new memory storage
@@ -122,10 +168,35 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// LevelDB allows a single process to hold a directory, so sharing the open handle is the way to back a
+// storage with a database the application already uses. Only the GCInterval and ReadOnly options are read.
+//
+// The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
+// in the database, and the background collector scans all of them — reclaiming any value that decodes
+// as an entry whose deadline passed. Keep application data out of a database backing this storage.
+//
+// Storages built on the same database share one write-order lock, so each one's collector
+// coordinates with the others' writes the same way it does with its own.
+func NewFromConnection(db *leveldb.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("leveldb: nil database")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage starts the collector on db; db is released only when this driver opened it.
+func newStorage(db *leveldb.DB, ownsDB bool, cfg Config) *Storage {
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
+		mu:         acquireDBMu(db),
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
 	}
@@ -143,6 +214,9 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -186,6 +260,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -221,6 +298,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -242,6 +322,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if s.readOnly {
 		return ErrReadOnly
 	}
@@ -289,7 +372,14 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; a failed close is reported once.
+// isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
+// Close the storage, and the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		// Wait for the collector so it no longer writes to a database being closed.
@@ -301,6 +391,13 @@ func (s *Storage) Close() error {
 	defer s.closeMu.Unlock()
 
 	if s.closed {
+		return nil
+	}
+
+	releaseDBMu(s.db)
+
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 

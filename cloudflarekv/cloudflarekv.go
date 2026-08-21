@@ -30,14 +30,12 @@ func New(config ...Config) *Storage {
 			baseUrl: "http://localhost:8787",
 		}
 
-		storage := &Storage{
-			api:         api,
-			email:       "example@cloudflare.org",
-			accountID:   "dummy-ID",
-			namespaceID: "dummy-ID",
-		}
-
-		return storage
+		return newStorage(api, Config{
+			Email:       "example@cloudflare.org",
+			AccountID:   "dummy-ID",
+			NamespaceID: "dummy-ID",
+			Reset:       cfg.Reset,
+		})
 	}
 
 	api, err := cloudflare.NewWithAPIToken(cfg.Key)
@@ -45,11 +43,32 @@ func New(config ...Config) *Storage {
 		log.Panicf("error with cloudflare api initialization: %v", err)
 	}
 
+	return newStorage(api, cfg)
+}
+
+// NewFromConnection builds a Storage on an existing API client, which stays the caller's to manage.
+// Only the Email, AccountID, NamespaceID and Reset options are read; the credentials come from the client.
+func NewFromConnection(api APIInterface, config ...Config) *Storage {
+	if api == nil {
+		panic("cloudflarekv: nil api client")
+	}
+
+	return newStorage(api, configDefault(config...))
+}
+
+func newStorage(api APIInterface, cfg Config) *Storage {
 	storage := &Storage{
 		api:         api,
 		email:       cfg.Email,
 		accountID:   cfg.AccountID,
 		namespaceID: cfg.NamespaceID,
+	}
+
+	// Reset all entries if set to true
+	if cfg.Reset {
+		if err := storage.Reset(); err != nil {
+			log.Panicf("cloudflarekv: reset: %v", err)
+		}
 	}
 
 	return storage
@@ -124,21 +143,23 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			return err
 		}
 
-		keys = make([]string, len(resp.Result))
+		keys = make([]string, 0, len(resp.Result))
 
 		for _, element := range resp.Result {
-			name := element.Name
-			keys = append(keys, name)
+			keys = append(keys, element.Name)
 		}
 
-		_, err = s.api.DeleteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
-			NamespaceID: s.namespaceID,
-			Keys:        keys,
-		})
+		// An empty batch is rejected by the API, and an empty namespace is already reset.
+		if len(keys) > 0 {
+			_, err = s.api.DeleteWorkersKVEntries(ctx, cloudflare.AccountIdentifier(s.accountID), cloudflare.DeleteWorkersKVEntriesParams{
+				NamespaceID: s.namespaceID,
+				Keys:        keys,
+			})
 
-		if err != nil {
-			log.Printf("Error occur in DeleteWorker: %v", err)
-			return err
+			if err != nil {
+				log.Printf("Error occur in DeleteWorker: %v", err)
+				return err
+			}
 		}
 
 		if len(resp.Cursor) == 0 {

@@ -54,20 +54,64 @@ func NewWithContext(ctx context.Context, config Config) *Storage {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	return newStorage(ctx, sess, cfg)
+}
+
+// NewFromConnection creates a DynamoDB storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(db *awsdynamodb.Client, config Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), db, config)
+}
+
+// NewFromConnectionWithContext creates a DynamoDB storage on an existing client, which stays the
+// caller's to manage, using ctx as the parent context for the initialization operations (optional
+// reset, table description and creation). Only the table options and Reset are read; the endpoint
+// and credentials come from the client. Reset drops the table and recreates it empty.
+func NewFromConnectionWithContext(ctx context.Context, db *awsdynamodb.Client, config Config) *Storage {
+	if db == nil {
+		panic("dynamodb: nil client")
+	}
+
+	return newStorage(ctx, db, configDefault(config))
+}
+
+// resetWaitTimeout bounds the wait for an asynchronous table deletion during a reset.
+const resetWaitTimeout = 2 * time.Minute
+
+// newStorage prepares the table on db.
+func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storage {
 	describeTableInput := awsdynamodb.DescribeTableInput{
 		TableName: &cfg.Table,
 	}
 
 	// Create storage
 	store := &Storage{
-		db:    sess,
+		db:    db,
 		table: cfg.Table,
 	}
 
+	// Reset drops the table, and the describe below then rebuilds it empty. Deletion is
+	// asynchronous, so it is waited out before the table can be recreated.
+	if cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
+			var rnfe *types.ResourceNotFoundException
+			// A table that does not exist is already as empty as a reset leaves it.
+			if !errors.As(err, &rnfe) {
+				panic(err)
+			}
+		} else {
+			waiter := awsdynamodb.NewTableNotExistsWaiter(db)
+			if err := waiter.Wait(ctx, &describeTableInput, resetWaitTimeout); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Create table
-	_, err = sess.DescribeTable(timeoutCtx, &describeTableInput)
+	_, err := db.DescribeTable(timeoutCtx, &describeTableInput)
 	if err != nil {
 		var rnfe *types.ResourceNotFoundException
 		if errors.As(err, &rnfe) {

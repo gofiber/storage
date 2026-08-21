@@ -372,3 +372,33 @@ func Test_MongoDB_ReleaseItem_Clears_Every_Field(t *testing.T) {
 	require.Nil(t, it.Value)
 	require.True(t, it.Expiration.IsZero())
 }
+
+func Test_MongoDB_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	store := NewFromConnection(owner.Conn().Client(), Config{
+		Database:   "fiber",
+		Collection: "fiber_storage_existing",
+		Reset:      true,
+	})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The client is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+
+	// The storage itself is closed even though the client stays open.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_MongoDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

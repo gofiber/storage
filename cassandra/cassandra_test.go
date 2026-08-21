@@ -391,3 +391,31 @@ func Benchmark_Cassandra_Set_And_Delete(b *testing.B) {
 	}
 	require.NoError(b, err)
 }
+
+func Test_Cassandra_NewFromConnection(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	shared, err := NewFromConnection(store.Conn(), Config{
+		Keyspace: "test_cassandra",
+		Table:    "test_kv_existing",
+	})
+	require.NoError(t, err)
+	require.Same(t, store.Conn(), shared.Conn())
+
+	require.NoError(t, shared.Set("john", []byte("doe"), 0))
+
+	val, err := shared.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+
+	// The session is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, shared.Close())
+	require.NoError(t, store.Set("jane", []byte("doe"), 0))
+	require.ErrorIs(t, shared.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_Cassandra_NewFromConnection_Nil(t *testing.T) {
+	_, err := NewFromConnection(nil, Config{})
+	require.Error(t, err)
+}

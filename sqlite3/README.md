@@ -19,6 +19,7 @@ A SQLite3 storage driver using [mattn/go-sqlite3](https://github.com/mattn/go-sq
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *sql.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -119,5 +120,32 @@ var ConfigDefault = Config{
 	MaxOpenConns:    100,
 	MaxIdleConns:    100,
 	ConnMaxLifetime: 1 * time.Second,
+}
+```
+
+### Using an Existing SQLite3 Connection
+If your application already holds a `*sql.DB`, you can build the storage on it instead of opening a second handle. The remaining config options (table name, GC interval, reset) still apply.
+
+The handle stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+	"database/sql"
+
+	"github.com/gofiber/storage/sqlite3/v2"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+func main() {
+	db, err := sql.Open("sqlite3", "./fiber.sqlite3")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	store := sqlite3.NewFromConnection(db, sqlite3.Config{
+		Table: "fiber_storage",
+	})
+	defer store.Close()
 }
 ```

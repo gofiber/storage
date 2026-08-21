@@ -77,6 +77,36 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(ctx, client, conn, cfg)
+}
+
+// NewFromConnection creates an ArangoDB storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(client driver.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), client, config...)
+}
+
+// NewFromConnectionWithContext creates an ArangoDB storage on an existing client, using ctx for the
+// initialization operations (database/collection lookup and creation, and optional reset). Only the
+// Database, Collection, Reset and GCInterval options are read; the endpoint and credentials come from the client.
+func NewFromConnectionWithContext(ctx context.Context, client driver.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("arangodb: nil client")
+	}
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	// The endpoint and credentials come from the client, so leftover values in these
+	// fields must not fail validation meant for the dialing constructor.
+	cfg.Host, cfg.Port, cfg.Username, cfg.Password = "", 0, "", ""
+
+	return newStorage(ctx, client, client.Connection(), configDefault(cfg))
+}
+
+// newStorage prepares the database and collection on client and starts the collector.
+func newStorage(ctx context.Context, client driver.Client, conn driver.Connection, cfg Config) *Storage {
 	// check if the database exists
 	// if not create it
 	// (it works only with admin privilege user)

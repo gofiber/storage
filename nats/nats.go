@@ -32,12 +32,17 @@ func notInitialized(initErr error) error {
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	nc     *nats.Conn
+	ownsNC bool
 	kv     jetstream.KeyValue
 	err    error
 	cfg    Config
 	ctx    context.Context
 	mu     sync.RWMutex
 	closed bool
+
+	// initMu serializes lazy bucket setup on its own, so the network round trip it makes is not
+	// held under mu, where it would stall Close and every other operation behind it.
+	initMu sync.Mutex
 }
 
 type entry struct {
@@ -148,8 +153,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	storage := &Storage{
-		cfg: cfg,
-		ctx: ctx,
+		cfg:    cfg,
+		ctx:    ctx,
+		ownsNC: true,
 	}
 
 	// Set the nats options with default custom handlers
@@ -201,6 +207,136 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	return storage
 }
 
+// NewFromConnection creates a nats kv storage on an existing connection, using context.Background()
+// for the key-value bucket setup.
+func NewFromConnection(nc *nats.Conn, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), nc, config...)
+}
+
+// NewFromConnectionWithContext creates a nats kv storage on an existing connection, which stays the
+// caller's to close, using ctx for the key-value bucket setup. Only KeyValueConfig and Reset are read;
+// the connection settings come from the connection. The caller's own connect and reconnect handlers are
+// left alone; the bucket is resolved lazily instead, so an operation retries it when it is still missing
+// or its stream has gone away. With Reset set, a failed bucket setup panics rather than skipping the
+// wipe the caller asked for.
+func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...Config) *Storage {
+	if nc == nil {
+		panic("nats: nil connection")
+	}
+
+	cfg := configDefault(config...)
+
+	storage := &Storage{
+		cfg: cfg,
+		ctx: ctx,
+		nc:  nc,
+	}
+
+	kv, err := newNatsKV(nc, ctx, cfg.KeyValueConfig)
+	switch {
+	case err != nil && cfg.Reset:
+		panic(fmt.Errorf("nats: reset requested but bucket setup failed: %w", err))
+	case err != nil:
+		// Recorded rather than fatal, the same way a failed dial is: operations report it as not
+		// initialized, and the first operation retries the setup.
+		storage.err = err
+	}
+	storage.kv = kv
+
+	if cfg.Reset {
+		if err := storage.ResetWithContext(ctx); err != nil {
+			panic(err)
+		}
+	}
+
+	return storage
+}
+
+// keyValue returns the bucket, resolving it first when a storage on a borrowed connection is still
+// missing one: that storage installs no handlers of its own, so a bucket absent at construction
+// (JetStream not up yet, connection down) is retried here rather than being missing for good.
+func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
+	s.mu.RLock()
+	kv, closed := s.kv, s.closed
+	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
+	if kv != nil {
+		return kv, nil
+	}
+
+	// A connection this driver dialed already has handlers that set the bucket up on connect and on
+	// every reconnect, so a round trip here would duplicate them, and stall the caller meanwhile.
+	// ownsNC is set once at construction, so it is read without the lock.
+	if s.ownsNC {
+		s.mu.RLock()
+		initErr := s.err
+		s.mu.RUnlock()
+		return nil, notInitialized(initErr)
+	}
+
+	s.initMu.Lock()
+	defer s.initMu.Unlock()
+
+	// Re-checked: another caller may have resolved it while this one waited.
+	s.mu.RLock()
+	kv, closed = s.kv, s.closed
+	s.mu.RUnlock()
+
+	if closed {
+		return nil, errClosed
+	}
+	if kv != nil {
+		return kv, nil
+	}
+
+	// nc and cfg are also set once at construction.
+	kv, err := newNatsKV(s.nc, ctx, s.cfg.KeyValueConfig)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// A Close landing during the setup wins: the bucket is not recorded on a storage that is done.
+	if s.closed {
+		return nil, errClosed
+	}
+	if err != nil {
+		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
+		return nil, notInitialized(errors.Join(s.err, err))
+	}
+	if s.kv == nil {
+		s.kv = kv
+		s.err = nil
+	}
+
+	return s.kv, nil
+}
+
+// invalidateOnStreamGone drops the cached bucket when err says its backing stream no longer exists,
+// so the next operation on a borrowed connection re-resolves (and recreates) the bucket instead of
+// failing forever; an owned connection's reconnect handlers already re-resolve it.
+// Writes against a deleted stream report ErrNoStreamResponse — the publish simply gets no answer —
+// rather than a not-found; it can also be transient, but invalidating then just costs one re-lookup.
+func (s *Storage) invalidateOnStreamGone(kv jetstream.KeyValue, err error) {
+	if err == nil || s.ownsNC {
+		return
+	}
+	if !errors.Is(err, jetstream.ErrStreamNotFound) &&
+		!errors.Is(err, jetstream.ErrBucketNotFound) &&
+		!errors.Is(err, jetstream.ErrNoStreamResponse) {
+		return
+	}
+
+	s.mu.Lock()
+	// Cleared only while kv is still the current bucket, so a fresh re-resolution is kept.
+	if s.kv == kv {
+		s.kv = nil
+	}
+	s.mu.Unlock()
+}
+
 // GetWithContext retrieves the value associated with the given key using the provided context.
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
 	// Checked before the empty-key no-op so a cancelled context is reported whatever the key is.
@@ -211,19 +347,14 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return nil, errClosed
-	}
-	if kv == nil {
-		return nil, notInitialized(initErr)
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	data, expired, revision, err := read(ctx, kv, key)
 	if err != nil || data == nil {
+		s.invalidateOnStreamGone(kv, err)
 		return nil, err
 	}
 
@@ -280,15 +411,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return errClosed
-	}
-	if kv == nil {
-		return notInitialized(initErr)
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return err
 	}
 
 	// expiry
@@ -303,21 +428,22 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	// encode
 	e := new(bytes.Buffer)
-	err := gob.NewEncoder(e).Encode(entry{
+	if err := gob.NewEncoder(e).Encode(entry{
 		Data:   val,
 		Expiry: expSeconds,
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("encode: %w", err)
 	}
 
 	// set
 	if _, err = kv.Put(ctx, key, e.Bytes()); err != nil {
 		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			s.invalidateOnStreamGone(kv, err)
 			return fmt.Errorf("put: %w", err)
 		}
 		// The inner error used to shadow this one, so a Create that succeeded still reported ErrKeyNotFound.
 		if _, err = kv.Create(ctx, key, e.Bytes()); err != nil {
+			s.invalidateOnStreamGone(kv, err)
 			return fmt.Errorf("create: %w", err)
 		}
 	}
@@ -339,19 +465,17 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return nil
 	}
 
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return errClosed
+	kv, err := s.keyValue(ctx)
+	if err != nil {
+		return err
 	}
 
-	if kv == nil {
-		return notInitialized(initErr)
+	if err := kv.Delete(ctx, key); err != nil {
+		s.invalidateOnStreamGone(kv, err)
+		return err
 	}
 
-	return kv.Delete(ctx, key)
+	return nil
 }
 
 // Delete key by key
@@ -379,9 +503,10 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return fmt.Errorf("get jetstream: %w", err)
 	}
 
-	// Delete the bucket
+	// Delete the bucket. One already gone — deleted externally, say — is exactly
+	// what this delete would leave behind, so continue to the recreate.
 	err = js.DeleteKeyValue(ctx, s.cfg.KeyValueConfig.Bucket)
-	if err != nil {
+	if err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) && !errors.Is(err, jetstream.ErrStreamNotFound) {
 		return fmt.Errorf("delete kv: %w", err)
 	}
 
@@ -405,7 +530,7 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the connection. Safe to call more than once; the write lock keeps operations off a connection being torn down.
+// Close the connection unless it came from NewFromConnection. Safe to call more than once; the write lock keeps operations off a connection being torn down.
 func (s *Storage) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -415,7 +540,10 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	s.nc.Close()
+	if s.ownsNC {
+		s.nc.Close()
+	}
+
 	return nil
 }
 
@@ -428,20 +556,15 @@ func (s *Storage) Conn() (*nats.Conn, jetstream.KeyValue) {
 
 // Return all the keys
 func (s *Storage) Keys() ([]string, error) {
-	s.mu.RLock()
-	kv, initErr, closed := s.kv, s.err, s.closed
-	s.mu.RUnlock()
-
-	if closed {
-		return nil, errClosed
-	}
-	if kv == nil {
-		return nil, notInitialized(initErr)
+	kv, err := s.keyValue(context.Background())
+	if err != nil {
+		return nil, err
 	}
 
 	// Watch streams every entry with its value in one subscription; ListKeys is metadata only, so filtering expiries would cost a Get per key.
 	watcher, err := kv.Watch(context.Background(), ">", jetstream.IgnoreDeletes())
 	if err != nil {
+		s.invalidateOnStreamGone(kv, err)
 		return nil, fmt.Errorf("keys: %w", err)
 	}
 	defer func() {

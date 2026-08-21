@@ -3,6 +3,7 @@ package neo4j
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -12,6 +13,9 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/auth"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 )
+
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("neo4j: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -53,6 +57,29 @@ const closeTimeout = 10 * time.Second
 // New creates a new Neo4j storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
 	return NewWithContext(context.Background(), config...)
+}
+
+// NewFromConnection creates a new Neo4j storage on an existing driver, which stays the caller's to
+// close, using context.Background() for initialization. It is the same as setting Config.DB.
+func NewFromConnection(db neo4j.DriverWithContext, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), db, config...)
+}
+
+// NewFromConnectionWithContext creates a new Neo4j storage on an existing driver, which stays the
+// caller's to close, using ctx for the initialization operations (connectivity check, optional reset,
+// and index creation).
+func NewFromConnectionWithContext(ctx context.Context, db neo4j.DriverWithContext, config ...Config) *Storage {
+	if db == nil {
+		panic("neo4j: nil driver")
+	}
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	cfg.DB = db
+
+	return NewWithContext(ctx, cfg)
 }
 
 // NewWithContext creates a new Neo4j storage, using ctx for the initialization
@@ -127,6 +154,9 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -168,6 +198,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiration time with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
@@ -204,6 +237,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext value by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -219,6 +255,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all keys with context. Remove all nodes
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := neo4j.ExecuteQuery(
 		ctx, s.db, s.cypherReset,
 		nil,
@@ -233,6 +272,13 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// isClosed reports whether Close ran; a borrowed driver stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+	return s.closed
+}
+
 // Close stops the collector and closes the driver unless it came from Config.DB; a failed close is reported so it can be retried.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
@@ -243,7 +289,12 @@ func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	if s.closed || !s.ownsDB {
+	if s.closed {
+		return nil
+	}
+
+	if !s.ownsDB {
+		s.closed = true
 		return nil
 	}
 
