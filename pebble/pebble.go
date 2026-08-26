@@ -546,9 +546,8 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	releaseDBState(s.db)
-
 	if !s.ownsDB {
+		releaseDBState(s.db)
 		return nil
 	}
 
@@ -556,8 +555,13 @@ func (s *Storage) Close() error {
 	// ErrClosed instead of reaching a closed database, which Pebble answers with a panic.
 	// Pebble closes regardless of error and panics on a second call, so record it either way.
 	s.shared.dbClosed = true
+	err := s.db.Close()
 
-	return s.db.Close()
+	// Released last: dropping the entry any earlier would let a storage built on this handle
+	// meanwhile register a fresh one, which carries no record of the database being closed.
+	releaseDBState(s.db)
+
+	return err
 }
 
 // Conn returns the database client

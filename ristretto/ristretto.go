@@ -256,14 +256,16 @@ func (s *Storage) Close() error {
 	}
 	s.closed = true
 
-	releaseCacheState(s.cache)
-
 	if s.ownsCache {
 		// Latched under the same lock every operation takes, so a sibling on this cache
 		// reports ErrClosed instead of writing into a closed cache that drops it in silence.
 		s.shared.cacheClosed = true
 		s.cache.Close()
 	}
+
+	// Released last: dropping the entry any earlier would let a storage built on this cache
+	// meanwhile register a fresh one, which carries no record of the cache having been closed.
+	releaseCacheState(s.cache)
 
 	return nil
 }

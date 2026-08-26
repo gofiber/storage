@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -714,6 +715,48 @@ func Test_LevelDB_NewFromConnection_SharedDB(t *testing.T) {
 	_, held := dbStates[db]
 	dbStatesMu.Unlock()
 	require.False(t, held)
+}
+
+// Closing one storage while another writes and a third is being built on the same handle must
+// not hand the new storage a fresh shared entry while the write still runs under the old one.
+func Test_LevelDB_SharedDB_CloseRacesSetAndNewStorage(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	writer := NewFromConnection(db, Config{GCInterval: time.Hour})
+	closer := NewFromConnection(db, Config{GCInterval: time.Hour})
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			// Either outcome is correct; reaching a closed database is not.
+			if err := writer.Set("john", []byte("doe"), 0); err != nil {
+				require.ErrorIs(t, err, ErrClosed)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		require.NoError(t, closer.Close())
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			later := NewFromConnection(db, Config{GCInterval: time.Hour})
+			// Every storage on a live handle must share one entry with the writer.
+			require.Same(t, writer.shared, later.shared)
+			require.NoError(t, later.Close())
+		}
+	}()
+
+	wg.Wait()
+	require.NoError(t, writer.Close())
 }
 
 // A sibling on a handle an owning storage closed must report ErrClosed, not reach the

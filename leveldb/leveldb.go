@@ -296,6 +296,12 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 	s.shared.mu.RLock()
 	defer s.shared.mu.RUnlock()
 
+	// Re-checked under the lock: the latch may have been set between the check above and here,
+	// and a write that slipped through would reach a database being closed.
+	if s.isClosed() {
+		return ErrClosed
+	}
+
 	return s.db.Put([]byte(key), encode(value, expireAt), nil)
 }
 
@@ -402,17 +408,20 @@ func (s *Storage) Close() error {
 		return nil
 	}
 
-	releaseDBState(s.db)
-
-	if !s.ownsDB {
-		return nil
+	var err error
+	if s.ownsDB {
+		// Latched before the close so a sibling on this handle reports ErrClosed rather than
+		// reaching a database that is being torn down; goleveldb tears it down even on error.
+		s.shared.closed.Store(true)
+		err = s.db.Close()
 	}
 
-	// Latched before the close so a sibling on this handle reports ErrClosed rather than
-	// reaching a database that is being torn down; goleveldb tears it down even on error.
-	s.shared.closed.Store(true)
+	// Released last: dropping the entry any earlier would let a storage built on this handle
+	// meanwhile register a fresh one, which carries neither the closed flag nor the cursor
+	// that the writes still finishing under the old entry are coordinated by.
+	releaseDBState(s.db)
 
-	return s.db.Close()
+	return err
 }
 
 // Return database client
