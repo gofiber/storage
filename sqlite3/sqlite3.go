@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -73,11 +74,32 @@ func NewFromConnection(db *sql.DB, config ...Config) *Storage {
 }
 
 // newStorage prepares the table on db and starts the collector; db is released only when this driver opened it.
+// validTableName matches the identifiers this driver interpolates into its statements: the table
+// name reaches SQL as text rather than as a bound parameter, which no driver supports for
+// identifiers, so anything outside this shape is refused instead of being quoted and hoped for.
+var validTableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// validateTableName rejects a table name that could carry SQL of its own.
+func validateTableName(table string) error {
+	if !validTableName.MatchString(table) {
+		return fmt.Errorf("sqlite3: invalid table name %q: only letters, digits and underscores are allowed, and it may not start with a digit", table)
+	}
+
+	return nil
+}
+
 func newStorage(db *sql.DB, ownsDB bool, cfg Config) *Storage {
 	closeOwned := func() {
 		if ownsDB {
 			_ = db.Close()
 		}
+	}
+
+	// Checked before any statement is built: the table name is interpolated into every one of
+	// them, and with Reset set the first of those statements drops a table.
+	if err := validateTableName(cfg.Table); err != nil {
+		closeOwned()
+		panic(err)
 	}
 
 	// Ping database

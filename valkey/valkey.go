@@ -200,7 +200,16 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.closed.Load() {
 		return ErrClosed
 	}
-	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
+	// FLUSHDB carries no key, so in cluster mode it reaches whichever node the client picks and
+	// leaves the other primaries holding their entries. Nodes() is the client's own view of the
+	// cluster; for a standalone or sentinel client it is the single node, so this is one call.
+	for _, node := range s.db.Nodes() {
+		if err := node.Do(ctx, node.B().Flushdb().Build()).Error(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Reset resets all keys

@@ -109,8 +109,11 @@ client, err := firestore.NewClient(ctx, "my-gcp-project")
 if err != nil {
 	panic(err)
 }
+// The client is yours: closing the storage no longer closes it.
+defer client.Close()
 
 store := firestorage.NewFromConnection(client, "my_collection")
+defer store.Close()
 ```
 
 ### Config

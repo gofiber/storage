@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,7 +35,12 @@ func NewFromConnection(conn redis.UniversalClient, config ...Config) *Storage {
 // from the config; the connection settings come from the client. Reset flushes every database
 // the client's nodes hold, not just this storage's keys.
 func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClient, config ...Config) *Storage {
+	// The handle is an interface, so a nil *redis.Client arrives as a non-nil interface holding a
+	// nil pointer; the kind check keeps non-pointer implementations of the interface working.
 	if conn == nil {
+		panic("redis: nil client")
+	}
+	if v := reflect.ValueOf(conn); v.Kind() == reflect.Ptr && v.IsNil() {
 		panic("redis: nil client")
 	}
 
