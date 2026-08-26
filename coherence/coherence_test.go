@@ -511,9 +511,14 @@ func Test_Coherence_NewFromConnectionWithContext(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, value1, val)
 
-	// A reset under an already cancelled context must fail construction, not skip the wipe.
+	// Coherence substitutes a fresh context when the supplied one is already done, so the
+	// construction-time reset still wipes the scope rather than silently being skipped.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
-	require.Error(t, err)
+	cancelledStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
+	require.NoError(t, err)
+
+	val, err = cancelledStore.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, val)
 }
