@@ -353,7 +353,7 @@ func Test_Ristretto_NewFromConnection_SharedCache(t *testing.T) {
 
 	s1 := NewFromConnection(cache)
 	s2 := NewFromConnection(cache)
-	require.Same(t, s1.mu, s2.mu)
+	require.Same(t, s1.shared, s2.shared)
 
 	// The lock outlives each storage but not all of them.
 	require.NoError(t, s1.Close())
@@ -361,8 +361,25 @@ func Test_Ristretto_NewFromConnection_SharedCache(t *testing.T) {
 	require.NoError(t, s2.Close())
 	require.NoError(t, s2.Close())
 
-	cacheMusMu.Lock()
-	_, held := cacheMus[cache]
-	cacheMusMu.Unlock()
+	cacheStatesMu.Lock()
+	_, held := cacheStates[cache]
+	cacheStatesMu.Unlock()
 	require.False(t, held)
+}
+
+// A closed Ristretto cache drops operations in silence, so a sibling on a cache an owning
+// storage closed must report ErrClosed rather than accept writes that go nowhere.
+func Test_Ristretto_SharedCache_OwnerClose(t *testing.T) {
+	owner := New()
+	sibling := NewFromConnection(owner.Conn())
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+	require.NoError(t, owner.Close())
+
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }

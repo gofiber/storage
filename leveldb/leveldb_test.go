@@ -561,9 +561,9 @@ func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 	require.Nil(t, db.Set("a", []byte("doe"), 0))
 
 	// A reset removes the keys the cursor pointed past, so leaving it set would skip everything written after.
-	db.gcCursor = []byte("z")
+	db.shared.gcCursor = []byte("z")
 	require.Nil(t, db.Reset())
-	require.Nil(t, db.gcCursor)
+	require.Nil(t, db.shared.gcCursor)
 }
 
 func Test_Set_WritesBinaryFrame(t *testing.T) {
@@ -702,7 +702,7 @@ func Test_LevelDB_NewFromConnection_SharedDB(t *testing.T) {
 
 	s1 := NewFromConnection(db)
 	s2 := NewFromConnection(db)
-	require.Same(t, s1.mu, s2.mu)
+	require.Same(t, s1.shared, s2.shared)
 
 	// The lock outlives each storage but not all of them.
 	require.NoError(t, s1.Close())
@@ -710,8 +710,32 @@ func Test_LevelDB_NewFromConnection_SharedDB(t *testing.T) {
 	require.NoError(t, s2.Close())
 	require.NoError(t, s2.Close())
 
-	dbMusMu.Lock()
-	_, held := dbMus[db]
-	dbMusMu.Unlock()
+	dbStatesMu.Lock()
+	_, held := dbStates[db]
+	dbStatesMu.Unlock()
 	require.False(t, held)
+}
+
+// A sibling on a handle an owning storage closed must report ErrClosed, not reach the
+// closed database, and a Reset must rewind every collector on the handle, not just its own.
+func Test_LevelDB_SharedDB_OwnerCloseAndReset(t *testing.T) {
+	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+
+	// A sibling's Reset must rewind this storage's cursor too, since they share the keyspace.
+	sibling.shared.gcCursor = []byte("z")
+	require.NoError(t, owner.Reset())
+	require.Nil(t, sibling.shared.gcCursor)
+
+	// Closing the owner closes the database, so the sibling must refuse to use it.
+	require.NoError(t, owner.Close())
+	require.True(t, sibling.isClosed())
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }

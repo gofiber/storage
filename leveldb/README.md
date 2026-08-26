@@ -192,7 +192,7 @@ LevelDB lets a single process hold a directory, so an application that already k
 
 The database stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
-Storages built on the same database share one write-order lock, so each one's collector coordinates with the others' writes the same way it does with its own.
+Storages built on the same database share one write-order lock and one collector cursor, so each one's collector coordinates with the others' writes and a `Reset` by any of them rewinds them all. Closing the storage that opened the database closes the database itself: the others then report `ErrClosed` rather than reaching a closed handle.
 
 > **Warning:** the storage treats the whole keyspace as its own — `Reset` deletes every key in the database, and the background collector reclaims any value that looks like an expired entry. Keep application data out of a database backing this storage.
 

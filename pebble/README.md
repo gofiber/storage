@@ -117,7 +117,7 @@ Pebble takes a directory lock, so an application that already keeps a `*pebble.D
 
 The database stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
 
-Storages built on the same database share one write-order lock, so each one's collector coordinates with the others' writes the same way it does with its own.
+Storages built on the same database share one write-order lock and one collector cursor, so each one's collector coordinates with the others' writes and a `Reset` by any of them rewinds them all. Closing the storage that opened the database closes the database itself: the others then report `ErrClosed`, which matters here because Pebble answers use of a closed database with a panic.
 
 > **Warning:** the storage treats the whole keyspace as its own — `Reset` deletes every key in the database, and the background collector reclaims any value that looks like an expired entry. Keep application data out of a database backing this storage.
 

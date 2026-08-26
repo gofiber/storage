@@ -424,12 +424,12 @@ func Test_Pebble_GC_Cursor_Cleared_After_Full_Sweep_And_Reset(t *testing.T) {
 
 	// A sweep that reaches the end clears the cursor, so the next one starts over.
 	store.collect()
-	require.Nil(t, store.gcCursor)
+	require.Nil(t, store.shared.gcCursor)
 
 	// So does a Reset: the keys the cursor pointed past are gone, and it would skip everything written after.
-	store.gcCursor = []byte("z")
+	store.shared.gcCursor = []byte("z")
 	require.NoError(t, store.Reset())
-	require.Nil(t, store.gcCursor)
+	require.Nil(t, store.shared.gcCursor)
 }
 
 func Test_Pebble_NewFromConnection(t *testing.T) {
@@ -469,7 +469,7 @@ func Test_Pebble_NewFromConnection_SharedDB(t *testing.T) {
 
 	s1 := NewFromConnection(db)
 	s2 := NewFromConnection(db)
-	require.Same(t, s1.mu, s2.mu)
+	require.Same(t, s1.shared, s2.shared)
 
 	// The lock outlives each storage but not all of them.
 	require.NoError(t, s1.Close())
@@ -477,8 +477,31 @@ func Test_Pebble_NewFromConnection_SharedDB(t *testing.T) {
 	require.NoError(t, s2.Close())
 	require.NoError(t, s2.Close())
 
-	dbMusMu.Lock()
-	_, held := dbMus[db]
-	dbMusMu.Unlock()
+	dbStatesMu.Lock()
+	_, held := dbStates[db]
+	dbStatesMu.Unlock()
 	require.False(t, held)
+}
+
+// Pebble panics on a closed database, so a sibling on a handle an owning storage closed must
+// report ErrClosed rather than reach it; a Reset must also rewind every collector on the handle.
+func Test_Pebble_SharedDB_OwnerCloseAndReset(t *testing.T) {
+	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+
+	// A sibling's Reset must rewind this storage's cursor too, since they share the keyspace.
+	sibling.shared.gcCursor = []byte("z")
+	require.NoError(t, owner.Reset())
+	require.Nil(t, sibling.shared.gcCursor)
+
+	// Closing the owner closes the database, so the sibling must refuse to use it.
+	require.NoError(t, owner.Close())
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }
