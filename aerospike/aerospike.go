@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,7 +30,6 @@ type Storage struct {
 	reset         bool
 	ownsClient    bool
 	schemaInfo    *SchemaInfo
-	closeOnce     sync.Once
 }
 
 const schemaInfoKey = "_schema_info"
@@ -429,11 +427,11 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closed.Store(true)
-		if s.ownsClient {
-			s.client.Close()
-		}
-	})
+	// One CAS carries both facts the close needs: that the storage is now closed, and that
+	// this is the call that gets to tear the client down.
+	if s.closed.CompareAndSwap(false, true) && s.ownsClient {
+		s.client.Close()
+	}
+
 	return nil
 }

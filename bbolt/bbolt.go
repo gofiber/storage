@@ -3,7 +3,7 @@ package bbolt
 import (
 	"context"
 	"errors"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/utils/v2"
@@ -25,8 +25,7 @@ type Storage struct {
 	bucket   string
 	readOnly bool
 	ownsConn bool
-	closeMu  sync.Mutex
-	closed   bool
+	closed   atomic.Bool
 }
 
 // New creates a new storage
@@ -243,29 +242,22 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 // isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
 	if !s.ownsConn {
-		s.closed = true
 		return nil
 	}
 
 	// Latched even on failure: bbolt clears its opened flag first, so a retry would report a success that never happened.
 	err := s.conn.Close()
-	s.closed = true
-
 	return err
 }
 

@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/surrealdb/surrealdb.go"
@@ -25,8 +26,9 @@ type Storage struct {
 	stopped  chan struct{}
 	interval time.Duration
 	stopOnce sync.Once
-	closeMu  sync.Mutex
-	closed   bool
+	// closeMu serialises Close alone; operations read the latch atomically.
+	closeMu sync.Mutex
+	closed  atomic.Bool
 }
 
 // model represents a key-value storage record used in SurrealDB.
@@ -211,9 +213,7 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed connection stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close stops GC, and closes the DB connection unless it came from NewFromConnection
@@ -226,12 +226,13 @@ func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if s.closed.Load() {
 		return nil
 	}
 
 	if !s.ownsDB {
-		s.closed = true
+		s.closed.Store(true)
 		return nil
 	}
 
@@ -243,7 +244,7 @@ func (s *Storage) Close() error {
 		return err
 	}
 
-	s.closed = true
+	s.closed.Store(true)
 	return nil
 }
 

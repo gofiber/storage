@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -34,7 +33,6 @@ type Storage struct {
 	keyspace    string
 	table       string
 	ownsSession bool
-	closeOnce   sync.Once
 }
 
 // validateIdentifier checks if an identifier is valid
@@ -413,11 +411,11 @@ func (s *Storage) Conn() *gocql.Session {
 
 // Close closes the session once unless it came from NewFromConnection; gocql panics on a double close. The error satisfies storage.Storage and is always nil.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closed.Store(true)
-		if s.session != nil && s.ownsSession {
-			s.session.Close()
-		}
-	})
+	// One CAS carries both facts the close needs: that the storage is now closed, and that this
+	// is the call that gets to close the session, which gocql answers with a panic if done twice.
+	if s.closed.CompareAndSwap(false, true) && s.session != nil && s.ownsSession {
+		s.session.Close()
+	}
+
 	return nil
 }

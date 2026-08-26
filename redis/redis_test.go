@@ -644,7 +644,7 @@ func Test_Redis_NewFromConnection(t *testing.T) {
 func Test_Redis_NewFromConnectionWithContext(t *testing.T) {
 	t.Parallel()
 
-	connection := New(newConfigFromContainer(t))
+	connection := newTestStore(t)
 	defer connection.Close() //nolint:errcheck // best effort cleanup
 
 	// Reset must flush entries already on the server.

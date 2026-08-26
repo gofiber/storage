@@ -3,7 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -13,11 +13,10 @@ import (
 var ErrClosed = errors.New("couchbase: storage is closed")
 
 type Storage struct {
-	cb      *gocb.Cluster
-	bucket  *gocb.Bucket
-	ownsCb  bool
-	closeMu sync.Mutex
-	closed  bool
+	cb     *gocb.Cluster
+	bucket *gocb.Bucket
+	ownsCb bool
+	closed atomic.Bool
 }
 
 // transcoder is passed on every operation rather than left to the cluster: values here are raw bytes,
@@ -153,21 +152,15 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed cluster stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close the cluster unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
-
-	s.closed = true
 
 	if !s.ownsCb {
 		return nil

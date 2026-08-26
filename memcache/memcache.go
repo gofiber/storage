@@ -51,13 +51,7 @@ func NewFromConnection(db *mc.Client, config ...Config) *Storage {
 }
 
 func newStorage(db *mc.Client, cfg Config) *Storage {
-	if cfg.Reset {
-		if err := db.DeleteAll(); err != nil {
-			panic(err)
-		}
-	}
-
-	return &Storage{
+	store := &Storage{
 		db: db,
 		items: &sync.Pool{
 			New: func() interface{} {
@@ -65,6 +59,15 @@ func newStorage(db *mc.Client, cfg Config) *Storage {
 			},
 		},
 	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
+	if cfg.Reset {
+		if err := store.Reset(); err != nil {
+			panic(err)
+		}
+	}
+
+	return store
 }
 
 // Get value by key

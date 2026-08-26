@@ -38,18 +38,18 @@ func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClien
 		panic("redis: nil client")
 	}
 
+	store := &Storage{
+		db: conn,
+	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
 	if cfg := configDefault(config...); cfg.Reset {
-		err := forEachNode(ctx, conn, func(ctx context.Context, node redis.Cmdable) error {
-			return node.FlushDB(ctx).Err()
-		})
-		if err != nil {
+		if err := store.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
 
-	return &Storage{
-		db: conn,
-	}
+	return store
 }
 
 // New creates a new Redis storage instance using context.Background() for initialization.

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -24,8 +25,7 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
+	closed     atomic.Bool
 
 	sqlSelect string
 	sqlInsert string
@@ -274,9 +274,7 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed handle stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close stops the collector and closes the database unless it came from NewFromConnection; safe to call more than once, and a failed close is reported once.
@@ -286,22 +284,17 @@ func (s *Storage) Close() error {
 		<-s.stopped
 	})
 
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
 	if !s.ownsDB {
-		s.closed = true
 		return nil
 	}
 
 	// Latched even on failure: database/sql marks itself closed first, so a retry would report a success that never happened.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
@@ -19,8 +19,7 @@ type Storage struct {
 	table    string
 	ownsConn bool
 
-	closeMu sync.Mutex
-	closed  bool
+	closed atomic.Bool
 }
 
 // New returns a new [*Storage] given a [Config], using context.Background() for initialization.
@@ -202,28 +201,21 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed connection stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close the connection unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
 	if !s.ownsConn {
-		s.closed = true
 		return nil
 	}
 
 	// Latched even on failure: the driver tears the connection down once, so a retry would report a success that never happened.
 	err := s.session.Close()
-	s.closed = true
-
 	return err
 }

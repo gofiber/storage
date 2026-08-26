@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,7 +29,6 @@ type Storage struct {
 	session     *coh.Session
 	namedCache  coh.NamedCache[string, []byte]
 	ownsSession bool
-	closeOnce   sync.Once
 }
 
 // Config defines configuration options for Coherence connection.
@@ -251,17 +249,17 @@ func (s *Storage) Reset() error {
 
 // Close the session unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closed.Store(true)
-		// A borrowed session is not ours to close — and its named cache is not released either:
-		// the client hands out one instance per session and cache name, so releasing it here would
-		// break sibling storages built on the same scope. It stays registered, reused by the next
-		// storage with this scope, until the session itself closes.
-		if s.ownsSession {
-			// Closing the session releases every cache opened on it, this one included.
-			s.session.Close()
-		}
-	})
+	// A borrowed session is not ours to close — and its named cache is not released either:
+	// the client hands out one instance per session and cache name, so releasing it here would
+	// break sibling storages built on the same scope. It stays registered, reused by the next
+	// storage with this scope, until the session itself closes.
+	//
+	// One CAS carries both facts the close needs: that the storage is now closed, and that this
+	// is the call that gets to tear the session down.
+	if s.closed.CompareAndSwap(false, true) && s.ownsSession {
+		// Closing the session releases every cache opened on it, this one included.
+		s.session.Close()
+	}
 
 	return nil
 }

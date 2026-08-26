@@ -44,8 +44,15 @@ func NewFromConnectionWithContext(ctx context.Context, conn rueidis.Client, conf
 // newStorage runs the optional reset and builds the store; db is released on failure only when this
 // driver opened it.
 func newStorage(ctx context.Context, db rueidis.Client, ownsDB bool, cfg Config) *Storage {
+	store := &Storage{
+		db:       db,
+		ownsDB:   ownsDB,
+		cacheTTL: cfg.CacheTTL,
+	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
 	if cfg.Reset {
-		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
+		if err := store.ResetWithContext(ctx); err != nil {
 			if ownsDB {
 				db.Close()
 			}
@@ -53,11 +60,7 @@ func newStorage(ctx context.Context, db rueidis.Client, ownsDB bool, cfg Config)
 		}
 	}
 
-	return &Storage{
-		db:       db,
-		ownsDB:   ownsDB,
-		cacheTTL: cfg.CacheTTL,
-	}
+	return store
 }
 
 // New creates a new rueidis storage using context.Background() for initialization.

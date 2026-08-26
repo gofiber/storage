@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -28,7 +27,6 @@ type Storage struct {
 	resetQuery  string
 
 	ownsSession bool
-	closeOnce   sync.Once
 }
 
 var (
@@ -286,12 +284,12 @@ func (s *Storage) Reset() error {
 
 // Close closes the session unless it came from Config.Session; safe to call more than once.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		s.closed.Store(true)
-		if s.ownsSession {
-			s.session.Close()
-		}
-	})
+	// One CAS carries both facts the close needs: that the storage is now closed, and that this
+	// is the call that gets to close the session, which gocql answers with a panic if done twice.
+	if s.closed.CompareAndSwap(false, true) && s.ownsSession {
+		s.session.Close()
+	}
+
 	return nil
 }
 

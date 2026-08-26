@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -25,8 +26,9 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
+	// closeMu serialises Close alone; operations read the latch atomically.
+	closeMu sync.Mutex
+	closed  atomic.Bool
 
 	cypherMatch  string
 	cypherMerge  string
@@ -274,9 +276,7 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed driver stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close stops the collector and closes the driver unless it came from Config.DB; a failed close is reported so it can be retried.
@@ -289,12 +289,13 @@ func (s *Storage) Close() error {
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if s.closed.Load() {
 		return nil
 	}
 
 	if !s.ownsDB {
-		s.closed = true
+		s.closed.Store(true)
 		return nil
 	}
 
@@ -306,7 +307,7 @@ func (s *Storage) Close() error {
 		return err
 	}
 
-	s.closed = true
+	s.closed.Store(true)
 	return nil
 }
 

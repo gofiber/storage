@@ -3,7 +3,7 @@ package etcd
 import (
 	"context"
 	"errors"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -16,8 +16,7 @@ type Storage struct {
 	db     *clientv3.Client
 	ownsDB bool
 
-	closeMu sync.Mutex
-	closed  bool
+	closed atomic.Bool
 }
 
 func New(config ...Config) *Storage {
@@ -162,29 +161,22 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed client stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // Close the client unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
 	if !s.ownsDB {
-		s.closed = true
 		return nil
 	}
 
 	// Latched even on failure: the client's context is cancelled before this returns, so a retry cannot undo it.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
@@ -21,8 +22,7 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
+	closed     atomic.Bool
 }
 
 // New creates a new memory storage
@@ -58,16 +58,6 @@ func NewFromConnection(db *badger.DB, config ...Config) *Storage {
 
 // newStorage starts the collector on db; db is released only when this driver opened it.
 func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
-	if cfg.Reset {
-		if err := db.DropAll(); err != nil {
-			// Release the database, and with it the directory lock, rather than leaking both on the way out.
-			if ownsDB {
-				_ = db.Close()
-			}
-			panic(err)
-		}
-	}
-
 	// Create storage
 	store := &Storage{
 		db:         db,
@@ -75,6 +65,18 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
+	}
+
+	// Reset through the storage's own method rather than a second copy of the drop, before the
+	// collector starts so it cannot sweep a database being emptied.
+	if cfg.Reset {
+		if err := store.Reset(); err != nil {
+			// Release the database, and with it the directory lock, rather than leaking both on the way out.
+			if ownsDB {
+				_ = db.Close()
+			}
+			panic(err)
+		}
 	}
 
 	// Start garbage collector
@@ -187,9 +189,7 @@ func (s *Storage) Reset() error {
 
 // isClosed reports whether Close ran; a borrowed database stays open, so the latch is the only signal.
 func (s *Storage) isClosed() bool {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-	return s.closed
+	return s.closed.Load()
 }
 
 // ResetWithContext resets all keys, aborting if ctx is already done.
@@ -208,22 +208,17 @@ func (s *Storage) Close() error {
 		<-s.stopped
 	})
 
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
 	if !s.ownsDB {
-		s.closed = true
 		return nil
 	}
 
 	// Latched even on failure: Badger's own sync.Once already tore the database down, so a retry would report a success that never happened.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 
