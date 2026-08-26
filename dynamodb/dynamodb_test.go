@@ -377,7 +377,7 @@ func Test_DynamoDB_NewFromConnection(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, val, result)
 
-	// Reset drops and recreates the table, so a storage built with it starts empty.
+	// Reset clears the table's entries, so a storage built with it starts empty.
 	fresh := NewFromConnection(owner.Conn(), Config{Table: "fiber_storage_existing", Reset: true})
 	gone, err := fresh.Get(key)
 	require.NoError(t, err)

@@ -16,10 +16,10 @@ var ErrBucketNotFound = errors.New("bbolt: bucket not found")
 // ErrReadOnly is returned by every write attempted on a storage opened with Config.ReadOnly.
 var ErrReadOnly = errors.New("bbolt: storage is read-only")
 
-// Storage interface that is implemented by storage providers. bbolt has no expiration, so Set ignores exp.
 // ErrClosed is returned by every operation attempted after Close.
 var ErrClosed = errors.New("bbolt: storage is closed")
 
+// Storage interface that is implemented by storage providers. bbolt has no expiration, so Set ignores exp.
 type Storage struct {
 	conn     *bbolt.DB
 	bucket   string

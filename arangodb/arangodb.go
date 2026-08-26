@@ -13,8 +13,8 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
-// errClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
-var errClosed = errors.New("arangodb: storage is closed")
+// ErrClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
+var ErrClosed = errors.New("arangodb: storage is closed")
 
 // isDocumentNotFound matches 1202 only: any 404 would also swallow a dropped collection, leaving the storage a silent miss forever.
 func isDocumentNotFound(err error) bool {
@@ -182,7 +182,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if s.closed.Load() {
-		return nil, errClosed
+		return nil, ErrClosed
 	}
 
 	// Read straight away: checking existence first turned a concurrent delete into an error rather than a miss.
@@ -214,7 +214,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	var expireAt int64
@@ -246,7 +246,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	// A missing key is a miss everywhere else in the interface, and ArangoDB's 1202 is exactly that.
@@ -264,7 +264,7 @@ func (s *Storage) Delete(key string) error {
 // ResetWithContext all keys with given context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	return s.collection.Truncate(ctx)

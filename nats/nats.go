@@ -15,8 +15,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// errClosed is returned after Close, when the connection is gone and calls would fail obscurely.
-var errClosed = errors.New("nats: storage is closed")
+// ErrClosed is returned after Close, when the connection is gone and calls would fail obscurely.
+var ErrClosed = errors.New("nats: storage is closed")
 
 // errNotInitialized is returned before the bucket exists, which is how an unestablished connection looks.
 var errNotInitialized = errors.New("nats: kv not initialized")
@@ -40,9 +40,16 @@ type Storage struct {
 	mu     sync.RWMutex
 	closed bool
 
-	// initMu serializes lazy bucket setup on its own, so the network round trip it makes is not
-	// held under mu, where it would stall Close and every other operation behind it.
-	initMu sync.Mutex
+	// initGate serializes lazy bucket setup on its own, so the network round trip it makes is not
+	// held under mu, where it would stall Close and every other operation behind it. It is a
+	// channel rather than a mutex so a waiter can give up when its own context is done, instead
+	// of blocking uninterruptibly behind another caller's round trip.
+	initGate chan struct{}
+
+	// createdBucket records that this driver created the bucket rather than binding to one the
+	// application manages. Only a bucket of our own is recreated after it disappears: replacing
+	// an application's bucket would quietly swap its configuration for this driver's defaults.
+	createdBucket bool
 }
 
 type entry struct {
@@ -106,24 +113,37 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
+	jskv, _, err := openNatsKV(nc, ctx, keyValueConfig, true)
+	return jskv, err
+}
+
+// openNatsKV binds to the bucket, creating it when create is set and it is missing. It reports
+// whether it created the bucket, so a later re-resolution knows whether the bucket is this
+// driver's to recreate or the application's to manage.
+func openNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig, create bool) (jetstream.KeyValue, bool, error) {
 	js, err := jetstream.New(nc)
 	if err != nil {
-		return nil, fmt.Errorf("get jetstream: %w", err)
+		return nil, false, fmt.Errorf("get jetstream: %w", err)
 	}
 
 	jskv, err := js.KeyValue(ctx, keyValueConfig.Bucket)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			jskv, err = js.CreateKeyValue(ctx, keyValueConfig)
-			if err != nil {
-				return nil, fmt.Errorf("jetstream: create kv: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("jetstream: get kv: %w", err)
+		if !errors.Is(err, jetstream.ErrBucketNotFound) {
+			return nil, false, fmt.Errorf("jetstream: get kv: %w", err)
 		}
+		if !create {
+			return nil, false, fmt.Errorf("jetstream: get kv: %w", err)
+		}
+
+		jskv, err = js.CreateKeyValue(ctx, keyValueConfig)
+		if err != nil {
+			return nil, false, fmt.Errorf("jetstream: create kv: %w", err)
+		}
+
+		return jskv, true, nil
 	}
 
-	return jskv, nil
+	return jskv, false, nil
 }
 
 // Process the url string argument to Connect.
@@ -153,9 +173,10 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	cfg := configDefault(config...)
 
 	storage := &Storage{
-		cfg:    cfg,
-		ctx:    ctx,
-		ownsNC: true,
+		cfg:      cfg,
+		ctx:      ctx,
+		ownsNC:   true,
+		initGate: make(chan struct{}, 1),
 	}
 
 	// Set the nats options with default custom handlers
@@ -226,28 +247,32 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 
 	cfg := configDefault(config...)
 
+	// ctx is not stored: only the connect and reconnect handlers read that field, and a borrowed
+	// connection keeps the caller's handlers. Lazy resolution uses each operation's own context.
 	storage := &Storage{
-		cfg: cfg,
-		ctx: ctx,
-		nc:  nc,
+		cfg:      cfg,
+		nc:       nc,
+		initGate: make(chan struct{}, 1),
 	}
 
-	kv, err := newNatsKV(nc, ctx, cfg.KeyValueConfig)
-	switch {
-	case err != nil && cfg.Reset:
-		panic(fmt.Errorf("nats: reset requested but bucket setup failed: %w", err))
-	case err != nil:
+	// With Reset set, the reset itself deletes and recreates the bucket, so resolving it here
+	// first would set up a bucket that is discarded a moment later.
+	if cfg.Reset {
+		if err := storage.ResetWithContext(ctx); err != nil {
+			panic(fmt.Errorf("nats: reset requested but bucket setup failed: %w", err))
+		}
+
+		return storage
+	}
+
+	kv, created, err := openNatsKV(nc, ctx, cfg.KeyValueConfig, true)
+	if err != nil {
 		// Recorded rather than fatal, the same way a failed dial is: operations report it as not
 		// initialized, and the first operation retries the setup.
 		storage.err = err
 	}
 	storage.kv = kv
-
-	if cfg.Reset {
-		if err := storage.ResetWithContext(ctx); err != nil {
-			panic(err)
-		}
-	}
+	storage.createdBucket = created
 
 	return storage
 }
@@ -257,11 +282,11 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed := s.kv, s.closed
+	kv, closed, initErr, created := s.kv, s.closed, s.err, s.createdBucket
 	s.mu.RUnlock()
 
 	if closed {
-		return nil, errClosed
+		return nil, ErrClosed
 	}
 	if kv != nil {
 		return kv, nil
@@ -271,14 +296,17 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	// every reconnect, so a round trip here would duplicate them, and stall the caller meanwhile.
 	// ownsNC is set once at construction, so it is read without the lock.
 	if s.ownsNC {
-		s.mu.RLock()
-		initErr := s.err
-		s.mu.RUnlock()
 		return nil, notInitialized(initErr)
 	}
 
-	s.initMu.Lock()
-	defer s.initMu.Unlock()
+	// Waited for on this operation's own context: another caller's round trip must not hold a
+	// caller past its deadline, which an ordinary mutex would do.
+	select {
+	case s.initGate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-s.initGate }()
 
 	// Re-checked: another caller may have resolved it while this one waited.
 	s.mu.RLock()
@@ -286,21 +314,24 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RUnlock()
 
 	if closed {
-		return nil, errClosed
+		return nil, ErrClosed
 	}
 	if kv != nil {
 		return kv, nil
 	}
 
+	// Recreated only if this driver created the bucket in the first place. A bucket the
+	// application set up carries its own history, TTL and replica settings, so replacing a
+	// vanished one with this driver's bare defaults would hide the loss and downgrade it.
 	// nc and cfg are also set once at construction.
-	kv, err := newNatsKV(s.nc, ctx, s.cfg.KeyValueConfig)
+	kv, createdNow, err := openNatsKV(s.nc, ctx, s.cfg.KeyValueConfig, created)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// A Close landing during the setup wins: the bucket is not recorded on a storage that is done.
 	if s.closed {
-		return nil, errClosed
+		return nil, ErrClosed
 	}
 	if err != nil {
 		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
@@ -309,6 +340,7 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	if s.kv == nil {
 		s.kv = kv
 		s.err = nil
+		s.createdBucket = s.createdBucket || createdNow
 	}
 
 	return s.kv, nil
@@ -495,7 +527,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	defer s.mu.Unlock()
 
 	if s.closed {
-		return errClosed
+		return ErrClosed
 	}
 
 	js, err := jetstream.New(s.nc)
@@ -510,7 +542,8 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return fmt.Errorf("delete kv: %w", err)
 	}
 
-	// Create the bucket
+	// Create the bucket. Reset builds it from this driver's config either way, so the bucket
+	// that comes back is ours to recreate should it disappear again.
 	s.kv, err = newNatsKV(
 		s.nc,
 		ctx,
@@ -521,6 +554,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 		return err
 	}
 
+	s.createdBucket = true
 	s.err = nil
 	return nil
 }

@@ -123,6 +123,8 @@ If your application already holds a `*nats.Conn`, you can build the storage on i
 
 The connection stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 
+Because no handlers are installed, the bucket is resolved lazily: an operation retries the setup when the bucket is still missing, and re-resolves it if its backing stream disappears. A bucket this driver created is recreated should it vanish; a bucket that already existed is only looked up again, so one your application configured — with its own history, TTL and replica settings — is never silently replaced by this driver's defaults.
+
 ```go
 import (
     "github.com/gofiber/storage/nats"

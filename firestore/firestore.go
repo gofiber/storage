@@ -250,9 +250,14 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return nil
 }
 
-// Close the storage, and the client unless it came from NewFromConnection
+// Close the storage, and the client unless it came from NewFromConnection.
+// Safe to call more than once; only the first call closes and reports.
 func (s *Storage) Close() error {
-	s.closed.Store(true)
+	// Idempotent: closing a Firestore client twice returns a gRPC "connection is closing"
+	// error, so a second Close would report a failure that has not happened.
+	if !s.closed.CompareAndSwap(false, true) {
+		return nil
+	}
 	if s.cancel != nil {
 		s.cancel()
 	}

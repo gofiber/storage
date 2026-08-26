@@ -3,6 +3,7 @@ package cloudflarekv
 import (
 	"context"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
@@ -49,7 +50,10 @@ func New(config ...Config) *Storage {
 // NewFromConnection builds a Storage on an existing API client, which stays the caller's to manage.
 // Only the Email, AccountID, NamespaceID and Reset options are read; the credentials come from the client.
 func NewFromConnection(api APIInterface, config ...Config) *Storage {
-	if api == nil {
+	// The handle is an interface here, so a nil *cloudflare.API — what NewWithAPIToken
+	// returns alongside an error — arrives as a non-nil interface holding a nil pointer.
+	// Checking the value behind it keeps the fail-fast promise for that case too.
+	if api == nil || (reflect.ValueOf(api).Kind() == reflect.Ptr && reflect.ValueOf(api).IsNil()) {
 		panic("cloudflarekv: nil api client")
 	}
 

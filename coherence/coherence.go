@@ -141,12 +141,12 @@ func newStorage(ctx context.Context, session *coh.Session, ownsSession bool, cfg
 
 	// if Reset is true then reset the store
 	if cfg.Reset {
+		// Returned alongside the error rather than discarded: only the wipe failed, so the
+		// storage works, and callers that log the error and carry on — which this driver
+		// has always allowed — would otherwise dereference nil. A caller that does discard
+		// it should Close it, which releases a session this driver opened.
 		if err := store.ResetWithContext(ctx); err != nil {
-			// Not (store, err): a caller following convention discards the storage on error, and a
-			// session this driver opened would leak with it. The named cache stays registered on a
-			// borrowed session — it is shared per cache name, and a retry picks the same one up.
-			closeOwned()
-			return nil, err
+			return store, err
 		}
 	}
 

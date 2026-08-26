@@ -75,8 +75,12 @@ func NewFromConnectionWithContext(ctx context.Context, db *awsdynamodb.Client, c
 	return newStorage(ctx, db, configDefault(config))
 }
 
-// resetWaitTimeout bounds the wait for an asynchronous table deletion during a reset.
-const resetWaitTimeout = 2 * time.Minute
+// batchWriteItemLimit is the number of write requests DynamoDB accepts in one BatchWriteItem.
+const batchWriteItemLimit = 25
+
+// batchWriteMaxAttempts bounds the retries of items DynamoDB leaves unprocessed, so a reset
+// cannot spin forever against a table that keeps declining the work.
+const batchWriteMaxAttempts = 10
 
 // newStorage prepares the table on db.
 func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storage {
@@ -88,23 +92,6 @@ func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storag
 	store := &Storage{
 		db:    db,
 		table: cfg.Table,
-	}
-
-	// Reset drops the table, and the describe below then rebuilds it empty. Deletion is
-	// asynchronous, so it is waited out before the table can be recreated.
-	if cfg.Reset {
-		if err := store.ResetWithContext(ctx); err != nil {
-			var rnfe *types.ResourceNotFoundException
-			// A table that does not exist is already as empty as a reset leaves it.
-			if !errors.As(err, &rnfe) {
-				panic(err)
-			}
-		} else {
-			waiter := awsdynamodb.NewTableNotExistsWaiter(db)
-			if err := waiter.Wait(ctx, &describeTableInput, resetWaitTimeout); err != nil {
-				panic(err)
-			}
-		}
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -120,6 +107,14 @@ func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storag
 				panic(err)
 			}
 		} else {
+			panic(err)
+		}
+	}
+
+	// Reset once the table is known to exist: a table just created is already empty, and one
+	// that was already there keeps its own configuration while its entries are cleared.
+	if cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
@@ -211,12 +206,84 @@ func (s *Storage) Delete(key string) error {
 }
 
 // Reset all entries, including unexpired
+// ResetWithContext deletes every entry in the table, leaving the table itself in place.
+// Dropping and recreating it would be fewer calls, but would also discard the table's own
+// configuration — billing mode, indexes, streams, tags — which belongs to whoever created it.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	deleteTableInput := awsdynamodb.DeleteTableInput{
+	paginator := awsdynamodb.NewScanPaginator(s.db, &awsdynamodb.ScanInput{
 		TableName: &s.table,
+		// Only the key is needed to delete a row, and skipping the values keeps a reset
+		// of a large table from reading every payload it is about to throw away.
+		ProjectionExpression: aws.String("#k"),
+		ExpressionAttributeNames: map[string]string{
+			"#k": keyAttrName,
+		},
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		if err := s.deleteItems(ctx, page.Items); err != nil {
+			return err
+		}
 	}
-	_, err := s.db.DeleteTable(ctx, &deleteTableInput)
-	return err
+
+	return nil
+}
+
+// deleteItems removes the given rows in batches, retrying whatever DynamoDB declines to
+// process in one call, as it may under load even when the request itself is valid.
+func (s *Storage) deleteItems(ctx context.Context, items []map[string]types.AttributeValue) error {
+	requests := make([]types.WriteRequest, 0, batchWriteItemLimit)
+
+	for _, item := range items {
+		key, ok := item[keyAttrName]
+		if !ok {
+			continue
+		}
+
+		requests = append(requests, types.WriteRequest{
+			DeleteRequest: &types.DeleteRequest{
+				Key: map[string]types.AttributeValue{keyAttrName: key},
+			},
+		})
+
+		if len(requests) == batchWriteItemLimit {
+			if err := s.writeBatch(ctx, requests); err != nil {
+				return err
+			}
+			requests = requests[:0]
+		}
+	}
+
+	if len(requests) == 0 {
+		return nil
+	}
+
+	return s.writeBatch(ctx, requests)
+}
+
+// writeBatch issues one BatchWriteItem, re-sending the items DynamoDB left unprocessed.
+func (s *Storage) writeBatch(ctx context.Context, requests []types.WriteRequest) error {
+	pending := map[string][]types.WriteRequest{s.table: requests}
+
+	for attempt := 0; len(pending) > 0; attempt++ {
+		if attempt == batchWriteMaxAttempts {
+			return fmt.Errorf("dynamodb: reset left items unprocessed after %d attempts", attempt)
+		}
+
+		out, err := s.db.BatchWriteItem(ctx, &awsdynamodb.BatchWriteItemInput{RequestItems: pending})
+		if err != nil {
+			return err
+		}
+
+		pending = out.UnprocessedItems
+	}
+
+	return nil
 }
 
 func (s *Storage) Reset() error {
