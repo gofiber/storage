@@ -50,6 +50,11 @@ type Storage struct {
 	// application manages. Only a bucket of our own is recreated after it disappears: replacing
 	// an application's bucket would quietly swap its configuration for this driver's defaults.
 	createdBucket bool
+
+	// resolved records that the bucket was reached at least once. Until it is set, the setup this
+	// storage was built to perform has simply not happened yet, so a retry still asks for creation;
+	// createdBucket alone would leave a storage whose first attempt failed unable to ever create it.
+	resolved bool
 }
 
 type entry struct {
@@ -273,6 +278,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 	}
 	storage.kv = kv
 	storage.createdBucket = created
+	storage.resolved = kv != nil
 
 	return storage
 }
@@ -282,7 +288,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed, initErr, created := s.kv, s.closed, s.err, s.createdBucket
+	kv, closed, initErr, created, resolved := s.kv, s.closed, s.err, s.createdBucket, s.resolved
 	s.mu.RUnlock()
 
 	if closed {
@@ -323,8 +329,11 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	// Recreated only if this driver created the bucket in the first place. A bucket the
 	// application set up carries its own history, TTL and replica settings, so replacing a
 	// vanished one with this driver's bare defaults would hide the loss and downgrade it.
+	// Before the first successful resolution there is no such bucket to protect, so creation is
+	// still requested: otherwise a setup that failed while the connection was down would never
+	// build the configured bucket once it came back.
 	// nc and cfg are also set once at construction.
-	kv, createdNow, err := openNatsKV(s.nc, ctx, s.cfg.KeyValueConfig, created)
+	kv, createdNow, err := openNatsKV(s.nc, ctx, s.cfg.KeyValueConfig, !resolved || created)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -341,6 +350,7 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 		s.kv = kv
 		s.err = nil
 		s.createdBucket = s.createdBucket || createdNow
+		s.resolved = true
 	}
 
 	return s.kv, nil
@@ -555,6 +565,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	}
 
 	s.createdBucket = true
+	s.resolved = true
 	s.err = nil
 	return nil
 }

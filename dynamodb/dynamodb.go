@@ -82,6 +82,14 @@ const batchWriteItemLimit = 25
 // cannot spin forever against a table that keeps declining the work.
 const batchWriteMaxAttempts = 10
 
+// batchWriteBaseDelay is the first pause before re-sending unprocessed items; it doubles per
+// attempt up to batchWriteMaxDelay. AWS asks for exponential backoff here, since items come back
+// unprocessed because the table is throttling, and re-sending them at once keeps it throttled.
+const (
+	batchWriteBaseDelay = 50 * time.Millisecond
+	batchWriteMaxDelay  = 2 * time.Second
+)
+
 // newStorage prepares the table on db.
 func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storage {
 	describeTableInput := awsdynamodb.DescribeTableInput{
@@ -275,6 +283,13 @@ func (s *Storage) writeBatch(ctx context.Context, requests []types.WriteRequest)
 			return fmt.Errorf("dynamodb: reset left items unprocessed after %d attempts", attempt)
 		}
 
+		// Only between attempts, so the common single-pass case pays nothing.
+		if attempt > 0 {
+			if err := sleepCtx(ctx, backoffDelay(attempt)); err != nil {
+				return err
+			}
+		}
+
 		out, err := s.db.BatchWriteItem(ctx, &awsdynamodb.BatchWriteItemInput{RequestItems: pending})
 		if err != nil {
 			return err
@@ -284,6 +299,30 @@ func (s *Storage) writeBatch(ctx context.Context, requests []types.WriteRequest)
 	}
 
 	return nil
+}
+
+// backoffDelay returns the pause before the given retry attempt, doubling from the base delay and
+// capped so a long reset cannot stall on one batch.
+func backoffDelay(attempt int) time.Duration {
+	delay := batchWriteBaseDelay << (attempt - 1)
+	if delay > batchWriteMaxDelay || delay <= 0 {
+		return batchWriteMaxDelay
+	}
+	return delay
+}
+
+// sleepCtx waits for d, giving up as soon as ctx is done so a cancelled reset returns promptly
+// rather than sitting out the backoff.
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (s *Storage) Reset() error {

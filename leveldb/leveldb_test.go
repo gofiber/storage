@@ -3,6 +3,7 @@ package leveldb
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -727,35 +728,60 @@ func Test_LevelDB_SharedDB_CloseRacesSetAndNewStorage(t *testing.T) {
 	writer := NewFromConnection(db, Config{GCInterval: time.Hour})
 	closer := NewFromConnection(db, Config{GCInterval: time.Hour})
 
-	var wg sync.WaitGroup
+	// require calls FailNow, which stops only the goroutine it runs on, so the workers report
+	// back and the assertions run on the test goroutine after wg.Wait.
+	var (
+		wg        sync.WaitGroup
+		setErrs   = make(chan error, 200)
+		closeErrs = make(chan error, 1)
+		shareErrs = make(chan error, 50)
+	)
 	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
+		defer close(setErrs)
 		for i := 0; i < 200; i++ {
 			// Either outcome is correct; reaching a closed database is not.
 			if err := writer.Set("john", []byte("doe"), 0); err != nil {
-				require.ErrorIs(t, err, ErrClosed)
+				setErrs <- err
 			}
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		require.NoError(t, closer.Close())
+		defer close(closeErrs)
+		closeErrs <- closer.Close()
 	}()
 
 	go func() {
 		defer wg.Done()
+		defer close(shareErrs)
 		for i := 0; i < 50; i++ {
 			later := NewFromConnection(db, Config{GCInterval: time.Hour})
 			// Every storage on a live handle must share one entry with the writer.
-			require.Same(t, writer.shared, later.shared)
-			require.NoError(t, later.Close())
+			if later.shared != writer.shared {
+				shareErrs <- fmt.Errorf("storage %d got a fresh shared entry while the writer still ran under the old one", i)
+			}
+			if err := later.Close(); err != nil {
+				shareErrs <- fmt.Errorf("closing storage %d: %w", i, err)
+			}
 		}
 	}()
 
 	wg.Wait()
+
+	for err := range setErrs {
+		require.ErrorIs(t, err, ErrClosed)
+	}
+	for err := range closeErrs {
+		require.NoError(t, err)
+	}
+	for err := range shareErrs {
+		require.NoError(t, err)
+	}
+
 	require.NoError(t, writer.Close())
 }
 

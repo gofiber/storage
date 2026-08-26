@@ -589,6 +589,10 @@ func (s *Storage) gc() {
 
 // collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete, and bounded so it cannot stall Close.
 func (s *Storage) collect() {
+	if s.isClosed() {
+		return
+	}
+
 	after, epoch := s.loadCursor()
 
 	for range collectMaxBatches {
@@ -639,6 +643,12 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	s.shared.mu.RLock()
 	defer s.shared.mu.RUnlock()
 
+	// Re-checked under the lock: a sibling on this handle may have closed the database since the
+	// sweep started, and this collector is stopped only by its own storage's Close.
+	if s.isClosed() {
+		return nil, nil, true
+	}
+
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
 
@@ -681,6 +691,10 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 func (s *Storage) deleteIfStillExpired(keys [][]byte) {
 	s.shared.mu.Lock()
 	defer s.shared.mu.Unlock()
+
+	if s.isClosed() {
+		return
+	}
 
 	batch := new(leveldb.Batch)
 	now := time.Now()
