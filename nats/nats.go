@@ -314,9 +314,12 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	}
 	defer func() { <-s.initGate }()
 
-	// Re-checked: another caller may have resolved it while this one waited.
+	// Re-checked: another caller may have resolved it while this one waited. The creation policy
+	// is re-read with it, not carried over from before the wait: that caller may have bound to an
+	// application-owned bucket which then vanished, and a stale "never resolved" would recreate it
+	// here with this driver's defaults - exactly what the policy below exists to prevent.
 	s.mu.RLock()
-	kv, closed = s.kv, s.closed
+	kv, closed, created, resolved = s.kv, s.closed, s.createdBucket, s.resolved
 	s.mu.RUnlock()
 
 	if closed {
