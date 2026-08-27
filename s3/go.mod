@@ -3,12 +3,12 @@ module github.com/gofiber/storage/s3/v2
 go 1.25.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.43.8
-	github.com/aws/aws-sdk-go-v2/config v1.32.39
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.38
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.45
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.4
-	github.com/aws/smithy-go v1.28.0
+	github.com/aws/aws-sdk-go-v2 v1.44.0
+	github.com/aws/aws-sdk-go-v2/config v1.32.40
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.39
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.46
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.108.0
+	github.com/aws/smithy-go v1.28.1
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.44.0
@@ -18,19 +18,19 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.19 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.39 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.39 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.39 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.40 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.18 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.32 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.39 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.40 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.5.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.33.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.45.8 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.40 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.40 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.40 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.41 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.19 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.10.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.40 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.41 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.6.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.34.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.39.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.46.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
