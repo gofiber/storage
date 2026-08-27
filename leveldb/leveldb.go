@@ -8,6 +8,7 @@ import (
 	"errors"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -75,23 +76,79 @@ type item struct {
 	ExpireAt time.Time `json:"expire_at"`
 }
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("leveldb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *leveldb.DB
+	ownsDB     bool
 	readOnly   bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
 
+	// closed latches this storage; the shared state latches the database itself, so a
+	// storage is unusable once either it or the underlying database has been closed.
+	closed atomic.Bool
+
+	// shared carries everything that belongs to the database rather than to one storage:
+	// the write-order lock, the collector's cursor, and whether the database is closed.
+	shared *dbState
+}
+
+// dbState is the per-database coordination shared by every storage built on one handle.
+// Splitting it across storages would let one storage's collector delete a key another
+// just refreshed, or resume a sweep into a keyspace another storage just reset.
+type dbState struct {
 	// mu orders the collector's delete against writers, so a key a Set just refreshed survives.
 	mu sync.RWMutex
 
-	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
+	// closed reports that the database itself was closed, by whichever storage owned it.
+	// Siblings still holding it must report ErrClosed rather than touch a closed handle.
+	closed atomic.Bool
+
+	refs int
+
+	// gcEpoch is bumped by Reset so a sweep in flight — this storage's or a sibling's —
+	// cannot store a cursor into deleted keys.
 	gcEpoch  uint64
 	gcCursor []byte
+}
+
+var (
+	dbStatesMu sync.Mutex
+	dbStates   = map[*leveldb.DB]*dbState{}
+)
+
+// acquireDBState hands out the database's shared state, creating it for the first storage.
+func acquireDBState(db *leveldb.DB) *dbState {
+	dbStatesMu.Lock()
+	defer dbStatesMu.Unlock()
+
+	st := dbStates[db]
+	if st == nil {
+		st = &dbState{}
+		dbStates[db] = st
+	}
+	st.refs++
+
+	return st
+}
+
+// releaseDBState lets go of the database's shared state, dropping it with the last storage.
+func releaseDBState(db *leveldb.DB) {
+	dbStatesMu.Lock()
+	defer dbStatesMu.Unlock()
+
+	st := dbStates[db]
+	if st == nil {
+		return
+	}
+	if st.refs--; st.refs == 0 {
+		delete(dbStates, db)
+	}
 }
 
 // New creates a new memory storage
@@ -122,10 +179,35 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// LevelDB allows a single process to hold a directory, so sharing the open handle is the way to back a
+// storage with a database the application already uses. Only the GCInterval and ReadOnly options are read.
+//
+// The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
+// in the database, and the background collector scans all of them — reclaiming any value that decodes
+// as an entry whose deadline passed. Keep application data out of a database backing this storage.
+//
+// Storages built on the same database share one write-order lock, so each one's collector
+// coordinates with the others' writes the same way it does with its own.
+func NewFromConnection(db *leveldb.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("leveldb: nil database")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage starts the collector on db; db is released only when this driver opened it.
+func newStorage(db *leveldb.DB, ownsDB bool, cfg Config) *Storage {
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		readOnly:   cfg.ReadOnly,
 		gcInterval: cfg.GCInterval,
+		shared:     acquireDBState(db),
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
 	}
@@ -143,6 +225,9 @@ func New(config ...Config) *Storage {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -186,6 +271,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 || len(value) <= 0 {
 		return nil
 	}
@@ -205,8 +293,14 @@ func (s *Storage) Set(key string, value []byte, exp time.Duration) error {
 		}
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
+
+	// Re-checked under the lock: the latch may have been set between the check above and here,
+	// and a write that slipped through would reach a database being closed.
+	if s.isClosed() {
+		return ErrClosed
+	}
 
 	return s.db.Put([]byte(key), encode(value, expireAt), nil)
 }
@@ -221,6 +315,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 
 // Delete key by key
 func (s *Storage) Delete(key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -242,17 +339,20 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if s.readOnly {
 		return ErrReadOnly
 	}
 
 	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
 	// Reset deletes the keys the sweep was working through, so its cursor would skip everything written afterwards.
-	s.gcCursor = nil
-	s.gcEpoch++
+	s.shared.gcCursor = nil
+	s.shared.gcEpoch++
 
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
@@ -289,7 +389,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; a failed close is reported once.
+// isClosed reports whether this storage or the database under it was closed; a borrowed
+// database stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	return s.closed.Load() || s.shared.closed.Load()
+}
+
+// Close the storage, and the database unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		// Wait for the collector so it no longer writes to a database being closed.
@@ -297,16 +403,23 @@ func (s *Storage) Close() error {
 		<-s.stopped
 	})
 
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
-
-	if s.closed {
+	// Idempotent: only the first Close releases the shared state and closes the database.
+	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 
-	// Latched even on failure: goleveldb has already torn the database down.
-	err := s.db.Close()
-	s.closed = true
+	var err error
+	if s.ownsDB {
+		// Latched before the close so a sibling on this handle reports ErrClosed rather than
+		// reaching a database that is being torn down; goleveldb tears it down even on error.
+		s.shared.closed.Store(true)
+		err = s.db.Close()
+	}
+
+	// Released last: dropping the entry any earlier would let a storage built on this handle
+	// meanwhile register a fresh one, which carries neither the closed flag nor the cursor
+	// that the writes still finishing under the old entry are coordinated by.
+	releaseDBState(s.db)
 
 	return err
 }
@@ -476,6 +589,10 @@ func (s *Storage) gc() {
 
 // collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete, and bounded so it cannot stall Close.
 func (s *Storage) collect() {
+	if s.isClosed() {
+		return
+	}
+
 	after, epoch := s.loadCursor()
 
 	for range collectMaxBatches {
@@ -503,28 +620,34 @@ func (s *Storage) collect() {
 
 // loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
 func (s *Storage) loadCursor() ([]byte, uint64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	return s.gcCursor, s.gcEpoch
+	return s.shared.gcCursor, s.shared.gcEpoch
 }
 
 // storeCursor records where the next sweep resumes, unless a Reset rewound the cursor meanwhile.
 func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
-	if s.gcEpoch != epoch {
+	if s.shared.gcEpoch != epoch {
 		return
 	}
 
-	s.gcCursor = cursor
+	s.shared.gcCursor = cursor
 }
 
 // expiredCandidates lists keys a snapshot shows expired after the given key, with the last one examined and whether it reached the end.
 func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
+
+	// Re-checked under the lock: a sibling on this handle may have closed the database since the
+	// sweep started, and this collector is stopped only by its own storage's Close.
+	if s.isClosed() {
+		return nil, nil, true
+	}
 
 	iter := s.db.NewIterator(nil, nil)
 	defer iter.Release()
@@ -566,8 +689,12 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 
 // deleteIfStillExpired re-reads each key and deletes the ones that are still expired.
 func (s *Storage) deleteIfStillExpired(keys [][]byte) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
+
+	if s.isClosed() {
+		return
+	}
 
 	batch := new(leveldb.Batch)
 	now := time.Now()

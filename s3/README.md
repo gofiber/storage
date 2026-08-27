@@ -23,6 +23,7 @@ A S3 storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(svc *s3.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -161,5 +162,34 @@ var ConfigDefault = Config{
 	MaxAttempts:    3,
 	RequestTimeout: 0,
 	Reset:          false,
+}
+```
+
+### Using an Existing S3 Client
+If your application already holds an `*s3.Client`, you can build the storage on it instead of creating a second one. Only the `Bucket`, `RequestTimeout` and `Reset` options are read; the endpoint and credentials come from the client.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+```go
+import (
+    "context"
+
+    awsconfig "github.com/aws/aws-sdk-go-v2/config"
+    awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+    "github.com/gofiber/storage/s3/v2"
+)
+
+func main() {
+    awscfg, err := awsconfig.LoadDefaultConfig(context.Background())
+    if err != nil {
+        panic(err)
+    }
+
+    client := awss3.NewFromConfig(awscfg)
+
+    store := s3.NewFromConnection(client, s3.Config{
+        Bucket: "my-bucket",
+    })
+    defer store.Close()
 }
 ```

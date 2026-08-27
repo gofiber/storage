@@ -63,6 +63,15 @@ func configure(config ...Config) Config {
 	return cfg
 }
 
+// configureFromConnection requires only Container: the account, key and endpoint are the client's.
+func configureFromConnection(config ...Config) Config {
+	if len(config) < 1 || config[0].Container == "" {
+		panic("azureblob: NewFromConnection requires a Config with Container set")
+	}
+
+	return config[0]
+}
+
 func validateConfig(config Config) (bool, error) {
 	if config.Credentials.Account == "" || config.Credentials.Key == "" {
 		err := errors.New("credentials must not be empty")

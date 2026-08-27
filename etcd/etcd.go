@@ -2,17 +2,21 @@ package etcd
 
 import (
 	"context"
-	"sync"
+	"errors"
+	"sync/atomic"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-type Storage struct {
-	db *clientv3.Client
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("etcd: storage is closed")
 
-	closeMu sync.Mutex
-	closed  bool
+type Storage struct {
+	db     *clientv3.Client
+	ownsDB bool
+
+	closed atomic.Bool
 }
 
 func New(config ...Config) *Storage {
@@ -30,13 +34,28 @@ func New(config ...Config) *Storage {
 	}
 
 	store := &Storage{
-		db: cli,
+		db:     cli,
+		ownsDB: true,
 	}
 
 	return store
 }
 
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
+func NewFromConnection(db *clientv3.Client) *Storage {
+	if db == nil {
+		panic("etcd: nil client")
+	}
+
+	return &Storage{
+		db: db,
+	}
+}
+
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -57,6 +76,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -102,6 +124,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil
 	}
@@ -119,6 +144,9 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := s.db.Delete(ctx, "", clientv3.WithPrefix())
 	if err != nil {
 		return err
@@ -131,19 +159,24 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the client. Safe to call more than once; a failed close is reported once.
-func (s *Storage) Close() error {
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
+// isClosed reports whether Close ran; a borrowed client stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	return s.closed.Load()
+}
 
-	if s.closed {
+// Close the client unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
+func (s *Storage) Close() error {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
+		return nil
+	}
+
+	if !s.ownsDB {
 		return nil
 	}
 
 	// Latched even on failure: the client's context is cancelled before this returns, so a retry cannot undo it.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 

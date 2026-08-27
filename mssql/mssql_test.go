@@ -24,7 +24,11 @@ const (
 	mssqlPass string = "MsSql!1234"
 )
 
-var testStore *Storage
+var (
+	testStore *Storage
+	// testConnURI lets tests open their own handle against the same container.
+	testConnURI string
+)
 
 func TestMain(m *testing.M) {
 	os.Exit(runTests(m))
@@ -71,6 +75,8 @@ func runTests(m *testing.M) int {
 		log.Printf("mssql connection string: %v", err)
 		return 1
 	}
+
+	testConnURI = conn
 
 	testStore = New(Config{
 		ConnectionURI: conn,
@@ -362,4 +368,31 @@ func Benchmark_MSSQL_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_MSSQL_NewFromConnection(t *testing.T) {
+	db, err := sql.Open("sqlserver", testConnURI)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{Table: "fiber_storage_existing", Reset: true})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.Same(t, db, store.Conn())
+
+	// The handle is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Ping())
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_MSSQL_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
 }

@@ -9,18 +9,77 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-// errClosed is returned after Close, since Ristretto panics or blocks forever on a closed cache.
-var errClosed = errors.New("ristretto: storage is closed")
+// ErrClosed is returned after Close, since Ristretto silently drops operations on a closed cache.
+var ErrClosed = errors.New("ristretto: storage is closed")
 
 // Storage interface that is implemented by storage providers.
 type Storage struct {
 	cache        *ristretto.Cache
+	ownsCache    bool
 	defaultCost  int64
 	waitForWrite bool
 
-	// mu keeps operations from running against a cache Close is tearing down.
-	mu     sync.RWMutex
+	// shared carries what belongs to the cache rather than to one storage: the operation
+	// lock and whether the cache itself has been closed.
+	shared *cacheState
+
+	// closed latches this storage alone, guarded by shared.mu like the rest of the state.
 	closed bool
+}
+
+// cacheState is the per-cache coordination shared by every storage built on one cache.
+// A closed Ristretto cache silently drops every operation rather than reporting an error,
+// so a storage whose sibling closed the cache must learn of it here or lose data in silence.
+type cacheState struct {
+	// mu keeps operations from running against a cache Close is tearing down, and keeps
+	// Reset's non-atomic Clear exclusive of them, across every storage on the cache.
+	mu sync.RWMutex
+
+	refs int
+
+	// cacheClosed reports that the cache itself was closed, by whichever storage owned it.
+	// Read under mu, so an operation either completes before the close or sees this flag.
+	cacheClosed bool
+}
+
+var (
+	cacheStatesMu sync.Mutex
+	cacheStates   = map[*ristretto.Cache]*cacheState{}
+)
+
+// acquireCacheState hands out the cache's shared state, creating it for the first storage.
+func acquireCacheState(cache *ristretto.Cache) *cacheState {
+	cacheStatesMu.Lock()
+	defer cacheStatesMu.Unlock()
+
+	st := cacheStates[cache]
+	if st == nil {
+		st = &cacheState{}
+		cacheStates[cache] = st
+	}
+	st.refs++
+
+	return st
+}
+
+// releaseCacheState lets go of the cache's shared state, dropping it with the last storage.
+func releaseCacheState(cache *ristretto.Cache) {
+	cacheStatesMu.Lock()
+	defer cacheStatesMu.Unlock()
+
+	st := cacheStates[cache]
+	if st == nil {
+		return
+	}
+	if st.refs--; st.refs == 0 {
+		delete(cacheStates, cache)
+	}
+}
+
+// isClosedLocked reports whether this storage, or the cache under it, has been closed.
+// Callers hold shared.mu, so the answer cannot go stale before they use the cache.
+func (s *Storage) isClosedLocked() bool {
+	return s.closed || s.shared.cacheClosed
 }
 
 // New creates a new storage.
@@ -35,13 +94,31 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	store := &Storage{
-		cache:        cache,
-		defaultCost:  cfg.DefaultCost,
-		waitForWrite: !cfg.SkipWaitForWrite,
+	return newStorage(cache, true, cfg)
+}
+
+// NewFromConnection builds a Storage on an existing cache, which stays the caller's to close.
+// Only DefaultCost and SkipWaitForWrite are read; the sizing options come from the cache.
+//
+// Storages built on the same cache share one operation lock, so each one's Reset — a
+// Clear, which Ristretto documents as non-atomic — excludes the others' operations
+// the same way it excludes its own.
+func NewFromConnection(cache *ristretto.Cache, config ...Config) *Storage {
+	if cache == nil {
+		panic("ristretto: nil cache")
 	}
 
-	return store
+	return newStorage(cache, false, configDefault(config...))
+}
+
+func newStorage(cache *ristretto.Cache, ownsCache bool, cfg Config) *Storage {
+	return &Storage{
+		cache:        cache,
+		ownsCache:    ownsCache,
+		defaultCost:  cfg.DefaultCost,
+		waitForWrite: !cfg.SkipWaitForWrite,
+		shared:       acquireCacheState(cache),
+	}
 }
 
 // Get gets the value for the given key.
@@ -51,11 +128,11 @@ func (s *Storage) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
-		return nil, errClosed
+	if s.isClosedLocked() {
+		return nil, ErrClosed
 	}
 
 	item, found := s.cache.Get(key)
@@ -96,11 +173,11 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		exp = 0
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
-		return errClosed
+	if s.isClosedLocked() {
+		return ErrClosed
 	}
 
 	// The result is ignored: a cache may drop a write under pressure or evict later, which is not an error.
@@ -128,11 +205,11 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
-		return errClosed
+	if s.isClosedLocked() {
+		return ErrClosed
 	}
 
 	s.cache.Del(key)
@@ -150,11 +227,11 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 // Reset resets the storage and deletes all keys.
 func (s *Storage) Reset() error {
 	// Ristretto documents Clear as not atomic and assumes nothing is in flight, so take the lock exclusively.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
-	if s.closed {
-		return errClosed
+	if s.isClosedLocked() {
+		return ErrClosed
 	}
 
 	s.cache.Clear()
@@ -169,17 +246,27 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close stops the collector and closes the cache; safe to call more than once, and it waits for calls in flight.
+// Close stops the collector, and closes the cache unless it came from NewFromConnection; safe to call more than once, and it waits for calls in flight.
 func (s *Storage) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
 	if s.closed {
 		return nil
 	}
 	s.closed = true
 
-	s.cache.Close()
+	if s.ownsCache {
+		// Latched under the same lock every operation takes, so a sibling on this cache
+		// reports ErrClosed instead of writing into a closed cache that drops it in silence.
+		s.shared.cacheClosed = true
+		s.cache.Close()
+	}
+
+	// Released last: dropping the entry any earlier would let a storage built on this cache
+	// meanwhile register a fresh one, which carries no record of the cache having been closed.
+	releaseCacheState(s.cache)
+
 	return nil
 }
 

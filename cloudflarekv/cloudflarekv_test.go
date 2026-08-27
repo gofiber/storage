@@ -231,3 +231,35 @@ func Benchmark_CloudflareKV_SetAndDelete(b *testing.B) {
 
 	_ = testStore.Close()
 }
+
+func Test_CloudflareKV_NewFromConnection(t *testing.T) {
+	t.Parallel()
+
+	store := NewFromConnection(testStore.Conn(), Config{
+		Email:       "example@cloudflare.org",
+		AccountID:   "dummy-ID",
+		NamespaceID: "dummy-ID",
+	})
+	require.Equal(t, testStore.Conn(), store.Conn())
+
+	var (
+		key = "john-from-connection"
+		val = []byte("doe")
+	)
+
+	require.NoError(t, store.Set(key, val, 0))
+
+	result, err := store.Get(key)
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(val, result))
+
+	require.NoError(t, store.Close())
+}
+
+func Test_CloudflareKV_NewFromConnection_Nil(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

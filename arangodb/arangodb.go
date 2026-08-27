@@ -13,8 +13,8 @@ import (
 	"github.com/gofiber/utils/v2"
 )
 
-// errClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
-var errClosed = errors.New("arangodb: storage is closed")
+// ErrClosed is returned after Close, which ArangoDB cannot enforce since it has no connection to tear down.
+var ErrClosed = errors.New("arangodb: storage is closed")
 
 // isDocumentNotFound matches 1202 only: any 404 would also swallow a dropped collection, leaving the storage a silent miss forever.
 func isDocumentNotFound(err error) bool {
@@ -77,6 +77,36 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(ctx, client, conn, cfg)
+}
+
+// NewFromConnection creates an ArangoDB storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(client driver.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), client, config...)
+}
+
+// NewFromConnectionWithContext creates an ArangoDB storage on an existing client, using ctx for the
+// initialization operations (database/collection lookup and creation, and optional reset). Only the
+// Database, Collection, Reset and GCInterval options are read; the endpoint and credentials come from the client.
+func NewFromConnectionWithContext(ctx context.Context, client driver.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("arangodb: nil client")
+	}
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	// The endpoint and credentials come from the client, so leftover values in these
+	// fields must not fail validation meant for the dialing constructor.
+	cfg.Host, cfg.Port, cfg.Username, cfg.Password = "", 0, "", ""
+
+	return newStorage(ctx, client, client.Connection(), configDefault(cfg))
+}
+
+// newStorage prepares the database and collection on client and starts the collector.
+func newStorage(ctx context.Context, client driver.Client, conn driver.Connection, cfg Config) *Storage {
 	// check if the database exists
 	// if not create it
 	// (it works only with admin privilege user)
@@ -152,7 +182,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 
 	if s.closed.Load() {
-		return nil, errClosed
+		return nil, ErrClosed
 	}
 
 	// Read straight away: checking existence first turned a concurrent delete into an error rather than a miss.
@@ -184,7 +214,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	var expireAt int64
@@ -216,7 +246,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	// A missing key is a miss everywhere else in the interface, and ArangoDB's 1202 is exactly that.
@@ -234,7 +264,7 @@ func (s *Storage) Delete(key string) error {
 // ResetWithContext all keys with given context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.closed.Load() {
-		return errClosed
+		return ErrClosed
 	}
 
 	return s.collection.Truncate(ctx)

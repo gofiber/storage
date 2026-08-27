@@ -20,6 +20,7 @@ title: SurrealDB
 ```go
 func New(config ...Config) *Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(db *surrealdb.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -121,5 +122,46 @@ Access:           "full",
 Scope:            "all",
 DefaultTable:     "fiber_storage",
 GCInterval:       time.Second * 10,
+}
+```
+
+### Using an Existing SurrealDB Connection
+If your application already holds a `*surrealdb.DB`, you can build the storage on it instead of connecting a second time. Selecting the namespace and database and signing in stay yours to do; only the `DefaultTable` and `GCInterval` options are read.
+
+The connection stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the connection open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+    "context"
+
+    storage "github.com/gofiber/storage/surrealdb"
+    "github.com/surrealdb/surrealdb.go"
+)
+
+func main() {
+    ctx := context.Background()
+
+    db, err := surrealdb.FromEndpointURLString(ctx, "ws://localhost:8000")
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close(ctx)
+
+    if err := db.Use(ctx, "fiber", "fiber"); err != nil {
+        panic(err)
+    }
+
+    token, err := db.SignIn(ctx, &surrealdb.Auth{Username: "root", Password: "root"})
+    if err != nil {
+        panic(err)
+    }
+    if err := db.Authenticate(ctx, token); err != nil {
+        panic(err)
+    }
+
+    store := storage.NewFromConnection(db, storage.Config{
+        DefaultTable: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

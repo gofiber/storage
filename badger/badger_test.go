@@ -232,3 +232,35 @@ func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: 0}).GCInterval)
 	require.Equal(t, ConfigDefault.GCInterval, configDefault(Config{GCInterval: -time.Second}).GCInterval)
 }
+
+func Test_Badger_NewFromConnection(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{Reset: true})
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.False(t, db.IsClosed())
+
+	// The storage itself is closed even though the database stays open.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err = store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+}
+
+func Test_Badger_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

@@ -29,20 +29,80 @@ var ErrClosed = errors.New("pebble: storage is closed")
 
 type Storage struct {
 	db           *pebble.DB
+	ownsDB       bool
 	writeOptions *pebble.WriteOptions
 	gcInterval   time.Duration
 	done         chan struct{}
 	stopped      chan struct{}
 	stopOnce     sync.Once
 
-	// mu keeps operations off a database Close is tearing down; Pebble panics on a closed one.
-	mu     sync.RWMutex
+	// shared carries everything belonging to the database rather than to one storage: the
+	// write-order lock, the collector's cursor, and whether the database itself is closed.
+	shared *dbState
+
+	// closed latches this storage alone, guarded by shared.mu like the rest of the state.
 	closed bool
+}
 
+// dbState is the per-database coordination shared by every storage built on one handle.
+// Splitting it across storages would let one storage's collector delete a key another just
+// refreshed, resume a sweep into a keyspace another storage just reset, or — since Pebble
+// panics rather than errors on a closed database — reach a handle a sibling already closed.
+type dbState struct {
+	// mu keeps operations off a database Close is tearing down and orders the collector's
+	// delete against writers, across every storage on the handle.
+	mu sync.RWMutex
+
+	refs int
+
+	// dbClosed reports that the database itself was closed, by whichever storage owned it.
+	// Read under mu, so an operation either completes before the close or sees this flag.
+	dbClosed bool
+
+	// gcCursor and gcEpoch are shared: a Reset by any storage on the handle must rewind
+	// every collector sweeping that same keyspace, not only its own.
 	gcCursor []byte
+	gcEpoch  uint64
+}
 
-	// gcEpoch is bumped by Reset so a sweep in flight cannot store a cursor into deleted keys.
-	gcEpoch uint64
+var (
+	dbStatesMu sync.Mutex
+	dbStates   = map[*pebble.DB]*dbState{}
+)
+
+// acquireDBState hands out the database's shared state, creating it for the first storage.
+func acquireDBState(db *pebble.DB) *dbState {
+	dbStatesMu.Lock()
+	defer dbStatesMu.Unlock()
+
+	st := dbStates[db]
+	if st == nil {
+		st = &dbState{}
+		dbStates[db] = st
+	}
+	st.refs++
+
+	return st
+}
+
+// releaseDBState lets go of the database's shared state, dropping it with the last storage.
+func releaseDBState(db *pebble.DB) {
+	dbStatesMu.Lock()
+	defer dbStatesMu.Unlock()
+
+	st := dbStates[db]
+	if st == nil {
+		return
+	}
+	if st.refs--; st.refs == 0 {
+		delete(dbStates, db)
+	}
+}
+
+// isClosedLocked reports whether this storage, or the database under it, has been closed.
+// Callers hold shared.mu, so the answer cannot go stale before they use the database.
+func (s *Storage) isClosedLocked() bool {
+	return s.closed || s.shared.dbClosed
 }
 
 type CacheType struct {
@@ -63,10 +123,35 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a storage on an already open database, which stays the caller's to close.
+// Pebble takes a directory lock, so sharing the open handle is the way to back a storage with a
+// database the application already uses. Only the WriteOptions and GCInterval options are read.
+//
+// The storage treats the whole keyspace as its own: keys are not namespaced, Reset deletes every key
+// in the database, and the background collector scans all of them — reclaiming any value that decodes
+// as an entry whose deadline passed. Keep application data out of a database backing this storage.
+//
+// Storages built on the same database share one write-order lock, so each one's collector
+// coordinates with the others' writes the same way it does with its own.
+func NewFromConnection(db *pebble.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("pebble: nil database")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage starts the collector on db; db is closed only when this driver opened it.
+func newStorage(db *pebble.DB, ownsDB bool, cfg Config) *Storage {
 	store := &Storage{
 		db:           db,
+		ownsDB:       ownsDB,
 		writeOptions: cfg.WriteOptions,
 		gcInterval:   cfg.GCInterval,
+		shared:       acquireDBState(db),
 		done:         make(chan struct{}),
 		stopped:      make(chan struct{}),
 	}
@@ -79,6 +164,13 @@ func New(config ...Config) *Storage {
 // gc reclaims expired entries in the background: without compare-and-delete, deleting from Get could drop a concurrent Set.
 func (s *Storage) gc() {
 	defer close(s.stopped)
+
+	// Pebble panics rather than errors on a closed database. The shared latch covers every
+	// close this driver performs, but a caller may close a borrowed handle directly without
+	// closing the storages on it; recovering keeps that mistake from killing the process.
+	defer func() {
+		_ = recover()
+	}()
 
 	ticker := time.NewTicker(s.gcInterval)
 	defer ticker.Stop()
@@ -124,30 +216,30 @@ func (s *Storage) collect() {
 
 // loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
 func (s *Storage) loadCursor() ([]byte, uint64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	return s.gcCursor, s.gcEpoch
+	return s.shared.gcCursor, s.shared.gcEpoch
 }
 
 // storeCursor records where the next sweep resumes, unless a Reset rewound the cursor meanwhile.
 func (s *Storage) storeCursor(cursor []byte, epoch uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
-	if s.gcEpoch != epoch {
+	if s.shared.gcEpoch != epoch {
 		return
 	}
 
-	s.gcCursor = cursor
+	s.shared.gcCursor = cursor
 }
 
 // expiredCandidates lists keys a snapshot shows expired after the given key, capped so the read lock never spans a whole keyspace.
 func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []byte, reachedEnd bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
+	if s.isClosedLocked() {
 		return nil, nil, true
 	}
 
@@ -195,10 +287,10 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 
 // deleteIfStillExpired re-reads each key, deletes the still-expired ones and reports whether to continue.
 func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
-	if s.closed {
+	if s.isClosedLocked() {
 		return false
 	}
 
@@ -253,10 +345,10 @@ func (s *Storage) Get(key string) ([]byte, error) {
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
+	if s.isClosedLocked() {
 		return nil, ErrClosed
 	}
 
@@ -323,10 +415,10 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return err
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
+	if s.isClosedLocked() {
 		return ErrClosed
 	}
 
@@ -347,10 +439,10 @@ func (s *Storage) Delete(key string) error {
 		return nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.shared.mu.RLock()
+	defer s.shared.mu.RUnlock()
 
-	if s.closed {
+	if s.isClosedLocked() {
 		return ErrClosed
 	}
 
@@ -367,17 +459,17 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 func (s *Storage) Reset() (err error) {
 	// Exclusive: a Set holding the read lock alongside this would be erased part way through.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
 	// Checked before the cursor is touched: a closed storage has no business rewinding the collector.
-	if s.closed {
+	if s.isClosedLocked() {
 		return ErrClosed
 	}
 
 	// The keys the cursor points at are about to be gone; the epoch stops a running sweep writing it back.
-	s.gcCursor = nil
-	s.gcEpoch++
+	s.shared.gcCursor = nil
+	s.shared.gcEpoch++
 
 	iter, iterErr := s.db.NewIter(nil)
 	if iterErr != nil {
@@ -438,7 +530,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close closes the database. Safe to call more than once; only the first call closes and reports.
+// Close closes the database unless it came from NewFromConnection. Safe to call more than once; only the first call closes and reports.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
@@ -446,17 +538,30 @@ func (s *Storage) Close() error {
 		<-s.stopped
 	})
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.shared.mu.Lock()
+	defer s.shared.mu.Unlock()
 
 	if s.closed {
 		return nil
 	}
-
-	// Pebble closes regardless of error and panics on a second call, so record it before checking the error.
 	s.closed = true
 
-	return s.db.Close()
+	if !s.ownsDB {
+		releaseDBState(s.db)
+		return nil
+	}
+
+	// Latched under the same lock every operation takes, so a sibling on this handle reports
+	// ErrClosed instead of reaching a closed database, which Pebble answers with a panic.
+	// Pebble closes regardless of error and panics on a second call, so record it either way.
+	s.shared.dbClosed = true
+	err := s.db.Close()
+
+	// Released last: dropping the entry any earlier would let a storage built on this handle
+	// meanwhile register a fresh one, which carries no record of the database being closed.
+	releaseDBState(s.db)
+
+	return err
 }
 
 // Conn returns the database client

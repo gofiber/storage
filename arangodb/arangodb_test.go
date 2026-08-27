@@ -388,3 +388,29 @@ func Test_ArangoDB_Close_Twice(t *testing.T) {
 		require.NoError(t, testStore.Close())
 	})
 }
+
+func Test_ArangoDB_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	// Host is a leftover from a dialing config: the borrowed path documents it as
+	// ignored, so a value the dialing validation would reject must not panic here.
+	testStore := NewFromConnection(owner.Conn(), Config{Collection: "fiber_storage_existing", Host: "127.0.0.1"})
+	require.True(t, owner.Conn() == testStore.Conn())
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// ArangoDB has no connection to close, so the owner keeps working either way.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+}
+
+func Test_ArangoDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,11 +24,38 @@ type Storage struct {
 	closed  atomic.Bool
 }
 
-// NewFromConnection builds a Storage on an existing client, which stays the caller's to close.
-func NewFromConnection(conn redis.UniversalClient) *Storage {
-	return &Storage{
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close,
+// using context.Background() for the initialization operations.
+func NewFromConnection(conn redis.UniversalClient, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), conn, config...)
+}
+
+// NewFromConnectionWithContext builds a Storage on an existing client, which stays the caller's
+// to close, using ctx for the initialization operations (optional reset). Only Reset is read
+// from the config; the connection settings come from the client. Reset flushes every database
+// the client's nodes hold, not just this storage's keys.
+func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClient, config ...Config) *Storage {
+	// The handle is an interface, so a nil *redis.Client arrives as a non-nil interface holding a
+	// nil pointer; the kind check keeps non-pointer implementations of the interface working.
+	if conn == nil {
+		panic("redis: nil client")
+	}
+	if v := reflect.ValueOf(conn); v.Kind() == reflect.Ptr && v.IsNil() {
+		panic("redis: nil client")
+	}
+
+	store := &Storage{
 		db: conn,
 	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
+	if cfg := configDefault(config...); cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
+			panic(err)
+		}
+	}
+
+	return store
 }
 
 // New creates a new Redis storage instance using context.Background() for initialization.

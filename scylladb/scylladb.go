@@ -5,15 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
 	"github.com/gocql/gocql"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed session stays open, so the latch is the only signal.
+var ErrClosed = errors.New("scylladb: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
+	closed    atomic.Bool
 	session   *gocql.Session
 	tableName string
 
@@ -23,7 +27,6 @@ type Storage struct {
 	resetQuery  string
 
 	ownsSession bool
-	closeOnce   sync.Once
 }
 
 var (
@@ -60,6 +63,22 @@ func validateIdentifier(name, identifierType string) error {
 	}
 
 	return nil
+}
+
+// NewFromConnection creates a new storage on an existing session, which stays the caller's to close.
+// It is the same as setting Config.Session.
+func NewFromConnection(session *gocql.Session, config ...Config) *Storage {
+	if session == nil {
+		panic("scylladb: nil session")
+	}
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	cfg.Session = session
+
+	return New(cfg)
 }
 
 // New creates a new storage
@@ -189,6 +208,9 @@ func (s *Storage) checkSchema(keyspace string) {
 
 // GetWithContext retrieves a value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	var value []byte
 	if err := s.session.Query(s.selectQuery, key).WithContext(ctx).Scan(&value); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -209,6 +231,9 @@ const maxTTLSeconds = 20 * 365 * 24 * 60 * 60
 
 // SetWithContext sets a value by key with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expire time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// An empty key or value is ignored; storing one persisted a row nothing could read back.
 	if len(key) == 0 || len(value) == 0 {
 		return nil
@@ -233,6 +258,9 @@ func (s *Storage) Set(key string, value []byte, expire time.Duration) error {
 
 // DeleteWithContext removes a value by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.session.Query(s.deleteQuery, key).WithContext(ctx).Exec()
 }
 
@@ -243,6 +271,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all values with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	return s.session.Query(s.resetQuery).WithContext(ctx).Exec()
 }
 
@@ -253,11 +284,12 @@ func (s *Storage) Reset() error {
 
 // Close closes the session unless it came from Config.Session; safe to call more than once.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
-		if s.ownsSession {
-			s.session.Close()
-		}
-	})
+	// One CAS carries both facts the close needs: that the storage is now closed, and that this
+	// is the call that gets to close the session, which gocql answers with a panic if done twice.
+	if s.closed.CompareAndSwap(false, true) && s.ownsSession {
+		s.session.Close()
+	}
+
 	return nil
 }
 

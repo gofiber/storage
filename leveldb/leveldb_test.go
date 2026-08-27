@@ -3,8 +3,10 @@ package leveldb
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -561,9 +563,9 @@ func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 	require.Nil(t, db.Set("a", []byte("doe"), 0))
 
 	// A reset removes the keys the cursor pointed past, so leaving it set would skip everything written after.
-	db.gcCursor = []byte("z")
+	db.shared.gcCursor = []byte("z")
 	require.Nil(t, db.Reset())
-	require.Nil(t, db.gcCursor)
+	require.Nil(t, db.shared.gcCursor)
 }
 
 func Test_Set_WritesBinaryFrame(t *testing.T) {
@@ -665,4 +667,144 @@ func Test_Set_SubSecondExpiration_BinaryFrame(t *testing.T) {
 	result, err = db.Get("john")
 	require.Nil(t, err)
 	require.Zero(t, len(result))
+}
+
+func Test_LevelDB_NewFromConnection(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db)
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Put([]byte("jane"), []byte("doe"), nil))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_LevelDB_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+// Storages on one handle must share the write-order lock, or one's collector could
+// delete a key another just refreshed.
+func Test_LevelDB_NewFromConnection_SharedDB(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	s1 := NewFromConnection(db)
+	s2 := NewFromConnection(db)
+	require.Same(t, s1.shared, s2.shared)
+
+	// The lock outlives each storage but not all of them.
+	require.NoError(t, s1.Close())
+	require.NoError(t, s2.Set("john", []byte("doe"), 0))
+	require.NoError(t, s2.Close())
+	require.NoError(t, s2.Close())
+
+	dbStatesMu.Lock()
+	_, held := dbStates[db]
+	dbStatesMu.Unlock()
+	require.False(t, held)
+}
+
+// Closing one storage while another writes and a third is being built on the same handle must
+// not hand the new storage a fresh shared entry while the write still runs under the old one.
+func Test_LevelDB_SharedDB_CloseRacesSetAndNewStorage(t *testing.T) {
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	writer := NewFromConnection(db, Config{GCInterval: time.Hour})
+	closer := NewFromConnection(db, Config{GCInterval: time.Hour})
+
+	// require calls FailNow, which stops only the goroutine it runs on, so the workers report
+	// back and the assertions run on the test goroutine after wg.Wait.
+	var (
+		wg        sync.WaitGroup
+		setErrs   = make(chan error, 200)
+		closeErrs = make(chan error, 1)
+		shareErrs = make(chan error, 50)
+	)
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+		defer close(setErrs)
+		for i := 0; i < 200; i++ {
+			// Either outcome is correct; reaching a closed database is not.
+			if err := writer.Set("john", []byte("doe"), 0); err != nil {
+				setErrs <- err
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		defer close(closeErrs)
+		closeErrs <- closer.Close()
+	}()
+
+	go func() {
+		defer wg.Done()
+		defer close(shareErrs)
+		for i := 0; i < 50; i++ {
+			later := NewFromConnection(db, Config{GCInterval: time.Hour})
+			// Every storage on a live handle must share one entry with the writer.
+			if later.shared != writer.shared {
+				shareErrs <- fmt.Errorf("storage %d got a fresh shared entry while the writer still ran under the old one", i)
+			}
+			if err := later.Close(); err != nil {
+				shareErrs <- fmt.Errorf("closing storage %d: %w", i, err)
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	for err := range setErrs {
+		require.ErrorIs(t, err, ErrClosed)
+	}
+	for err := range closeErrs {
+		require.NoError(t, err)
+	}
+	for err := range shareErrs {
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, writer.Close())
+}
+
+// A sibling on a handle an owning storage closed must report ErrClosed, not reach the
+// closed database, and a Reset must rewind every collector on the handle, not just its own.
+func Test_LevelDB_SharedDB_OwnerCloseAndReset(t *testing.T) {
+	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+
+	// A sibling's Reset must rewind this storage's cursor too, since they share the keyspace.
+	sibling.shared.gcCursor = []byte("z")
+	require.NoError(t, owner.Reset())
+	require.Nil(t, sibling.shared.gcCursor)
+
+	// Closing the owner closes the database, so the sibling must refuse to use it.
+	require.NoError(t, owner.Close())
+	require.True(t, sibling.isClosed())
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }

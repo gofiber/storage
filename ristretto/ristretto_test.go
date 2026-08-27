@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -308,4 +309,77 @@ func Test_Ristretto_SkipWaitForWrite(t *testing.T) {
 		val, err := testStore.Get("john")
 		return err == nil && len(val) > 0
 	}, time.Second, 10*time.Millisecond)
+}
+
+func Test_Ristretto_NewFromConnection(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: ConfigDefault.NumCounters,
+		MaxCost:     ConfigDefault.MaxCost,
+		BufferItems: ConfigDefault.BufferItems,
+	})
+	require.NoError(t, err)
+	defer cache.Close()
+
+	store := NewFromConnection(cache)
+	require.Same(t, cache, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The cache is the caller's, so closing the storage must leave it usable.
+	require.NoError(t, store.Close())
+	require.True(t, cache.Set("jane", []byte("doe"), 1))
+}
+
+func Test_Ristretto_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+// Storages on one cache must share the operation lock, or one's Reset — a Clear,
+// which Ristretto documents as non-atomic — could overlap another's Set.
+func Test_Ristretto_NewFromConnection_SharedCache(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: ConfigDefault.NumCounters,
+		MaxCost:     ConfigDefault.MaxCost,
+		BufferItems: ConfigDefault.BufferItems,
+	})
+	require.NoError(t, err)
+	defer cache.Close()
+
+	s1 := NewFromConnection(cache)
+	s2 := NewFromConnection(cache)
+	require.Same(t, s1.shared, s2.shared)
+
+	// The lock outlives each storage but not all of them.
+	require.NoError(t, s1.Close())
+	require.NoError(t, s2.Set("john", []byte("doe"), 0))
+	require.NoError(t, s2.Close())
+	require.NoError(t, s2.Close())
+
+	cacheStatesMu.Lock()
+	_, held := cacheStates[cache]
+	cacheStatesMu.Unlock()
+	require.False(t, held)
+}
+
+// A closed Ristretto cache drops operations in silence, so a sibling on a cache an owning
+// storage closed must report ErrClosed rather than accept writes that go nowhere.
+func Test_Ristretto_SharedCache_OwnerClose(t *testing.T) {
+	owner := New()
+	sibling := NewFromConnection(owner.Conn())
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+	require.NoError(t, owner.Close())
+
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }

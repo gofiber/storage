@@ -16,10 +16,51 @@ var ErrClosed = errors.New("rueidis: storage is closed")
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db        rueidis.Client
+	ownsDB    bool
 	closeOnce sync.Once
 
 	closed   atomic.Bool
 	cacheTTL time.Duration
+}
+
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to close,
+// using context.Background() for the optional reset.
+func NewFromConnection(conn rueidis.Client, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), conn, config...)
+}
+
+// NewFromConnectionWithContext builds a Storage on an existing client, which stays the caller's to
+// close, using ctx for the optional reset. Only CacheTTL and Reset are read from the config; the
+// connection settings come from the client, and nothing touches the network unless Reset is set.
+// Reset empties the whole logical database the client points at, not just this storage's keys.
+func NewFromConnectionWithContext(ctx context.Context, conn rueidis.Client, config ...Config) *Storage {
+	if conn == nil {
+		panic("rueidis: nil client")
+	}
+
+	return newStorage(ctx, conn, false, configDefault(config...))
+}
+
+// newStorage runs the optional reset and builds the store; db is released on failure only when this
+// driver opened it.
+func newStorage(ctx context.Context, db rueidis.Client, ownsDB bool, cfg Config) *Storage {
+	store := &Storage{
+		db:       db,
+		ownsDB:   ownsDB,
+		cacheTTL: cfg.CacheTTL,
+	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
+	if cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
+			if ownsDB {
+				db.Close()
+			}
+			panic(err)
+		}
+	}
+
+	return store
 }
 
 // New creates a new rueidis storage using context.Background() for initialization.
@@ -80,27 +121,13 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
-	closeOwned := func() { db.Close() }
-
 	// Test connection
 	if err := db.Do(ctx, db.B().Ping().Build()).Error(); err != nil {
-		closeOwned()
+		db.Close()
 		panic(err)
 	}
 
-	// Empty collection if Clear is true
-	if cfg.Reset {
-		if err := db.Do(ctx, db.B().Flushdb().Build()).Error(); err != nil {
-			closeOwned()
-			panic(err)
-		}
-	}
-
-	// Create new store
-	return &Storage{
-		db:       db,
-		cacheTTL: cfg.CacheTTL,
-	}
+	return newStorage(ctx, db, true, cfg)
 }
 
 // GetWithContext gets value by key with context
@@ -173,7 +200,16 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.closed.Load() {
 		return ErrClosed
 	}
-	return s.db.Do(ctx, s.db.B().Flushdb().Build()).Error()
+	// FLUSHDB carries no key, so in cluster mode it reaches whichever node the client picks and
+	// leaves the other primaries holding their entries. Nodes() is the client's own view of the
+	// cluster; for a standalone or sentinel client it is the single node, so this is one call.
+	for _, node := range s.db.Nodes() {
+		if err := node.Do(ctx, node.B().Flushdb().Build()).Error(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Reset resets all keys
@@ -181,11 +217,14 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close the storage. Safe to call more than once; the client is closed on the first call only.
+// Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
 	s.closeOnce.Do(func() {
 		s.closed.Store(true)
-		s.db.Close()
+
+		if s.ownsDB {
+			s.db.Close()
+		}
 	})
 	return nil
 }

@@ -22,6 +22,8 @@ A fast Valkey Storage that does auto pipelining and supports client side caching
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(conn valkey.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, conn valkey.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -231,5 +233,32 @@ var ConfigDefault = Config{
 	DisableAlwaysPipelining: false,
 	Reset:                   false,
 	CacheTTL:                time.Minute,
+}
+```
+
+### Using an Existing Valkey Connection
+If your application already holds a `valkey.Client`, you can build the storage on it instead of creating a second one. Only `CacheTTL` and `Reset` are read from the config; the connection settings come from the client, and nothing touches the network unless `Reset` is set.
+
+The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+> **Warning:** `Reset` — the config option and the method — issues `FLUSHDB` on the client's database, deleting every key in it, not just this storage's entries.
+
+```go
+import (
+    "github.com/gofiber/storage/valkey"
+    valkeylib "github.com/valkey-io/valkey-go"
+)
+
+func main() {
+    client, err := valkeylib.NewClient(valkeylib.ClientOption{
+        InitAddress: []string{"127.0.0.1:6379"},
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    store := valkey.NewFromConnection(client)
+    defer store.Close()
 }
 ```

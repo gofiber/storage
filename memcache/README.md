@@ -19,6 +19,7 @@ A Memcache storage driver using [`bradfitz/gomemcache`](https://github.com/bradf
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *memcache.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -80,5 +81,26 @@ type Config struct {
 ```go
 var ConfigDefault = Config{
 	Servers:      "127.0.0.1:11211",
+}
+```
+
+### Using an Existing Memcache Connection
+If your application already holds a `*memcache.Client`, you can build the storage on it instead of creating a second one. Only `Reset` is read from the config; connection settings stay with your client.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+> **Warning:** `Reset` runs `DeleteAll` against the memcached instance, deleting every item on it, not just this storage's entries.
+
+```go
+import (
+    mc "github.com/bradfitz/gomemcache/memcache"
+    "github.com/gofiber/storage/memcache/v2"
+)
+
+func main() {
+    client := mc.New("127.0.0.1:11211")
+
+    store := memcache.NewFromConnection(client)
+    defer store.Close()
 }
 ```

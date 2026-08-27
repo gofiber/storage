@@ -9,14 +9,18 @@ import (
 	"log"
 	"math"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
 )
 
+// ErrClosed is returned by every operation attempted after Close; a borrowed client stays open, so the latch is the only signal.
+var ErrClosed = errors.New("aerospike: storage is closed")
+
 // Storage interface that is implemented by storage drivers
 type Storage struct {
+	closed    atomic.Bool
 	client    *aerospike.Client
 	namespace string
 	setName   string
@@ -24,8 +28,8 @@ type Storage struct {
 	// schemaSetName is separate from setName so user data cannot collide with the bookkeeping record.
 	schemaSetName string
 	reset         bool
+	ownsClient    bool
 	schemaInfo    *SchemaInfo
-	closeOnce     sync.Once
 }
 
 const schemaInfoKey = "_schema_info"
@@ -69,9 +73,7 @@ func New(config ...Config) *Storage {
 	cp.Timeout = cfg.InitialConnectionTimeout
 
 	// Checked before the client is opened, so an unusable configuration leaves no connection to release.
-	if strings.HasSuffix(cfg.SetName, schemaSetSuffix) {
-		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", cfg.SetName, schemaSetSuffix))
-	}
+	mustValidSetName(cfg.SetName)
 
 	// Create client
 	client, err := aerospike.NewClientWithPolicyAndHost(cp, cfg.Hosts...)
@@ -79,6 +81,31 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(client, true, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing client, which stays the caller's to close.
+// Only the Namespace, SetName, Reset and schema options are read; the connection settings come from the client.
+func NewFromConnection(client *aerospike.Client, config ...Config) *Storage {
+	if client == nil {
+		panic("aerospike: nil client")
+	}
+
+	cfg := configDefault(config...)
+	mustValidSetName(cfg.SetName)
+
+	return newStorage(client, false, cfg)
+}
+
+// mustValidSetName rejects a set name that would collide with this driver's own schema set.
+func mustValidSetName(setName string) {
+	if strings.HasSuffix(setName, schemaSetSuffix) {
+		panic(fmt.Errorf("aerospike: set name %q is reserved: the %q suffix names this driver's own schema set", setName, schemaSetSuffix))
+	}
+}
+
+// newStorage prepares the schema on client; client is released only when this driver opened it.
+func newStorage(client *aerospike.Client, ownsClient bool, cfg Config) *Storage {
 	// Create storage
 	store := &Storage{
 		client:        client,
@@ -86,9 +113,14 @@ func New(config ...Config) *Storage {
 		setName:       cfg.SetName,
 		schemaSetName: schemaSetName(cfg.SetName),
 		reset:         cfg.Reset,
+		ownsClient:    ownsClient,
 	}
 
-	closeOwned := func() { client.Close() }
+	closeOwned := func() {
+		if ownsClient {
+			client.Close()
+		}
+	}
 
 	// Reset keys if set
 	if cfg.Reset {
@@ -236,6 +268,9 @@ func (s *Storage) GetSchemaInfo() *SchemaInfo {
 
 // Get value by key
 func (s *Storage) Get(key string) ([]byte, error) {
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	if len(key) == 0 {
 		return nil, nil
 	}
@@ -271,6 +306,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set key with value
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// The storage interface documents an empty key or value as ignored without error.
 	if len(key) == 0 || len(val) == 0 {
 		return nil
@@ -314,6 +352,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 // Delete key
 func (s *Storage) Delete(key string) error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	if len(key) == 0 {
 		return nil
 	}
@@ -337,6 +378,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	if s.closed.Load() {
+		return ErrClosed
+	}
 	// The bookkeeping record is in its own set, untouched by this scan, so every record here is the caller's.
 	scanPolicy := aerospike.NewScanPolicy()
 	// Note: ConcurrentNodes no longer exists in v8
@@ -381,10 +425,13 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the storage. Safe to call more than once; the client is closed on the first call only.
+// Close the storage, and the client unless it came from NewFromConnection. Safe to call more than once; the client is closed on the first call only.
 func (s *Storage) Close() error {
-	s.closeOnce.Do(func() {
+	// One CAS carries both facts the close needs: that the storage is now closed, and that
+	// this is the call that gets to tear the client down.
+	if s.closed.CompareAndSwap(false, true) && s.ownsClient {
 		s.client.Close()
-	})
+	}
+
 	return nil
 }

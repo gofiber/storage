@@ -19,6 +19,8 @@ A Clickhouse storage driver using [https://github.com/ClickHouse/clickhouse-go](
 ```go
 func New(config ...Config) (*Storage, error)
 func NewWithContext(ctx context.Context, configuration Config) (*Storage, error)
+func NewFromConnection(conn driver.Conn, configuration Config) (*Storage, error)
+func NewFromConnectionWithContext(ctx context.Context, conn driver.Conn, configuration Config) (*Storage, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -130,5 +132,37 @@ var DefaultConfig = Config{
     Port:      9000,
     Engine:    "Memory",
     Clean:     false,
+}
+```
+
+### Using an Existing Clickhouse Connection
+
+If your application already holds a `clickhouse.Conn`, you can build the storage on it instead of opening a second connection. Only the `Table`, `Engine` and `Clean` options are read; the connection details are taken from the connection you pass.
+
+The connection stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+    driver "github.com/ClickHouse/clickhouse-go/v2"
+    "github.com/gofiber/storage/clickhouse"
+)
+
+func main() {
+    conn, err := driver.Open(&driver.Options{
+        Addr: []string{"127.0.0.1:9000"},
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer conn.Close()
+
+    store, err := clickhouse.NewFromConnection(conn, clickhouse.Config{
+        Table:  "fiber_storage",
+        Engine: clickhouse.Memory,
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer store.Close()
 }
 ```

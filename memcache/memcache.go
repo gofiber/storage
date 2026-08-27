@@ -36,13 +36,21 @@ func New(config ...Config) *Storage {
 		panic(err)
 	}
 
-	if cfg.Reset {
-		if err := db.DeleteAll(); err != nil {
-			panic(err)
-		}
+	return newStorage(db, cfg)
+}
+
+// NewFromConnection builds a Storage on an existing client, which stays the caller's to manage.
+// Only Reset is read from the config; connection settings stay with the caller's client. Reset
+// flushes every entry on the servers the client points at, not just this storage's keys.
+func NewFromConnection(db *mc.Client, config ...Config) *Storage {
+	if db == nil {
+		panic("memcache: nil client")
 	}
 
-	// Create storage
+	return newStorage(db, configDefault(config...))
+}
+
+func newStorage(db *mc.Client, cfg Config) *Storage {
 	store := &Storage{
 		db: db,
 		items: &sync.Pool{
@@ -50,6 +58,13 @@ func New(config ...Config) *Storage {
 				return new(mc.Item)
 			},
 		},
+	}
+
+	// Reset through the storage's own method rather than a second copy of the flush.
+	if cfg.Reset {
+		if err := store.Reset(); err != nil {
+			panic(err)
+		}
 	}
 
 	return store

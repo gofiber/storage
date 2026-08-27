@@ -19,6 +19,7 @@ A Etcd storage driver using [`etcd-io/etcd`](https://github.com/etcd-io/etcd).
 ### Signatures
 ```go
 func New(config ...Config) *Storage
+func NewFromConnection(db *clientv3.Client) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -83,5 +84,32 @@ var ConfigDefault = Config{
     Username:    "",
     Password:    "",
     TLS:         nil,
+}
+```
+
+### Using an Existing Etcd Connection
+If your application already holds a `*clientv3.Client`, you can build the storage on it instead of dialing a second time.
+
+The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+> **Warning:** the storage does not namespace its keys. `Reset` deletes **every key** reachable through the client — on a cluster shared with service discovery or configuration, that is all of it.
+
+```go
+import (
+    "github.com/gofiber/storage/etcd/v2"
+    clientv3 "go.etcd.io/etcd/client/v3"
+)
+
+func main() {
+    client, err := clientv3.New(clientv3.Config{
+        Endpoints: []string{"localhost:2379"},
+    })
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    store := etcd.NewFromConnection(client)
+    defer store.Close()
 }
 ```

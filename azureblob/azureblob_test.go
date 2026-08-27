@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/stretchr/testify/require"
@@ -335,4 +336,46 @@ func Benchmark_AzureBlob_SetAndDelete(b *testing.B) {
 	}
 
 	require.NoError(b, err)
+}
+
+func Test_AzureBlob_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	testStore := NewFromConnection(owner.Conn(), Config{Container: "existing"})
+	require.Same(t, owner.Conn(), testStore.Conn())
+
+	var (
+		key = "john"
+		val = []byte("doe")
+	)
+
+	require.NoError(t, testStore.Set(key, val, 0))
+
+	result, err := testStore.Get(key)
+	require.NoError(t, err)
+	require.Equal(t, val, result)
+
+	// The client is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set(key, val, 0))
+}
+
+func Test_AzureBlob_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+func Test_AzureBlob_ConfigureFromConnection(t *testing.T) {
+	cfg := configureFromConnection(Config{Container: "existing", RequestTimeout: time.Second})
+	require.Equal(t, "existing", cfg.Container)
+	require.Equal(t, time.Second, cfg.RequestTimeout)
+
+	require.Panics(t, func() {
+		configureFromConnection(Config{})
+	})
+	require.Panics(t, func() {
+		configureFromConnection()
+	})
 }

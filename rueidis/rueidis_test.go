@@ -493,3 +493,39 @@ func Test_Rueidis_ConfigDefault_AlwaysPipelining(t *testing.T) {
 	require.True(t, configDefault(Config{AlwaysPipelining: false}).AlwaysPipelining)
 	require.False(t, configDefault(Config{DisableAlwaysPipelining: true}).AlwaysPipelining)
 }
+
+func Test_Rueidis_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	borrowed := NewFromConnection(owner.Conn())
+	require.True(t, owner.Conn() == borrowed.Conn())
+
+	require.NoError(t, borrowed.Set("john", []byte("doe"), 0))
+
+	val, err := borrowed.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+
+	// The client belongs to owner, so it must still work after borrowed was closed.
+	require.NoError(t, borrowed.Close())
+	require.NoError(t, owner.Set("jane", []byte("doe"), 0))
+
+	// borrowed itself is closed: leaving the client open is not leaving the storage usable.
+	_, err = borrowed.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+
+	// Reset is honoured on a borrowed client rather than quietly dropped.
+	flushed := NewFromConnection(owner.Conn(), Config{Reset: true})
+	defer flushed.Close()
+
+	val, err = flushed.Get("jane")
+	require.NoError(t, err)
+	require.Nil(t, val)
+}
+
+func Test_Rueidis_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}

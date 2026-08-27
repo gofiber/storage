@@ -2,15 +2,26 @@ package couchbase
 
 import (
 	"context"
+	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("couchbase: storage is closed")
+
 type Storage struct {
 	cb     *gocb.Cluster
 	bucket *gocb.Bucket
+	ownsCb bool
+	closed atomic.Bool
 }
+
+// transcoder is passed on every operation rather than left to the cluster: values here are raw bytes,
+// and gocb's default JSONTranscoder rejects them, so a cluster the caller configured would fail on Set.
+var transcoder = gocb.NewLegacyTranscoder()
 
 func New(config ...Config) *Storage {
 	// Set default config
@@ -25,7 +36,9 @@ func New(config ...Config) *Storage {
 			ConnectTimeout: cfg.ConnectionTimeout,
 			KVTimeout:      cfg.KVTimeout,
 		},
-		Transcoder: gocb.NewLegacyTranscoder(),
+		// Kept although operations pass their own transcoder: callers using Conn() rely on the
+		// cluster this driver built handling raw bytes.
+		Transcoder: transcoder,
 	})
 	if err != nil {
 		panic(err)
@@ -41,12 +54,28 @@ func New(config ...Config) *Storage {
 
 	b := cb.Bucket(cfg.Bucket)
 
-	return &Storage{cb: cb, bucket: b}
+	return &Storage{cb: cb, bucket: b, ownsCb: true}
+}
+
+// NewFromConnection builds a Storage on an existing cluster, which stays the caller's to close.
+// Only the Bucket option is read; the connection settings come from the cluster.
+func NewFromConnection(cluster *gocb.Cluster, config ...Config) *Storage {
+	if cluster == nil {
+		panic("couchbase: nil cluster")
+	}
+
+	cfg := configDefault(config...)
+
+	return &Storage{cb: cluster, bucket: cluster.Bucket(cfg.Bucket)}
 }
 
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	out, err := s.bucket.DefaultCollection().Get(key, &gocb.GetOptions{
-		Context: ctx,
+		Context:    ctx,
+		Transcoder: transcoder,
 	})
 	if err != nil {
 		switch e := err.(type) {
@@ -74,9 +103,13 @@ func (s *Storage) Get(key string) ([]byte, error) {
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if _, err := s.bucket.DefaultCollection().Upsert(key, val, &gocb.UpsertOptions{
-		Context: ctx,
-		Expiry:  exp,
+		Context:    ctx,
+		Expiry:     exp,
+		Transcoder: transcoder,
 	}); err != nil {
 		return err
 	}
@@ -89,6 +122,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 }
 
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	if _, err := s.bucket.DefaultCollection().Remove(key, &gocb.RemoveOptions{
 		Context: ctx,
 	}); err != nil {
@@ -102,6 +138,9 @@ func (s *Storage) Delete(key string) error {
 }
 
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	return s.cb.Buckets().FlushBucket(s.bucket.Name(), &gocb.FlushBucketOptions{
 		Context: ctx,
 	})
@@ -111,7 +150,22 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// isClosed reports whether Close ran; a borrowed cluster stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	return s.closed.Load()
+}
+
+// Close the cluster unless it came from NewFromConnection. Safe to call more than once.
 func (s *Storage) Close() error {
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
+		return nil
+	}
+
+	if !s.ownsCb {
+		return nil
+	}
+
 	return s.cb.Close(nil)
 }
 

@@ -23,6 +23,8 @@ A DynamoDB storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-s
 ```go
 func New(config Config) *Storage
 func NewWithContext(ctx context.Context, config Config) *Storage
+func NewFromConnection(db *dynamodb.Client, config Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, db *dynamodb.Client, config Config) *Storage
 
 
 func (s *Storage) Get(key string) ([]byte, error)
@@ -140,5 +142,34 @@ var ConfigDefault = Config{
 	ReadCapacityUnits:    5,
 	WriteCapacityUnits:   5,
 	WaitForTableCreation: aws.Bool(true),
+}
+```
+
+### Using an Existing DynamoDB Client
+If your application already holds a `*dynamodb.Client`, you can build the storage on it instead of creating a second one. Only the table options and `Reset` are read; the endpoint and credentials come from the client. `Reset` deletes every entry in the table and leaves the table itself — with its billing mode, indexes, streams and tags — in place.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+```go
+import (
+    "context"
+
+    awsconfig "github.com/aws/aws-sdk-go-v2/config"
+    awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+    "github.com/gofiber/storage/dynamodb/v2"
+)
+
+func main() {
+    awscfg, err := awsconfig.LoadDefaultConfig(context.Background())
+    if err != nil {
+        panic(err)
+    }
+
+    client := awsdynamodb.NewFromConfig(awscfg)
+
+    store := dynamodb.NewFromConnection(client, dynamodb.Config{
+        Table: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

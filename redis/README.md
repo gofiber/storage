@@ -22,7 +22,8 @@ A Redis storage driver using [go-redis/redis](https://github.com/go-redis/redis)
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
-func NewFromConnection(conn redis.UniversalClient) *Storage
+func NewFromConnection(conn redis.UniversalClient, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClient, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -231,9 +232,11 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Redis Connection
-If you already have a Redis client configured in your application, you can create a Storage instance directly from that client. This is useful when you want to share an existing connection throughout your application instead of creating a new one.
+If you already have a Redis client configured in your application, you can create a Storage instance directly from that client. This is useful when you want to share an existing connection throughout your application instead of creating a new one. Only `Reset` is read from the optional config; the connection settings come from the client. `NewFromConnectionWithContext` uses the given context for the optional reset.
 
 The client stays yours to close: `Close` on a storage built this way leaves the client open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+> **Warning:** `Reset` runs `FLUSHDB` on every node the client reaches, deleting every key in those databases, not just this storage's entries.
 
 ```go
 import (

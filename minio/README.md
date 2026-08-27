@@ -22,6 +22,8 @@ A Minio storage driver using [minio/minio-go](https://github.com/minio/minio-go)
 ```go
 func New(config ...Config) *Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(client *minio.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, client *minio.Client, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -141,5 +143,32 @@ var ConfigDefault = Config{
 type Credentials struct {
     AccessKeyID     string
     SecretAccessKey string
+}
+```
+
+### Using an Existing Minio Connection
+If your application already holds a `*minio.Client`, you can build the storage on it instead of creating a second one. Only the `Bucket`, `Region`, `Reset` and object options are read; the endpoint and credentials come from the client.
+
+The client stays yours to manage: `Close` on a storage built this way is a no-op, so the rest of your application keeps working.
+
+```go
+import (
+    storage "github.com/gofiber/storage/minio"
+    "github.com/minio/minio-go/v7"
+    "github.com/minio/minio-go/v7/pkg/credentials"
+)
+
+func main() {
+    client, err := minio.New("localhost:9000", &minio.Options{
+        Creds: credentials.NewStaticV4("minio-user", "minio-password", ""),
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    store := storage.NewFromConnection(client, storage.Config{
+        Bucket: "fiber-bucket",
+    })
+    defer store.Close()
 }
 ```

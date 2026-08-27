@@ -19,6 +19,7 @@ A MSSQL storage driver using [microsoft/go-mssqldb](https://github.com/microsoft
 ### Signatures
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *sql.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -144,5 +145,32 @@ var ConfigDefault = Config{
 	Reset:           false,
 	GCInterval:      10 * time.Second,
 	SslMode:         "disable",
+}
+```
+
+### Using an Existing MSSQL Connection
+If your application already holds a `*sql.DB`, you can build the storage on it instead of opening a second pool. The remaining config options (table name, GC interval, reset) still apply.
+
+The handle stays yours to close: `Close` on a storage built this way stops the garbage collector but leaves the pool open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
+
+```go
+import (
+	"database/sql"
+
+	"github.com/gofiber/storage/mssql/v2"
+	_ "github.com/microsoft/go-mssqldb"
+)
+
+func main() {
+	db, err := sql.Open("sqlserver", "sqlserver://user:password@localhost:1433?database=fiber")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	store := mssql.NewFromConnection(db, mssql.Config{
+		Table: "fiber_storage",
+	})
+	defer store.Close()
 }
 ```

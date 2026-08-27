@@ -3,22 +3,28 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("sqlite3: storage is closed")
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *sql.DB
+	ownsDB     bool
 	gcInterval time.Duration
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
+	closed     atomic.Bool
 
 	sqlSelect string
 	sqlInsert string
@@ -55,16 +61,57 @@ func New(config ...Config) *Storage {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
+	return newStorage(db, true, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing database handle, which stays the caller's to close.
+func NewFromConnection(db *sql.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("sqlite3: nil database handle")
+	}
+
+	return newStorage(db, false, configDefault(config...))
+}
+
+// newStorage prepares the table on db and starts the collector; db is released only when this driver opened it.
+// validTableName matches the identifiers this driver interpolates into its statements: the table
+// name reaches SQL as text rather than as a bound parameter, which no driver supports for
+// identifiers, so anything outside this shape is refused instead of being quoted and hoped for.
+var validTableName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// validateTableName rejects a table name that could carry SQL of its own.
+func validateTableName(table string) error {
+	if !validTableName.MatchString(table) {
+		return fmt.Errorf("sqlite3: invalid table name %q: only letters, digits and underscores are allowed, and it may not start with a digit", table)
+	}
+
+	return nil
+}
+
+func newStorage(db *sql.DB, ownsDB bool, cfg Config) *Storage {
+	closeOwned := func() {
+		if ownsDB {
+			_ = db.Close()
+		}
+	}
+
+	// Checked before any statement is built: the table name is interpolated into every one of
+	// them, and with Reset set the first of those statements drops a table.
+	if err := validateTableName(cfg.Table); err != nil {
+		closeOwned()
+		panic(err)
+	}
+
 	// Ping database
 	if err := db.Ping(); err != nil {
-		_ = db.Close()
+		closeOwned()
 		panic(err)
 	}
 
 	// Drop table if set to true
 	if cfg.Reset {
-		if _, err = db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
-			_ = db.Close()
+		if _, err := db.Exec(fmt.Sprintf(dropQuery, cfg.Table)); err != nil {
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -72,7 +119,7 @@ func New(config ...Config) *Storage {
 	// Init database queries
 	for _, query := range initQuery {
 		if _, err := db.Exec(fmt.Sprintf(query, cfg.Table)); err != nil {
-			_ = db.Close()
+			closeOwned()
 			panic(err)
 		}
 	}
@@ -80,6 +127,7 @@ func New(config ...Config) *Storage {
 	// Create storage
 	store := &Storage{
 		db:         db,
+		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
@@ -98,6 +146,9 @@ func New(config ...Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -128,6 +179,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext sets key with value and expiration time with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -152,6 +206,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext deletes entry by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
@@ -167,6 +224,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext all entries, including unexpired ones with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
 }
@@ -176,24 +236,29 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
-// Close stops the collector and closes the database; safe to call more than once, and a failed close is reported once.
+// isClosed reports whether Close ran; a borrowed handle stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	return s.closed.Load()
+}
+
+// Close stops the collector and closes the database unless it came from NewFromConnection; safe to call more than once, and a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
 		<-s.stopped
 	})
 
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
+		return nil
+	}
 
-	if s.closed {
+	if !s.ownsDB {
 		return nil
 	}
 
 	// Latched even on failure: database/sql marks itself closed first, so a retry would report a success that never happened.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 

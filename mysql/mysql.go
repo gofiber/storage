@@ -3,13 +3,18 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+// ErrClosed is returned by every operation attempted after Close.
+var ErrClosed = errors.New("mysql: storage is closed")
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -19,8 +24,7 @@ type Storage struct {
 	done       chan struct{}
 	stopped    chan struct{}
 	stopOnce   sync.Once
-	closeMu    sync.Mutex
-	closed     bool
+	closed     atomic.Bool
 
 	sqlSelect string
 	sqlInsert string
@@ -135,8 +139,27 @@ func New(config ...Config) *Storage {
 	return store
 }
 
+// NewFromConnection creates a new storage on an existing database handle, which stays the caller's to close.
+// It is the same as setting Config.Db.
+func NewFromConnection(db *sql.DB, config ...Config) *Storage {
+	if db == nil {
+		panic("mysql: nil database handle")
+	}
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+	cfg.Db = db
+
+	return New(cfg)
+}
+
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
+	if s.isClosed() {
+		return nil, ErrClosed
+	}
 	if len(key) <= 0 {
 		return nil, nil
 	}
@@ -171,6 +194,9 @@ func (s *Storage) Get(key string) ([]byte, error) {
 
 // SetWithContext key with value and expiration time with context
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -195,6 +221,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 
 // DeleteWithContext key by key with context
 func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 {
 		return nil
@@ -210,6 +239,9 @@ func (s *Storage) Delete(key string) error {
 
 // ResetWithContext resets all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
+	if s.isClosed() {
+		return ErrClosed
+	}
 	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
 }
@@ -219,6 +251,11 @@ func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
 
+// isClosed reports whether Close ran; a borrowed handle stays open, so the latch is the only signal.
+func (s *Storage) isClosed() bool {
+	return s.closed.Load()
+}
+
 // Close stops the collector and closes the database unless it came from Config.Db; safe to call more than once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
@@ -226,17 +263,17 @@ func (s *Storage) Close() error {
 		<-s.stopped
 	})
 
-	s.closeMu.Lock()
-	defer s.closeMu.Unlock()
+	// Idempotent: only the first Close tears anything down.
+	if !s.closed.CompareAndSwap(false, true) {
+		return nil
+	}
 
-	if s.closed || !s.ownsDB {
+	if !s.ownsDB {
 		return nil
 	}
 
 	// Latched even on failure: database/sql marks itself closed first, so a retry would report a success that never happened.
 	err := s.db.Close()
-	s.closed = true
-
 	return err
 }
 

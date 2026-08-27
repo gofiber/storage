@@ -317,3 +317,79 @@ func Test_Bbolt_ReadOnly_With_Reset(t *testing.T) {
 		New(Config{Database: path, Bucket: "fiber-bucket", ReadOnly: true, Reset: true})
 	})
 }
+
+func Test_Bbolt_NewFromConnection(t *testing.T) {
+	conn, err := bbolt.Open(filepath.Join(t.TempDir(), "existing.db"), 0o666, nil)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(conn, Config{Bucket: "existing_bucket", Reset: true})
+	require.Same(t, conn, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, conn.Update(func(tx *bbolt.Tx) error { return nil }))
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_Bbolt_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+func Test_Bbolt_NewFromConnection_ReadOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "readonly.db")
+
+	// A bucket has to exist before the database can be reopened read-only.
+	seed, err := bbolt.Open(path, 0o666, nil)
+	require.NoError(t, err)
+
+	seedStore := NewFromConnection(seed, Config{Bucket: "readonly_bucket"})
+	require.NoError(t, seedStore.Set("john", []byte("doe"), 0))
+	require.NoError(t, seedStore.Close())
+	require.NoError(t, seed.Close())
+
+	conn, err := bbolt.Open(path, 0o666, &bbolt.Options{ReadOnly: true})
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	// Config.ReadOnly is left unset: the handle already says so.
+	store := NewFromConnection(conn, Config{Bucket: "readonly_bucket"})
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrReadOnly)
+	require.NoError(t, store.Close())
+}
+
+func Test_Bbolt_NewFromConnection_ReadOnly_From_Config(t *testing.T) {
+	conn, err := bbolt.Open(filepath.Join(t.TempDir(), "writable.db"), 0o666, nil)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	// A read-only storage checks the bucket rather than creating it, so seed it first.
+	seedStore := NewFromConnection(conn, Config{Bucket: "readonly_bucket"})
+	require.NoError(t, seedStore.Set("john", []byte("doe"), 0))
+	require.NoError(t, seedStore.Close())
+
+	// The handle is writable, so only the config asks for a read-only storage.
+	store := NewFromConnection(conn, Config{Bucket: "readonly_bucket", ReadOnly: true})
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrReadOnly)
+	require.ErrorIs(t, store.Delete("john"), ErrReadOnly)
+	require.ErrorIs(t, store.Reset(), ErrReadOnly)
+	require.NoError(t, store.Close())
+}

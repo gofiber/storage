@@ -21,6 +21,7 @@ A fast key-value DB using [dgraph-io/badger](https://github.com/dgraph-io/badger
 
 ```go
 func New(config ...Config) Storage
+func NewFromConnection(db *badger.DB, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -117,5 +118,30 @@ var ConfigDefault = Config{
 	BadgerOptions: badger.DefaultOptions("./fiber.badger").WithLogger(nil),
 	Logger:        nil,
 	UseLogger:     false,
+}
+```
+
+### Using an Existing Badger Database
+Badger allows a single writer per directory, so an application that already keeps a `*badger.DB` open cannot have the storage open the same directory again. Pass the open database instead. Only the `Reset` and `GCInterval` options are read.
+
+The database stays yours to close: `Close` on a storage built this way stops the value-log collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+> **Warning:** keys are not namespaced. `Reset` — the config option and the method — runs `DropAll` on the shared database, deleting every key your application stored in it, not just this storage's entries.
+
+```go
+import (
+    "github.com/dgraph-io/badger/v3"
+    badgerstorage "github.com/gofiber/storage/badger/v2"
+)
+
+func main() {
+    db, err := badger.Open(badger.DefaultOptions("./fiber.badger"))
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    store := badgerstorage.NewFromConnection(db)
+    defer store.Close()
 }
 ```

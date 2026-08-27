@@ -54,20 +54,59 @@ func NewWithContext(ctx context.Context, config Config) *Storage {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	return newStorage(ctx, sess, cfg)
+}
+
+// NewFromConnection creates a DynamoDB storage on an existing client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(db *awsdynamodb.Client, config Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), db, config)
+}
+
+// NewFromConnectionWithContext creates a DynamoDB storage on an existing client, which stays the
+// caller's to manage, using ctx as the parent context for the initialization operations (optional
+// reset, table description and creation). Only the table options and Reset are read; the endpoint
+// and credentials come from the client. Reset drops the table and recreates it empty.
+func NewFromConnectionWithContext(ctx context.Context, db *awsdynamodb.Client, config Config) *Storage {
+	if db == nil {
+		panic("dynamodb: nil client")
+	}
+
+	return newStorage(ctx, db, configDefault(config))
+}
+
+// batchWriteItemLimit is the number of write requests DynamoDB accepts in one BatchWriteItem.
+const batchWriteItemLimit = 25
+
+// batchWriteMaxAttempts bounds the retries of items DynamoDB leaves unprocessed, so a reset
+// cannot spin forever against a table that keeps declining the work.
+const batchWriteMaxAttempts = 10
+
+// batchWriteBaseDelay is the first pause before re-sending unprocessed items; it doubles per
+// attempt up to batchWriteMaxDelay. AWS asks for exponential backoff here, since items come back
+// unprocessed because the table is throttling, and re-sending them at once keeps it throttled.
+const (
+	batchWriteBaseDelay = 50 * time.Millisecond
+	batchWriteMaxDelay  = 2 * time.Second
+)
+
+// newStorage prepares the table on db.
+func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storage {
 	describeTableInput := awsdynamodb.DescribeTableInput{
 		TableName: &cfg.Table,
 	}
 
 	// Create storage
 	store := &Storage{
-		db:    sess,
+		db:    db,
 		table: cfg.Table,
 	}
 
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Create table
-	_, err = sess.DescribeTable(timeoutCtx, &describeTableInput)
+	_, err := db.DescribeTable(timeoutCtx, &describeTableInput)
 	if err != nil {
 		var rnfe *types.ResourceNotFoundException
 		if errors.As(err, &rnfe) {
@@ -76,6 +115,14 @@ func NewWithContext(ctx context.Context, config Config) *Storage {
 				panic(err)
 			}
 		} else {
+			panic(err)
+		}
+	}
+
+	// Reset once the table is known to exist: a table just created is already empty, and one
+	// that was already there keeps its own configuration while its entries are cleared.
+	if cfg.Reset {
+		if err := store.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
@@ -167,12 +214,115 @@ func (s *Storage) Delete(key string) error {
 }
 
 // Reset all entries, including unexpired
+// ResetWithContext deletes every entry in the table, leaving the table itself in place.
+// Dropping and recreating it would be fewer calls, but would also discard the table's own
+// configuration — billing mode, indexes, streams, tags — which belongs to whoever created it.
 func (s *Storage) ResetWithContext(ctx context.Context) error {
-	deleteTableInput := awsdynamodb.DeleteTableInput{
+	paginator := awsdynamodb.NewScanPaginator(s.db, &awsdynamodb.ScanInput{
 		TableName: &s.table,
+		// Only the key is needed to delete a row, and skipping the values keeps a reset
+		// of a large table from reading every payload it is about to throw away.
+		ProjectionExpression: aws.String("#k"),
+		ExpressionAttributeNames: map[string]string{
+			"#k": keyAttrName,
+		},
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		if err := s.deleteItems(ctx, page.Items); err != nil {
+			return err
+		}
 	}
-	_, err := s.db.DeleteTable(ctx, &deleteTableInput)
-	return err
+
+	return nil
+}
+
+// deleteItems removes the given rows in batches, retrying whatever DynamoDB declines to
+// process in one call, as it may under load even when the request itself is valid.
+func (s *Storage) deleteItems(ctx context.Context, items []map[string]types.AttributeValue) error {
+	requests := make([]types.WriteRequest, 0, batchWriteItemLimit)
+
+	for _, item := range items {
+		key, ok := item[keyAttrName]
+		if !ok {
+			continue
+		}
+
+		requests = append(requests, types.WriteRequest{
+			DeleteRequest: &types.DeleteRequest{
+				Key: map[string]types.AttributeValue{keyAttrName: key},
+			},
+		})
+
+		if len(requests) == batchWriteItemLimit {
+			if err := s.writeBatch(ctx, requests); err != nil {
+				return err
+			}
+			requests = requests[:0]
+		}
+	}
+
+	if len(requests) == 0 {
+		return nil
+	}
+
+	return s.writeBatch(ctx, requests)
+}
+
+// writeBatch issues one BatchWriteItem, re-sending the items DynamoDB left unprocessed.
+func (s *Storage) writeBatch(ctx context.Context, requests []types.WriteRequest) error {
+	pending := map[string][]types.WriteRequest{s.table: requests}
+
+	for attempt := 0; len(pending) > 0; attempt++ {
+		if attempt == batchWriteMaxAttempts {
+			return fmt.Errorf("dynamodb: reset left items unprocessed after %d attempts", attempt)
+		}
+
+		// Only between attempts, so the common single-pass case pays nothing.
+		if attempt > 0 {
+			if err := sleepCtx(ctx, backoffDelay(attempt)); err != nil {
+				return err
+			}
+		}
+
+		out, err := s.db.BatchWriteItem(ctx, &awsdynamodb.BatchWriteItemInput{RequestItems: pending})
+		if err != nil {
+			return err
+		}
+
+		pending = out.UnprocessedItems
+	}
+
+	return nil
+}
+
+// backoffDelay returns the pause before the given retry attempt, doubling from the base delay and
+// capped so a long reset cannot stall on one batch.
+func backoffDelay(attempt int) time.Duration {
+	delay := batchWriteBaseDelay << (attempt - 1)
+	if delay > batchWriteMaxDelay || delay <= 0 {
+		return batchWriteMaxDelay
+	}
+	return delay
+}
+
+// sleepCtx waits for d, giving up as soon as ctx is done so a cancelled reset returns promptly
+// rather than sitting out the backoff.
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (s *Storage) Reset() error {

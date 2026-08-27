@@ -20,6 +20,8 @@ A ArangoDB storage driver using `arangodb/go-driver` and [arangodb/go-driver](ht
 ```go
 func New(config ...Config) Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
+func NewFromConnection(client driver.Client, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, client driver.Client, config ...Config) *Storage
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, exp time.Duration) error
@@ -119,5 +121,41 @@ var ConfigDefault = Config{
 	Collection: "fiber_storage",
 	Reset:      false,
 	GCInterval: 10 * time.Second,
+}
+```
+
+### Using an Existing ArangoDB Connection
+If your application already holds a `driver.Client`, you can build the storage on it instead of creating a second one. Only the `Database`, `Collection`, `Reset` and `GCInterval` options are read; the endpoint and credentials come from the client, and connection fields left over in the config (`Host`, `Port`, `Username`, `Password`) are ignored.
+
+`Close` on a storage built this way stops the garbage collector; ArangoDB's driver has no connection to close, so the client keeps working.
+
+```go
+import (
+    "github.com/arangodb/go-driver"
+    "github.com/arangodb/go-driver/http"
+    "github.com/gofiber/storage/arangodb/v2"
+)
+
+func main() {
+    conn, err := http.NewConnection(http.ConnectionConfig{
+        Endpoints: []string{"http://127.0.0.1:8529"},
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    client, err := driver.NewClient(driver.ClientConfig{
+        Connection:     conn,
+        Authentication: driver.BasicAuthentication("root", "password"),
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    store := arangodb.NewFromConnection(client, arangodb.Config{
+        Database:   "fiber",
+        Collection: "fiber_storage",
+    })
+    defer store.Close()
 }
 ```

@@ -448,3 +448,77 @@ func Benchmark_Coherence_SetAndDelete(b *testing.B) {
 
 	require.NoError(b, err)
 }
+
+func Test_Coherence_NewFromConnection(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	testStore, err := NewFromConnection(owner.Conn(), Config{ScopeName: "existing-store"})
+	require.NoError(t, err)
+	require.Same(t, owner.Conn(), testStore.Conn())
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+
+	val, err := testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+
+	// The session is the caller's, so closing this storage must leave it usable.
+	require.NoError(t, testStore.Close())
+	require.NoError(t, owner.Set(key2, value2, 0))
+	require.ErrorIs(t, testStore.Set(key1, value1, 0), ErrClosed)
+
+	// The client shares one named cache per session and scope, so closing one storage must not
+	// release the cache out from under a sibling built on the same scope.
+	first, err := NewFromConnection(owner.Conn(), Config{ScopeName: "shared-store"})
+	require.NoError(t, err)
+	second, err := NewFromConnection(owner.Conn(), Config{ScopeName: "shared-store"})
+	require.NoError(t, err)
+
+	require.NoError(t, first.Set(key1, value1, 0))
+	require.NoError(t, first.Close())
+
+	val, err = second.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+	require.NoError(t, second.Set(key2, value2, 0))
+	require.NoError(t, second.Close())
+}
+
+func Test_Coherence_NewFromConnection_Nil(t *testing.T) {
+	_, err := NewFromConnection(nil)
+	require.Error(t, err)
+}
+
+func Test_Coherence_NewFromConnectionWithContext(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	// Reset must clear entries already in the scope.
+	seed, err := NewFromConnection(owner.Conn(), Config{ScopeName: "ctx-store"})
+	require.NoError(t, err)
+	require.NoError(t, seed.Set(key1, value1, 0))
+
+	testStore, err := NewFromConnectionWithContext(context.Background(), owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
+	require.NoError(t, err)
+
+	val, err := testStore.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+	val, err = testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+
+	// Coherence substitutes a fresh context when the supplied one is already done, so the
+	// construction-time reset still wipes the scope rather than silently being skipped.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cancelledStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "ctx-store", Reset: true})
+	require.NoError(t, err)
+
+	val, err = cancelledStore.Get(key1)
+	require.NoError(t, err)
+	require.Nil(t, val)
+}

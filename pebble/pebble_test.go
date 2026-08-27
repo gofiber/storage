@@ -424,10 +424,84 @@ func Test_Pebble_GC_Cursor_Cleared_After_Full_Sweep_And_Reset(t *testing.T) {
 
 	// A sweep that reaches the end clears the cursor, so the next one starts over.
 	store.collect()
-	require.Nil(t, store.gcCursor)
+	require.Nil(t, store.shared.gcCursor)
 
 	// So does a Reset: the keys the cursor pointed past are gone, and it would skip everything written after.
-	store.gcCursor = []byte("z")
+	store.shared.gcCursor = []byte("z")
 	require.NoError(t, store.Reset())
-	require.Nil(t, store.gcCursor)
+	require.Nil(t, store.shared.gcCursor)
+}
+
+func Test_Pebble_NewFromConnection(t *testing.T) {
+	db, err := pebble.Open(t.TempDir(), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db)
+	require.Same(t, db, store.Conn())
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database is the caller's, so closing the storage must leave it open.
+	require.NoError(t, store.Close())
+	require.NoError(t, db.Set([]byte("jane"), []byte("doe"), pebble.Sync))
+
+	// The storage itself is closed even though the database stays open.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_Pebble_NewFromConnection_Nil(t *testing.T) {
+	require.Panics(t, func() {
+		NewFromConnection(nil)
+	})
+}
+
+// Storages on one handle must share the write-order lock, or one's collector could
+// delete a key another just refreshed.
+func Test_Pebble_NewFromConnection_SharedDB(t *testing.T) {
+	db, err := pebble.Open(t.TempDir(), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	s1 := NewFromConnection(db)
+	s2 := NewFromConnection(db)
+	require.Same(t, s1.shared, s2.shared)
+
+	// The lock outlives each storage but not all of them.
+	require.NoError(t, s1.Close())
+	require.NoError(t, s2.Set("john", []byte("doe"), 0))
+	require.NoError(t, s2.Close())
+	require.NoError(t, s2.Close())
+
+	dbStatesMu.Lock()
+	_, held := dbStates[db]
+	dbStatesMu.Unlock()
+	require.False(t, held)
+}
+
+// Pebble panics on a closed database, so a sibling on a handle an owning storage closed must
+// report ErrClosed rather than reach it; a Reset must also rewind every collector on the handle.
+func Test_Pebble_SharedDB_OwnerCloseAndReset(t *testing.T) {
+	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
+
+	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
+
+	// A sibling's Reset must rewind this storage's cursor too, since they share the keyspace.
+	sibling.shared.gcCursor = []byte("z")
+	require.NoError(t, owner.Reset())
+	require.Nil(t, sibling.shared.gcCursor)
+
+	// Closing the owner closes the database, so the sibling must refuse to use it.
+	require.NoError(t, owner.Close())
+	require.ErrorIs(t, sibling.Set("jane", []byte("doe"), 0), ErrClosed)
+	_, err := sibling.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
+	require.ErrorIs(t, sibling.Reset(), ErrClosed)
+	require.NoError(t, sibling.Close())
 }
