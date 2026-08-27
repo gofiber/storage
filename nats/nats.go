@@ -288,7 +288,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed, initErr, created, resolved := s.kv, s.closed, s.err, s.createdBucket, s.resolved
+	kv, closed, initErr := s.kv, s.closed, s.err
 	s.mu.RUnlock()
 
 	if closed {
@@ -315,11 +315,12 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	defer func() { <-s.initGate }()
 
 	// Re-checked: another caller may have resolved it while this one waited. The creation policy
-	// is re-read with it, not carried over from before the wait: that caller may have bound to an
-	// application-owned bucket which then vanished, and a stale "never resolved" would recreate it
-	// here with this driver's defaults - exactly what the policy below exists to prevent.
+	// is read here rather than before the wait: that caller may have bound to an application-owned
+	// bucket which then vanished, and a stale "never resolved" would recreate it here with this
+	// driver's defaults - exactly what the policy below exists to prevent.
 	s.mu.RLock()
-	kv, closed, created, resolved = s.kv, s.closed, s.createdBucket, s.resolved
+	kv, closed = s.kv, s.closed
+	created, resolved := s.createdBucket, s.resolved
 	s.mu.RUnlock()
 
 	if closed {
