@@ -3,7 +3,7 @@ module github.com/gofiber/storage/couchbase/v2
 go 1.25.0
 
 require (
-	github.com/couchbase/gocb/v2 v2.12.4
+	github.com/couchbase/gocb/v2 v2.12.5
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/couchbase v0.44.0
@@ -19,7 +19,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
-	github.com/couchbase/gocbcore/v10 v10.9.3 // indirect
+	github.com/couchbase/gocbcore/v10 v10.9.4 // indirect
 	github.com/couchbase/gocbcoreps v0.1.5-0.20260107140814-1c3a03f888f8 // indirect
 	github.com/couchbase/goprotostellar v1.0.6-0.20260407143512-d7af25156dcc // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 // indirect
