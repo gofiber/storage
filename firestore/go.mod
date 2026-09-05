@@ -1,13 +1,13 @@
 module github.com/gofiber/storage/firestore
 
-go 1.25.8
+go 1.26.0
 
 require (
 	cloud.google.com/go/firestore v1.25.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.44.0
-	google.golang.org/api v0.296.0
+	google.golang.org/api v0.297.0
 	google.golang.org/grpc v1.83.2
 )
 
