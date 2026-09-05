@@ -8,10 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // Storage interface that is implemented by storage providers
@@ -26,10 +25,10 @@ type Storage struct {
 }
 
 type item struct {
-	ObjectID   primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Key        string             `json:"key" bson:"key"`
-	Value      []byte             `json:"value" bson:"value"`
-	Expiration time.Time          `json:"exp,omitempty" bson:"exp,omitempty"`
+	ObjectID   bson.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Key        string        `json:"key" bson:"key"`
+	Value      []byte        `json:"value" bson:"value"`
+	Expiration time.Time     `json:"exp,omitempty" bson:"exp,omitempty"`
 }
 
 // ErrClosed is returned after Close, rather than a driver error that says nothing about why.
@@ -83,11 +82,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set mongo options
 	opt := options.Client().ApplyURI(dsn)
 
-	// Create and connect in one bounded step, leaving a deadline the caller did set alone.
-	timeoutCtx, cancel := withDefaultTimeout(ctx)
-	defer cancel()
-
-	client, err := mongo.Connect(timeoutCtx, opt)
+	client, err := mongo.Connect(opt)
 	if err != nil {
 		panic(err)
 	}
@@ -350,7 +345,7 @@ func (s *Storage) acquireItem() *item {
 func (s *Storage) releaseItem(item *item) {
 	if item != nil {
 		// Get decodes into the pooled item, so a leftover ObjectID would carry another document's _id into the next Set.
-		item.ObjectID = primitive.ObjectID{}
+		item.ObjectID = bson.ObjectID{}
 		item.Key = ""
 		item.Value = nil
 		item.Expiration = time.Time{}
