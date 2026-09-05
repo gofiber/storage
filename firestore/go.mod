@@ -1,13 +1,13 @@
 module github.com/gofiber/storage/firestore
 
-go 1.25.8
+go 1.26.0
 
 require (
 	cloud.google.com/go/firestore v1.25.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.44.0
-	google.golang.org/api v0.296.0
+	google.golang.org/api v0.297.0
 	google.golang.org/grpc v1.83.2
 )
 
@@ -66,7 +66,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

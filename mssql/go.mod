@@ -1,6 +1,6 @@
 module github.com/gofiber/storage/mssql/v2
 
-go 1.25.7
+go 1.26.0
 
 require (
 	github.com/microsoft/go-mssqldb v1.11.0
@@ -62,6 +62,6 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/testcontainers/testcontainers-go/modules/mssql v0.44.0
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
