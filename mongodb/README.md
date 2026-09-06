@@ -40,13 +40,13 @@ go mod init github.com/<user>/<repo>
 ```
 And then install the mongodb implementation:
 ```bash
-go get github.com/gofiber/storage/mongodb/v2
+go get github.com/gofiber/storage/mongodb/v3
 ```
 
 ### Examples
 Import the storage package.
 ```go
-import "github.com/gofiber/storage/mongodb/v2"
+import "github.com/gofiber/storage/mongodb/v3"
 ```
 
 You can use the following possibilities to create a storage:
@@ -139,13 +139,13 @@ The client stays yours to disconnect: `Close` on a storage built this way leaves
 import (
     "context"
 
-    "github.com/gofiber/storage/mongodb/v2"
-    "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+    "github.com/gofiber/storage/mongodb/v3"
+    "go.mongodb.org/mongo-driver/v2/mongo"
+    "go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func main() {
-    client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+    client, err := mongo.Connect(options.Client().ApplyURI("mongodb://localhost:27017"))
     if err != nil {
         panic(err)
     }

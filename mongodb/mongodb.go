@@ -54,7 +54,7 @@ func New(config ...Config) *Storage {
 }
 
 // NewWithContext creates a new MongoDB storage, using ctx as the parent context
-// for the initialization operations (connect, ping, optional drop, index creation).
+// for the initialization operations (ping, optional drop, index creation).
 func NewWithContext(ctx context.Context, config ...Config) *Storage {
 	// Set default config
 	cfg := configDefault(config...)

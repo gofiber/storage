@@ -11,7 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 const (
@@ -359,7 +359,7 @@ func Test_MongoDB_ReleaseItem_Clears_Every_Field(t *testing.T) {
 	s := &Storage{items: &sync.Pool{New: func() any { return new(item) }}}
 
 	it := s.acquireItem()
-	it.ObjectID = primitive.NewObjectID()
+	it.ObjectID = bson.NewObjectID()
 	it.Key = "john"
 	it.Value = []byte("doe")
 	it.Expiration = time.Now()
@@ -367,7 +367,7 @@ func Test_MongoDB_ReleaseItem_Clears_Every_Field(t *testing.T) {
 	s.releaseItem(it)
 
 	// Get decodes into a pooled item, so a leftover identifier would travel into the next Set.
-	require.Equal(t, primitive.ObjectID{}, it.ObjectID)
+	require.Equal(t, bson.ObjectID{}, it.ObjectID)
 	require.Empty(t, it.Key)
 	require.Nil(t, it.Value)
 	require.True(t, it.Expiration.IsZero())
