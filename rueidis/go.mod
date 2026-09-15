@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.0.0-20251121011818-7435afb6bca2
-	github.com/redis/rueidis v1.0.77
+	github.com/redis/rueidis v1.0.78
 	github.com/stretchr/testify v1.12.1
 )
 
