@@ -7,7 +7,7 @@ replace github.com/gofiber/storage/testhelpers/redis => ../testhelpers/redis
 require (
 	github.com/gofiber/storage/testhelpers/redis v0.1.0
 	github.com/stretchr/testify v1.12.1
-	github.com/valkey-io/valkey-go v1.0.77
+	github.com/valkey-io/valkey-go v1.0.78
 )
 
 require (
