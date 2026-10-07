@@ -37,7 +37,9 @@ func newTestConfig(t testing.TB) Config {
 		img = imgFromEnv
 	}
 
-	ctx := context.Background()
+	// the module can retry its index creation past the go test timeout, and a timeout panic skips rerun-fails
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
 
 	bucket := couchbase.NewBucket(couchbaseBucket).WithReplicas(1).WithFlushEnabled(true)
 
