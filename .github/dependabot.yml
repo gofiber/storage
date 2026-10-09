@@ -35,6 +35,23 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          # transitive deps of testcontainers-go, present in every testable module:
+          # ungrouped, a single bump opens one PR per module
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -105,6 +122,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -126,6 +144,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -196,6 +229,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -223,6 +257,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -296,6 +345,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -317,6 +367,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -387,6 +452,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -410,6 +476,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -480,6 +561,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -502,6 +584,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -572,6 +669,7 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
 
     - package-ecosystem: "gomod"
       open-pull-requests-limit: 15
@@ -597,6 +695,21 @@ updates:
               patterns:
                   - "github.com/testcontainers/testcontainers-go"
                   - "github.com/testcontainers/testcontainers-go/modules/**"
+          testcontainers-deps-modules:
+              patterns:
+                  - "dario.cat/mergo"
+                  - "github.com/Microsoft/go-winio"
+                  - "github.com/cenkalti/backoff/**"
+                  - "github.com/cespare/xxhash/**"
+                  - "github.com/cpuguy83/dockercfg"
+                  - "github.com/felixge/httpsnoop"
+                  - "github.com/google/uuid"
+                  - "github.com/lufia/plan9stats"
+                  - "github.com/magiconair/properties"
+                  - "github.com/mdelapenya/tlscert"
+                  - "github.com/opencontainers/**"
+                  - "github.com/power-devops/perfstat"
+                  - "github.com/yusufpapurcu/wmi"
           utils-modules:
               patterns:
                   - "github.com/gofiber/utils"
@@ -667,3 +780,4 @@ updates:
           testify-modules:
               patterns:
                   - "github.com/stretchr/testify"
+                  - "go.yaml.in/yaml/**"
