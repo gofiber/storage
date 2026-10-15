@@ -53,7 +53,7 @@ func NewFromConnection(api APIInterface, config ...Config) *Storage {
 	// The handle is an interface here, so a nil *cloudflare.API — what NewWithAPIToken
 	// returns alongside an error — arrives as a non-nil interface holding a nil pointer.
 	// Checking the value behind it keeps the fail-fast promise for that case too.
-	if api == nil || (reflect.ValueOf(api).Kind() == reflect.Ptr && reflect.ValueOf(api).IsNil()) {
+	if api == nil || (reflect.ValueOf(api).Kind() == reflect.Pointer && reflect.ValueOf(api).IsNil()) {
 		panic("cloudflarekv: nil api client")
 	}
 

@@ -108,8 +108,7 @@ func newStorage(ctx context.Context, db *awsdynamodb.Client, cfg Config) *Storag
 	// Create table
 	_, err := db.DescribeTable(timeoutCtx, &describeTableInput)
 	if err != nil {
-		var rnfe *types.ResourceNotFoundException
-		if errors.As(err, &rnfe) {
+		if _, ok := errors.AsType[*types.ResourceNotFoundException](err); ok {
 			err := store.createTable(ctx, cfg, describeTableInput)
 			if err != nil {
 				panic(err)
@@ -142,8 +141,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 	getItemOutput, err := s.db.GetItem(ctx, &getItemInput)
 	if err != nil {
-		var rnfe *types.ResourceNotFoundException
-		if errors.As(err, &rnfe) {
+		if _, ok := errors.AsType[*types.ResourceNotFoundException](err); ok {
 			return nil, nil
 		}
 

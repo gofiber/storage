@@ -226,7 +226,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 			expireAt++
 		}
 	}
-	return s.exec(ctx, s.aqlUpsert, map[string]interface{}{
+	return s.exec(ctx, s.aqlUpsert, map[string]any{
 		"key": key,
 		"val": utils.UnsafeString(val),
 		"exp": expireAt,
@@ -290,7 +290,7 @@ func (s *Storage) Close() error {
 }
 
 // exec takes bindVars rather than holding them on the Storage, where they raced and crashed the first sweep.
-func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]interface{}) error {
+func (s *Storage) exec(ctx context.Context, query string, bindVars map[string]any) error {
 	bindVars["@collection"] = s.collectionName
 
 	cursor, err := s.db.Query(ctx, query, bindVars)
@@ -319,7 +319,7 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case t := <-ticker.C:
-			_ = s.exec(ctx, s.aqlRemoveGC, map[string]interface{}{"exp": t.Unix()})
+			_ = s.exec(ctx, s.aqlRemoveGC, map[string]any{"exp": t.Unix()})
 		}
 	}
 }

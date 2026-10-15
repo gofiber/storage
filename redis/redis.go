@@ -40,7 +40,7 @@ func NewFromConnectionWithContext(ctx context.Context, conn redis.UniversalClien
 	if conn == nil {
 		panic("redis: nil client")
 	}
-	if v := reflect.ValueOf(conn); v.Kind() == reflect.Ptr && v.IsNil() {
+	if v := reflect.ValueOf(conn); v.Kind() == reflect.Pointer && v.IsNil() {
 		panic("redis: nil client")
 	}
 

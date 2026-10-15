@@ -318,7 +318,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 	}
 
 	// Use gocqlx session
-	return s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+	return s.sx.Query(stmt, names).BindMap(map[string]any{
 		"key":        key,
 		"value":      value,
 		"expires_at": expiresAt,
@@ -343,7 +343,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	var result queryResult
 	// Use gocqlx session
-	if err := s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+	if err := s.sx.Query(stmt, names).BindMap(map[string]any{
 		"key": key,
 	}).WithContext(ctx).GetRelease(&result); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -377,7 +377,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		ToCql()
 
 	// Use gocqlx session
-	return s.sx.Query(stmt, names).BindMap(map[string]interface{}{
+	return s.sx.Query(stmt, names).BindMap(map[string]any{
 		"key": key,
 	}).WithContext(ctx).ExecRelease()
 }

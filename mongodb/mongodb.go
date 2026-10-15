@@ -28,7 +28,7 @@ type item struct {
 	ObjectID   bson.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	Key        string        `json:"key" bson:"key"`
 	Value      []byte        `json:"value" bson:"value"`
-	Expiration time.Time     `json:"exp,omitempty" bson:"exp,omitempty"`
+	Expiration time.Time     `json:"exp" bson:"exp,omitempty"`
 }
 
 // ErrClosed is returned after Close, rather than a driver error that says nothing about why.
@@ -185,7 +185,7 @@ func newStorage(ctx context.Context, client *mongo.Client, ownsDB bool, cfg Conf
 		col:    col,
 		ownsDB: ownsDB,
 		items: &sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return new(item)
 			},
 		},

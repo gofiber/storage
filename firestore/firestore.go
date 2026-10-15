@@ -314,7 +314,7 @@ func LoadCredentialsFromFile(filepath string) (string, error) {
 		return "", err
 	}
 
-	var data interface{}
+	var data any
 	if err := json.Unmarshal(content, &data); err != nil {
 		return "", fmt.Errorf("invalid JSON in credentials file: %w", err)
 	}

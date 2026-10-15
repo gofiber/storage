@@ -98,7 +98,6 @@ func newStorage(svc *s3.Client, cfg Config) *Storage {
 
 // GetWithContext gets value by key with context
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error) {
-	var nsk *types.NoSuchKey
 
 	if len(key) <= 0 {
 		return nil, nil
@@ -111,7 +110,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		Bucket: &s.bucket,
 		Key:    aws.String(key),
 	})
-	if errors.As(err, &nsk) {
+	if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 		return nil, nil
 	}
 
