@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	cloud.google.com/go/firestore v1.29.0
 	github.com/stretchr/testify v1.12.1
-	github.com/testcontainers/testcontainers-go v0.44.0
-	github.com/testcontainers/testcontainers-go/modules/gcloud v0.44.0
+	github.com/testcontainers/testcontainers-go v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/gcloud v0.45.0
 	google.golang.org/api v0.309.0
 	google.golang.org/grpc v1.85.0
 )
