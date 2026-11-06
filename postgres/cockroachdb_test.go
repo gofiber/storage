@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -38,13 +37,8 @@ func newCockroachDBTestConfig(t testing.TB) Config {
 	require.NoError(t, err)
 	testcontainers.CleanupContainer(t, c)
 
-	// ConnectionString() returns a stdlib registered key, not compatible with pgxpool.
-	// Use ConnectionConfig() to extract host/port/database and build a plain DSN.
-	connConfig, err := c.ConnectionConfig(ctx)
+	dsn, err := c.ConnectionString(ctx)
 	require.NoError(t, err)
-
-	dsn := fmt.Sprintf("postgresql://%s@%s:%d/%s?sslmode=disable",
-		connConfig.User, connConfig.Host, connConfig.Port, connConfig.Database)
 
 	return Config{
 		ConnectionURI: dsn,
