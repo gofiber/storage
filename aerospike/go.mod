@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/aerospike/aerospike-client-go/v8 v8.9.0
 	github.com/stretchr/testify v1.12.1
-	github.com/testcontainers/testcontainers-go v0.44.0
-	github.com/testcontainers/testcontainers-go/modules/aerospike v0.44.0
+	github.com/testcontainers/testcontainers-go v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/aerospike v0.45.0
 )
 
 require (
