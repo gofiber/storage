@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/couchbase/gocb/v2 v2.13.0
 	github.com/stretchr/testify v1.12.1
-	github.com/testcontainers/testcontainers-go v0.44.0
-	github.com/testcontainers/testcontainers-go/modules/couchbase v0.44.0
+	github.com/testcontainers/testcontainers-go v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/couchbase v0.45.0
 )
 
 require (
