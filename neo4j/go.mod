@@ -5,8 +5,8 @@ go 1.26.0
 require (
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.6
 	github.com/stretchr/testify v1.12.1
-	github.com/testcontainers/testcontainers-go v0.44.0
-	github.com/testcontainers/testcontainers-go/modules/neo4j v0.44.0
+	github.com/testcontainers/testcontainers-go v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/neo4j v0.45.0
 )
 
 require (
