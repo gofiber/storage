@@ -383,3 +383,123 @@ func Test_Ristretto_SharedCache_OwnerClose(t *testing.T) {
 	require.ErrorIs(t, sibling.Reset(), ErrClosed)
 	require.NoError(t, sibling.Close())
 }
+
+func Test_Ristretto_EmptyKeyOrValue(t *testing.T) {
+	testStore := newTestStore(t)
+
+	// Empty keys and values are ignored without an error.
+	val, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, testStore.Set("", []byte("doe"), 0))
+	require.NoError(t, testStore.Set("john", nil, 0))
+	require.NoError(t, testStore.Set("john", []byte{}, 0))
+	require.NoError(t, testStore.Delete(""))
+
+	val, err = testStore.Get("john")
+	require.NoError(t, err)
+	require.Nil(t, val)
+}
+
+func Test_Ristretto_Set_NegativeExpiration(t *testing.T) {
+	testStore := newTestStore(t)
+
+	// A negative TTL is clamped to "no expiration" rather than dropping the write.
+	require.NoError(t, testStore.Set("john", []byte("doe"), -time.Second))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_Ristretto_Get_NonBytesValue(t *testing.T) {
+	testStore := newTestStore(t)
+
+	// A value put in the cache by someone else through Conn that is not []byte reads as a miss.
+	require.True(t, testStore.Conn().Set("john", "doe", 1))
+	testStore.Conn().Wait()
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Ristretto_WithContext_Success(t *testing.T) {
+	testStore := newTestStore(t)
+	ctx := context.Background()
+
+	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	result, err := testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, testStore.DeleteWithContext(ctx, "john"))
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+	require.NoError(t, testStore.ResetWithContext(ctx))
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Ristretto_Closed_Storage(t *testing.T) {
+	testStore := New()
+	require.NoError(t, testStore.Close())
+
+	require.ErrorIs(t, testStore.Set("john", []byte("doe"), 0), ErrClosed)
+	_, err := testStore.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, testStore.Delete("john"), ErrClosed)
+	require.ErrorIs(t, testStore.Reset(), ErrClosed)
+	require.NoError(t, testStore.Close())
+}
+
+func Test_Ristretto_ReleaseCacheState_Unknown(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 100,
+		MaxCost:     100,
+		BufferItems: 64,
+	})
+	require.NoError(t, err)
+	defer cache.Close()
+
+	// Releasing a cache that has no registered state is a no-op.
+	require.NotPanics(t, func() { releaseCacheState(cache) })
+
+	cacheStatesMu.Lock()
+	_, held := cacheStates[cache]
+	cacheStatesMu.Unlock()
+	require.False(t, held)
+}
+
+func Test_Ristretto_ConfigDefault_Overrides(t *testing.T) {
+	// Invalid sizing falls back to defaults; explicit values are kept.
+	cfg := configDefault(Config{NumCounters: -1, MaxCost: -1, BufferItems: -1})
+	require.Equal(t, ConfigDefault.NumCounters, cfg.NumCounters)
+	require.Equal(t, ConfigDefault.MaxCost, cfg.MaxCost)
+	require.Equal(t, ConfigDefault.BufferItems, cfg.BufferItems)
+	require.Equal(t, ConfigDefault.DefaultCost, cfg.DefaultCost)
+
+	cfg = configDefault(Config{NumCounters: 1000, MaxCost: 2000, BufferItems: 8, DefaultCost: 3})
+	require.Equal(t, int64(1000), cfg.NumCounters)
+	require.Equal(t, int64(2000), cfg.MaxCost)
+	require.Equal(t, int64(8), cfg.BufferItems)
+	require.Equal(t, int64(3), cfg.DefaultCost)
+}
+
+func Test_Ristretto_CloneBytes(t *testing.T) {
+	require.Nil(t, cloneBytes(nil))
+
+	src := []byte("doe")
+	dst := cloneBytes(src)
+	require.Equal(t, src, dst)
+	require.Equal(t, len(src), cap(dst))
+
+	dst[0] = 'X'
+	require.Equal(t, []byte("doe"), src)
+}

@@ -3,10 +3,12 @@ package memcache
 import (
 	"context"
 	"math"
+	"net"
 	"os"
 	"testing"
 	"time"
 
+	mc "github.com/bradfitz/gomemcache/memcache"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -313,4 +315,126 @@ func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
 	})
+}
+
+// unreachableClient returns a client pointed at a port nothing listens on, so every operation fails
+// with a connection error without needing a container.
+func unreachableClient(t testing.TB) *mc.Client {
+	t.Helper()
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	// Release the port so connections to it are refused.
+	require.NoError(t, l.Close())
+
+	client := mc.New(addr)
+	client.Timeout = 200 * time.Millisecond
+
+	return client
+}
+
+func Test_Memcache_ConfigDefault(t *testing.T) {
+	// No config returns the defaults as is.
+	cfg := configDefault()
+	require.Equal(t, ConfigDefault, cfg)
+	require.Equal(t, "127.0.0.1:11211", cfg.Servers)
+	require.Equal(t, 100*time.Millisecond, cfg.timeout)
+	require.Equal(t, 2, cfg.maxIdleConns)
+
+	// An empty server list falls back to the default, other fields are kept.
+	cfg = configDefault(Config{Reset: true})
+	require.Equal(t, ConfigDefault.Servers, cfg.Servers)
+	require.True(t, cfg.Reset)
+
+	// An explicit server list is kept.
+	cfg = configDefault(Config{Servers: "example:11212"})
+	require.Equal(t, "example:11212", cfg.Servers)
+}
+
+func Test_Memcache_New_Unreachable(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	require.NoError(t, l.Close())
+
+	// New pings the server and panics when it cannot be reached.
+	require.Panics(t, func() {
+		New(Config{Servers: addr})
+	})
+}
+
+func Test_Memcache_NewFromConnection_Reset_Unreachable(t *testing.T) {
+	// Reset is requested but the flush fails, which must not be swallowed.
+	require.Panics(t, func() {
+		NewFromConnection(unreachableClient(t), Config{Reset: true})
+	})
+
+	// Without Reset the client is never contacted during construction.
+	require.NotPanics(t, func() {
+		NewFromConnection(unreachableClient(t))
+	})
+}
+
+func Test_Memcache_EmptyKeyOrValue(t *testing.T) {
+	// An unreachable client proves that none of these calls touch the server.
+	testStore := NewFromConnection(unreachableClient(t))
+
+	require.NoError(t, testStore.Set("", []byte("doe"), 0))
+	require.NoError(t, testStore.Set("john", nil, 0))
+	require.NoError(t, testStore.Set("john", []byte{}, 0))
+
+	result, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.Delete(""))
+}
+
+func Test_Memcache_Unreachable_Errors(t *testing.T) {
+	testStore := NewFromConnection(unreachableClient(t))
+	ctx := context.Background()
+
+	require.Error(t, testStore.Set("john", []byte("doe"), 0))
+	require.Error(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	// A connection failure is not a cache miss, so it must be reported rather than turned into nil.
+	result, err := testStore.Get("john")
+	require.Error(t, err)
+	require.Nil(t, result)
+
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.Error(t, err)
+	require.Nil(t, result)
+
+	require.Error(t, testStore.Delete("john"))
+	require.Error(t, testStore.DeleteWithContext(ctx, "john"))
+	require.Error(t, testStore.Reset())
+	require.Error(t, testStore.ResetWithContext(ctx))
+}
+
+func Test_Memcache_WithContext(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	ctx := context.Background()
+
+	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	result, err := testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, testStore.DeleteWithContext(ctx, "john"))
+
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+	require.NoError(t, testStore.ResetWithContext(ctx))
+
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
