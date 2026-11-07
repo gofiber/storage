@@ -295,6 +295,31 @@ func Benchmark_SQLite3_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
+// newTestStore returns a storage with a database file of its own, clear of the shared testStore.
+func newTestStore(t *testing.T) *Storage {
+	t.Helper()
+
+	store := New(Config{Database: filepath.Join(t.TempDir(), "fiber.sqlite3"), Reset: true})
+	t.Cleanup(func() {
+		_ = store.Close()
+	})
+
+	return store
+}
+
+// openTempDB returns a handle on a database file of its own, closed when the test ends.
+func openTempDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "fiber.sqlite3"))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	return db
+}
+
 func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
 	// A sub-second interval used to truncate to zero and be replaced by the ten second default.
 	require.Equal(t, 50*time.Millisecond, configDefault(Config{GCInterval: 50 * time.Millisecond}).GCInterval)
@@ -304,7 +329,7 @@ func Test_SQLite3_Config_SubSecond_GCInterval(t *testing.T) {
 }
 
 func Test_SQLite3_Close_Twice(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "close.sqlite3"), Reset: true})
+	store := newTestStore(t)
 
 	require.NoError(t, store.Close())
 	require.NotPanics(t, func() {
@@ -313,8 +338,7 @@ func Test_SQLite3_Close_Twice(t *testing.T) {
 }
 
 func Test_SQLite3_Set_Sub_Second_Expiration(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "exp.sqlite3"), Reset: true})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTestStore(t)
 
 	// The deadline is stored in whole seconds, so a sub-second expiration must round up.
 	require.NoError(t, store.Set("john", []byte("doe"), 100*time.Millisecond))
@@ -325,9 +349,7 @@ func Test_SQLite3_Set_Sub_Second_Expiration(t *testing.T) {
 }
 
 func Test_SQLite3_NewFromConnection(t *testing.T) {
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "existing.sqlite3"))
-	require.NoError(t, err)
-	defer db.Close() //nolint:errcheck // best effort cleanup
+	db := openTempDB(t)
 
 	store := NewFromConnection(db, Config{Table: "existing_storage", Reset: true})
 
@@ -353,28 +375,20 @@ func Test_SQLite3_NewFromConnection_Nil(t *testing.T) {
 
 func Test_SQLite3_Config_Defaults(t *testing.T) {
 	require.Equal(t, ConfigDefault, configDefault())
+	require.Equal(t, ConfigDefault, configDefault(Config{}))
 
-	cfg := configDefault(Config{})
-	require.Equal(t, ConfigDefault, cfg)
-
-	cfg = configDefault(Config{
+	want := Config{
 		Database:        "custom.sqlite3",
 		Table:           "custom_table",
 		GCInterval:      time.Minute,
 		MaxIdleConns:    3,
 		MaxOpenConns:    4,
 		ConnMaxLifetime: time.Hour,
-	})
-	require.Equal(t, "custom.sqlite3", cfg.Database)
-	require.Equal(t, "custom_table", cfg.Table)
-	require.Equal(t, time.Minute, cfg.GCInterval)
-	require.Equal(t, 3, cfg.MaxIdleConns)
-	require.Equal(t, 4, cfg.MaxOpenConns)
-	require.Equal(t, time.Hour, cfg.ConnMaxLifetime)
+	}
+	require.Equal(t, want, configDefault(want))
 
-	cfg = configDefault(Config{MaxIdleConns: -1, MaxOpenConns: -1})
-	require.Equal(t, ConfigDefault.MaxIdleConns, cfg.MaxIdleConns)
-	require.Equal(t, ConfigDefault.MaxOpenConns, cfg.MaxOpenConns)
+	// Pool sizes below one are replaced like unset ones.
+	require.Equal(t, ConfigDefault, configDefault(Config{MaxIdleConns: -1, MaxOpenConns: -1}))
 }
 
 func Test_SQLite3_ValidateTableName(t *testing.T) {
@@ -383,9 +397,7 @@ func Test_SQLite3_ValidateTableName(t *testing.T) {
 	}
 
 	for _, name := range []string{"1table", "bad-name", "with space", "x; DROP TABLE y", `quo"te`, "dot.ted"} {
-		err := validateTableName(name)
-		require.Error(t, err, name)
-		require.Contains(t, err.Error(), "invalid table name")
+		require.ErrorContains(t, validateTableName(name), "invalid table name", name)
 	}
 }
 
@@ -394,9 +406,7 @@ func Test_SQLite3_New_InvalidTableName(t *testing.T) {
 		New(Config{Database: filepath.Join(t.TempDir(), "invalid.sqlite3"), Table: "bad-name"})
 	})
 
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "invalid_conn.sqlite3"))
-	require.NoError(t, err)
-	defer db.Close() //nolint:errcheck // best effort cleanup
+	db := openTempDB(t)
 
 	require.Panics(t, func() {
 		NewFromConnection(db, Config{Table: "x; DROP TABLE y"})
@@ -411,8 +421,7 @@ func Test_SQLite3_New_PingFailure(t *testing.T) {
 		New(Config{Database: filepath.Join(t.TempDir(), "missing", "dir", "fiber.sqlite3")})
 	})
 
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "closed.sqlite3"))
-	require.NoError(t, err)
+	db := openTempDB(t)
 	require.NoError(t, db.Close())
 
 	require.Panics(t, func() {
@@ -421,12 +430,10 @@ func Test_SQLite3_New_PingFailure(t *testing.T) {
 }
 
 func Test_SQLite3_New_ResetFailure(t *testing.T) {
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "reset.sqlite3"))
-	require.NoError(t, err)
-	defer db.Close() //nolint:errcheck // best effort cleanup
+	db := openTempDB(t)
 
 	// DROP TABLE refuses to drop a view, so Reset fails on a name that is taken by one.
-	_, err = db.Exec(`CREATE VIEW taken AS SELECT 1 AS k;`)
+	_, err := db.Exec(`CREATE VIEW taken AS SELECT 1 AS k;`)
 	require.NoError(t, err)
 
 	require.Panics(t, func() {
@@ -442,9 +449,16 @@ func Test_SQLite3_New_ResetFailure(t *testing.T) {
 func Test_SQLite3_New_InitFailure(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "init.sqlite3")
 
-	// The table is created first, then the index named "e" collides with the table of the same name.
+	// A view holds the table's name: CREATE TABLE IF NOT EXISTS skips it and the index that follows
+	// can not be built on a view, so the init statements fail whatever the index itself is called.
+	seed, err := sql.Open("sqlite3", path)
+	require.NoError(t, err)
+	_, err = seed.Exec(`CREATE VIEW taken AS SELECT 1 AS k;`)
+	require.NoError(t, err)
+	require.NoError(t, seed.Close())
+
 	require.Panics(t, func() {
-		New(Config{Database: path, Table: "e"})
+		New(Config{Database: path, Table: "taken"})
 	})
 
 	// The failed attempt must have released the file: it can be opened and inspected again.
@@ -452,13 +466,13 @@ func Test_SQLite3_New_InitFailure(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close() //nolint:errcheck // best effort cleanup
 
-	var name string
-	require.NoError(t, db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'e';`).Scan(&name))
-	require.Equal(t, "e", name)
+	var n int
+	require.NoError(t, db.QueryRow(`SELECT k FROM taken;`).Scan(&n))
+	require.Equal(t, 1, n)
 }
 
 func Test_SQLite3_Closed(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "closed.sqlite3"), Reset: true})
+	store := newTestStore(t)
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 	require.NoError(t, store.Close())
 
@@ -481,8 +495,7 @@ func Test_SQLite3_Closed(t *testing.T) {
 }
 
 func Test_SQLite3_EmptyKeyAndValue(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "empty.sqlite3"), Reset: true})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTestStore(t)
 
 	// Empty keys and values are ignored rather than stored.
 	require.NoError(t, store.Set("", []byte("doe"), 0))
@@ -506,8 +519,7 @@ func Test_SQLite3_EmptyKeyAndValue(t *testing.T) {
 }
 
 func Test_SQLite3_ContextCancelled(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "ctx.sqlite3"), Reset: true})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTestStore(t)
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 
@@ -528,8 +540,7 @@ func Test_SQLite3_ContextCancelled(t *testing.T) {
 }
 
 func Test_SQLite3_Get_ScanError(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "scan.sqlite3"), Reset: true})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTestStore(t)
 
 	// A corrupted expiration column that is not a number can not be scanned.
 	_, err := store.Conn().Exec(`INSERT INTO fiber_storage (k, v, e) VALUES ('broken', 'x', 'not-a-number');`)
@@ -541,8 +552,7 @@ func Test_SQLite3_Get_ScanError(t *testing.T) {
 }
 
 func Test_SQLite3_Operations_TableDropped(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "dropped.sqlite3"), Reset: true})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTestStore(t)
 
 	_, err := store.Conn().Exec(`DROP TABLE fiber_storage;`)
 	require.NoError(t, err)
@@ -582,8 +592,7 @@ func Test_SQLite3_GC_RemovesExpiredOnly(t *testing.T) {
 
 func Test_SQLite3_Close_BorrowedHandleClosed(t *testing.T) {
 	// A closed borrowed handle is not the storage's to report on, and Close stays clean.
-	db, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "borrowed.sqlite3"))
-	require.NoError(t, err)
+	db := openTempDB(t)
 
 	store := NewFromConnection(db)
 	require.NoError(t, db.Close())

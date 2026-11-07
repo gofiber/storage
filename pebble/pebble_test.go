@@ -318,17 +318,7 @@ func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
 	time.Sleep(2100 * time.Millisecond)
 	store.collect()
 
-	iter, err := store.Conn().NewIter(nil)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, iter.Close())
-	}()
-
-	remaining := 0
-	for iter.First(); iter.Valid(); iter.Next() {
-		remaining++
-	}
-	require.Zero(t, remaining, "every expired key should have been reclaimed")
+	require.Zero(t, countKeys(t, store.Conn()), "every expired key should have been reclaimed")
 }
 
 func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
@@ -486,7 +476,7 @@ func Test_Pebble_NewFromConnection_SharedDB(t *testing.T) {
 // Pebble panics on a closed database, so a sibling on a handle an owning storage closed must
 // report ErrClosed rather than reach it; a Reset must also rewind every collector on the handle.
 func Test_Pebble_SharedDB_OwnerCloseAndReset(t *testing.T) {
-	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	owner := newTempStore(t)
 	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
 
 	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
@@ -531,6 +521,57 @@ func openReadOnly(t *testing.T, seed func(db *pebble.DB)) *pebble.DB {
 		require.NoError(t, ro.Close())
 	})
 	return ro
+}
+
+// newTempStore opens a storage in a temp dir with its collector idle, so tests drive collect themselves,
+// and closes it when the test ends. Writes are synced unless write options say otherwise.
+func newTempStore(t *testing.T, writeOptions ...*pebble.WriteOptions) *Storage {
+	t.Helper()
+
+	cfg := Config{Path: t.TempDir(), GCInterval: time.Hour}
+	if len(writeOptions) > 0 {
+		cfg.WriteOptions = writeOptions[0]
+	}
+
+	store := New(cfg)
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
+
+	return store
+}
+
+// putEntries commits n entries in one batch, each keyed by format applied to its index and all expiring
+// at the same time: 0 for never, 1 for long ago.
+func putEntries(t *testing.T, db *pebble.DB, n int, format string, expires int64) {
+	t.Helper()
+
+	val := rawEntry(t, expires)
+	b := db.NewBatch()
+	for i := range n {
+		require.NoError(t, b.Set([]byte(fmt.Sprintf(format, i)), val, nil))
+	}
+	require.NoError(t, b.Commit(pebble.NoSync))
+	require.NoError(t, b.Close())
+}
+
+// countKeys reports how many keys the database holds.
+func countKeys(t *testing.T, db *pebble.DB) int {
+	t.Helper()
+
+	iter, err := db.NewIter(nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, iter.Close())
+	}()
+
+	n := 0
+	for iter.First(); iter.Valid(); iter.Next() {
+		n++
+	}
+	require.NoError(t, iter.Error())
+
+	return n
 }
 
 func Test_Pebble_New_InvalidPath(t *testing.T) {
@@ -641,8 +682,7 @@ func Test_Pebble_Get_Expired_Entry(t *testing.T) {
 }
 
 func Test_Pebble_Reset_Empty(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTempStore(t)
 
 	require.NoError(t, store.Reset())
 }
@@ -672,12 +712,7 @@ func Test_Pebble_ReadOnly_WriteErrors(t *testing.T) {
 
 func Test_Pebble_ReadOnly_Reset_FailsMidway(t *testing.T) {
 	db := openReadOnly(t, func(db *pebble.DB) {
-		b := db.NewBatch()
-		for i := 0; i < resetBatchSize+5; i++ {
-			require.NoError(t, b.Set([]byte("key-"+strconv.Itoa(i)), rawEntry(t, 0), nil))
-		}
-		require.NoError(t, b.Commit(pebble.Sync))
-		require.NoError(t, b.Close())
+		putEntries(t, db, resetBatchSize+5, "key-%d", 0)
 	})
 	store := NewFromConnection(db, Config{GCInterval: time.Hour})
 	defer store.Close() //nolint:errcheck // best effort cleanup
@@ -709,8 +744,7 @@ func Test_Pebble_ReadOnly_Collect_StopsOnCommitFailure(t *testing.T) {
 }
 
 func Test_Pebble_DeleteIfStillExpired(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTempStore(t)
 
 	past := time.Now().Unix() - 10
 	require.NoError(t, store.Conn().Set([]byte("stale"), rawEntry(t, past), pebble.Sync))
@@ -733,7 +767,7 @@ func Test_Pebble_DeleteIfStillExpired(t *testing.T) {
 }
 
 func Test_Pebble_Closed_Internals(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	store := newTempStore(t)
 	require.NoError(t, store.Set("a", []byte("doe"), 0))
 	require.NoError(t, store.Close())
 
@@ -749,16 +783,9 @@ func Test_Pebble_Closed_Internals(t *testing.T) {
 }
 
 func Test_Pebble_Collect_StopsWhenClosing(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour, WriteOptions: pebble.NoSync})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTempStore(t, pebble.NoSync)
 
-	total := collectBatchSize + 10
-	b := store.Conn().NewBatch()
-	for i := 0; i < total; i++ {
-		require.NoError(t, b.Set([]byte(fmt.Sprintf("key-%05d", i)), rawEntry(t, 1), nil))
-	}
-	require.NoError(t, b.Commit(pebble.Sync))
-	require.NoError(t, b.Close())
+	putEntries(t, store.Conn(), collectBatchSize+10, "key-%05d", 1)
 
 	// Signal shutdown as Close does, without closing the database, so the sweep sees it between batches.
 	store.stopOnce.Do(func() {
@@ -770,43 +797,20 @@ func Test_Pebble_Collect_StopsWhenClosing(t *testing.T) {
 
 	// One batch was reclaimed and the position saved, rather than finishing the whole sweep.
 	require.Equal(t, []byte(fmt.Sprintf("key-%05d", collectBatchSize-1)), store.shared.gcCursor)
-
-	remaining := 0
-	iter, err := store.Conn().NewIter(nil)
-	require.NoError(t, err)
-	for iter.First(); iter.Valid(); iter.Next() {
-		remaining++
-	}
-	require.NoError(t, iter.Close())
-	require.Equal(t, 10, remaining)
+	require.Equal(t, 10, countKeys(t, store.Conn()))
 }
 
 func Test_Pebble_Collect_BoundedBatchesPerSweep(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour, WriteOptions: pebble.NoSync})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTempStore(t, pebble.NoSync)
 
 	// One key more than a sweep may reclaim, all expired.
-	total := collectMaxBatches*collectBatchSize + 1
-	b := store.Conn().NewBatch()
-	for i := 0; i < total; i++ {
-		require.NoError(t, b.Set([]byte(fmt.Sprintf("key-%07d", i)), rawEntry(t, 1), nil))
-	}
-	require.NoError(t, b.Commit(pebble.NoSync))
-	require.NoError(t, b.Close())
+	putEntries(t, store.Conn(), collectMaxBatches*collectBatchSize+1, "key-%07d", 1)
 
 	store.collect()
 
 	// The sweep gave up at its budget and left the rest for the next tick, remembering where it stopped.
 	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectMaxBatches*collectBatchSize-1)), store.shared.gcCursor)
-
-	remaining := 0
-	iter, err := store.Conn().NewIter(nil)
-	require.NoError(t, err)
-	for iter.First(); iter.Valid(); iter.Next() {
-		remaining++
-	}
-	require.NoError(t, iter.Close())
-	require.Equal(t, 1, remaining)
+	require.Equal(t, 1, countKeys(t, store.Conn()))
 
 	// The next sweep resumes and finishes, clearing the cursor.
 	store.collect()
@@ -814,8 +818,7 @@ func Test_Pebble_Collect_BoundedBatchesPerSweep(t *testing.T) {
 }
 
 func Test_Pebble_StoreCursor_IgnoresStaleEpoch(t *testing.T) {
-	store := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	store := newTempStore(t)
 
 	cursor, epoch := store.loadCursor()
 	require.Nil(t, cursor)

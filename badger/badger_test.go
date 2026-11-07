@@ -170,6 +170,11 @@ func Benchmark_Badger_SetAndDelete(b *testing.B) {
 	require.NoError(b, err)
 }
 
+// testOptions returns Badger's defaults for dir with its logger off, which keeps the test output quiet.
+func testOptions(dir string) badger.Options {
+	return badger.DefaultOptions(dir).WithLogger(nil)
+}
+
 // newTestStore returns a storage with a database of its own, clear of the shared testStore.
 func newTestStore(t *testing.T) *Storage {
 	t.Helper()
@@ -178,7 +183,7 @@ func newTestStore(t *testing.T) *Storage {
 
 	return New(Config{
 		Database:      dir,
-		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		BadgerOptions: testOptions(dir),
 		Reset:         true,
 	})
 }
@@ -234,9 +239,7 @@ func Test_Badger_Config_SubSecond_GCInterval(t *testing.T) {
 }
 
 func Test_Badger_NewFromConnection(t *testing.T) {
-	dir := t.TempDir()
-
-	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	db, err := badger.Open(testOptions(t.TempDir()))
 	require.NoError(t, err)
 	defer db.Close() //nolint:errcheck // best effort cleanup
 
@@ -351,25 +354,17 @@ func Test_Badger_Underlying_DB_Closed(t *testing.T) {
 func Test_Badger_New_Directory_Locked(t *testing.T) {
 	dir := t.TempDir()
 
-	first := New(Config{
-		Database:      dir,
-		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
-	})
+	first := New(Config{Database: dir, BadgerOptions: testOptions(dir)})
 	defer first.Close() //nolint:errcheck // best effort cleanup
 
 	// Badger allows a single process handle per directory, so a second open must fail loudly.
 	require.Panics(t, func() {
-		New(Config{
-			Database:      dir,
-			BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
-		})
+		New(Config{Database: dir, BadgerOptions: testOptions(dir)})
 	})
 }
 
 func Test_Badger_NewFromConnection_Reset_Error(t *testing.T) {
-	dir := t.TempDir()
-
-	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	db, err := badger.Open(testOptions(t.TempDir()))
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 
@@ -380,9 +375,7 @@ func Test_Badger_NewFromConnection_Reset_Error(t *testing.T) {
 }
 
 func Test_Badger_NewFromConnection_Reset_Drops_Keys(t *testing.T) {
-	dir := t.TempDir()
-
-	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	db, err := badger.Open(testOptions(t.TempDir()))
 	require.NoError(t, err)
 	defer db.Close() //nolint:errcheck // best effort cleanup
 
@@ -403,7 +396,7 @@ func Test_Badger_Garbage_Collector_Runs(t *testing.T) {
 
 	store := New(Config{
 		Database:      dir,
-		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		BadgerOptions: testOptions(dir),
 		GCInterval:    10 * time.Millisecond,
 	})
 

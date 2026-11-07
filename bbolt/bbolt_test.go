@@ -255,11 +255,7 @@ func Test_Bbolt_WithContext_Canceled(t *testing.T) {
 }
 
 func Test_Bbolt_Close_Twice(t *testing.T) {
-	store := New(Config{
-		Database: filepath.Join(t.TempDir(), "fiber.db"),
-		Bucket:   "fiber-bucket",
-		Reset:    true,
-	})
+	store := newTestStore(t)
 
 	require.NoError(t, store.Close())
 	require.NotPanics(t, func() {
@@ -424,8 +420,8 @@ func Test_Bbolt_ConfigDefault(t *testing.T) {
 	require.Equal(t, ConfigDefault.Database, cfg.Database)
 	require.Equal(t, ConfigDefault.Bucket, cfg.Bucket)
 
-	cfg = configDefault(Config{Database: "custom.db", Bucket: "custom", Timeout: time.Second, ReadOnly: true, Reset: true})
-	require.Equal(t, Config{Database: "custom.db", Bucket: "custom", Timeout: time.Second, ReadOnly: true, Reset: true}, cfg)
+	want := Config{Database: "custom.db", Bucket: "custom", Timeout: time.Second, ReadOnly: true, Reset: true}
+	require.Equal(t, want, configDefault(want))
 }
 
 func Test_Bbolt_New_Invalid_Path(t *testing.T) {
@@ -455,14 +451,9 @@ func Test_Bbolt_New_ReadOnly_Missing_Bucket(t *testing.T) {
 	writable := New(Config{Database: path, Bucket: "fiber-bucket"})
 	require.NoError(t, writable.Close())
 
-	var recovered any
-	func() {
-		defer func() { recovered = recover() }()
+	require.PanicsWithValue(t, ErrBucketNotFound, func() {
 		New(Config{Database: path, Bucket: "other-bucket", ReadOnly: true, Timeout: time.Second})
-	}()
-	err, ok := recovered.(error)
-	require.True(t, ok)
-	require.ErrorIs(t, err, ErrBucketNotFound)
+	})
 
 	// The failed New must have released the file lock rather than leaking it.
 	reopened := New(Config{Database: path, Bucket: "fiber-bucket", Timeout: time.Second})
@@ -517,7 +508,7 @@ func Test_Bbolt_NewFromConnection_Reset_Clears_Existing_Keys(t *testing.T) {
 }
 
 func Test_Bbolt_Closed_Storage(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "fiber.db"), Bucket: "fiber-bucket"})
+	store := newTestStore(t)
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 	require.NoError(t, store.Close())
 
@@ -696,7 +687,7 @@ func Test_Bbolt_CloneBytes(t *testing.T) {
 }
 
 func Test_Bbolt_Close_After_Conn_Closed(t *testing.T) {
-	store := New(Config{Database: filepath.Join(t.TempDir(), "fiber.db"), Bucket: "fiber-bucket"})
+	store := newTestStore(t)
 
 	// Closing the handle behind the storage's back makes bbolt's own close a no-op success; the
 	// latch still has to flip so later operations report ErrClosed.

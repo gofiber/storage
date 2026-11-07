@@ -479,17 +479,10 @@ func Test_Ristretto_ReleaseCacheState_Unknown(t *testing.T) {
 
 func Test_Ristretto_ConfigDefault_Overrides(t *testing.T) {
 	// Invalid sizing falls back to defaults; explicit values are kept.
-	cfg := configDefault(Config{NumCounters: -1, MaxCost: -1, BufferItems: -1})
-	require.Equal(t, ConfigDefault.NumCounters, cfg.NumCounters)
-	require.Equal(t, ConfigDefault.MaxCost, cfg.MaxCost)
-	require.Equal(t, ConfigDefault.BufferItems, cfg.BufferItems)
-	require.Equal(t, ConfigDefault.DefaultCost, cfg.DefaultCost)
+	require.Equal(t, ConfigDefault, configDefault(Config{NumCounters: -1, MaxCost: -1, BufferItems: -1}))
 
-	cfg = configDefault(Config{NumCounters: 1000, MaxCost: 2000, BufferItems: 8, DefaultCost: 3})
-	require.Equal(t, int64(1000), cfg.NumCounters)
-	require.Equal(t, int64(2000), cfg.MaxCost)
-	require.Equal(t, int64(8), cfg.BufferItems)
-	require.Equal(t, int64(3), cfg.DefaultCost)
+	want := Config{NumCounters: 1000, MaxCost: 2000, BufferItems: 8, DefaultCost: 3}
+	require.Equal(t, want, configDefault(want))
 }
 
 func Test_Ristretto_CloneBytes(t *testing.T) {

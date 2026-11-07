@@ -811,12 +811,9 @@ func Test_LevelDB_SharedDB_OwnerCloseAndReset(t *testing.T) {
 	require.NoError(t, sibling.Close())
 }
 
-// newTestStorage opens a database in a temp dir and builds a storage on it, with the collector idle.
-func newTestStorage(t *testing.T) *Storage {
+// storageOn builds a storage on db with the collector idle, and closes it and then db when the test ends.
+func storageOn(t *testing.T, db *leveldb.DB) *Storage {
 	t.Helper()
-
-	db, err := leveldb.OpenFile(t.TempDir(), nil)
-	require.NoError(t, err)
 
 	store := NewFromConnection(db, Config{GCInterval: time.Hour})
 	t.Cleanup(func() {
@@ -827,16 +824,33 @@ func newTestStorage(t *testing.T) *Storage {
 	return store
 }
 
+// newTestStorage opens a database in a temp dir and builds a storage on it, with the collector idle.
+func newTestStorage(t *testing.T) *Storage {
+	t.Helper()
+
+	db, err := leveldb.OpenFile(t.TempDir(), nil)
+	require.NoError(t, err)
+
+	return storageOn(t, db)
+}
+
+// putEntries writes n entries named prefix000000, prefix000001 and so on in one batch, all with the
+// given deadline in Unix nanoseconds, 0 meaning none.
+func putEntries(t *testing.T, db *leveldb.DB, prefix string, n int, expireAt int64) {
+	t.Helper()
+
+	batch := new(leveldb.Batch)
+	for i := range n {
+		batch.Put([]byte(fmt.Sprintf("%s%06d", prefix, i)), encode([]byte("v"), expireAt))
+	}
+	require.NoError(t, db.Write(batch, nil))
+}
+
 // putExpired writes n entries whose deadline passed, in one batch.
 func putExpired(t *testing.T, store *Storage, prefix string, n int) {
 	t.Helper()
 
-	past := time.Now().Add(-time.Minute).UnixNano()
-	batch := new(leveldb.Batch)
-	for i := range n {
-		batch.Put([]byte(fmt.Sprintf("%s%06d", prefix, i)), encode([]byte("v"), past))
-	}
-	require.NoError(t, store.Conn().Write(batch, nil))
+	putEntries(t, store.Conn(), prefix, n, time.Now().Add(-time.Minute).UnixNano())
 }
 
 func countKeys(t *testing.T, db *leveldb.DB) int {
@@ -943,23 +957,6 @@ func Test_Get_ExpiredEntryIsAMiss(t *testing.T) {
 	// Get leaves reclaiming to the collector.
 	_, err = store.Conn().Get([]byte("john"), nil)
 	require.NoError(t, err)
-}
-
-func Test_Get_DatabaseError(t *testing.T) {
-	db, err := leveldb.OpenFile(t.TempDir(), nil)
-	require.NoError(t, err)
-
-	store := NewFromConnection(db, Config{GCInterval: time.Hour})
-	require.NoError(t, store.Set("john", []byte("doe"), 0))
-
-	// The caller closes the borrowed handle behind the storage's back: the failure is reported, not read as a miss.
-	require.NoError(t, db.Close())
-
-	value, err := store.Get("john")
-	require.ErrorIs(t, err, leveldb.ErrClosed)
-	require.Nil(t, value)
-
-	require.NoError(t, store.Close())
 }
 
 func Test_Set_DeadlineSaturates(t *testing.T) {
@@ -1133,11 +1130,7 @@ func Test_Collect_YieldsWhenCloseIsWaiting(t *testing.T) {
 func Test_Collect_ScanLimitBoundsOnePass(t *testing.T) {
 	store := newTestStorage(t)
 
-	batch := new(leveldb.Batch)
-	for i := range collectScanLimit + 5 {
-		batch.Put([]byte(fmt.Sprintf("live%06d", i)), encode([]byte("v"), 0))
-	}
-	require.NoError(t, store.Conn().Write(batch, nil))
+	putEntries(t, store.Conn(), "live", collectScanLimit+5, 0)
 
 	candidates, last, reachedEnd := store.expiredCandidates(nil)
 	require.Empty(t, candidates)
@@ -1214,24 +1207,14 @@ func readOnlyHandle(t *testing.T, keys int) *Storage {
 	rw, err := leveldb.OpenFile(dir, nil)
 	require.NoError(t, err)
 
-	batch := new(leveldb.Batch)
-	for i := range keys {
-		batch.Put([]byte(fmt.Sprintf("k%06d", i)), encode([]byte("v"), 0))
-	}
-	require.NoError(t, rw.Write(batch, nil))
+	putEntries(t, rw, "k", keys, 0)
 	require.NoError(t, rw.Close())
 
 	db, err := leveldb.OpenFile(dir, &opt.Options{ReadOnly: true})
 	require.NoError(t, err)
 
 	// Config.ReadOnly stays false, so the storage attempts writes and the engine refuses them.
-	store := NewFromConnection(db, Config{GCInterval: time.Hour})
-	t.Cleanup(func() {
-		require.NoError(t, store.Close())
-		_ = db.Close()
-	})
-
-	return store
+	return storageOn(t, db)
 }
 
 func Test_WriteErrors_AreReported(t *testing.T) {
@@ -1256,15 +1239,21 @@ func Test_Reset_ChunkWriteError(t *testing.T) {
 	require.Equal(t, resetBatchSize+10, countKeys(t, store.Conn()))
 }
 
-func Test_Reset_IteratorError(t *testing.T) {
+func Test_BorrowedHandleClosed_ErrorsAreReported(t *testing.T) {
 	db, err := leveldb.OpenFile(t.TempDir(), nil)
 	require.NoError(t, err)
 
-	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	store := storageOn(t, db)
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	// The caller closes the borrowed handle behind the storage's back.
 	require.NoError(t, db.Close())
+
+	// The failure is reported, not read as a miss.
+	value, err := store.Get("john")
+	require.ErrorIs(t, err, leveldb.ErrClosed)
+	require.Nil(t, value)
 
 	// An iterator over a closed handle fails; the error surfaces instead of reporting a clean reset.
 	require.ErrorIs(t, store.Reset(), leveldb.ErrClosed)
-	require.NoError(t, store.Close())
 }
