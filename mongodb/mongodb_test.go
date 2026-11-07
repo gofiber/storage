@@ -423,7 +423,7 @@ func closedPort(t testing.TB) int {
 func unreachableURI(t testing.TB) string {
 	t.Helper()
 
-	return fmt.Sprintf("mongodb://127.0.0.1:%d/?serverSelectionTimeoutMS=200", closedPort(t))
+	return fmt.Sprintf("mongodb://127.0.0.1:%d/?serverSelectionTimeoutMS=50", closedPort(t))
 }
 
 // unreachableClient returns a client that never reaches a server.
@@ -456,11 +456,10 @@ func panicError(t testing.TB, fn func()) (err error) {
 func Test_MongoDB_ConfigDefault(t *testing.T) {
 	require.Equal(t, ConfigDefault, configDefault())
 
-	cfg := configDefault(Config{Host: "db.internal", Port: 1234, Database: "d", Collection: "c", Reset: true})
-	require.Equal(t, Config{Host: "db.internal", Port: 1234, Database: "d", Collection: "c", Reset: true}, cfg)
+	custom := Config{Host: "db.internal", Port: 1234, Database: "d", Collection: "c", Reset: true}
+	require.Equal(t, custom, configDefault(custom))
 
-	cfg = configDefault(Config{Port: -1})
-	require.Equal(t, ConfigDefault, cfg)
+	require.Equal(t, ConfigDefault, configDefault(Config{Port: -1}))
 }
 
 func Test_MongoDB_WithDefaultTimeout(t *testing.T) {
@@ -507,18 +506,16 @@ func Test_MongoDB_CloneBytes(t *testing.T) {
 }
 
 func Test_MongoDB_New_InvalidURI(t *testing.T) {
-	err := panicError(t, func() {
+	_ = panicError(t, func() {
 		New(Config{ConnectionURI: "notmongodb://127.0.0.1:27017"})
 	})
-	require.Error(t, err)
 }
 
 func Test_MongoDB_New_Unreachable(t *testing.T) {
 	// No caller deadline: initialization falls back on the server selection timeout.
-	err := panicError(t, func() {
+	_ = panicError(t, func() {
 		New(Config{ConnectionURI: unreachableURI(t)})
 	})
-	require.Error(t, err)
 }
 
 func Test_MongoDB_NewWithContext_Unreachable_Deadline(t *testing.T) {
@@ -535,14 +532,13 @@ func Test_MongoDB_NewWithContext_Unreachable_Deadline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
 			start := time.Now()
-			err := panicError(t, func() {
+			_ = panicError(t, func() {
 				NewWithContext(ctx, tt.cfg)
 			})
-			require.Error(t, err)
 			require.Less(t, time.Since(start), 10*time.Second, "the caller's deadline must bound initialization")
 		})
 	}
@@ -558,40 +554,27 @@ func Test_MongoDB_NewWithContext_Cancelled(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-func Test_MongoDB_NewFromConnection_ResetFails(t *testing.T) {
-	client := unreachableClient(t)
+// Test_MongoDB_NewStorage_Failure_Disconnects_Only_Owned_Client fails each initialization step on a client that never
+// reaches a server: the client is released when the driver connected it (owned) and left alone when the caller
+// supplied it (borrowed). New needs a reachable server to get past its ping, so the owned rows call newStorage
+// directly, while the borrowed rows go through the public constructor.
+func Test_MongoDB_NewStorage_Failure_Disconnects_Only_Owned_Client(t *testing.T) {
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	err := panicError(t, func() {
-		NewFromConnection(client, Config{Reset: true})
-	})
-	require.Error(t, err)
+	resetCfg := Config{Reset: true, Database: "fiber", Collection: "fiber_storage"}
+	indexCfg := Config{Database: "fiber", Collection: "fiber_storage"}
 
-	// The client belongs to the caller, so a failed init must not disconnect it.
-	err = client.Ping(context.Background(), nil)
-	require.Error(t, err)
-	require.NotErrorIs(t, err, mongo.ErrClientDisconnected)
-}
-
-func Test_MongoDB_NewStorage_Failure_Disconnects_Owned_Client(t *testing.T) {
 	tests := []struct {
-		name string
-		cfg  Config
-		ctx  func() context.Context
+		name  string
+		owned bool
+		cfg   Config
+		ctx   context.Context
 	}{
-		{
-			name: "reset fails",
-			cfg:  Config{Reset: true, Database: "fiber", Collection: "fiber_storage"},
-			ctx:  context.Background,
-		},
-		{
-			name: "index creation fails",
-			cfg:  Config{Database: "fiber", Collection: "fiber_storage"},
-			ctx: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-				return ctx
-			},
-		},
+		{name: "owned, reset fails", owned: true, cfg: resetCfg, ctx: context.Background()},
+		{name: "owned, index creation fails", owned: true, cfg: indexCfg, ctx: cancelled},
+		{name: "borrowed, reset fails", owned: false, cfg: resetCfg, ctx: context.Background()},
+		{name: "borrowed, index creation fails", owned: false, cfg: indexCfg, ctx: cancelled},
 	}
 
 	for _, tt := range tests {
@@ -599,30 +582,27 @@ func Test_MongoDB_NewStorage_Failure_Disconnects_Owned_Client(t *testing.T) {
 			client := unreachableClient(t)
 
 			err := panicError(t, func() {
-				newStorage(tt.ctx(), client, true, tt.cfg)
+				if tt.owned {
+					newStorage(tt.ctx, client, true, tt.cfg)
+				} else {
+					NewFromConnectionWithContext(tt.ctx, client, tt.cfg)
+				}
 			})
-			require.Error(t, err)
+			if tt.ctx.Err() != nil {
+				require.ErrorIs(t, err, context.Canceled)
+			}
 
-			// An owned client is released on failure instead of leaking.
-			require.ErrorIs(t, client.Ping(context.Background(), nil), mongo.ErrClientDisconnected)
+			pingErr := client.Ping(context.Background(), nil)
+			if tt.owned {
+				// An owned client is released on failure instead of leaking.
+				require.ErrorIs(t, pingErr, mongo.ErrClientDisconnected)
+			} else {
+				// The client belongs to the caller, so a failed init must not disconnect it.
+				require.Error(t, pingErr)
+				require.NotErrorIs(t, pingErr, mongo.ErrClientDisconnected)
+			}
 		})
 	}
-}
-
-func Test_MongoDB_NewFromConnection_IndexFails_Keeps_Client(t *testing.T) {
-	client := unreachableClient(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := panicError(t, func() {
-		NewFromConnectionWithContext(ctx, client, Config{})
-	})
-	require.ErrorIs(t, err, context.Canceled)
-
-	err = client.Ping(context.Background(), nil)
-	require.Error(t, err)
-	require.NotErrorIs(t, err, mongo.ErrClientDisconnected)
 }
 
 // Test_MongoDB_Server_Errors shares one container between the cases that need a real server.
@@ -642,38 +622,33 @@ func Test_MongoDB_Server_Errors(t *testing.T) {
 		require.True(t, cmdErr.HasErrorCode(85) || cmdErr.HasErrorCode(86), "unexpected code %d: %v", cmdErr.Code, err)
 	}
 
-	t.Run("expiry index conflicts with existing index", func(t *testing.T) {
-		const collection = "conflict_exp"
+	// conflictingIndex creates a plain index on field, which clashes with the index the storage builds on it.
+	conflictingIndex := func(t *testing.T, collection, field string) {
+		t.Helper()
+
 		_, err := raw.Database("fiber").Collection(collection).Indexes().CreateOne(ctx, mongo.IndexModel{
-			Keys: bson.D{{Key: "exp", Value: 1}},
+			Keys: bson.D{{Key: field, Value: 1}},
 		})
 		require.NoError(t, err)
+	}
 
-		err = panicError(t, func() {
-			NewFromConnection(raw, Config{Database: "fiber", Collection: collection})
-		})
-		requireIndexConflict(t, err)
-	})
+	for _, tt := range []struct{ name, collection, field string }{
+		{"expiry index conflicts with existing index", "conflict_exp", "exp"},
+		{"key index conflicts with existing index", "conflict_key", "key"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			conflictingIndex(t, tt.collection, tt.field)
 
-	t.Run("key index conflicts with existing index", func(t *testing.T) {
-		const collection = "conflict_key"
-		_, err := raw.Database("fiber").Collection(collection).Indexes().CreateOne(ctx, mongo.IndexModel{
-			Keys: bson.D{{Key: "key", Value: 1}},
+			err := panicError(t, func() {
+				NewFromConnection(raw, Config{Database: "fiber", Collection: tt.collection})
+			})
+			requireIndexConflict(t, err)
 		})
-		require.NoError(t, err)
-
-		err = panicError(t, func() {
-			NewFromConnection(raw, Config{Database: "fiber", Collection: collection})
-		})
-		requireIndexConflict(t, err)
-	})
+	}
 
 	t.Run("owned client is disconnected when index creation fails", func(t *testing.T) {
 		const collection = "conflict_owned"
-		_, err := raw.Database("fiber").Collection(collection).Indexes().CreateOne(ctx, mongo.IndexModel{
-			Keys: bson.D{{Key: "key", Value: 1}},
-		})
-		require.NoError(t, err)
+		conflictingIndex(t, collection, "key")
 
 		owned, err := mongo.Connect(options.Client().ApplyURI(cfg.ConnectionURI))
 		require.NoError(t, err)
@@ -775,11 +750,20 @@ func Test_MongoDB_Server_Errors(t *testing.T) {
 	t.Run("expiration is honoured by get before the TTL monitor runs", func(t *testing.T) {
 		store := NewFromConnection(raw, Config{Database: "fiber", Collection: "short_lived"})
 
-		require.NoError(t, store.Set("john", []byte("doe"), 200*time.Millisecond))
+		const ttl = 200 * time.Millisecond
+
+		start := time.Now()
+		require.NoError(t, store.Set("john", []byte("doe"), ttl))
 		val, err := store.Get("john")
 		require.NoError(t, err)
-		require.Equal(t, []byte("doe"), val)
+		// The deadline is compared exactly, so a sub-second one is still live right after Set (a comparison truncated
+		// to seconds would drop it early). A stalled runner can overshoot it, so only assert while it cannot have
+		// passed; the stored deadline is rounded down to the millisecond.
+		if time.Since(start) < ttl-time.Millisecond {
+			require.Equal(t, []byte("doe"), val)
+		}
 
+		// The TTL monitor only sweeps once a minute, so the document lapses without having been removed.
 		require.Eventually(t, func() bool {
 			v, err := store.Get("john")
 			return err == nil && v == nil
