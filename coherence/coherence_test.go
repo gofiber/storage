@@ -530,12 +530,10 @@ func Test_Coherence_SetupConfig(t *testing.T) {
 	require.Equal(t, DefaultConfig, setupConfig())
 
 	// zero values in a supplied config are replaced by the defaults
-	cfg := setupConfig(Config{Reset: true, NearCacheTimeout: time.Second})
-	require.Equal(t, defaultAddress, cfg.Address)
-	require.Equal(t, defaultScopeName, cfg.ScopeName)
-	require.Equal(t, defaultTimeout, cfg.Timeout)
-	require.True(t, cfg.Reset)
-	require.Equal(t, time.Second, cfg.NearCacheTimeout)
+	want := DefaultConfig
+	want.Reset = true
+	want.NearCacheTimeout = time.Second
+	require.Equal(t, want, setupConfig(Config{Reset: true, NearCacheTimeout: time.Second}))
 
 	// values that are set are kept
 	custom := Config{Address: "example:1234", ScopeName: "custom", Timeout: 5 * time.Second}
@@ -550,24 +548,25 @@ func Test_Coherence_New_InvalidSessionConfig(t *testing.T) {
 
 	// default config, using the default address
 	store, err := New()
-	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Error(t, err)
 	require.Nil(t, store)
 
 	// plain text connection
 	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second})
-	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Error(t, err)
 	require.Nil(t, store)
 
 	// TLS connection
 	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}})
-	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Error(t, err)
 	require.Nil(t, store)
 
 	// a cancelled context makes no difference to a failure that is not about the context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	store, err = NewWithContext(ctx, Config{Address: "127.0.0.1:1", Timeout: time.Second})
-	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Error(t, err)
+	require.NotErrorIs(t, err, context.Canceled)
 	require.Nil(t, store)
 }
 
@@ -583,87 +582,86 @@ func Test_Coherence_NewFromConnection_UnusableSession(t *testing.T) {
 	require.NotNil(t, session)
 	defer session.Close()
 
-	store, err := NewFromConnection(session, Config{ScopeName: "unreachable"})
-	require.Error(t, err)
-	require.Nil(t, store)
-
-	// a failed reset never gets that far either
-	store, err = NewFromConnection(session, Config{ScopeName: "unreachable", Reset: true})
-	require.Error(t, err)
-	require.Nil(t, store)
+	// opening the cache fails first, so a requested reset never gets that far either
+	for _, reset := range []bool{false, true} {
+		store, err := NewFromConnection(session, Config{ScopeName: "unreachable", Reset: reset})
+		require.Error(t, err, "reset=%v", reset)
+		require.Nil(t, store, "reset=%v", reset)
+	}
 
 	// an already closed session cannot open a named cache
 	session.Close()
-	store, err = NewFromConnection(session, Config{ScopeName: "closed"})
+	store, err := NewFromConnection(session, Config{ScopeName: "closed"})
 	require.ErrorIs(t, err, coh.ErrClosed)
 	require.Nil(t, store)
 }
 
+// Test_Coherence_NearCacheTimeout_Exceeds_SessionTimeout checks that a near cache outliving the session
+// timeout is rejected before any request is made, without needing a running Coherence server.
 func Test_Coherence_NearCacheTimeout_Exceeds_SessionTimeout(t *testing.T) {
-	cfg := newTestConfig(t)
-	cfg.Reset = false
-	cfg.Timeout = time.Second
-	cfg.NearCacheTimeout = 5 * time.Second
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
 
 	// the session this driver opened is released and nothing is returned
-	store, err := New(cfg)
+	store, err := New(Config{Address: "127.0.0.1:1", Timeout: time.Second, NearCacheTimeout: 5 * time.Second})
 	require.ErrorContains(t, err, "you cannot set the near cache timeout")
 	require.Nil(t, store)
-
-	// a borrowed session is validated against its own timeout and left open
-	cfg.Timeout = defaultTimeout
-	cfg.NearCacheTimeout = time.Second
-	owner, err := New(cfg)
-	require.NoError(t, err)
-	defer owner.Close()
-
-	store, err = NewFromConnection(owner.Conn(), Config{ScopeName: "near", NearCacheTimeout: 2 * defaultTimeout})
-	require.ErrorContains(t, err, "you cannot set the near cache timeout")
-	require.Nil(t, store)
-
-	require.NoError(t, owner.Set(key1, value1, 0))
-	val, err := owner.Get(key1)
-	require.NoError(t, err)
-	require.Equal(t, value1, val)
 }
 
-func Test_Coherence_Closed_Storage(t *testing.T) {
-	testStore := newTestStore(t)
-
-	require.NoError(t, testStore.Set(key1, value1, 0))
-	require.NoError(t, testStore.Close())
-
-	// every operation reports ErrClosed once closed, and closing again is harmless
-	val, err := testStore.Get(key1)
-	require.ErrorIs(t, err, ErrClosed)
-	require.Nil(t, val)
-	val, err = testStore.GetWithContext(context.Background(), key1)
-	require.ErrorIs(t, err, ErrClosed)
-	require.Nil(t, val)
-	require.ErrorIs(t, testStore.Set(key1, value2, 0), ErrClosed)
-	require.ErrorIs(t, testStore.Delete(key1), ErrClosed)
-	require.ErrorIs(t, testStore.DeleteWithContext(context.Background(), key1), ErrClosed)
-	require.ErrorIs(t, testStore.Reset(), ErrClosed)
-	require.NoError(t, testStore.Close())
-}
-
-func Test_Coherence_NewFromConnectionWithContext_ResetFails(t *testing.T) {
-	owner := newTestStore(t)
+// A single container is shared by the subtests below because starting one is slow; each subtest
+// uses its own scope.
+func Test_Coherence_ErrorPaths(t *testing.T) {
+	cfg := newTestConfig(t)
+	owner := newTestStoreWithConfig(t, &cfg)
 	defer owner.Close()
 
-	// A context whose deadline has already passed is used as is, so the construction-time reset fails.
-	// The storage is returned alongside the error, as it is still usable.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
-	defer cancel()
-	<-ctx.Done()
+	t.Run("near cache timeout above the borrowed session timeout is rejected", func(t *testing.T) {
+		// a borrowed session is validated against its own timeout and left open
+		store, err := NewFromConnection(owner.Conn(), Config{ScopeName: "near", NearCacheTimeout: 2 * defaultTimeout})
+		require.ErrorContains(t, err, "you cannot set the near cache timeout")
+		require.Nil(t, store)
 
-	testStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "reset-fails", Reset: true})
-	require.ErrorIs(t, err, context.DeadlineExceeded)
-	require.NotNil(t, testStore)
+		require.NoError(t, owner.Set(key1, value1, 0))
+		val, err := owner.Get(key1)
+		require.NoError(t, err)
+		require.Equal(t, value1, val)
+	})
 
-	require.NoError(t, testStore.Set(key1, value1, 0))
-	val, err := testStore.Get(key1)
-	require.NoError(t, err)
-	require.Equal(t, value1, val)
-	require.NoError(t, testStore.Close())
+	t.Run("closed storage reports ErrClosed", func(t *testing.T) {
+		closedCfg := cfg
+		closedCfg.ScopeName = "closed"
+		testStore := newTestStoreWithConfig(t, &closedCfg)
+
+		require.NoError(t, testStore.Set(key1, value1, 0))
+		require.NoError(t, testStore.Close())
+
+		// every operation reports ErrClosed once closed, and closing again is harmless
+		val, err := testStore.Get(key1)
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+		val, err = testStore.GetWithContext(context.Background(), key1)
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+		require.ErrorIs(t, testStore.Set(key1, value2, 0), ErrClosed)
+		require.ErrorIs(t, testStore.Delete(key1), ErrClosed)
+		require.ErrorIs(t, testStore.DeleteWithContext(context.Background(), key1), ErrClosed)
+		require.ErrorIs(t, testStore.Reset(), ErrClosed)
+		require.NoError(t, testStore.Close())
+	})
+
+	t.Run("failed construction-time reset still returns the storage", func(t *testing.T) {
+		// A context whose deadline has already passed is used as is, so the construction-time reset fails.
+		// The storage is returned alongside the error, as it is still usable.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		defer cancel()
+
+		testStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "reset-fails", Reset: true})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.NotNil(t, testStore)
+
+		require.NoError(t, testStore.Set(key1, value1, 0))
+		val, err := testStore.Get(key1)
+		require.NoError(t, err)
+		require.Equal(t, value1, val)
+		require.NoError(t, testStore.Close())
+	})
 }

@@ -132,8 +132,9 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 	err = testStore.Delete("test")
 	require.NoError(t, err)
 
-	_, err = testStore.Get("test")
+	val, err := testStore.Get("test")
 	require.NoError(t, err)
+	require.Nil(t, val)
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
@@ -282,15 +283,6 @@ func TestCouchbase_ErrorPaths(t *testing.T) {
 		require.ErrorIs(t, store.Delete("missing_key"), gocb.ErrDocumentNotFound)
 	})
 
-	t.Run("delete removes the value", func(t *testing.T) {
-		require.NoError(t, store.Set("to_delete", []byte("v"), 0))
-		require.NoError(t, store.Delete("to_delete"))
-
-		val, err := store.Get("to_delete")
-		require.NoError(t, err)
-		require.Nil(t, val)
-	})
-
 	t.Run("get from a missing bucket times out", func(t *testing.T) {
 		bad := NewFromConnection(store.Conn(), Config{Bucket: "no_such_bucket"})
 
@@ -315,9 +307,9 @@ func closedPortHost(t testing.TB) string {
 	return "couchbase://" + addr
 }
 
-// newUnreachableStore returns a storage whose cluster points at a closed port; gocb connects lazily,
-// so the store builds fine and every operation fails.
-func newUnreachableStore(t testing.TB) *Storage {
+// newUnreachableCluster returns a cluster that points at a closed port; gocb connects lazily, so it
+// builds fine and every operation on it fails.
+func newUnreachableCluster(t testing.TB) *gocb.Cluster {
 	t.Helper()
 
 	cluster, err := gocb.Connect(closedPortHost(t), gocb.ClusterOptions{
@@ -327,7 +319,15 @@ func newUnreachableStore(t testing.TB) *Storage {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = cluster.Close(nil) })
 
-	return NewFromConnection(cluster, Config{Bucket: "missing"})
+	return cluster
+}
+
+// newUnreachableStore returns a storage on an unreachable cluster: it builds fine, and every
+// operation that reaches the cluster fails.
+func newUnreachableStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return NewFromConnection(newUnreachableCluster(t), Config{Bucket: "missing"})
 }
 
 func TestConfigDefault_NoArgs_ReturnsDefaults(t *testing.T) {
@@ -351,33 +351,28 @@ func TestConfigDefault_KeepsProvidedValues(t *testing.T) {
 }
 
 func TestConfigDefault_PartialConfig_FillsOnlyMissing(t *testing.T) {
-	got := configDefault(Config{Bucket: "custom", KVTimeout: time.Minute})
+	want := ConfigDefault
+	want.Bucket = "custom"
+	want.KVTimeout = time.Minute
 
-	require.Equal(t, "custom", got.Bucket)
-	require.Equal(t, time.Minute, got.KVTimeout)
-	require.Equal(t, ConfigDefault.Host, got.Host)
-	require.Equal(t, ConfigDefault.Username, got.Username)
-	require.Equal(t, ConfigDefault.Password, got.Password)
-	require.Equal(t, ConfigDefault.ConnectionTimeout, got.ConnectionTimeout)
+	require.Equal(t, want, configDefault(Config{Bucket: "custom", KVTimeout: time.Minute}))
 }
 
 func TestNewFromConnection_DefaultBucket(t *testing.T) {
-	cluster, err := gocb.Connect(closedPortHost(t), gocb.ClusterOptions{
-		Authenticator: gocb.PasswordAuthenticator{Username: "u", Password: "p"},
-	})
-	require.NoError(t, err)
-	defer cluster.Close(nil) //nolint:errcheck // best effort cleanup
+	cluster := newUnreachableCluster(t)
 
 	store := NewFromConnection(cluster)
 	require.Same(t, cluster, store.Conn())
 	require.Equal(t, ConfigDefault.Bucket, store.bucket.Name())
-	require.False(t, store.ownsCb)
+
+	// The cluster is the caller's, so closing the storage leaves it open for the caller to close.
+	require.NoError(t, store.Close())
+	require.NoError(t, cluster.Close(nil))
 }
 
 func TestNew_InvalidConnectionString_Panics(t *testing.T) {
 	// gocb rejects a host:port without a scheme as ambiguous unless the port is a well-known one.
-	host := closedPortHost(t)
-	host = host[len("couchbase://"):]
+	host := strings.TrimPrefix(closedPortHost(t), "couchbase://")
 
 	require.Panics(t, func() {
 		New(Config{Host: host, ConnectionTimeout: time.Second})
@@ -391,12 +386,13 @@ func TestNew_UnreachableHost_ReturnsStorageWhoseOperationsFail(t *testing.T) {
 		ConnectionTimeout: 500 * time.Millisecond,
 		KVTimeout:         200 * time.Millisecond,
 	})
-	require.True(t, store.ownsCb)
 	require.NotNil(t, store.Conn())
 
 	require.Error(t, store.Set("key", []byte("v"), 0))
 
+	// New built the cluster, so closing the storage closes it too: closing it again reports a failure.
 	require.NoError(t, store.Close())
+	require.Error(t, store.Conn().Close(nil))
 	require.ErrorIs(t, store.Set("key", []byte("v"), 0), ErrClosed)
 }
 
@@ -427,20 +423,6 @@ func TestClose_IsIdempotent(t *testing.T) {
 	require.NoError(t, store.Close())
 	require.NoError(t, store.Close())
 	require.True(t, store.isClosed())
-}
-
-func TestClose_OwnedCluster_ClosesCluster(t *testing.T) {
-	cluster, err := gocb.Connect(closedPortHost(t), gocb.ClusterOptions{
-		Authenticator: gocb.PasswordAuthenticator{Username: "u", Password: "p"},
-	})
-	require.NoError(t, err)
-
-	store := &Storage{cb: cluster, bucket: cluster.Bucket("b"), ownsCb: true}
-	require.NoError(t, store.Close())
-	require.True(t, store.isClosed())
-
-	// The owned cluster was closed, so closing it again reports a failure.
-	require.Error(t, cluster.Close(nil))
 }
 
 func TestOperations_CancelledContext_ReturnError(t *testing.T) {
