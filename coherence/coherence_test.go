@@ -5,10 +5,12 @@ package coherence
  */
 import (
 	"context"
+	"crypto/tls"
 	"os"
 	"testing"
 	"time"
 
+	coh "github.com/oracle/coherence-go-client/v2/coherence"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -521,4 +523,147 @@ func Test_Coherence_NewFromConnectionWithContext(t *testing.T) {
 	val, err = cancelledStore.Get(key1)
 	require.NoError(t, err)
 	require.Nil(t, val)
+}
+
+func Test_Coherence_SetupConfig(t *testing.T) {
+	// no config at all falls back to the defaults
+	require.Equal(t, DefaultConfig, setupConfig())
+
+	// zero values in a supplied config are replaced by the defaults
+	cfg := setupConfig(Config{Reset: true, NearCacheTimeout: time.Second})
+	require.Equal(t, defaultAddress, cfg.Address)
+	require.Equal(t, defaultScopeName, cfg.ScopeName)
+	require.Equal(t, defaultTimeout, cfg.Timeout)
+	require.True(t, cfg.Reset)
+	require.Equal(t, time.Second, cfg.NearCacheTimeout)
+
+	// values that are set are kept
+	custom := Config{Address: "example:1234", ScopeName: "custom", Timeout: 5 * time.Second}
+	require.Equal(t, custom, setupConfig(custom))
+}
+
+// Test_Coherence_New_InvalidSessionConfig checks that a session which cannot be created is reported
+// by every constructor, without needing a running Coherence server.
+func Test_Coherence_New_InvalidSessionConfig(t *testing.T) {
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+	t.Setenv("COHERENCE_SESSION_DISCONNECT_TIMEOUT", "not-a-number")
+
+	// default config, using the default address
+	store, err := New()
+	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Nil(t, store)
+
+	// plain text connection
+	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second})
+	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Nil(t, store)
+
+	// TLS connection
+	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}})
+	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Nil(t, store)
+
+	// a cancelled context makes no difference to a failure that is not about the context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	store, err = NewWithContext(ctx, Config{Address: "127.0.0.1:1", Timeout: time.Second})
+	require.ErrorContains(t, err, "invalid value of not-a-number for disconnect timeout")
+	require.Nil(t, store)
+}
+
+// Test_Coherence_NewFromConnection_UnusableSession checks the failures of opening the named cache on
+// sessions that cannot serve it, without needing a running Coherence server.
+func Test_Coherence_NewFromConnection_UnusableSession(t *testing.T) {
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+
+	// Nothing listens on port 1; the client connects lazily, so the session is created regardless and
+	// it is opening the named cache that reports the connection failure.
+	session, _ := coh.NewSession(context.Background(),
+		coh.WithAddress("127.0.0.1:1"), coh.WithPlainText(), coh.WithRequestTimeout(time.Second))
+	require.NotNil(t, session)
+	defer session.Close()
+
+	store, err := NewFromConnection(session, Config{ScopeName: "unreachable"})
+	require.Error(t, err)
+	require.Nil(t, store)
+
+	// a failed reset never gets that far either
+	store, err = NewFromConnection(session, Config{ScopeName: "unreachable", Reset: true})
+	require.Error(t, err)
+	require.Nil(t, store)
+
+	// an already closed session cannot open a named cache
+	session.Close()
+	store, err = NewFromConnection(session, Config{ScopeName: "closed"})
+	require.ErrorIs(t, err, coh.ErrClosed)
+	require.Nil(t, store)
+}
+
+func Test_Coherence_NearCacheTimeout_Exceeds_SessionTimeout(t *testing.T) {
+	cfg := newTestConfig(t)
+	cfg.Reset = false
+	cfg.Timeout = time.Second
+	cfg.NearCacheTimeout = 5 * time.Second
+
+	// the session this driver opened is released and nothing is returned
+	store, err := New(cfg)
+	require.ErrorContains(t, err, "you cannot set the near cache timeout")
+	require.Nil(t, store)
+
+	// a borrowed session is validated against its own timeout and left open
+	cfg.Timeout = defaultTimeout
+	cfg.NearCacheTimeout = time.Second
+	owner, err := New(cfg)
+	require.NoError(t, err)
+	defer owner.Close()
+
+	store, err = NewFromConnection(owner.Conn(), Config{ScopeName: "near", NearCacheTimeout: 2 * defaultTimeout})
+	require.ErrorContains(t, err, "you cannot set the near cache timeout")
+	require.Nil(t, store)
+
+	require.NoError(t, owner.Set(key1, value1, 0))
+	val, err := owner.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+}
+
+func Test_Coherence_Closed_Storage(t *testing.T) {
+	testStore := newTestStore(t)
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+	require.NoError(t, testStore.Close())
+
+	// every operation reports ErrClosed once closed, and closing again is harmless
+	val, err := testStore.Get(key1)
+	require.ErrorIs(t, err, ErrClosed)
+	require.Nil(t, val)
+	val, err = testStore.GetWithContext(context.Background(), key1)
+	require.ErrorIs(t, err, ErrClosed)
+	require.Nil(t, val)
+	require.ErrorIs(t, testStore.Set(key1, value2, 0), ErrClosed)
+	require.ErrorIs(t, testStore.Delete(key1), ErrClosed)
+	require.ErrorIs(t, testStore.DeleteWithContext(context.Background(), key1), ErrClosed)
+	require.ErrorIs(t, testStore.Reset(), ErrClosed)
+	require.NoError(t, testStore.Close())
+}
+
+func Test_Coherence_NewFromConnectionWithContext_ResetFails(t *testing.T) {
+	owner := newTestStore(t)
+	defer owner.Close()
+
+	// A context whose deadline has already passed is used as is, so the construction-time reset fails.
+	// The storage is returned alongside the error, as it is still usable.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+	<-ctx.Done()
+
+	testStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "reset-fails", Reset: true})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NotNil(t, testStore)
+
+	require.NoError(t, testStore.Set(key1, value1, 0))
+	val, err := testStore.Get(key1)
+	require.NoError(t, err)
+	require.Equal(t, value1, val)
+	require.NoError(t, testStore.Close())
 }
