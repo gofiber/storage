@@ -264,3 +264,179 @@ func Test_Badger_NewFromConnection_Nil(t *testing.T) {
 		NewFromConnection(nil)
 	})
 }
+
+type testLogger struct{}
+
+func (testLogger) Errorf(string, ...any)   {}
+func (testLogger) Warningf(string, ...any) {}
+func (testLogger) Infof(string, ...any)    {}
+func (testLogger) Debugf(string, ...any)   {}
+
+func Test_Badger_Closed_Operations(t *testing.T) {
+	store := newTestStore(t)
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	require.NoError(t, store.Close())
+
+	_, err := store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
+
+	ctx := context.Background()
+	_, err = store.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), ErrClosed)
+	require.ErrorIs(t, store.ResetWithContext(ctx), ErrClosed)
+}
+
+func Test_Badger_WithContext(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	ctx := context.Background()
+
+	require.NoError(t, store.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	result, err := store.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, store.DeleteWithContext(ctx, "john"))
+	result, err = store.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+
+	require.NoError(t, store.SetWithContext(ctx, "jane", []byte("doe"), 0))
+	require.NoError(t, store.ResetWithContext(ctx))
+	result, err = store.GetWithContext(ctx, "jane")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Badger_Empty_Key_And_Value(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Empty keys and values are ignored rather than stored.
+	require.NoError(t, store.Set("", []byte("doe"), 0))
+	require.NoError(t, store.Set("john", nil, 0))
+	require.NoError(t, store.Delete(""))
+
+	result, err := store.Get("")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+
+	result, err = store.Get("john")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Badger_Underlying_DB_Closed(t *testing.T) {
+	store := newTestStore(t)
+
+	// Closing the borrowed handle behind the storage's back surfaces Badger's own errors.
+	require.NoError(t, store.Conn().Close())
+
+	_, err := store.Get("john")
+	require.Error(t, err)
+	require.Error(t, store.Set("john", []byte("doe"), 0))
+	require.Error(t, store.Delete("john"))
+	require.Error(t, store.Reset())
+
+	require.NoError(t, store.Close())
+}
+
+func Test_Badger_New_Directory_Locked(t *testing.T) {
+	dir := t.TempDir()
+
+	first := New(Config{
+		Database:      dir,
+		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+	})
+	defer first.Close() //nolint:errcheck // best effort cleanup
+
+	// Badger allows a single process handle per directory, so a second open must fail loudly.
+	require.Panics(t, func() {
+		New(Config{
+			Database:      dir,
+			BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		})
+	})
+}
+
+func Test_Badger_NewFromConnection_Reset_Error(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	// Reset on a database that is already closed cannot succeed and must not be swallowed.
+	require.Panics(t, func() {
+		NewFromConnection(db, Config{Reset: true})
+	})
+}
+
+func Test_Badger_NewFromConnection_Reset_Drops_Keys(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := badger.Open(badger.DefaultOptions(dir).WithLogger(nil))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	first := NewFromConnection(db)
+	require.NoError(t, first.Set("john", []byte("doe"), 0))
+	require.NoError(t, first.Close())
+
+	second := NewFromConnection(db, Config{Reset: true})
+	defer second.Close() //nolint:errcheck // best effort cleanup
+
+	result, err := second.Get("john")
+	require.NoError(t, err)
+	require.Zero(t, len(result))
+}
+
+func Test_Badger_Garbage_Collector_Runs(t *testing.T) {
+	dir := t.TempDir()
+
+	store := New(Config{
+		Database:      dir,
+		BadgerOptions: badger.DefaultOptions(dir).WithLogger(nil),
+		GCInterval:    10 * time.Millisecond,
+	})
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	time.Sleep(50 * time.Millisecond)
+
+	// The collector sweeps in the background without disturbing stored data, and Close waits for it.
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+	require.NoError(t, store.Close())
+}
+
+func Test_Badger_Config_Defaults(t *testing.T) {
+	require.Equal(t, ConfigDefault, configDefault())
+
+	cfg := configDefault(Config{Database: "custom.badger"})
+	require.Equal(t, "custom.badger", cfg.BadgerOptions.Dir)
+	require.Equal(t, "custom.badger", cfg.BadgerOptions.ValueDir)
+
+	cfg = configDefault(Config{})
+	require.Equal(t, ConfigDefault.Database, cfg.Database)
+}
+
+func Test_Badger_Config_Logger(t *testing.T) {
+	logger := testLogger{}
+
+	cfg := configDefault(Config{Database: "custom.badger", UseLogger: true, Logger: logger})
+	require.Equal(t, logger, cfg.BadgerOptions.Logger)
+
+	cfg = configDefault(Config{Database: "custom.badger", UseLogger: true})
+	require.NotNil(t, cfg.BadgerOptions.Logger, "badger's default logger is kept when none is given")
+
+	cfg = configDefault(Config{Database: "custom.badger", Logger: logger})
+	require.Nil(t, cfg.BadgerOptions.Logger)
+}
