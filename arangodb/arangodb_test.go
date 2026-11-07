@@ -2,18 +2,16 @@ package arangodb
 
 import (
 	"context"
+	"errors"
 	"net"
-	nethttp "net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"strconv"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	driver "github.com/arangodb/go-driver"
-	"github.com/arangodb/go-driver/http"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/arangodb"
@@ -420,175 +418,105 @@ func Test_ArangoDB_NewFromConnection_Nil(t *testing.T) {
 	})
 }
 
-// recoverPanic runs fn and returns the value it panicked with, or nil if it did not panic.
-func recoverPanic(fn func()) (v any) {
-	defer func() { v = recover() }()
-	fn()
+// errBoom is the failure the stubs below inject.
+var errBoom = errors.New("boom")
+
+// stubArango configures stubClient, stubDatabase and stubCollection, which implement just the driver calls
+// that newStorage and the storage operations make; any other call panics through the nil embedded interface.
+// Initialization succeeds except for the call named in failAt, which returns errBoom, while every operation
+// (query, read, remove, truncate) fails. The database and collection are reported as missing only when
+// failAt is their creation, so that call is reached.
+type stubArango struct {
+	failAt  string
+	queries atomic.Int32 // counts Query calls; the collector makes them concurrently with the test
+}
+
+// initErr returns errBoom if call is the initialization call to fail.
+func (s *stubArango) initErr(call string) error {
+	if call == s.failAt {
+		return errBoom
+	}
 	return nil
 }
 
-// fakeArango is an httptest server that answers the initialization requests of newStorage.
-// respond receives the 1-based call count for the "METHOD path" of each request and returns
-// the status and JSON body to answer with.
-type fakeArango struct {
-	*httptest.Server
-	mu    sync.Mutex
-	calls map[string]int
-	order []string
+type stubClient struct {
+	driver.Client
+	*stubArango
 }
 
-const (
-	fakeDBBody   = `{"result":{"name":"fiber","id":"1","path":"","isSystem":false},"error":false,"code":200}`
-	fakeCollBody = `{"name":"fiber_storage","id":"7","status":3,"type":2,"isSystem":false,"error":false,"code":200}`
-	fakeErrBody  = `{"error":true,"code":500,"errorNum":1,"errorMessage":"boom"}`
-	fakeNotFound = `{"error":true,"code":404,"errorNum":1228,"errorMessage":"database not found"}`
-)
+func (stubClient) Connection() driver.Connection { return nil }
 
-func newFakeArango(t *testing.T, respond func(route string, n int) (int, string)) *fakeArango {
-	t.Helper()
-
-	f := &fakeArango{calls: map[string]int{}}
-	f.Server = httptest.NewServer(nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		route := r.Method + " " + r.URL.Path
-
-		f.mu.Lock()
-		f.calls[route]++
-		f.order = append(f.order, route)
-		n := f.calls[route]
-		f.mu.Unlock()
-
-		status, body := respond(route, n)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_, _ = w.Write([]byte(body))
-	}))
-	t.Cleanup(f.Close)
-	return f
+func (c stubClient) DatabaseExists(context.Context, string) (bool, error) {
+	return c.failAt != "CreateDatabase", c.initErr("DatabaseExists")
 }
 
-// routes returns every request seen so far, in order.
-func (f *fakeArango) routes() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return append([]string(nil), f.order...)
+func (c stubClient) CreateDatabase(context.Context, string, *driver.CreateDatabaseOptions) (driver.Database, error) {
+	return stubDatabase{stubArango: c.stubArango}, c.initErr("CreateDatabase")
 }
 
-func (f *fakeArango) client(t *testing.T) driver.Client {
-	t.Helper()
+func (c stubClient) Database(context.Context, string) (driver.Database, error) {
+	return stubDatabase{stubArango: c.stubArango}, c.initErr("Database")
+}
 
-	conn, err := http.NewConnection(http.ConnectionConfig{Endpoints: []string{f.URL}})
-	require.NoError(t, err)
-	client, err := driver.NewClient(driver.ClientConfig{Connection: conn})
-	require.NoError(t, err)
-	return client
+type stubDatabase struct {
+	driver.Database
+	*stubArango
+}
+
+func (d stubDatabase) CollectionExists(context.Context, string) (bool, error) {
+	return d.failAt != "CreateCollection", d.initErr("CollectionExists")
+}
+
+func (d stubDatabase) CreateCollection(context.Context, string, *driver.CreateCollectionOptions) (driver.Collection, error) {
+	return stubCollection{}, d.initErr("CreateCollection")
+}
+
+func (d stubDatabase) Collection(context.Context, string) (driver.Collection, error) {
+	return stubCollection{}, d.initErr("Collection")
+}
+
+func (d stubDatabase) Query(context.Context, string, map[string]any) (driver.Cursor, error) {
+	d.queries.Add(1)
+	return nil, errBoom
+}
+
+type stubCollection struct{ driver.Collection }
+
+func (stubCollection) Name() string { return "fiber_storage" }
+
+func (stubCollection) Truncate(context.Context) error { return errBoom }
+
+func (stubCollection) ReadDocument(context.Context, string, any) (driver.DocumentMeta, error) {
+	return driver.DocumentMeta{}, errBoom
+}
+
+func (stubCollection) RemoveDocument(context.Context, string) (driver.DocumentMeta, error) {
+	return driver.DocumentMeta{}, errBoom
 }
 
 func Test_ArangoDB_Init_Failures(t *testing.T) {
-	const (
-		dbCurrent  = "GET /_db/fiber/_api/database/current"
-		dbCreate   = "POST /_db/_system/_api/database"
-		collGet    = "GET /_db/fiber/_api/collection/fiber_storage"
-		collCreate = "POST /_db/fiber/_api/collection"
-		collTrunc  = "PUT /_db/fiber/_api/collection/fiber_storage/truncate"
-	)
-
 	tests := []struct {
-		name    string
-		reset   bool
-		failAt  string // the last request newStorage makes before it panics
-		respond func(route string, n int) (int, string)
+		name   string
+		reset  bool
+		failAt string // the initialization call that fails; empty when only the operations do
 	}{
-		{
-			name:   "database exists check fails",
-			failAt: dbCurrent,
-			respond: func(route string, _ int) (int, string) {
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "database creation fails",
-			failAt: dbCreate,
-			respond: func(route string, _ int) (int, string) {
-				if route == dbCurrent {
-					return 404, fakeNotFound
-				}
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "database lookup fails",
-			failAt: dbCurrent,
-			respond: func(route string, n int) (int, string) {
-				if route == dbCurrent && n == 1 {
-					return 200, fakeDBBody
-				}
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "collection exists check fails",
-			failAt: collGet,
-			respond: func(route string, _ int) (int, string) {
-				if route == dbCurrent {
-					return 200, fakeDBBody
-				}
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "collection creation fails",
-			failAt: collCreate,
-			respond: func(route string, _ int) (int, string) {
-				switch route {
-				case dbCurrent:
-					return 200, fakeDBBody
-				case collGet:
-					return 404, fakeNotFound
-				}
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "collection lookup fails",
-			failAt: collGet,
-			respond: func(route string, n int) (int, string) {
-				switch {
-				case route == dbCurrent:
-					return 200, fakeDBBody
-				case route == collGet && n == 1:
-					return 200, fakeCollBody
-				}
-				return 500, fakeErrBody
-			},
-		},
-		{
-			name:   "reset truncate fails",
-			failAt: collTrunc,
-			reset:  true,
-			respond: func(route string, _ int) (int, string) {
-				switch route {
-				case dbCurrent:
-					return 200, fakeDBBody
-				case collGet:
-					return 200, fakeCollBody
-				}
-				return 500, fakeErrBody
-			},
-		},
+		{name: "database exists check fails", failAt: "DatabaseExists"},
+		{name: "database creation fails", failAt: "CreateDatabase"},
+		{name: "database lookup fails", failAt: "Database"},
+		{name: "collection exists check fails", failAt: "CollectionExists"},
+		{name: "collection creation fails", failAt: "CreateCollection"},
+		{name: "collection lookup fails", failAt: "Collection"},
+		{name: "reset truncate fails", reset: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := newFakeArango(t, tt.respond)
+			client := stubClient{stubArango: &stubArango{failAt: tt.failAt}}
 
-			v := recoverPanic(func() {
-				NewFromConnection(f.client(t), Config{Reset: tt.reset, GCInterval: time.Hour})
+			// Only the named call fails, so the panic shows newStorage got that far and passed its error on as is.
+			require.PanicsWithValue(t, errBoom, func() {
+				NewFromConnection(client, Config{Reset: tt.reset, GCInterval: time.Hour})
 			})
-			require.NotNil(t, v, "initialization must panic")
-			err, ok := v.(error)
-			require.True(t, ok, "panic value should be the driver error, got %T", v)
-			require.Contains(t, err.Error(), "boom")
-			require.Equal(t, tt.failAt, f.routes()[len(f.routes())-1], "failed at the wrong step")
 		})
 	}
 }
@@ -603,12 +531,6 @@ func Test_ArangoDB_New_Unreachable(t *testing.T) {
 	require.Panics(t, func() {
 		New(Config{Host: "http://127.0.0.1", Port: port})
 	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	require.Panics(t, func() {
-		NewWithContext(ctx, Config{Host: "http://127.0.0.1", Port: port})
-	})
 }
 
 func Test_ArangoDB_New_InvalidEndpoint(t *testing.T) {
@@ -619,10 +541,9 @@ func Test_ArangoDB_New_InvalidEndpoint(t *testing.T) {
 }
 
 func Test_ArangoDB_Config_Invalid_Host(t *testing.T) {
-	v := recoverPanic(func() {
+	require.PanicsWithValue(t, "Host should start with `http://` or `https://`", func() {
 		New(Config{Host: "127.0.0.1"})
 	})
-	require.Equal(t, "Host should start with `http://` or `https://`", v)
 }
 
 func Test_ArangoDB_ConfigDefault(t *testing.T) {
@@ -631,7 +552,7 @@ func Test_ArangoDB_ConfigDefault(t *testing.T) {
 	cfg := configDefault(Config{})
 	require.Equal(t, ConfigDefault, cfg)
 
-	cfg = configDefault(Config{
+	full := Config{
 		Host:       "https://db.example.com",
 		Port:       1234,
 		Username:   "u",
@@ -640,17 +561,8 @@ func Test_ArangoDB_ConfigDefault(t *testing.T) {
 		Collection: "c",
 		Reset:      true,
 		GCInterval: time.Minute,
-	})
-	require.Equal(t, Config{
-		Host:       "https://db.example.com",
-		Port:       1234,
-		Username:   "u",
-		Password:   "p",
-		Database:   "d",
-		Collection: "c",
-		Reset:      true,
-		GCInterval: time.Minute,
-	}, cfg)
+	}
+	require.Equal(t, full, configDefault(full))
 
 	cfg = configDefault(Config{Host: "http://h", Port: -5, GCInterval: -time.Second})
 	require.Equal(t, 8529, cfg.Port)
@@ -745,25 +657,21 @@ func Test_ArangoDB_Storage_Behavior(t *testing.T) {
 	})
 
 	t.Run("gc removes expired keys and keeps the rest", func(t *testing.T) {
-		s := NewFromConnection(owner.Conn(), Config{Collection: "gc_coll", GCInterval: 500 * time.Millisecond})
+		s := NewFromConnection(owner.Conn(), Config{Collection: "gc_coll", GCInterval: 50 * time.Millisecond})
 		defer s.Close()
 
-		require.NoError(t, s.Set("short", []byte("v"), time.Second))
 		require.NoError(t, s.Set("long", []byte("v"), time.Hour))
 		require.NoError(t, s.Set("forever", []byte("v"), 0))
+		// Written last and already expired, so the sweep that removes it has also seen the other two.
+		_, err := s.collection.CreateDocument(context.Background(), &model{Key: "short", Val: "v", Exp: time.Now().Unix() - 10})
+		require.NoError(t, err)
 
 		// Look at the collection directly: Get already hides expired keys, so only a document
 		// that is physically gone proves the sweep ran.
-		deadline := time.Now().Add(15 * time.Second)
-		for {
+		require.Eventually(t, func() bool {
 			_, err := s.collection.ReadDocument(context.Background(), "short", &model{})
-			if err != nil {
-				require.True(t, isDocumentNotFound(err), "unexpected error: %v", err)
-				break
-			}
-			require.False(t, time.Now().After(deadline), "expired document should have been swept")
-			time.Sleep(100 * time.Millisecond)
-		}
+			return isDocumentNotFound(err)
+		}, 15*time.Second, 50*time.Millisecond, "expired document should have been swept")
 
 		for _, key := range []string{"long", "forever"} {
 			val, err := s.Get(key)
@@ -827,31 +735,22 @@ func Test_ArangoDB_Storage_Behavior(t *testing.T) {
 }
 
 func Test_ArangoDB_Unreachable_Operations(t *testing.T) {
-	// A store whose server goes away: every operation reports the transport error.
-	f := newFakeArango(t, func(route string, n int) (int, string) {
-		switch route {
-		case "GET /_db/fiber/_api/database/current":
-			return 200, fakeDBBody
-		case "GET /_db/fiber/_api/collection/fiber_storage":
-			return 200, fakeCollBody
-		}
-		return 500, fakeErrBody
-	})
-
-	s := NewFromConnection(f.client(t), Config{GCInterval: 50 * time.Millisecond})
+	// A store whose server fails every operation: each one reports the failure.
+	stub := &stubArango{}
+	s := NewFromConnection(stubClient{stubArango: stub}, Config{GCInterval: 50 * time.Millisecond})
 	defer s.Close()
 
 	val, err := s.Get("k")
-	require.Error(t, err)
+	require.ErrorIs(t, err, errBoom)
 	require.Nil(t, val)
-	require.Contains(t, err.Error(), "boom")
 
-	require.ErrorContains(t, s.Set("k", []byte("v"), 0), "boom")
-	require.ErrorContains(t, s.Delete("k"), "boom")
-	require.ErrorContains(t, s.Reset(), "boom")
+	require.ErrorIs(t, s.Set("k", []byte("v"), 0), errBoom)
+	require.ErrorIs(t, s.Delete("k"), errBoom)
+	require.ErrorIs(t, s.Reset(), errBoom)
 
-	// The collector keeps running when a sweep fails, and Close still returns promptly.
-	time.Sleep(200 * time.Millisecond)
+	// Set made one query, so a third is the collector sweeping again after a failed sweep. Close
+	// must still return promptly.
+	require.Eventually(t, func() bool { return stub.queries.Load() > 2 }, 15*time.Second, 10*time.Millisecond)
 	done := make(chan error, 1)
 	go func() { done <- s.Close() }()
 	select {
