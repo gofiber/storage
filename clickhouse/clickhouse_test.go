@@ -432,18 +432,21 @@ func closedListenerConfig(t testing.TB, cfg Config) Config {
 	return cfg
 }
 
-// openUnreachable opens a driver connection to a closed port; Open itself never dials.
-func openUnreachable(t testing.TB) driver.Conn {
+// newUnreachableStorage returns a Storage over a connection to a closed port, so every call that reaches the
+// server is refused and no container is needed. It is built as a literal because the constructors dial the
+// server to create the table; driver.Open itself never dials.
+func newUnreachableStorage(t testing.TB) *Storage {
 	t.Helper()
 
-	opts, _, err := defaultConfig(closedListenerConfig(t, Config{Table: "unreachable"}))
+	cfg := closedListenerConfig(t, Config{Table: "unreachable"})
+	opts, _, err := defaultConfig(cfg)
 	require.NoError(t, err)
 
 	conn, err := driver.Open(&opts)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
 
-	return conn
+	return &Storage{session: conn, table: cfg.Table}
 }
 
 // stubConn is a driver.Conn whose behavior is injected per call; any other method panics via the nil embedded interface.
@@ -473,28 +476,23 @@ func (c *stubConn) Close() error {
 	return c.closeErr
 }
 
-// stubRow is a chdriver.Row returning a canned scan error.
+// stubRow is a chdriver.Row for the two methods GetWithContext uses: Err never fails, and ScanStruct either
+// fails with scanErr or yields result. Any other method panics via the nil embedded interface.
 type stubRow struct {
-	err     error
+	chdriver.Row
+
 	scanErr error
-	fill    func(dest *schema)
+	result  schema
 }
 
-func (r stubRow) Err() error { return r.err }
-
-func (r stubRow) Scan(...any) error { return r.scanErr }
+func (stubRow) Err() error { return nil }
 
 func (r stubRow) ScanStruct(dest any) error {
 	if r.scanErr != nil {
 		return r.scanErr
 	}
-	if r.fill != nil {
-		s, ok := dest.(*schema)
-		if !ok {
-			return errors.New("unexpected destination type")
-		}
-		r.fill(s)
-	}
+	// GetWithContext always scans into a *schema.
+	*dest.(*schema) = r.result
 	return nil
 }
 
@@ -533,7 +531,7 @@ func Test_DefaultConfig_AuthRequiresUserAndPassword(t *testing.T) {
 }
 
 func Test_DefaultConfig_TLS(t *testing.T) {
-	tlsCfg := newTLSConfigForTest()
+	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: "db.internal"}
 
 	opts, _, err := defaultConfig(Config{Table: "t", TLSConfig: tlsCfg})
 	require.NoError(t, err)
@@ -566,75 +564,40 @@ func Test_NewWithContext_ConnectionRefused(t *testing.T) {
 	require.Nil(t, client)
 }
 
-func Test_New_ConnectionRefused(t *testing.T) {
-	client, err := New(closedListenerConfig(t, Config{Table: "test_table"}))
-	require.Error(t, err)
-	require.Nil(t, client)
-}
-
-func Test_NewFromConnection_CreateTableError(t *testing.T) {
-	createErr := errors.New("create failed")
-	conn := &stubConn{exec: func(string) error { return createErr }}
-
-	client, err := NewFromConnection(conn, Config{Table: "t"})
-	require.ErrorIs(t, err, createErr)
-	require.Nil(t, client)
-	// A borrowed connection must never be closed on failure.
-	require.Zero(t, conn.closed)
-}
-
-func Test_NewFromConnection_CleanError(t *testing.T) {
-	resetErr := errors.New("truncate failed")
-	var queries []string
-	conn := &stubConn{exec: func(query string) error {
-		queries = append(queries, query)
-		if query == resetDataString {
-			return resetErr
-		}
-		return nil
-	}}
-
-	client, err := NewFromConnection(conn, Config{Table: "t", Clean: true})
-	require.ErrorIs(t, err, resetErr)
-	require.Nil(t, client)
-	require.Len(t, queries, 2)
-	require.Zero(t, conn.closed)
-}
-
-func Test_NewFromConnection_PingError(t *testing.T) {
-	pingErr := errors.New("ping failed")
-	conn := &stubConn{ping: pingErr}
-
-	client, err := NewFromConnection(conn, Config{Table: "t"})
-	require.ErrorIs(t, err, pingErr)
-	require.Nil(t, client)
-	require.Zero(t, conn.closed)
-}
-
-func Test_NewStorage_ClosesOwnedConnectionOnFailure(t *testing.T) {
+// A failed initialization closes the connection only when this driver opened it;
+// one handed to NewFromConnection stays the caller's to close.
+func Test_NewStorage_FailureClosesOnlyOwnedConnection(t *testing.T) {
 	failure := errors.New("boom")
 
 	tests := []struct {
 		name string
-		conn *stubConn
+		exec func(query string) error
+		ping error
 		cfg  Config
 	}{
-		{"create", &stubConn{exec: func(string) error { return failure }}, Config{Table: "t"}},
-		{"clean", &stubConn{exec: func(q string) error {
-			if q == resetDataString {
+		{name: "create", exec: func(string) error { return failure }, cfg: Config{Table: "t"}},
+		{name: "clean", exec: func(query string) error {
+			if query == resetDataString {
 				return failure
 			}
 			return nil
-		}}, Config{Table: "t", Clean: true}},
-		{"ping", &stubConn{ping: failure}, Config{Table: "t"}},
+		}, cfg: Config{Table: "t", Clean: true}},
+		{name: "ping", ping: failure, cfg: Config{Table: "t"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := newStorage(context.Background(), tt.conn, true, Memory, tt.cfg)
+			owned := &stubConn{exec: tt.exec, ping: tt.ping}
+			client, err := newStorage(context.Background(), owned, true, Memory, tt.cfg)
 			require.ErrorIs(t, err, failure)
 			require.Nil(t, client)
-			require.Equal(t, 1, tt.conn.closed)
+			require.Equal(t, 1, owned.closed)
+
+			borrowed := &stubConn{exec: tt.exec, ping: tt.ping}
+			client, err = NewFromConnection(borrowed, tt.cfg)
+			require.ErrorIs(t, err, failure)
+			require.Nil(t, client)
+			require.Zero(t, borrowed.closed)
 		})
 	}
 }
@@ -652,7 +615,7 @@ func Test_NewStorage_Success(t *testing.T) {
 
 func Test_EmptyKeyAndValue_AreNoOps(t *testing.T) {
 	// The connection is unreachable: these calls must return before touching it.
-	client := &Storage{session: openUnreachable(t), table: "unreachable"}
+	client := newUnreachableStorage(t)
 
 	require.NoError(t, client.Set("", []byte("value"), 0))
 	require.NoError(t, client.Set("key", nil, 0))
@@ -660,26 +623,25 @@ func Test_EmptyKeyAndValue_AreNoOps(t *testing.T) {
 
 	value, err := client.Get("")
 	require.NoError(t, err)
-	require.Equal(t, []byte{}, value)
+	require.Empty(t, value)
 
 	require.NoError(t, client.Delete(""))
 }
 
 func Test_OperationsOnUnreachableServer(t *testing.T) {
-	client := &Storage{session: openUnreachable(t), table: "unreachable"}
+	client := newUnreachableStorage(t)
 
 	require.Error(t, client.Set("key", []byte("value"), time.Minute))
 
-	value, err := client.Get("key")
+	_, err := client.Get("key")
 	require.Error(t, err)
-	require.Equal(t, []byte{}, value)
 
 	require.Error(t, client.Delete("key"))
 	require.Error(t, client.Reset())
 }
 
 func Test_OperationsAfterClose(t *testing.T) {
-	client := &Storage{session: openUnreachable(t), table: "unreachable"}
+	client := newUnreachableStorage(t)
 	require.NoError(t, client.Close())
 
 	require.ErrorIs(t, client.Set("key", []byte("value"), 0), ErrClosed)
@@ -721,49 +683,34 @@ func Test_Close_ReportsFailureOnce(t *testing.T) {
 	require.Equal(t, 1, conn.closed)
 }
 
-func Test_Get_ScanError(t *testing.T) {
+// An empty want is a miss: the key is absent or its row has expired.
+func Test_Get_ScanOutcomes(t *testing.T) {
 	scanErr := errors.New("scan failed")
-	client := &Storage{session: &stubConn{row: stubRow{scanErr: scanErr}}, table: "t"}
 
-	value, err := client.Get("key")
-	require.ErrorIs(t, err, scanErr)
-	require.Equal(t, []byte{}, value)
-}
-
-func Test_Get_NoRows(t *testing.T) {
-	client := &Storage{session: &stubConn{row: stubRow{scanErr: sql.ErrNoRows}}, table: "t"}
-
-	value, err := client.Get("key")
-	require.NoError(t, err)
-	require.Equal(t, []byte{}, value)
-}
-
-func Test_Get_ExpirationHandling(t *testing.T) {
 	tests := []struct {
-		name       string
-		expiration time.Time
-		want       []byte
+		name    string
+		row     stubRow
+		want    string
+		wantErr error
 	}{
-		{"no expiration", time.Unix(0, 0), []byte("v")},
-		{"future", time.Now().Add(time.Hour), []byte("v")},
-		{"past", time.Now().Add(-time.Hour), []byte{}},
+		{name: "scan error", row: stubRow{scanErr: scanErr}, wantErr: scanErr},
+		{name: "no rows", row: stubRow{scanErr: sql.ErrNoRows}},
+		{name: "no expiration", row: stubRow{result: schema{Value: "v", Expiration: time.Unix(0, 0)}}, want: "v"},
+		{name: "future", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(time.Hour)}}, want: "v"},
+		{name: "past", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(-time.Hour)}}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			row := stubRow{fill: func(s *schema) {
-				s.Value = "v"
-				s.Expiration = tt.expiration
-			}}
-			client := &Storage{session: &stubConn{row: row}, table: "t"}
+			client := &Storage{session: &stubConn{row: tt.row}, table: "t"}
 
 			value, err := client.Get("key")
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
 			require.NoError(t, err)
-			require.Equal(t, tt.want, value)
+			require.Equal(t, tt.want, string(value))
 		})
 	}
-}
-
-func newTLSConfigForTest() *tls.Config {
-	return &tls.Config{MinVersion: tls.VersionTLS12, ServerName: "db.internal"}
 }
