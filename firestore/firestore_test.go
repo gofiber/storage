@@ -392,32 +392,45 @@ func Test_Firestore_NewFromConnection_Nil(t *testing.T) {
 type fakeFirestore struct {
 	firestorepb.UnimplementedFirestoreServer
 
-	mu         sync.Mutex
-	docs       map[string]*firestorepb.Document
-	queryDocs  []*firestorepb.Document
-	queryErr   error
-	commitErr  error
-	commits    []*firestorepb.CommitRequest
-	batches    []*firestorepb.BatchWriteRequest
-	getCalls   int
-	commitSeen chan struct{}
+	mu        sync.Mutex
+	docs      map[string]*firestorepb.Document
+	queryDocs []*firestorepb.Document
+	queryErr  error
+	commitErr error
+	commits   []*firestorepb.CommitRequest
+	batches   []*firestorepb.BatchWriteRequest
+	getCalls  int
 }
 
-func (f *fakeFirestore) docName(collection, key string) string {
+func docName(collection, key string) string {
 	return fmt.Sprintf("projects/%s/databases/(default)/documents/%s/%s", projectID, collection, key)
 }
 
-func (f *fakeFirestore) putDoc(collection, key string, fields map[string]*firestorepb.Value) *firestorepb.Document {
-	doc := &firestorepb.Document{
-		Name:       f.docName(collection, key),
+func newDoc(collection, key string, fields map[string]*firestorepb.Value) *firestorepb.Document {
+	return &firestorepb.Document{
+		Name:       docName(collection, key),
 		Fields:     fields,
 		CreateTime: timestamppb.Now(),
 		UpdateTime: timestamppb.Now(),
 	}
+}
+
+func (f *fakeFirestore) putDoc(collection, key string, fields map[string]*firestorepb.Value) {
+	doc := newDoc(collection, key, fields)
+
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.docs[doc.Name] = doc
-	return doc
+}
+
+// putEntry stores a document shaped like the ones Set writes for a key with an
+// expiry.
+func (f *fakeFirestore) putEntry(collection, key string, val []byte, exp time.Time) {
+	f.putDoc(collection, key, map[string]*firestorepb.Value{
+		"k":      {ValueType: &firestorepb.Value_StringValue{StringValue: key}},
+		"v":      {ValueType: &firestorepb.Value_BytesValue{BytesValue: val}},
+		"exp_at": {ValueType: &firestorepb.Value_TimestampValue{TimestampValue: timestamppb.New(exp)}},
+	})
 }
 
 func (f *fakeFirestore) BatchGetDocuments(req *firestorepb.BatchGetDocumentsRequest, stream firestorepb.Firestore_BatchGetDocumentsServer) error {
@@ -449,12 +462,6 @@ func (f *fakeFirestore) Commit(_ context.Context, req *firestorepb.CommitRequest
 	err := f.commitErr
 	f.mu.Unlock()
 
-	if f.commitSeen != nil {
-		select {
-		case f.commitSeen <- struct{}{}:
-		default:
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -514,6 +521,24 @@ func (f *fakeFirestore) setCommitErr(err error) {
 	f.commitErr = err
 }
 
+func (f *fakeFirestore) setQueryErr(err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.queryErr = err
+}
+
+// setQueryDocs makes every query return one empty document per key, in order.
+func (f *fakeFirestore) setQueryDocs(collection string, keys ...string) {
+	docs := make([]*firestorepb.Document, 0, len(keys))
+	for _, key := range keys {
+		docs = append(docs, newDoc(collection, key, nil))
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.queryDocs = docs
+}
+
 func (f *fakeFirestore) rpcCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -529,10 +554,7 @@ func startFakeFirestore(t testing.TB) (*fakeFirestore, Config) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	fake := &fakeFirestore{
-		docs:       make(map[string]*firestorepb.Document),
-		commitSeen: make(chan struct{}, 16),
-	}
+	fake := &fakeFirestore{docs: make(map[string]*firestorepb.Document)}
 	srv := grpc.NewServer()
 	firestorepb.RegisterFirestoreServer(srv, fake)
 	go func() { _ = srv.Serve(lis) }()
@@ -546,6 +568,11 @@ func startFakeFirestore(t testing.TB) (*fakeFirestore, Config) {
 		RequestTimeout: 5 * time.Second,
 	}
 }
+
+// unreachableTimeout is the RequestTimeout for storages that talk to an
+// address nothing listens on. The client retries Unavailable until the request
+// deadline, so each failing call takes about this long.
+const unreachableTimeout = 50 * time.Millisecond
 
 // unusedAddr returns a loopback address nothing is listening on.
 func unusedAddr(t testing.TB) string {
@@ -580,21 +607,23 @@ func captureLog(t testing.TB) *syncBuffer {
 	t.Helper()
 
 	out := &syncBuffer{}
+	prev := log.Writer()
 	log.SetOutput(out)
-	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	t.Cleanup(func() { log.SetOutput(prev) })
 	return out
 }
 
-func stringVal(s string) *firestorepb.Value {
-	return &firestorepb.Value{ValueType: &firestorepb.Value_StringValue{StringValue: s}}
-}
+// panicText runs fn, which must panic, and returns the panic value as text.
+func panicText(t testing.TB, fn func()) string {
+	t.Helper()
 
-func bytesVal(b []byte) *firestorepb.Value {
-	return &firestorepb.Value{ValueType: &firestorepb.Value_BytesValue{BytesValue: b}}
-}
-
-func timeVal(ts time.Time) *firestorepb.Value {
-	return &firestorepb.Value{ValueType: &firestorepb.Value_TimestampValue{TimestampValue: timestamppb.New(ts)}}
+	var r any
+	func() {
+		defer func() { r = recover() }()
+		fn()
+	}()
+	require.NotNil(t, r, "expected a panic")
+	return fmt.Sprint(r)
 }
 
 func Test_Firestore_Fake_Closed(t *testing.T) {
@@ -672,7 +701,7 @@ func Test_Firestore_Fake_Set_WritesDocument(t *testing.T) {
 	require.Len(t, commits, 2)
 
 	withExp := commits[0].GetWrites()[0].GetUpdate()
-	require.Equal(t, fake.docName(cfg.Collection, "john"), withExp.GetName())
+	require.Equal(t, docName(cfg.Collection, "john"), withExp.GetName())
 	require.Equal(t, "john", withExp.GetFields()["k"].GetStringValue())
 	require.Equal(t, []byte("doe"), withExp.GetFields()["v"].GetBytesValue())
 	expAt := withExp.GetFields()["exp_at"].GetTimestampValue().AsTime()
@@ -683,25 +712,9 @@ func Test_Firestore_Fake_Set_WritesDocument(t *testing.T) {
 	require.NotContains(t, noExp.GetFields(), "exp_at", "no expiry must omit exp_at")
 }
 
-func Test_Firestore_Fake_Set_ServerError(t *testing.T) {
-	fake, cfg := startFakeFirestore(t)
-	fake.setCommitErr(status.Error(codes.PermissionDenied, "denied"))
-
-	store := New(cfg)
-	defer store.Close()
-
-	err := store.Set("john", []byte("doe"), 0)
-	require.Error(t, err)
-	require.Equal(t, codes.PermissionDenied, status.Code(err))
-}
-
 func Test_Firestore_Fake_Get_Value(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-	fake.putDoc(cfg.Collection, "live", map[string]*firestorepb.Value{
-		"k":      stringVal("live"),
-		"v":      bytesVal([]byte("doe")),
-		"exp_at": timeVal(time.Now().Add(time.Hour)),
-	})
+	fake.putEntry(cfg.Collection, "live", []byte("doe"), time.Now().Add(time.Hour))
 
 	store := New(cfg)
 	defer store.Close()
@@ -716,7 +729,7 @@ func Test_Firestore_Fake_Get_DecodeError(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
 	fake.putDoc(cfg.Collection, "broken", map[string]*firestorepb.Value{
 		"k": {ValueType: &firestorepb.Value_IntegerValue{IntegerValue: 42}},
-		"v": bytesVal([]byte("doe")),
+		"v": {ValueType: &firestorepb.Value_BytesValue{BytesValue: []byte("doe")}},
 	})
 
 	store := New(cfg)
@@ -729,11 +742,7 @@ func Test_Firestore_Fake_Get_DecodeError(t *testing.T) {
 
 func Test_Firestore_Fake_Get_ExpiredIsDeleted(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-	fake.putDoc(cfg.Collection, "stale", map[string]*firestorepb.Value{
-		"k":      stringVal("stale"),
-		"v":      bytesVal([]byte("doe")),
-		"exp_at": timeVal(time.Now().Add(-time.Minute)),
-	})
+	fake.putEntry(cfg.Collection, "stale", []byte("doe"), time.Now().Add(-time.Minute))
 
 	store := New(cfg)
 	defer store.Close()
@@ -743,24 +752,18 @@ func Test_Firestore_Fake_Get_ExpiredIsDeleted(t *testing.T) {
 	require.Nil(t, val, "an expired document must read as missing")
 
 	// The expired document is removed in the background.
-	select {
-	case <-fake.commitSeen:
-	case <-time.After(5 * time.Second):
-		t.Fatal("expired document was not deleted")
-	}
+	require.Eventually(t, func() bool {
+		return len(fake.commitRequests()) > 0
+	}, 5*time.Second, 10*time.Millisecond, "expired document was not deleted")
 
 	commits := fake.commitRequests()
 	require.Len(t, commits, 1)
-	require.Equal(t, fake.docName(cfg.Collection, "stale"), commits[0].GetWrites()[0].GetDelete())
+	require.Equal(t, docName(cfg.Collection, "stale"), commits[0].GetWrites()[0].GetDelete())
 }
 
 func Test_Firestore_Fake_Get_ExpiredDeleteFailureIsLogged(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-	fake.putDoc(cfg.Collection, "stale-logged", map[string]*firestorepb.Value{
-		"k":      stringVal("stale-logged"),
-		"v":      bytesVal([]byte("doe")),
-		"exp_at": timeVal(time.Now().Add(-time.Minute)),
-	})
+	fake.putEntry(cfg.Collection, "stale-logged", []byte("doe"), time.Now().Add(-time.Minute))
 	fake.setCommitErr(status.Error(codes.PermissionDenied, "denied"))
 
 	out := captureLog(t)
@@ -787,7 +790,7 @@ func Test_Firestore_Fake_Delete(t *testing.T) {
 
 	commits := fake.commitRequests()
 	require.Len(t, commits, 1)
-	require.Equal(t, fake.docName(cfg.Collection, "john"), commits[0].GetWrites()[0].GetDelete())
+	require.Equal(t, docName(cfg.Collection, "john"), commits[0].GetWrites()[0].GetDelete())
 }
 
 func Test_Firestore_Fake_Delete_NotFoundIsIgnored(t *testing.T) {
@@ -801,27 +804,33 @@ func Test_Firestore_Fake_Delete_NotFoundIsIgnored(t *testing.T) {
 	require.Len(t, fake.commitRequests(), 1)
 }
 
-func Test_Firestore_Fake_Delete_ServerError(t *testing.T) {
-	fake, cfg := startFakeFirestore(t)
-	fake.setCommitErr(status.Error(codes.PermissionDenied, "denied"))
+func Test_Firestore_Fake_Commit_ServerError(t *testing.T) {
+	tests := []struct {
+		name string
+		op   func(*Storage) error
+	}{
+		{"set", func(s *Storage) error { return s.Set("john", []byte("doe"), 0) }},
+		{"delete", func(s *Storage) error { return s.Delete("john") }},
+	}
 
-	store := New(cfg)
-	defer store.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake, cfg := startFakeFirestore(t)
+			fake.setCommitErr(status.Error(codes.PermissionDenied, "denied"))
 
-	err := store.Delete("john")
-	require.Error(t, err)
-	require.Equal(t, codes.PermissionDenied, status.Code(err))
+			store := New(cfg)
+			defer store.Close()
+
+			err := tt.op(store)
+			require.Error(t, err)
+			require.Equal(t, codes.PermissionDenied, status.Code(err))
+		})
+	}
 }
 
 func Test_Firestore_Fake_Reset_DeletesAllDocuments(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-
-	fake.mu.Lock()
-	fake.queryDocs = []*firestorepb.Document{
-		{Name: fake.docName(cfg.Collection, "a"), CreateTime: timestamppb.Now(), UpdateTime: timestamppb.Now()},
-		{Name: fake.docName(cfg.Collection, "b"), CreateTime: timestamppb.Now(), UpdateTime: timestamppb.Now()},
-	}
-	fake.mu.Unlock()
+	fake.setQueryDocs(cfg.Collection, "a", "b")
 
 	store := New(cfg)
 	defer store.Close()
@@ -835,17 +844,14 @@ func Test_Firestore_Fake_Reset_DeletesAllDocuments(t *testing.T) {
 		}
 	}
 	require.ElementsMatch(t, []string{
-		fake.docName(cfg.Collection, "a"),
-		fake.docName(cfg.Collection, "b"),
+		docName(cfg.Collection, "a"),
+		docName(cfg.Collection, "b"),
 	}, deleted)
 }
 
 func Test_Firestore_Fake_Reset_IterateError(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-
-	fake.mu.Lock()
-	fake.queryErr = status.Error(codes.PermissionDenied, "denied")
-	fake.mu.Unlock()
+	fake.setQueryErr(status.Error(codes.PermissionDenied, "denied"))
 
 	store := New(cfg)
 	defer store.Close()
@@ -860,14 +866,7 @@ func Test_Firestore_Fake_Reset_ScheduleDeleteError(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
 
 	// The same document twice makes the bulk writer reject the second delete.
-	dup := &firestorepb.Document{
-		Name:       fake.docName(cfg.Collection, "dup"),
-		CreateTime: timestamppb.Now(),
-		UpdateTime: timestamppb.Now(),
-	}
-	fake.mu.Lock()
-	fake.queryDocs = []*firestorepb.Document{dup, dup}
-	fake.mu.Unlock()
+	fake.setQueryDocs(cfg.Collection, "dup", "dup")
 
 	store := New(cfg)
 	defer store.Close()
@@ -879,12 +878,7 @@ func Test_Firestore_Fake_Reset_ScheduleDeleteError(t *testing.T) {
 
 func Test_Firestore_Fake_New_ResetOnInit(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-
-	fake.mu.Lock()
-	fake.queryDocs = []*firestorepb.Document{
-		{Name: fake.docName(cfg.Collection, "old"), CreateTime: timestamppb.Now(), UpdateTime: timestamppb.Now()},
-	}
-	fake.mu.Unlock()
+	fake.setQueryDocs(cfg.Collection, "old")
 
 	cfg.Reset = true
 	store := New(cfg)
@@ -892,24 +886,21 @@ func Test_Firestore_Fake_New_ResetOnInit(t *testing.T) {
 
 	batches := fake.batchRequests()
 	require.Len(t, batches, 1)
-	require.Equal(t, fake.docName(cfg.Collection, "old"), batches[0].GetWrites()[0].GetDelete())
+	require.Equal(t, docName(cfg.Collection, "old"), batches[0].GetWrites()[0].GetDelete())
 }
 
 func Test_Firestore_Unreachable_ResetOnInitPanics(t *testing.T) {
 	t.Setenv("FIRESTORE_EMULATOR_HOST", unusedAddr(t))
 
-	defer func() {
-		r := recover()
-		require.NotNil(t, r, "New must panic when the initial reset fails")
-		require.Contains(t, fmt.Sprint(r), "unable to reset collection")
-	}()
-
-	New(Config{
-		ProjectID:      projectID,
-		Collection:     "unreachable",
-		RequestTimeout: 500 * time.Millisecond,
-		Reset:          true,
+	text := panicText(t, func() {
+		New(Config{
+			ProjectID:      projectID,
+			Collection:     "unreachable",
+			RequestTimeout: unreachableTimeout,
+			Reset:          true,
+		})
 	})
+	require.Contains(t, text, "unable to reset collection")
 }
 
 func Test_Firestore_Unreachable_Operations(t *testing.T) {
@@ -918,7 +909,7 @@ func Test_Firestore_Unreachable_Operations(t *testing.T) {
 	store := New(Config{
 		ProjectID:      projectID,
 		Collection:     "unreachable",
-		RequestTimeout: 500 * time.Millisecond,
+		RequestTimeout: unreachableTimeout,
 	})
 	defer store.Close()
 
@@ -934,33 +925,27 @@ func Test_Firestore_Unreachable_Operations(t *testing.T) {
 func Test_Firestore_New_InvalidCredentialsJSONPanics(t *testing.T) {
 	t.Setenv("FIRESTORE_EMULATOR_HOST", "")
 
-	defer func() {
-		r := recover()
-		require.NotNil(t, r, "New must panic on unusable credentials")
-		require.Contains(t, fmt.Sprint(r), "unable to create client")
-	}()
-
-	New(Config{
-		ProjectID:      projectID,
-		Credentials:    "this is not json",
-		RequestTimeout: time.Second,
+	text := panicText(t, func() {
+		New(Config{
+			ProjectID:      projectID,
+			Credentials:    "this is not json",
+			RequestTimeout: time.Second,
+		})
 	})
+	require.Contains(t, text, "unable to create client")
 }
 
 func Test_Firestore_New_MissingCredentialsFilePanics(t *testing.T) {
 	t.Setenv("FIRESTORE_EMULATOR_HOST", "")
 
-	defer func() {
-		r := recover()
-		require.NotNil(t, r, "New must panic when the credentials file is missing")
-		require.Contains(t, fmt.Sprint(r), "unable to create client")
-	}()
-
-	New(Config{
-		ProjectID:       projectID,
-		CredentialsPath: filepath.Join(t.TempDir(), "missing.json"),
-		RequestTimeout:  time.Second,
+	text := panicText(t, func() {
+		New(Config{
+			ProjectID:       projectID,
+			CredentialsPath: filepath.Join(t.TempDir(), "missing.json"),
+			RequestTimeout:  time.Second,
+		})
 	})
+	require.Contains(t, text, "unable to create client")
 }
 
 func Test_Firestore_LoadCredentialsFromFile(t *testing.T) {
