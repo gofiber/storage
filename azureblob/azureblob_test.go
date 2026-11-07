@@ -411,6 +411,17 @@ func newFakeClient(t testing.TB, endpoint string) *azblob.Client {
 	return client
 }
 
+// newFakeServerClient starts an httptest server using handler, closed when the test ends, and
+// returns a client for it.
+func newFakeServerClient(t testing.TB, handler http.HandlerFunc) *azblob.Client {
+	t.Helper()
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	return newFakeClient(t, srv.URL)
+}
+
 // writeBlobError writes an Azure Storage style error response.
 func writeBlobError(w http.ResponseWriter, status int, code bloberror.Code) {
 	w.Header().Set("x-ms-error-code", string(code))
@@ -419,22 +430,33 @@ func writeBlobError(w http.ResponseWriter, status int, code bloberror.Code) {
 	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="utf-8"?><Error><Code>%s</Code><Message>%s</Message></Error>`, code, code)
 }
 
-// newFakeStore starts an httptest server using handler and returns a storage bound to a
-// "fake" container on it. The container-creation request is answered with 201 by the
-// wrapper handler, so handler only sees the requests issued by the test itself.
-func newFakeStore(t testing.TB, handler http.HandlerFunc, timeout time.Duration) *Storage {
+// writeBlobList writes a list-blobs response holding the named blobs.
+func writeBlobList(w http.ResponseWriter, names ...string) {
+	blobs := make([]string, len(names))
+	for i, name := range names {
+		blobs[i] = "<Blob><Name>" + name + "</Name><Properties/></Blob>"
+	}
+
+	w.Header().Set("Content-Type", "application/xml")
+	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="utf-8"?>`+
+		`<EnumerationResults ServiceEndpoint="http://x/" ContainerName="fake"><Blobs>%s</Blobs><NextMarker/></EnumerationResults>`, strings.Join(blobs, ""))
+}
+
+// newFakeStore returns a storage bound to a "fake" container on a fake server using handler.
+// The container-creation request is answered with 201 by a wrapper handler, so handler only
+// sees the requests issued by the test itself.
+func newFakeStore(t testing.TB, handler http.HandlerFunc) *Storage {
 	t.Helper()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := newFakeServerClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut && r.URL.Query().Get("restype") == "container" {
 			w.WriteHeader(http.StatusCreated)
 			return
 		}
 		handler(w, r)
-	}))
-	t.Cleanup(srv.Close)
+	})
 
-	return NewFromConnection(newFakeClient(t, srv.URL), Config{Container: "fake", RequestTimeout: timeout})
+	return NewFromConnection(client, Config{Container: "fake"})
 }
 
 // closedEndpoint returns the URL of a listener that has been closed, so connections are refused.
@@ -447,6 +469,18 @@ func closedEndpoint(t testing.TB) string {
 	require.NoError(t, l.Close())
 
 	return "http://" + addr
+}
+
+// recoverPanic runs f and returns what it panicked with as an error, or nil if f did not panic.
+func recoverPanic(f func()) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+		}
+	}()
+	f()
+
+	return nil
 }
 
 func Test_AzureBlob_Configure_Default(t *testing.T) {
@@ -503,19 +537,16 @@ func Test_AzureBlob_ValidateConfig(t *testing.T) {
 			require.False(t, ok)
 			require.EqualError(t, err, tc.errMsg)
 
-			// configure must reject the same config by panicking with the error message.
-			require.PanicsWithValue(t, "invalid config:, "+tc.errMsg, func() {
-				configure(cfg)
-			})
+			// configure must reject the same config by panicking with the error message;
+			// the wording around it is not part of the contract.
+			require.ErrorContains(t, recoverPanic(func() { configure(cfg) }), tc.errMsg)
 		})
 	}
 }
 
 func Test_AzureBlob_HandleError(t *testing.T) {
 	require.NotPanics(t, func() { handleError(nil) })
-	require.PanicsWithValue(t, "invalid config:, boom", func() {
-		handleError(fmt.Errorf("boom"))
-	})
+	require.ErrorContains(t, recoverPanic(func() { handleError(fmt.Errorf("boom")) }), "boom")
 }
 
 func Test_AzureBlob_New_InvalidKey(t *testing.T) {
@@ -546,12 +577,17 @@ func Test_AzureBlob_NewWithContext_Canceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// The cancelled context aborts the container creation, which is a fatal config error.
+	// The server would accept the container, so only the cancelled context can abort its
+	// creation, which is a fatal config error.
+	endpoint := newFakeServerClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	}).URL()
+
 	require.Panics(t, func() {
 		NewWithContext(ctx, Config{
 			Account:     fakeAccount,
 			Container:   "box",
-			Endpoint:    closedEndpoint(t) + "/" + fakeAccount,
+			Endpoint:    endpoint,
 			Credentials: Credentials{Account: fakeAccount, Key: fakeKey},
 		})
 	})
@@ -566,12 +602,9 @@ func Test_AzureBlob_NewFromConnection_Unreachable(t *testing.T) {
 }
 
 func Test_AzureBlob_NewFromConnection_CreateContainerRejected(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := newFakeServerClient(t, func(w http.ResponseWriter, r *http.Request) {
 		writeBlobError(w, http.StatusForbidden, bloberror.AuthenticationFailed)
-	}))
-	defer srv.Close()
-
-	client := newFakeClient(t, srv.URL)
+	})
 
 	require.Panics(t, func() {
 		NewFromConnection(client, Config{Container: "box"})
@@ -581,15 +614,12 @@ func Test_AzureBlob_NewFromConnection_CreateContainerRejected(t *testing.T) {
 func Test_AzureBlob_NewFromConnection_ContainerAlreadyExists(t *testing.T) {
 	var puts atomic.Int32
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := newFakeServerClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut {
 			puts.Add(1)
 		}
 		writeBlobError(w, http.StatusConflict, bloberror.ContainerAlreadyExists)
-	}))
-	defer srv.Close()
-
-	client := newFakeClient(t, srv.URL)
+	})
 
 	var store *Storage
 	require.NotPanics(t, func() {
@@ -603,17 +633,14 @@ func Test_AzureBlob_NewFromConnection_ContainerAlreadyExists(t *testing.T) {
 }
 
 func Test_AzureBlob_NewFromConnection_ResetFails(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := newFakeServerClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPut {
 			w.WriteHeader(http.StatusCreated)
 			return
 		}
 		// Listing the blobs to reset fails.
 		writeBlobError(w, http.StatusInternalServerError, bloberror.InternalError)
-	}))
-	defer srv.Close()
-
-	client := newFakeClient(t, srv.URL)
+	})
 
 	require.Panics(t, func() {
 		NewFromConnection(client, Config{Container: "box", Reset: true})
@@ -631,7 +658,7 @@ func Test_AzureBlob_EmptyKey(t *testing.T) {
 	store := newFakeStore(t, func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		writeBlobError(w, http.StatusInternalServerError, bloberror.InternalError)
-	}, 0)
+	})
 
 	val, err := store.Get("")
 	require.NoError(t, err)
@@ -678,7 +705,8 @@ func Test_AzureBlob_RequestTimeout(t *testing.T) {
 		case <-release:
 		case <-r.Context().Done():
 		}
-	}, 50*time.Millisecond)
+	})
+	store.requestTimeout = 50 * time.Millisecond
 	// Registered after the server's cleanup so it runs first and unblocks any pending handler.
 	t.Cleanup(func() { close(release) })
 
@@ -705,28 +733,23 @@ func Test_AzureBlob_ServerErrors(t *testing.T) {
 		default:
 			writeBlobError(w, http.StatusForbidden, bloberror.AuthorizationFailure)
 		}
-	}, 0)
+	})
 
 	val, err := store.Get("missing")
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.BlobNotFound))
 	require.Empty(t, val)
 
 	val, err = store.Get("forbidden")
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 	require.Empty(t, val)
 
 	err = store.Set("john", []byte("doe"), 0)
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 
 	err = store.Delete("missing")
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.BlobNotFound))
 
 	err = store.Reset()
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 }
 
@@ -738,7 +761,7 @@ func Test_AzureBlob_Get_TruncatedBody(t *testing.T) {
 		w.(http.Flusher).Flush()
 		// Abort the connection before the announced body has been sent.
 		panic(http.ErrAbortHandler)
-	}, 0)
+	})
 
 	val, err := store.Get("john")
 	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
@@ -751,20 +774,14 @@ func Test_AzureBlob_Reset_DeleteFails(t *testing.T) {
 	store := newFakeStore(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			w.Header().Set("Content-Type", "application/xml")
-			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?>` +
-				`<EnumerationResults ServiceEndpoint="http://x/" ContainerName="fake"><Blobs>` +
-				`<Blob><Name>john1</Name><Properties/></Blob>` +
-				`<Blob><Name>john2</Name><Properties/></Blob>` +
-				`</Blobs><NextMarker/></EnumerationResults>`))
+			writeBlobList(w, "john1", "john2")
 		case http.MethodDelete:
 			deletes.Add(1)
 			writeBlobError(w, http.StatusForbidden, bloberror.AuthorizationFailure)
 		}
-	}, 0)
+	})
 
 	err := store.Reset()
-	require.Error(t, err)
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 
 	// The first failed delete aborts the reset.
@@ -777,17 +794,12 @@ func Test_AzureBlob_Reset_DeletesAllListed(t *testing.T) {
 	store := newFakeStore(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			w.Header().Set("Content-Type", "application/xml")
-			_, _ = w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?>` +
-				`<EnumerationResults ServiceEndpoint="http://x/" ContainerName="fake"><Blobs>` +
-				`<Blob><Name>john1</Name><Properties/></Blob>` +
-				`<Blob><Name>john2</Name><Properties/></Blob>` +
-				`</Blobs><NextMarker/></EnumerationResults>`))
+			writeBlobList(w, "john1", "john2")
 		case http.MethodDelete:
 			deleted = append(deleted, r.URL.Path)
 			w.WriteHeader(http.StatusAccepted)
 		}
-	}, 0)
+	})
 
 	require.NoError(t, store.Reset())
 	require.Equal(t, []string{"/" + fakeAccount + "/fake/john1", "/" + fakeAccount + "/fake/john2"}, deleted)
