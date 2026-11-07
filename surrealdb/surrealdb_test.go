@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,33 +30,52 @@ var (
 	surrealDbPass        string = "root"
 )
 
+// The tests share one SurrealDB container, started on first use and terminated in TestMain, so that they do
+// not each pay the container start-up cost. Each test works in a table of its own, named after it.
+var (
+	sharedOnce      sync.Once
+	sharedContainer *surrealdb.SurrealDBContainer
+	sharedURL       string
+	sharedErr       error
+)
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedContainer != nil {
+		_ = testcontainers.TerminateContainer(sharedContainer)
+	}
+	os.Exit(code)
+}
+
+// newTestConfig returns a Config for the shared container, on a table named after the test.
 func newTestConfig(t testing.TB) Config {
 	t.Helper()
-	ctx := context.Background()
 
-	img := surrealDb
-	if imgFromEnv := os.Getenv(surrealDbImageEnvVar); imgFromEnv != "" {
-		img = imgFromEnv
-	}
-	surrealdbContainer, err := surrealdb.Run(
-		ctx, img,
-		surrealdb.WithUsername(surrealDbUser),
-		surrealdb.WithPassword(surrealDbPass),
-	)
-	require.NoError(t, err)
+	sharedOnce.Do(func() {
+		ctx := context.Background()
 
-	testcontainers.CleanupContainer(t, surrealdbContainer)
-
-	url, err := surrealdbContainer.URL(ctx)
-	require.NoError(t, err)
+		img := surrealDb
+		if imgFromEnv := os.Getenv(surrealDbImageEnvVar); imgFromEnv != "" {
+			img = imgFromEnv
+		}
+		sharedContainer, sharedErr = surrealdb.Run(
+			ctx, img,
+			surrealdb.WithUsername(surrealDbUser),
+			surrealdb.WithPassword(surrealDbPass),
+		)
+		if sharedErr == nil {
+			sharedURL, sharedErr = sharedContainer.URL(ctx)
+		}
+	})
+	require.NoError(t, sharedErr)
 
 	return Config{
-		ConnectionString: url,
+		ConnectionString: sharedURL,
 		Namespace:        "testns",
 		Database:         "testdb",
 		Username:         surrealDbUser,
 		Password:         surrealDbPass,
-		DefaultTable:     "fiber_storage",
+		DefaultTable:     t.Name(),
 	}
 }
 
@@ -196,26 +216,6 @@ func Test_Surrealdb_ListSkipsExpired(t *testing.T) {
 	require.NotContains(t, result, "expired")
 }
 
-func Test_Surrealdb_GarbageCollector_RemovesExpiredKeys(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	err := testStore.Set("temp_key", []byte("temp_value"), 1*time.Second)
-	require.NoError(t, err)
-
-	val, err := testStore.Get("temp_key")
-	require.NoError(t, err)
-	require.NotNil(t, val)
-
-	time.Sleep(3 * time.Second)
-
-	require.Eventually(t, func() bool {
-		val, err = testStore.Get("temp_key")
-		require.NoError(t, err)
-		return val == nil
-	}, 3*time.Second, 300*time.Millisecond)
-}
-
 func Benchmark_SurrealDB_Set(b *testing.B) {
 	testStore := newTestStore(b)
 	defer testStore.Close()
@@ -310,36 +310,57 @@ func closedListenerAddr(t testing.TB) string {
 func Test_Surrealdb_ConfigDefault(t *testing.T) {
 	require.Equal(t, ConfigDefault, configDefault())
 
-	cfg := configDefault(Config{GCInterval: -time.Second})
-	require.Equal(t, ConfigDefault.ConnectionString, cfg.ConnectionString)
-	require.Equal(t, ConfigDefault.Namespace, cfg.Namespace)
-	require.Equal(t, ConfigDefault.Database, cfg.Database)
-	require.Equal(t, ConfigDefault.Username, cfg.Username)
-	require.Equal(t, ConfigDefault.Password, cfg.Password)
-	require.Equal(t, ConfigDefault.Scope, cfg.Scope)
-	require.Equal(t, ConfigDefault.Access, cfg.Access)
-	require.Equal(t, ConfigDefault.DefaultTable, cfg.DefaultTable)
-	require.Equal(t, ConfigDefault.GCInterval, cfg.GCInterval)
+	// Every unset field takes its default, and a non-positive interval counts as unset.
+	require.Equal(t, ConfigDefault, configDefault(Config{}))
+	require.Equal(t, ConfigDefault, configDefault(Config{GCInterval: -time.Second}))
 
 	custom := configDefault(Config{DefaultTable: "custom", GCInterval: time.Minute})
 	require.Equal(t, "custom", custom.DefaultTable)
 	require.Equal(t, time.Minute, custom.GCInterval)
 }
 
+// syncBuffer is a goroutine-safe buffer for capturing log output.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// captureLog redirects the standard logger into the returned buffer until the test ends.
+// The logger is global, so the tests using it must not run in parallel.
+func captureLog(t testing.TB) *syncBuffer {
+	t.Helper()
+
+	out := &syncBuffer{}
+	prev := log.Writer()
+	log.SetOutput(out)
+	t.Cleanup(func() { log.SetOutput(prev) })
+	return out
+}
+
 func Test_Surrealdb_ConfigDefault_WarnsOnUnknownScheme(t *testing.T) {
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	defer log.SetOutput(os.Stderr)
+	logged := captureLog(t)
 
 	for _, scheme := range []string{"ws://", "wss://", "http://", "https://"} {
 		cfg := configDefault(Config{ConnectionString: scheme + "example.invalid"})
 		require.Equal(t, scheme+"example.invalid", cfg.ConnectionString)
 	}
-	require.Empty(t, buf.String())
+	require.Empty(t, logged.String())
 
 	cfg := configDefault(Config{ConnectionString: "mem://"})
 	require.Equal(t, "mem://", cfg.ConnectionString)
-	require.Contains(t, buf.String(), "doesn't start with ws://, wss://, http:// or https://")
+	require.Contains(t, logged.String(), "doesn't start with ws://, wss://, http:// or https://")
 }
 
 func Test_Surrealdb_IsTableNotFoundError(t *testing.T) {
@@ -447,12 +468,13 @@ func Test_Surrealdb_SetOverwritesAndRoundsSubSecondExpiry(t *testing.T) {
 	require.Equal(t, []byte("second"), val)
 
 	// A sub-second expiration is rounded up rather than stored as already past.
+	before := time.Now().Unix()
 	require.NoError(t, testStore.Set("short", []byte("value"), 500*time.Millisecond))
 
 	rec, err := surrealdbclient.Select[model](context.Background(), testStore.Conn(), models.NewRecordID(testStore.table, "short"))
 	require.NoError(t, err)
 	require.NotNil(t, rec)
-	require.Greater(t, rec.Exp, time.Now().Unix()-1)
+	require.Greater(t, rec.Exp, before)
 	require.LessOrEqual(t, rec.Exp, time.Now().Unix()+2)
 }
 
@@ -509,7 +531,7 @@ func Test_Surrealdb_BrokenConnection(t *testing.T) {
 
 	_, err := store.Get("key")
 	require.Error(t, err)
-	require.False(t, errors.Is(err, ErrClosed))
+	require.NotErrorIs(t, err, ErrClosed)
 	require.Error(t, store.Set("key", []byte("v"), 0))
 	require.Error(t, store.Delete("key"))
 	require.Error(t, store.Reset())
@@ -519,7 +541,7 @@ func Test_Surrealdb_BrokenConnection(t *testing.T) {
 	// The owner's operations fail on the dead client with the client's error, not ErrClosed.
 	_, err = broken.Get("key")
 	require.Error(t, err)
-	require.False(t, errors.Is(err, ErrClosed))
+	require.NotErrorIs(t, err, ErrClosed)
 	require.False(t, broken.isClosed())
 
 	// Closing the owner still completes and latches it closed.
@@ -538,13 +560,18 @@ func Test_Surrealdb_GarbageCollector_DeletesExpiredRecords(t *testing.T) {
 	require.NoError(t, testStore.Set("temp", []byte("value"), time.Second))
 	require.NoError(t, testStore.Set("keep", []byte("value"), 0))
 
+	// Readable until it expires.
+	val, err := testStore.Get("temp")
+	require.NoError(t, err)
+	require.Equal(t, []byte("value"), val)
+
 	// Read the raw record: Get hides expired values, so only the collector's delete empties it.
 	require.Eventually(t, func() bool {
 		rec, err := surrealdbclient.Select[model](context.Background(), testStore.Conn(), models.NewRecordID(testStore.table, "temp"))
 		return err == nil && rec == nil
 	}, 10*time.Second, 100*time.Millisecond)
 
-	val, err := testStore.Get("keep")
+	val, err = testStore.Get("keep")
 	require.NoError(t, err)
 	require.Equal(t, []byte("value"), val)
 }
@@ -576,24 +603,21 @@ func Test_Surrealdb_CleanupExpired(t *testing.T) {
 
 func Test_Surrealdb_CleanupExpired_Errors(t *testing.T) {
 	cfg := newTestConfig(t)
+	// The collector's own sweeps must stay out of the log under test.
 	cfg.GCInterval = time.Hour
 	testStore := New(cfg)
 	defer testStore.Close()
 
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	defer log.SetOutput(os.Stderr)
+	logged := captureLog(t)
 
 	// A cancelled sweep is an ordinary shutdown and is not logged.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	testStore.cleanupExpired(ctx)
-	require.Empty(t, buf.String())
+	require.Empty(t, logged.String())
 
-	// Any other failure is logged.
-	broken := New(newTestConfig(t))
-	require.NoError(t, broken.Conn().Close(context.Background()))
-	defer broken.Close()
-	broken.cleanupExpired(context.Background())
-	require.Contains(t, buf.String(), "surrealdb: expiry cleanup failed")
+	// Any other failure is logged: close the client behind the storage's back.
+	require.NoError(t, testStore.Conn().Close(context.Background()))
+	testStore.cleanupExpired(context.Background())
+	require.Contains(t, logged.String(), "surrealdb: expiry cleanup failed")
 }
