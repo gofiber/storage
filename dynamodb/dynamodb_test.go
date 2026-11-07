@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -409,8 +411,11 @@ func Test_DynamoDB_NewFromConnection_Nil(t *testing.T) {
 // the DynamoDB JSON protocol to return crafted responses (errors, pagination, unprocessed items),
 // so error paths that DynamoDB local cannot be made to produce run without a container.
 
+// fakeTable is the table the storages built on the fake server work with: the default one, as they
+// configure none.
+var fakeTable = ConfigDefault.Table
+
 const (
-	fakeTable     = "fiber_storage"
 	errNotFound   = "ResourceNotFoundException"
 	errAccessDeny = "AccessDeniedException"
 )
@@ -469,15 +474,16 @@ func (f *fakeDynamo) calls(op string) int {
 }
 
 // client returns a client for the server that never retries, so failures surface on first call.
-func (f *fakeDynamo) client(hook *hookDoer) *awsdynamodb.Client {
+// The optional hook sees every request the client makes.
+func (f *fakeDynamo) client(hook ...*hookDoer) *awsdynamodb.Client {
 	opts := awsdynamodb.Options{
 		Region:       "us-east-1",
 		BaseEndpoint: aws.String(f.server.URL),
 		Credentials:  credentials.NewStaticCredentialsProvider("dummy", "dummy", ""),
 		Retryer:      aws.NopRetryer{},
 	}
-	if hook != nil {
-		opts.HTTPClient = hook
+	if len(hook) > 0 {
+		opts.HTTPClient = hook[0]
 	}
 
 	return awsdynamodb.New(opts)
@@ -506,6 +512,11 @@ func writeJSON(w http.ResponseWriter, v any) {
 	writeBody(w, http.StatusOK, v)
 }
 
+// writeOK sends the empty body DynamoDB answers with when a call has nothing to return.
+func writeOK(w http.ResponseWriter) {
+	writeJSON(w, map[string]any{})
+}
+
 func writeAWSError(w http.ResponseWriter, code string) {
 	writeBody(w, http.StatusBadRequest, map[string]string{
 		"__type":  "com.amazonaws.dynamodb.v20120810#" + code,
@@ -519,6 +530,19 @@ func respondJSON(v any) fakeHandler {
 
 func respondError(code string) fakeHandler {
 	return func(w http.ResponseWriter, _ int, _ []byte) { writeAWSError(w, code) }
+}
+
+// respondOK always answers with writeOK.
+func respondOK(w http.ResponseWriter, _ int, _ []byte) {
+	writeOK(w)
+}
+
+// scripted answers the n-th call with the n-th step, and every call past the last step with the
+// last one, so a test can lay out how an operation behaves over time.
+func scripted(steps ...fakeHandler) fakeHandler {
+	return func(w http.ResponseWriter, call int, body []byte) {
+		steps[min(call, len(steps))-1](w, call, body)
+	}
 }
 
 func tableDescription(status string) map[string]any {
@@ -578,6 +602,28 @@ func recovered(t *testing.T, fn func()) (r any) {
 	fn()
 
 	return nil
+}
+
+// recoveredError runs fn, which must panic with an error, and returns that error.
+func recoveredError(t *testing.T, fn func()) error {
+	t.Helper()
+
+	r := recovered(t, fn)
+	err, ok := r.(error)
+	require.True(t, ok, "expected a panic with an error, got %T: %v", r, r)
+
+	return err
+}
+
+// requireAPIError asserts that err carries the AWS API error code the server answered with. The
+// SDK exposes it through smithy.APIError, which the interface below mirrors, so the check does not
+// depend on how the SDK words the message.
+func requireAPIError(t *testing.T, err error, code string) {
+	t.Helper()
+
+	var apiErr interface{ ErrorCode() string }
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, code, apiErr.ErrorCode())
 }
 
 // requestKeys decodes a BatchWriteItem body into the delete-request keys for the fake table.
@@ -640,10 +686,22 @@ func Test_DynamoDB_SleepCtx(t *testing.T) {
 	require.ErrorIs(t, sleepCtx(ctx, time.Hour), context.Canceled)
 }
 
+// isolateAWSEnv keeps the SDK from picking up the developer's AWS profile and shared files while a
+// test loads its config.
+func isolateAWSEnv(t *testing.T) {
+	t.Helper()
+
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_CONFIG_FILE", t.TempDir()+"/missing-config")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", t.TempDir()+"/missing-credentials")
+}
+
 func Test_DynamoDB_NewWithContext_FakeEndpoint(t *testing.T) {
+	isolateAWSEnv(t)
+
 	fake := newFakeDynamo(t, map[string]fakeHandler{
 		"DescribeTable": respondJSON(tableDescription("ACTIVE")),
-		"PutItem":       respondJSON(map[string]any{}),
+		"PutItem":       respondOK,
 	})
 
 	store := NewWithContext(context.Background(), Config{
@@ -662,16 +720,14 @@ func Test_DynamoDB_NewWithContext_FakeEndpoint(t *testing.T) {
 }
 
 func Test_DynamoDB_NewWithContext_EnvCredentials(t *testing.T) {
+	isolateAWSEnv(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "env-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "env-secret")
 	t.Setenv("AWS_SESSION_TOKEN", "")
-	t.Setenv("AWS_PROFILE", "")
-	t.Setenv("AWS_CONFIG_FILE", t.TempDir()+"/missing-config")
-	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", t.TempDir()+"/missing-credentials")
 
 	fake := newFakeDynamo(t, map[string]fakeHandler{
 		"DescribeTable": respondJSON(tableDescription("ACTIVE")),
-		"PutItem":       respondJSON(map[string]any{}),
+		"PutItem":       respondOK,
 	})
 
 	// No Credentials in the config: the default AWS credential chain provides them.
@@ -687,10 +743,9 @@ func Test_DynamoDB_NewWithContext_EnvCredentials(t *testing.T) {
 }
 
 func Test_DynamoDB_NewWithContext_InvalidSDKConfig(t *testing.T) {
+	isolateAWSEnv(t)
 	// Selecting a profile that does not exist makes loading the shared config fail.
 	t.Setenv("AWS_PROFILE", "profile-that-does-not-exist")
-	t.Setenv("AWS_CONFIG_FILE", t.TempDir()+"/missing-config")
-	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", t.TempDir()+"/missing-credentials")
 
 	for name, creds := range map[string]Credentials{
 		"default credentials": {},
@@ -707,12 +762,14 @@ func Test_DynamoDB_NewWithContext_InvalidSDKConfig(t *testing.T) {
 }
 
 func Test_DynamoDB_New_UnreachableEndpoint(t *testing.T) {
+	isolateAWSEnv(t)
+
 	// A listener that was closed leaves a port nothing answers on.
 	srv := httptest.NewServer(http.NotFoundHandler())
 	endpoint := srv.URL
 	srv.Close()
 
-	r := recovered(t, func() {
+	err := recoveredError(t, func() {
 		New(Config{
 			Table:       fakeTable,
 			Endpoint:    endpoint,
@@ -721,10 +778,7 @@ func Test_DynamoDB_New_UnreachableEndpoint(t *testing.T) {
 			MaxAttempts: 1,
 		})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
-	require.ErrorContains(t, err, "connection refused")
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
 }
 
 func Test_DynamoDB_NewFromConnection_DescribeError(t *testing.T) {
@@ -732,13 +786,10 @@ func Test_DynamoDB_NewFromConnection_DescribeError(t *testing.T) {
 		"DescribeTable": respondError(errAccessDeny),
 	})
 
-	r := recovered(t, func() {
-		NewFromConnection(fake.client(nil), Config{})
+	err := recoveredError(t, func() {
+		NewFromConnection(fake.client(), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
-	require.ErrorContains(t, err, errAccessDeny)
+	requireAPIError(t, err, errAccessDeny)
 	require.Equal(t, 0, fake.calls("CreateTable"))
 }
 
@@ -749,12 +800,9 @@ func Test_DynamoDB_NewFromConnection_DescribeTimeout(t *testing.T) {
 
 	fake := newFakeDynamo(t, map[string]fakeHandler{})
 
-	r := recovered(t, func() {
-		NewFromConnectionWithContext(ctx, fake.client(nil), Config{})
+	err := recoveredError(t, func() {
+		NewFromConnectionWithContext(ctx, fake.client(), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -762,24 +810,19 @@ func Test_DynamoDB_NewFromConnection_CreatesMissingTable(t *testing.T) {
 	var created map[string]any
 
 	fake := newFakeDynamo(t, map[string]fakeHandler{
-		"DescribeTable": func(w http.ResponseWriter, call int, _ []byte) {
-			switch call {
-			case 1:
-				writeAWSError(w, errNotFound)
-			case 2:
-				writeJSON(w, tableDescription("CREATING"))
-			default:
-				writeJSON(w, tableDescription("ACTIVE"))
-			}
-		},
+		"DescribeTable": scripted(
+			respondError(errNotFound),
+			respondJSON(tableDescription("CREATING")),
+			respondJSON(tableDescription("ACTIVE")),
+		),
 		"CreateTable": func(w http.ResponseWriter, _ int, body []byte) {
 			require.NoError(t, json.Unmarshal(body, &created))
-			writeJSON(w, map[string]any{})
+			writeOK(w)
 		},
 	})
 
 	// The first wait iteration sees CREATING and sleeps a second before seeing ACTIVE.
-	store := NewFromConnection(fake.client(nil), Config{
+	store := NewFromConnection(fake.client(), Config{
 		Table:              "custom_table",
 		ReadCapacityUnits:  7,
 		WriteCapacityUnits: 9,
@@ -788,6 +831,7 @@ func Test_DynamoDB_NewFromConnection_CreatesMissingTable(t *testing.T) {
 
 	require.Equal(t, "custom_table", created["TableName"])
 	require.Equal(t, map[string]any{"ReadCapacityUnits": float64(7), "WriteCapacityUnits": float64(9)}, created["ProvisionedThroughput"])
+	// The existence check, the two polls of the wait, and the final check.
 	require.Equal(t, 4, fake.calls("DescribeTable"))
 }
 
@@ -797,22 +841,19 @@ func Test_DynamoDB_NewFromConnection_CreateTableError(t *testing.T) {
 		"CreateTable":   respondError(errAccessDeny),
 	})
 
-	r := recovered(t, func() {
-		NewFromConnection(fake.client(nil), Config{})
+	err := recoveredError(t, func() {
+		NewFromConnection(fake.client(), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
-	require.ErrorContains(t, err, errAccessDeny)
+	requireAPIError(t, err, errAccessDeny)
 }
 
 func Test_DynamoDB_NewFromConnection_NoWaitForTableCreation(t *testing.T) {
 	fake := newFakeDynamo(t, map[string]fakeHandler{
 		"DescribeTable": respondError(errNotFound),
-		"CreateTable":   respondJSON(map[string]any{}),
+		"CreateTable":   respondOK,
 	})
 
-	store := NewFromConnection(fake.client(nil), Config{WaitForTableCreation: aws.Bool(false)})
+	store := NewFromConnection(fake.client(), Config{WaitForTableCreation: aws.Bool(false)})
 	require.NotNil(t, store)
 
 	// Without waiting, only the initial existence check is made.
@@ -826,7 +867,7 @@ func Test_DynamoDB_NewFromConnection_CreateTableCancelled(t *testing.T) {
 
 	fake := newFakeDynamo(t, map[string]fakeHandler{
 		"DescribeTable": respondError(errNotFound),
-		"CreateTable":   respondJSON(map[string]any{}),
+		"CreateTable":   respondOK,
 	})
 
 	// Cancel once the table has been created, as a caller giving up while the wait begins.
@@ -836,12 +877,9 @@ func Test_DynamoDB_NewFromConnection_CreateTableCancelled(t *testing.T) {
 		}
 	}}
 
-	r := recovered(t, func() {
+	err := recoveredError(t, func() {
 		NewFromConnectionWithContext(ctx, fake.client(hook), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
 	require.ErrorIs(t, err, context.Canceled)
 	// The wait loop bails out before polling the table.
 	require.Equal(t, 1, fake.calls("DescribeTable"))
@@ -852,75 +890,55 @@ func Test_DynamoDB_NewFromConnection_FinalDescribeCancelled(t *testing.T) {
 	defer cancel()
 
 	fake := newFakeDynamo(t, map[string]fakeHandler{
-		"DescribeTable": func(w http.ResponseWriter, call int, _ []byte) {
-			if call == 1 {
-				writeAWSError(w, errNotFound)
-				return
-			}
-			writeJSON(w, tableDescription("ACTIVE"))
-		},
-		"CreateTable": respondJSON(map[string]any{}),
+		"DescribeTable": scripted(
+			respondError(errNotFound),
+			respondJSON(tableDescription("ACTIVE")),
+		),
+		"CreateTable": respondOK,
 	})
 
-	// The wait loop sees ACTIVE straight away; the context ends before the final check.
+	// The wait loop sees ACTIVE straight away; the context ends before the final check, the
+	// third description of the table.
 	hook := &hookDoer{before: func(op string, call int) {
 		if op == "DescribeTable" && call == 3 {
 			cancel()
 		}
 	}}
 
-	r := recovered(t, func() {
+	err := recoveredError(t, func() {
 		NewFromConnectionWithContext(ctx, fake.client(hook), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_DynamoDB_NewFromConnection_FinalDescribeFails(t *testing.T) {
 	fake := newFakeDynamo(t, map[string]fakeHandler{
-		"DescribeTable": func(w http.ResponseWriter, call int, _ []byte) {
-			if call == 2 {
-				writeJSON(w, tableDescription("ACTIVE"))
-				return
-			}
-			writeAWSError(w, errNotFound)
-		},
-		"CreateTable": respondJSON(map[string]any{}),
+		"DescribeTable": scripted(
+			respondError(errNotFound),
+			respondJSON(tableDescription("ACTIVE")),
+			respondError(errNotFound),
+		),
+		"CreateTable": respondOK,
 	})
 
-	r := recovered(t, func() {
-		NewFromConnection(fake.client(nil), Config{})
+	require.PanicsWithError(t, "dynamodb: the table couldn't be created", func() {
+		NewFromConnection(fake.client(), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
-	require.EqualError(t, err, "dynamodb: the table couldn't be created")
 }
 
 func Test_DynamoDB_NewFromConnection_TableStillCreating(t *testing.T) {
 	fake := newFakeDynamo(t, map[string]fakeHandler{
-		"DescribeTable": func(w http.ResponseWriter, call int, _ []byte) {
-			switch call {
-			case 1:
-				writeAWSError(w, errNotFound)
-			case 2:
-				writeJSON(w, tableDescription("ACTIVE"))
-			default:
-				writeJSON(w, tableDescription("CREATING"))
-			}
-		},
-		"CreateTable": respondJSON(map[string]any{}),
+		"DescribeTable": scripted(
+			respondError(errNotFound),
+			respondJSON(tableDescription("ACTIVE")),
+			respondJSON(tableDescription("CREATING")),
+		),
+		"CreateTable": respondOK,
 	})
 
-	r := recovered(t, func() {
-		NewFromConnection(fake.client(nil), Config{})
+	require.PanicsWithError(t, "dynamodb: the table took too long to be created", func() {
+		NewFromConnection(fake.client(), Config{})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
-	require.EqualError(t, err, "dynamodb: the table took too long to be created")
 }
 
 func Test_DynamoDB_NewFromConnection_ResetError(t *testing.T) {
@@ -929,42 +947,46 @@ func Test_DynamoDB_NewFromConnection_ResetError(t *testing.T) {
 		"Scan":          respondError(errAccessDeny),
 	})
 
-	r := recovered(t, func() {
-		NewFromConnection(fake.client(nil), Config{Reset: true})
+	err := recoveredError(t, func() {
+		NewFromConnection(fake.client(), Config{Reset: true})
 	})
-
-	err, ok := r.(error)
-	require.True(t, ok)
-	require.ErrorContains(t, err, errAccessDeny)
+	requireAPIError(t, err, errAccessDeny)
 }
 
-func newFakeStore(t *testing.T, handlers map[string]fakeHandler, hook *hookDoer) (*Storage, *fakeDynamo) {
+// newFakeStore returns a Storage on a fake server whose table exists, which also serves handlers.
+// The optional hook sees every request the Storage's client makes.
+func newFakeStore(t *testing.T, handlers map[string]fakeHandler, hook ...*hookDoer) (*Storage, *fakeDynamo) {
 	t.Helper()
 
 	handlers["DescribeTable"] = respondJSON(tableDescription("ACTIVE"))
 	fake := newFakeDynamo(t, handlers)
 
-	return NewFromConnection(fake.client(hook), Config{}), fake
+	return NewFromConnection(fake.client(hook...), Config{}), fake
 }
 
-func Test_DynamoDB_Get_TableMissing(t *testing.T) {
-	store, _ := newFakeStore(t, map[string]fakeHandler{
-		"GetItem": respondError(errNotFound),
-	}, nil)
+func Test_DynamoDB_Get_Miss(t *testing.T) {
+	for name, handler := range map[string]fakeHandler{
+		// A table that is gone holds no entries, which reads as a plain miss.
+		"table missing": respondError(errNotFound),
+		"no item":       respondOK,
+	} {
+		t.Run(name, func(t *testing.T) {
+			store, _ := newFakeStore(t, map[string]fakeHandler{"GetItem": handler})
 
-	// A table that is gone holds no entries, which reads as a plain miss.
-	val, err := store.Get("key")
-	require.NoError(t, err)
-	require.Nil(t, val)
+			val, err := store.Get("key")
+			require.NoError(t, err)
+			require.Nil(t, val)
+		})
+	}
 }
 
 func Test_DynamoDB_Get_Error(t *testing.T) {
 	store, _ := newFakeStore(t, map[string]fakeHandler{
 		"GetItem": respondError(errAccessDeny),
-	}, nil)
+	})
 
 	val, err := store.Get("key")
-	require.ErrorContains(t, err, errAccessDeny)
+	requireAPIError(t, err, errAccessDeny)
 	require.Nil(t, val)
 }
 
@@ -976,7 +998,7 @@ func Test_DynamoDB_Get_MalformedItem(t *testing.T) {
 				"v": map[string]any{"BOOL": true},
 			},
 		}),
-	}, nil)
+	})
 
 	// A value that is not binary cannot be decoded and must be reported rather than returned.
 	val, err := store.Get("key")
@@ -1003,7 +1025,7 @@ func Test_DynamoDB_Get_ItemValue(t *testing.T) {
 				"v": map[string]any{"B": "ZG9l"},
 			}})
 		},
-	}, nil)
+	})
 
 	val, err := store.Get("john")
 	require.NoError(t, err)
@@ -1011,28 +1033,8 @@ func Test_DynamoDB_Get_ItemValue(t *testing.T) {
 	require.Equal(t, "john", gotKey)
 }
 
-func Test_DynamoDB_Get_NoItem(t *testing.T) {
-	store, _ := newFakeStore(t, map[string]fakeHandler{
-		"GetItem": respondJSON(map[string]any{}),
-	}, nil)
-
-	val, err := store.Get("key")
-	require.NoError(t, err)
-	require.Nil(t, val)
-}
-
-func Test_DynamoDB_Set_Error(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"PutItem": respondError(errAccessDeny),
-	}, nil)
-
-	err := store.Set("key", []byte("val"), 0)
-	require.ErrorContains(t, err, errAccessDeny)
-	require.Equal(t, 1, fake.calls("PutItem"))
-}
-
 func Test_DynamoDB_Set_EmptyKeyOrValue(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{}, nil)
+	store, fake := newFakeStore(t, map[string]fakeHandler{})
 
 	require.NoError(t, store.Set("", []byte("val"), 0))
 	require.NoError(t, store.Set("key", nil, 0))
@@ -1053,43 +1055,56 @@ func Test_DynamoDB_Set_SendsKeyAndValue(t *testing.T) {
 			require.Equal(t, fakeTable, req.TableName)
 			require.Equal(t, "john", req.Item[keyAttrName]["S"])
 			require.Equal(t, "ZG9l", req.Item[valAttrName]["B"])
-			writeJSON(w, map[string]any{})
+			writeOK(w)
 		},
-	}, nil)
+	})
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 }
 
-func Test_DynamoDB_Delete_Error(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"DeleteItem": respondError(errAccessDeny),
-	}, nil)
-
-	err := store.Delete("key")
-	require.ErrorContains(t, err, errAccessDeny)
-	require.Equal(t, 1, fake.calls("DeleteItem"))
-}
-
 func Test_DynamoDB_Delete_EmptyKey(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{}, nil)
+	store, fake := newFakeStore(t, map[string]fakeHandler{})
 
 	require.NoError(t, store.Delete(""))
 	require.Equal(t, 0, fake.calls("DeleteItem"))
 }
 
-func Test_DynamoDB_Reset_ScanError(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondError(errAccessDeny),
-	}, nil)
+// A failing call is returned as the SDK reports it, and is neither retried nor followed by more work.
+func Test_DynamoDB_OperationErrors(t *testing.T) {
+	denied := respondError(errAccessDeny)
+	scanPage := func(n int) fakeHandler { return respondJSON(map[string]any{"Items": keyItems(n)}) }
 
-	require.ErrorContains(t, store.Reset(), errAccessDeny)
-	require.Equal(t, 0, fake.calls("BatchWriteItem"))
+	tests := []struct {
+		name     string
+		handlers map[string]fakeHandler
+		run      func(*Storage) error
+		// calls is how many times op is expected to have been called: the failure is not retried,
+		// and nothing is sent after it.
+		op    string
+		calls int
+	}{
+		{"Set", map[string]fakeHandler{"PutItem": denied}, func(s *Storage) error { return s.Set("key", []byte("val"), 0) }, "PutItem", 1},
+		{"Delete", map[string]fakeHandler{"DeleteItem": denied}, func(s *Storage) error { return s.Delete("key") }, "DeleteItem", 1},
+		{"Reset scan", map[string]fakeHandler{"Scan": denied}, (*Storage).Reset, "BatchWriteItem", 0},
+		{"Reset batch", map[string]fakeHandler{"Scan": scanPage(1), "BatchWriteItem": denied}, (*Storage).Reset, "BatchWriteItem", 1},
+		// A batch sent while still scanning the page fails the same way.
+		{"Reset full batch", map[string]fakeHandler{"Scan": scanPage(batchWriteItemLimit), "BatchWriteItem": denied}, (*Storage).Reset, "BatchWriteItem", 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store, fake := newFakeStore(t, tt.handlers)
+
+			requireAPIError(t, tt.run(store), errAccessDeny)
+			require.Equal(t, tt.calls, fake.calls(tt.op))
+		})
+	}
 }
 
 func Test_DynamoDB_Reset_EmptyTable(t *testing.T) {
 	store, fake := newFakeStore(t, map[string]fakeHandler{
 		"Scan": respondJSON(map[string]any{"Items": []any{}}),
-	}, nil)
+	})
 
 	require.NoError(t, store.Reset())
 	require.Equal(t, 0, fake.calls("BatchWriteItem"))
@@ -1097,6 +1112,16 @@ func Test_DynamoDB_Reset_EmptyTable(t *testing.T) {
 
 func keyItem(k string) map[string]any {
 	return map[string]any{keyAttrName: map[string]any{"S": k}}
+}
+
+// keyItems returns n scan results, each holding just a distinct key.
+func keyItems(n int) []any {
+	items := make([]any, 0, n)
+	for i := range n {
+		items = append(items, keyItem(string(rune('A'+i))))
+	}
+
+	return items
 }
 
 func Test_DynamoDB_Reset_Paginates(t *testing.T) {
@@ -1123,10 +1148,8 @@ func Test_DynamoDB_Reset_Paginates(t *testing.T) {
 			}
 			writeJSON(w, map[string]any{"Items": []any{keyItem("c")}})
 		},
-		"BatchWriteItem": func(w http.ResponseWriter, _ int, _ []byte) {
-			writeJSON(w, map[string]any{})
-		},
-	}, nil)
+		"BatchWriteItem": respondOK,
+	})
 
 	require.NoError(t, store.Reset())
 
@@ -1138,50 +1161,37 @@ func Test_DynamoDB_Reset_Paginates(t *testing.T) {
 func Test_DynamoDB_Reset_SkipsItemsWithoutKey(t *testing.T) {
 	var deleted [][]string
 
+	withoutKey := map[string]any{"other": map[string]any{"S": "x"}}
+
 	store, _ := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondJSON(map[string]any{"Items": []any{
-			map[string]any{"other": map[string]any{"S": "x"}},
-			keyItem("a"),
-		}}),
+		"Scan": scripted(
+			// Nothing on this page can be deleted, so it sends no batch at all.
+			respondJSON(map[string]any{"Items": []any{withoutKey}, "LastEvaluatedKey": keyItem("x")}),
+			respondJSON(map[string]any{"Items": []any{withoutKey, keyItem("a")}}),
+		),
 		"BatchWriteItem": func(w http.ResponseWriter, _ int, body []byte) {
 			deleted = append(deleted, requestKeys(t, body))
-			writeJSON(w, map[string]any{})
+			writeOK(w)
 		},
-	}, nil)
+	})
 
 	require.NoError(t, store.Reset())
 	require.Equal(t, [][]string{{"a"}}, deleted)
 }
 
-func Test_DynamoDB_Reset_OnlyItemsWithoutKey(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondJSON(map[string]any{"Items": []any{
-			map[string]any{"other": map[string]any{"S": "x"}},
-		}}),
-	}, nil)
-
-	require.NoError(t, store.Reset())
-	require.Equal(t, 0, fake.calls("BatchWriteItem"))
-}
-
 func Test_DynamoDB_Reset_BatchesAndRetriesUnprocessed(t *testing.T) {
 	const total = batchWriteItemLimit + 5
-
-	items := make([]any, 0, total)
-	for i := 0; i < total; i++ {
-		items = append(items, keyItem(string(rune('A'+i))))
-	}
 
 	var batches [][]string
 
 	store, _ := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondJSON(map[string]any{"Items": items}),
+		"Scan": respondJSON(map[string]any{"Items": keyItems(total)}),
 		"BatchWriteItem": func(w http.ResponseWriter, call int, body []byte) {
 			keys := requestKeys(t, body)
 			batches = append(batches, keys)
 
 			if call != 1 {
-				writeJSON(w, map[string]any{})
+				writeOK(w)
 				return
 			}
 
@@ -1194,7 +1204,7 @@ func Test_DynamoDB_Reset_BatchesAndRetriesUnprocessed(t *testing.T) {
 				fakeTable: raw.RequestItems[fakeTable][len(keys)-3:],
 			}})
 		},
-	}, nil)
+	})
 
 	require.NoError(t, store.Reset())
 
@@ -1205,29 +1215,15 @@ func Test_DynamoDB_Reset_BatchesAndRetriesUnprocessed(t *testing.T) {
 	require.Len(t, batches[2], total-batchWriteItemLimit)
 }
 
-func Test_DynamoDB_Reset_BatchWriteError(t *testing.T) {
-	store, _ := newFakeStore(t, map[string]fakeHandler{
-		"Scan":           respondJSON(map[string]any{"Items": []any{keyItem("a")}}),
-		"BatchWriteItem": respondError(errAccessDeny),
-	}, nil)
-
-	require.ErrorContains(t, store.Reset(), errAccessDeny)
-}
-
-func Test_DynamoDB_Reset_FullBatchWriteError(t *testing.T) {
-	items := make([]any, 0, batchWriteItemLimit)
-	for i := 0; i < batchWriteItemLimit; i++ {
-		items = append(items, keyItem(string(rune('A'+i))))
+// decliningHandlers serve a table with one entry whose deletion DynamoDB leaves unprocessed on
+// every attempt.
+func decliningHandlers() map[string]fakeHandler {
+	return map[string]fakeHandler{
+		"Scan": respondJSON(map[string]any{"Items": []any{keyItem("a")}}),
+		"BatchWriteItem": respondJSON(map[string]any{"UnprocessedItems": map[string]any{
+			fakeTable: []any{map[string]any{"DeleteRequest": map[string]any{"Key": keyItem("a")}}},
+		}}),
 	}
-
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"Scan":           respondJSON(map[string]any{"Items": items}),
-		"BatchWriteItem": respondError(errAccessDeny),
-	}, nil)
-
-	// The error from a batch sent while still scanning the page is returned as is.
-	require.ErrorContains(t, store.Reset(), errAccessDeny)
-	require.Equal(t, 1, fake.calls("BatchWriteItem"))
 }
 
 func Test_DynamoDB_Reset_CancelledDuringBackoff(t *testing.T) {
@@ -1241,12 +1237,7 @@ func Test_DynamoDB_Reset_CancelledDuringBackoff(t *testing.T) {
 		}
 	}}
 
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondJSON(map[string]any{"Items": []any{keyItem("a")}}),
-		"BatchWriteItem": respondJSON(map[string]any{"UnprocessedItems": map[string]any{
-			fakeTable: []any{map[string]any{"DeleteRequest": map[string]any{"Key": keyItem("a")}}},
-		}}),
-	}, hook)
+	store, fake := newFakeStore(t, decliningHandlers(), hook)
 
 	// The reset gives up during the pause instead of re-sending or sitting it out.
 	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
@@ -1254,15 +1245,10 @@ func Test_DynamoDB_Reset_CancelledDuringBackoff(t *testing.T) {
 }
 
 func Test_DynamoDB_Reset_GivesUpOnUnprocessedItems(t *testing.T) {
-	store, fake := newFakeStore(t, map[string]fakeHandler{
-		"Scan": respondJSON(map[string]any{"Items": []any{keyItem("a")}}),
-		"BatchWriteItem": respondJSON(map[string]any{"UnprocessedItems": map[string]any{
-			fakeTable: []any{map[string]any{"DeleteRequest": map[string]any{"Key": keyItem("a")}}},
-		}}),
-	}, nil)
+	store, fake := newFakeStore(t, decliningHandlers())
 
 	// A table that keeps declining the work ends the reset after a bounded number of attempts.
 	err := store.Reset()
-	require.EqualError(t, err, "dynamodb: reset left items unprocessed after 10 attempts")
+	require.EqualError(t, err, fmt.Sprintf("dynamodb: reset left items unprocessed after %d attempts", batchWriteMaxAttempts))
 	require.Equal(t, batchWriteMaxAttempts, fake.calls("BatchWriteItem"))
 }

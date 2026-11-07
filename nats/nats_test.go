@@ -641,13 +641,7 @@ func deleteBucket(t testing.TB, nc *nats.Conn, bucket string) {
 
 func Test_Config_Default(t *testing.T) {
 	require.Equal(t, ConfigDefault, configDefault())
-
-	cfg := configDefault(Config{})
-	require.Equal(t, ConfigDefault.URLs, cfg.URLs)
-	require.Equal(t, ConfigDefault.Context, cfg.Context)
-	require.Equal(t, ConfigDefault.ClientName, cfg.ClientName)
-	require.Equal(t, ConfigDefault.KeyValueConfig.Bucket, cfg.KeyValueConfig.Bucket)
-	require.Equal(t, ConfigDefault.WaitForConnection, cfg.WaitForConnection)
+	require.Equal(t, ConfigDefault, configDefault(Config{}))
 
 	custom := configDefault(Config{
 		URLs:              "nats://example:4222",
@@ -677,8 +671,20 @@ func Test_Storage_Nats_NotInitialized(t *testing.T) {
 	require.ErrorIs(t, err, cause)
 }
 
-func Test_Storage_Nats_Handlers(t *testing.T) {
-	cfg := bucketCfg(newTestConfig(t), "handlers")
+// Test_Storage_Nats_SharedServer runs the groups that need nothing but a server to talk to. Each works
+// in buckets of its own, so a single TLS-enabled container, slow to start, serves them all.
+func Test_Storage_Nats_SharedServer(t *testing.T) {
+	base := newTestConfig(t)
+
+	t.Run("Handlers", func(t *testing.T) { testHandlers(t, base) })
+	t.Run("OpenNatsKV", func(t *testing.T) { testOpenNatsKV(t, base) })
+	t.Run("Owned", func(t *testing.T) { testOwned(t, base) })
+	t.Run("Borrowed", func(t *testing.T) { testBorrowed(t, base) })
+	t.Run("InvalidateOnStreamGone", func(t *testing.T) { testInvalidateOnStreamGone(t, base) })
+}
+
+func testHandlers(t *testing.T, base Config) {
+	cfg := bucketCfg(base, "handlers")
 	nc := connectTest(t, cfg)
 
 	t.Run("connect without stored context", func(t *testing.T) {
@@ -702,8 +708,7 @@ func Test_Storage_Nats_Handlers(t *testing.T) {
 	})
 
 	t.Run("connect failure is recorded", func(t *testing.T) {
-		closed, err := nats.Connect(cfg.URLs, cfg.NatsOptions...)
-		require.NoError(t, err)
+		closed := connectTest(t, cfg)
 		closed.Close()
 
 		s := &Storage{cfg: configDefault(cfg), ctx: context.Background()}
@@ -740,9 +745,8 @@ func Test_Storage_Nats_Handlers(t *testing.T) {
 	})
 }
 
-func Test_Storage_Nats_OpenNatsKV(t *testing.T) {
-	cfg := newTestConfig(t)
-	nc := connectTest(t, cfg)
+func testOpenNatsKV(t *testing.T, base Config) {
+	nc := connectTest(t, base)
 	ctx := context.Background()
 
 	kvCfg := func(bucket string) jetstream.KeyValueConfig {
@@ -791,6 +795,13 @@ func Test_Storage_Nats_OpenNatsKV(t *testing.T) {
 }
 
 func Test_Storage_Nats_NewWithContext_Failures(t *testing.T) {
+	// A failed first connect is retried, briefly, in the background instead of failing at once.
+	retryOpts := []nats.Option{
+		nats.RetryOnFailedConnect(true),
+		nats.MaxReconnects(1),
+		nats.ReconnectWait(time.Millisecond),
+	}
+
 	t.Run("invalid option", func(t *testing.T) {
 		require.PanicsWithError(t, "bad option", func() {
 			New(Config{
@@ -810,11 +821,7 @@ func Test_Storage_Nats_NewWithContext_Failures(t *testing.T) {
 		s := New(Config{
 			URLs:              unreachableURL,
 			WaitForConnection: time.Millisecond,
-			NatsOptions: []nats.Option{
-				nats.RetryOnFailedConnect(true),
-				nats.MaxReconnects(1),
-				nats.ReconnectWait(time.Millisecond),
-			},
+			NatsOptions:       retryOpts,
 		})
 		defer s.Close()
 
@@ -832,11 +839,7 @@ func Test_Storage_Nats_NewWithContext_Failures(t *testing.T) {
 				URLs:              unreachableURL,
 				WaitForConnection: 500 * time.Millisecond,
 				Reset:             true,
-				NatsOptions: []nats.Option{
-					nats.RetryOnFailedConnect(true),
-					nats.MaxReconnects(1),
-					nats.ReconnectWait(time.Millisecond),
-				},
+				NatsOptions:       retryOpts,
 			})
 		})
 	})
@@ -851,8 +854,7 @@ func Test_Storage_Nats_KeyValue_NotInitialized(t *testing.T) {
 	require.ErrorIs(t, err, cause)
 }
 
-func Test_Storage_Nats_Owned(t *testing.T) {
-	base := newTestConfig(t)
+func testOwned(t *testing.T, base Config) {
 	ownedStore := func(t *testing.T, bucket string) *Storage {
 		t.Helper()
 
@@ -968,20 +970,14 @@ func Test_Storage_Nats_Owned(t *testing.T) {
 
 		deleteBucket(t, nc, "vanished")
 
+		// An owned connection keeps its cached bucket (reconnect handlers own re-resolution), so every
+		// operation reports the loss; Reset building it again is Test_Storage_Nats_Reset_BucketGone.
 		_, err := s.Get("john")
 		require.Error(t, err)
 		require.Error(t, s.Set("john", []byte("doe"), 0))
 		require.Error(t, s.Delete("john"))
 		_, err = s.Keys()
 		require.Error(t, err)
-
-		// An owned connection keeps its cached bucket (reconnect handlers own re-resolution);
-		// Reset builds the bucket again.
-		require.NoError(t, s.Reset())
-		require.NoError(t, s.Set("john", []byte("doe"), 0))
-		v, err := s.Get("john")
-		require.NoError(t, err)
-		require.Equal(t, []byte("doe"), v)
 	})
 
 	t.Run("reset fails when the connection is gone", func(t *testing.T) {
@@ -1008,8 +1004,7 @@ func Test_Storage_Nats_Owned(t *testing.T) {
 	})
 }
 
-func Test_Storage_Nats_Borrowed(t *testing.T) {
-	base := newTestConfig(t)
+func testBorrowed(t *testing.T, base Config) {
 	base.Reset = false // the bucket is resolved lazily; individual tests opt in
 	newBorrowed := func(t *testing.T, bucket string) (*Storage, *nats.Conn) {
 		t.Helper()
@@ -1017,6 +1012,20 @@ func Test_Storage_Nats_Borrowed(t *testing.T) {
 		nc := connectTest(t, base)
 		s := NewFromConnection(nc, bucketCfg(base, bucket))
 		return s, nc
+	}
+	// gated returns a storage whose bucket is unresolved and whose setup gate is held, as if another
+	// caller were mid-setup, along with the bucket it dropped. The test releases the gate with <-s.initGate.
+	gated := func(t *testing.T, bucket string) (*Storage, jetstream.KeyValue) {
+		t.Helper()
+
+		s, _ := newBorrowed(t, bucket)
+		s.mu.Lock()
+		kv := s.kv
+		s.kv = nil
+		s.mu.Unlock()
+		s.initGate <- struct{}{}
+
+		return s, kv
 	}
 
 	t.Run("reset on construction wipes the bucket", func(t *testing.T) {
@@ -1165,13 +1174,7 @@ func Test_Storage_Nats_Borrowed(t *testing.T) {
 	})
 
 	t.Run("waiting for the setup gate honours the context", func(t *testing.T) {
-		s := NewFromConnection(connectTest(t, base), bucketCfg(base, "gate"))
-		s.mu.Lock()
-		s.kv = nil
-		s.mu.Unlock()
-
-		// Another caller is mid-setup.
-		s.initGate <- struct{}{}
+		s, _ := gated(t, "gate")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
@@ -1185,11 +1188,7 @@ func Test_Storage_Nats_Borrowed(t *testing.T) {
 	})
 
 	t.Run("close while waiting for the setup gate", func(t *testing.T) {
-		s := NewFromConnection(connectTest(t, base), bucketCfg(base, "gateclose"))
-		s.mu.Lock()
-		s.kv = nil
-		s.mu.Unlock()
-		s.initGate <- struct{}{}
+		s, _ := gated(t, "gateclose")
 
 		errc := make(chan error, 1)
 		go func() {
@@ -1206,12 +1205,7 @@ func Test_Storage_Nats_Borrowed(t *testing.T) {
 	})
 
 	t.Run("bucket resolved by another caller while waiting", func(t *testing.T) {
-		s := NewFromConnection(connectTest(t, base), bucketCfg(base, "gateresolved"))
-		s.mu.Lock()
-		kv := s.kv
-		s.kv = nil
-		s.mu.Unlock()
-		s.initGate <- struct{}{}
+		s, kv := gated(t, "gateresolved")
 
 		errc := make(chan error, 1)
 		go func() {
@@ -1240,10 +1234,9 @@ func Test_Storage_Nats_Borrowed(t *testing.T) {
 	})
 }
 
-func Test_Storage_Nats_InvalidateOnStreamGone(t *testing.T) {
-	cfg := newTestConfig(t)
-	nc := connectTest(t, cfg)
-	s := NewFromConnection(nc, bucketCfg(cfg, "invalidate"))
+func testInvalidateOnStreamGone(t *testing.T, base Config) {
+	nc := connectTest(t, base)
+	s := NewFromConnection(nc, bucketCfg(base, "invalidate"))
 	require.NotNil(t, s.kv)
 	kv := s.kv
 
@@ -1255,7 +1248,7 @@ func Test_Storage_Nats_InvalidateOnStreamGone(t *testing.T) {
 	require.NotNil(t, s.kv)
 
 	// A stale handle must not drop a bucket that was re-resolved since.
-	other := NewFromConnection(nc, bucketCfg(cfg, "invalidate-other")).kv
+	other := NewFromConnection(nc, bucketCfg(base, "invalidate-other")).kv
 	s.invalidateOnStreamGone(other, jetstream.ErrStreamNotFound)
 	require.NotNil(t, s.kv)
 
