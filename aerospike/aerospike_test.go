@@ -411,15 +411,7 @@ func Test_AeroSpikeDB_ConfigDefault(t *testing.T) {
 	})
 
 	t.Run("zero config is filled", func(t *testing.T) {
-		cfg := configDefault(Config{})
-		require.Equal(t, ConfigDefault.Hosts, cfg.Hosts)
-		require.Equal(t, ConfigDefault.Namespace, cfg.Namespace)
-		require.Equal(t, ConfigDefault.SetName, cfg.SetName)
-		require.Equal(t, ConfigDefault.SchemaVersion, cfg.SchemaVersion)
-		require.Equal(t, ConfigDefault.SchemaDescription, cfg.SchemaDescription)
-		require.Equal(t, ConfigDefault.InitialConnectionTimeout, cfg.InitialConnectionTimeout)
-		require.False(t, cfg.Reset)
-		require.False(t, cfg.ForceSchemaUpdate)
+		require.Equal(t, ConfigDefault, configDefault(Config{}))
 	})
 
 	t.Run("explicit values are kept", func(t *testing.T) {
@@ -457,29 +449,25 @@ func Test_AeroSpikeDB_New_UnreachableHost(t *testing.T) {
 	})
 }
 
-func Test_AeroSpikeDB_NewFromConnection_Reserved_SetName(t *testing.T) {
+// NewFromConnection must panic, rather than return a half-built storage, when it cannot set the storage up.
+func Test_AeroSpikeDB_NewFromConnection_Panics(t *testing.T) {
 	client := newUnreachableClient(t)
 
-	require.Panics(t, func() {
-		NewFromConnection(client, Config{SetName: "orders" + schemaSetSuffix})
-	})
-}
-
-// Without a reachable server the Reset requested by the config cannot run, and that must not be swallowed.
-func Test_AeroSpikeDB_NewFromConnection_Reset_Fails(t *testing.T) {
-	client := newUnreachableClient(t)
-
-	require.Panics(t, func() {
-		NewFromConnection(client, Config{Namespace: aerospikeNamespace, Reset: true})
-	})
-}
-
-func Test_AeroSpikeDB_NewFromConnection_Schema_Fails(t *testing.T) {
-	client := newUnreachableClient(t)
-
-	require.Panics(t, func() {
-		NewFromConnection(client, Config{Namespace: aerospikeNamespace})
-	})
+	for _, tc := range []struct {
+		name string
+		cfg  Config
+	}{
+		{"reserved set name", Config{SetName: "orders" + schemaSetSuffix}},
+		// Without a reachable server the Reset requested by the config cannot run, and that must not be swallowed.
+		{"reset fails", Config{Namespace: aerospikeNamespace, Reset: true}},
+		{"schema setup fails", Config{Namespace: aerospikeNamespace}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Panics(t, func() {
+				NewFromConnection(client, tc.cfg)
+			})
+		})
+	}
 }
 
 func Test_AeroSpikeDB_Operations_Fail_Without_Server(t *testing.T) {
@@ -538,9 +526,18 @@ func Test_AeroSpikeDB_Closed_Storage(t *testing.T) {
 func Test_AeroSpikeDB_Server(t *testing.T) {
 	host, port := newTestHostPort(t)
 
-	client, cerr := aerospike.NewClient(host, port)
-	require.NoError(t, cerr)
-	t.Cleanup(client.Close)
+	// newClient connects a client of its own, closed when the test ends (a second Close is a no-op).
+	newClient := func(t *testing.T) *aerospike.Client {
+		t.Helper()
+
+		c, err := aerospike.NewClient(host, port)
+		require.NoError(t, err)
+		t.Cleanup(c.Close)
+
+		return c
+	}
+
+	client := newClient(t)
 
 	newStore := func(t *testing.T, cfg Config) *Storage {
 		t.Helper()
@@ -552,12 +549,12 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 		return store
 	}
 
-	readSchema := func(t *testing.T, store *Storage) *aerospike.Record {
+	getRecord := func(t *testing.T, set, key string) *aerospike.Record {
 		t.Helper()
 
-		key, err := aerospike.NewKey(store.namespace, store.schemaSetName, schemaInfoKey)
+		k, err := aerospike.NewKey(aerospikeNamespace, set, key)
 		require.NoError(t, err)
-		rec, gerr := client.Get(nil, key)
+		rec, gerr := client.Get(nil, k)
 		require.NoError(t, gerr)
 		require.NotNil(t, rec)
 
@@ -580,9 +577,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 	})
 
 	t.Run("invalid namespace panics and closes an owned client", func(t *testing.T) {
-		own, err := aerospike.NewClient(host, port)
-		require.NoError(t, err)
-		defer own.Close()
+		own := newClient(t)
 
 		require.Panics(t, func() {
 			newStorage(own, true, Config{
@@ -595,9 +590,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 	})
 
 	t.Run("invalid namespace panics and leaves a borrowed client open", func(t *testing.T) {
-		own, err := aerospike.NewClient(host, port)
-		require.NoError(t, err)
-		defer own.Close()
+		own := newClient(t)
 
 		require.Panics(t, func() {
 			NewFromConnection(own, Config{Namespace: "no_such_namespace", SetName: "fiber"})
@@ -611,8 +604,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 	})
 
 	t.Run("closed owned client makes Reset fail in newStorage", func(t *testing.T) {
-		own, err := aerospike.NewClient(host, port)
-		require.NoError(t, err)
+		own := newClient(t)
 		own.Close()
 
 		require.Panics(t, func() {
@@ -636,7 +628,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 		require.True(t, info.CreatedAt.After(before))
 		require.Equal(t, info.CreatedAt, info.UpdatedAt)
 
-		rec := readSchema(t, store)
+		rec := getRecord(t, store.schemaSetName, schemaInfoKey)
 		require.Equal(t, 3, rec.Bins["version"])
 		require.Equal(t, "first", rec.Bins["description"])
 		require.Equal(t, uint32(math.MaxUint32), rec.Expiration, "schema record must never expire")
@@ -671,7 +663,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 		require.WithinDuration(t, created, info.CreatedAt, time.Second)
 		require.False(t, info.UpdatedAt.Before(info.CreatedAt))
 
-		rec := readSchema(t, second)
+		rec := getRecord(t, second.schemaSetName, schemaInfoKey)
 		require.Equal(t, 5, rec.Bins["version"])
 		require.Equal(t, "v5", rec.Bins["description"])
 		require.Equal(t, uint32(math.MaxUint32), rec.Expiration, "updated schema record must never expire")
@@ -684,7 +676,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 		require.Equal(t, 4, forced.GetSchemaInfo().Version)
 		require.Equal(t, "after", forced.GetSchemaInfo().Description)
 
-		rec := readSchema(t, forced)
+		rec := getRecord(t, forced.schemaSetName, schemaInfoKey)
 		require.Equal(t, "after", rec.Bins["description"])
 	})
 
@@ -693,7 +685,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 
 		forced := newStore(t, Config{SetName: "schema_downgrade", SchemaVersion: 2, ForceSchemaUpdate: true})
 		require.Equal(t, 2, forced.GetSchemaInfo().Version)
-		require.Equal(t, 2, readSchema(t, forced).Bins["version"])
+		require.Equal(t, 2, getRecord(t, forced.schemaSetName, schemaInfoKey).Bins["version"])
 	})
 
 	t.Run("get ignores empty keys and unknown keys", func(t *testing.T) {
@@ -744,15 +736,7 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 	t.Run("set overwrites and expiration is applied", func(t *testing.T) {
 		store := newStore(t, Config{SetName: "set_ttl"})
 
-		expiration := func(key string) uint32 {
-			k, err := aerospike.NewKey(aerospikeNamespace, "set_ttl", key)
-			require.NoError(t, err)
-			rec, gerr := client.Get(nil, k)
-			require.NoError(t, gerr)
-			require.NotNil(t, rec)
-
-			return rec.Expiration
-		}
+		expiration := func(key string) uint32 { return getRecord(t, store.setName, key).Expiration }
 
 		require.NoError(t, store.Set("k", []byte("one"), 0))
 		require.NoError(t, store.Set("k", []byte("two"), 0))
@@ -769,15 +753,12 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 		require.InDelta(t, 60, expiration("minute"), 5)
 
 		// A fraction of a second is rounded up, never down to "no expiration".
-		require.NoError(t, store.Set("frac", []byte("v"), 1500*time.Millisecond))
-		frac := expiration("frac")
-		require.GreaterOrEqual(t, frac, uint32(1))
-		require.LessOrEqual(t, frac, uint32(2))
-
-		require.NoError(t, store.Set("tiny", []byte("v"), time.Nanosecond))
-		tiny := expiration("tiny")
-		require.GreaterOrEqual(t, tiny, uint32(1))
-		require.LessOrEqual(t, tiny, uint32(2))
+		for key, exp := range map[string]time.Duration{"frac": 1500 * time.Millisecond, "tiny": time.Nanosecond} {
+			require.NoError(t, store.Set(key, []byte("v"), exp))
+			ttl := expiration(key)
+			require.GreaterOrEqual(t, ttl, uint32(1), key)
+			require.LessOrEqual(t, ttl, uint32(2), key)
+		}
 	})
 
 	t.Run("an entry with a sub-second expiration is rounded up and then expires", func(t *testing.T) {
