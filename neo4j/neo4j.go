@@ -147,7 +147,7 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		cypherMerge:  fmt.Sprintf("MERGE (n:%s{ k: $key }) SET n.v = $val, n.e = $exp FINISH", cfg.Node),
 		cypherDelete: fmt.Sprintf("MATCH (n:%s{ k: $key }) DELETE n FINISH", cfg.Node),
 		cypherReset:  fmt.Sprintf("MATCH (n:%s) DELETE n FINISH", cfg.Node),
-		cypherGC:     fmt.Sprintf("MATCH (n:%s) WHERE n.e <= $exp AND n.e != 0 DELETE n FINISH", cfg.Node),
+		cypherGC:     fmt.Sprintf("MATCH (n:%s) WHERE n.e <= $exp AND n.e <> 0 DELETE n FINISH", cfg.Node),
 	}
 
 	go store.gcTicker()
