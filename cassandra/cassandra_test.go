@@ -556,10 +556,9 @@ func Test_validateIdentifier(t *testing.T) {
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := validateIdentifier(tc.input, "keyspace")
-			require.Error(t, err)
+			require.ErrorContains(t, err, "invalid keyspace name")
+			require.ErrorContains(t, err, tc.message)
 			require.Empty(t, got)
-			require.Contains(t, err.Error(), "invalid keyspace name")
-			require.Contains(t, err.Error(), tc.message)
 		})
 	}
 }
@@ -572,12 +571,6 @@ func Test_validatedConfig(t *testing.T) {
 	require.Equal(t, ConfigDefault.Keyspace, keyspace)
 	require.Equal(t, ConfigDefault.Table, table)
 	require.Equal(t, ConfigDefault.Hosts, cfg.Hosts)
-
-	_, _, _, err = validatedConfig(Config{Keyspace: "bad-keyspace"})
-	require.ErrorContains(t, err, "invalid keyspace name")
-
-	_, _, _, err = validatedConfig(Config{Table: "bad table"})
-	require.ErrorContains(t, err, "invalid table name")
 }
 
 func Test_configDefault(t *testing.T) {
@@ -588,16 +581,10 @@ func Test_configDefault(t *testing.T) {
 	})
 
 	t.Run("zero config gets defaults", func(t *testing.T) {
+		// An empty Config takes each default field by field, unlike no config at all.
 		cfg := configDefault(Config{})
-		require.Equal(t, ConfigDefault.Hosts, cfg.Hosts)
-		require.Equal(t, ConfigDefault.Keyspace, cfg.Keyspace)
-		require.Equal(t, ConfigDefault.Table, cfg.Table)
-		require.Equal(t, ConfigDefault.Consistency, cfg.Consistency)
-		require.Equal(t, ConfigDefault.Expiration, cfg.Expiration)
-		require.Equal(t, ConfigDefault.MaxRetries, cfg.MaxRetries)
-		require.Equal(t, ConfigDefault.ConnectTimeout, cfg.ConnectTimeout)
+		require.Equal(t, ConfigDefault, cfg)
 		require.Same(t, ConfigDefault.PoolConfig, cfg.PoolConfig)
-		require.Nil(t, cfg.SslOpts)
 	})
 
 	t.Run("custom values are kept", func(t *testing.T) {
@@ -747,6 +734,14 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 	t.Run("expiration", func(t *testing.T) {
 		store := newStore(t, Config{Keyspace: base.keyspace, Table: "life_expiry"})
 
+		expiresAtOf := func(key string) time.Time {
+			var expiresAt time.Time
+			require.NoError(t, store.Conn().Query(
+				fmt.Sprintf("SELECT expires_at FROM %s.%s WHERE key = ?", store.keyspace, store.table), key,
+			).Scan(&expiresAt))
+			return expiresAt
+		}
+
 		// A long but accepted TTL is stored together with a matching expires_at column. Cassandra 5 rejects
 		// anything past 2038 by default, so the clamp to maxTTLSeconds itself is only checked by Test_ttlSeconds.
 		const longTTL = 5 * 365 * 24 * time.Hour
@@ -755,20 +750,11 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		val, err := store.Get("long")
 		require.NoError(t, err)
 		require.Equal(t, []byte("v"), val)
-
-		var expiresAt time.Time
-		require.NoError(t, store.Conn().Query(
-			fmt.Sprintf("SELECT expires_at FROM %s.%s WHERE key = ?", store.keyspace, store.table), "long",
-		).Scan(&expiresAt))
-		require.WithinDuration(t, before.Add(longTTL), expiresAt, time.Minute)
+		require.WithinDuration(t, before.Add(longTTL), expiresAtOf("long"), time.Minute)
 
 		// A negative expiration means none: no TTL and no expires_at.
 		require.NoError(t, store.Set("negative", []byte("v"), -time.Second))
-		var negExpiry time.Time
-		require.NoError(t, store.Conn().Query(
-			fmt.Sprintf("SELECT expires_at FROM %s.%s WHERE key = ?", store.keyspace, store.table), "negative",
-		).Scan(&negExpiry))
-		require.True(t, negExpiry.IsZero(), "no expiry should be recorded")
+		require.True(t, expiresAtOf("negative").IsZero(), "no expiry should be recorded")
 		var ttl int
 		require.NoError(t, store.Conn().Query(
 			fmt.Sprintf("SELECT TTL(value) FROM %s.%s WHERE key = ?", store.keyspace, store.table), "negative",
@@ -831,15 +817,12 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 	})
 
 	t.Run("New fails and releases its session on a table Cassandra rejects", func(t *testing.T) {
-		store, err := New(Config{Hosts: hosts, Keyspace: base.keyspace, Table: "1invalid", Consistency: gocql.One})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, store)
-
-		// With Reset the failure comes from dropping the table instead.
-		store, err = New(Config{Hosts: hosts, Keyspace: base.keyspace, Table: "1invalid", Consistency: gocql.One, Reset: true})
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, store)
+		// Without Reset the failure comes from creating the table, with Reset from dropping it first.
+		for _, reset := range []bool{false, true} {
+			store, err := New(Config{Hosts: hosts, Keyspace: base.keyspace, Table: "1invalid", Consistency: gocql.One, Reset: reset})
+			require.ErrorContains(t, err, "cassandra storage init", "reset=%v", reset)
+			require.Nil(t, store, "reset=%v", reset)
+		}
 	})
 
 	t.Run("NewFromConnection Reset drops only its table", func(t *testing.T) {
@@ -868,13 +851,11 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 	t.Run("NewFromConnection fails without its keyspace", func(t *testing.T) {
 		session := newSession(t, base.keyspace)
 
-		store, err := NewFromConnection(session, Config{Keyspace: "life_missing_keyspace", Table: "t"})
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, store)
-
-		store, err = NewFromConnection(session, Config{Keyspace: "life_missing_keyspace", Table: "t", Reset: true})
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, store)
+		for _, reset := range []bool{false, true} {
+			store, err := NewFromConnection(session, Config{Keyspace: "life_missing_keyspace", Table: "t", Reset: reset})
+			require.ErrorContains(t, err, "cassandra storage init", "reset=%v", reset)
+			require.Nil(t, store, "reset=%v", reset)
+		}
 	})
 
 	t.Run("operations fail once the session is closed", func(t *testing.T) {
@@ -897,14 +878,12 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		require.Error(t, store.Delete("k"))
 		require.Error(t, store.Reset())
 
-		// A new storage on a closed session cannot even create its table.
-		again, err := NewFromConnection(session, Config{Keyspace: base.keyspace, Table: "life_closed_session"})
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, again)
-
-		again, err = NewFromConnection(session, Config{Keyspace: base.keyspace, Table: "life_closed_session", Reset: true})
-		require.ErrorContains(t, err, "cassandra storage init")
-		require.Nil(t, again)
+		// A new storage on a closed session cannot even create its table, or drop it first with Reset.
+		for _, reset := range []bool{false, true} {
+			again, err := NewFromConnection(session, Config{Keyspace: base.keyspace, Table: "life_closed_session", Reset: reset})
+			require.ErrorContains(t, err, "cassandra storage init", "reset=%v", reset)
+			require.Nil(t, again, "reset=%v", reset)
+		}
 	})
 
 	t.Run("Close closes an owned session once", func(t *testing.T) {

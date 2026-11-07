@@ -3,7 +3,6 @@ package scylladb
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -23,29 +22,43 @@ const (
 	scyllaDBEnvVar = "TEST_SCYLLADB_IMAGE"
 )
 
-func newTestStore(t testing.TB) *Storage {
-	t.Helper()
-
+// startScylla runs a ScyllaDB container, honoring the TEST_SCYLLADB_IMAGE override, and returns it together
+// with the host and port its CQL port is reachable on. The container is returned even alongside an error,
+// so that the caller can always clean it up.
+func startScylla(ctx context.Context) (c *scylladb.Container, host string, port int, err error) {
 	img := scyllaDBImage
 	if imgFromEnv := os.Getenv(scyllaDBEnvVar); imgFromEnv != "" {
 		img = imgFromEnv
 	}
 
-	ctx := context.Background()
+	c, err = scylladb.Run(ctx, img)
+	if err != nil {
+		return c, "", 0, err
+	}
 
-	c, err := scylladb.Run(ctx, img)
+	host, err = c.NonShardAwareConnectionHost(ctx)
+	if err != nil {
+		return c, "", 0, err
+	}
+
+	mappedPort, err := c.MappedPort(ctx, "9042/tcp")
+	if err != nil {
+		return c, "", 0, err
+	}
+
+	return c, host, int(mappedPort.Num()), nil
+}
+
+func newTestStore(t testing.TB) *Storage {
+	t.Helper()
+
+	c, host, port, err := startScylla(context.Background())
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
-	connectionHost, err := c.NonShardAwareConnectionHost(ctx)
-	require.NoError(t, err)
-
-	scyllaPort, err := c.MappedPort(ctx, "9042/tcp")
-	require.NoError(t, err)
-
 	return New(Config{
-		Hosts: []string{connectionHost},
-		Port:  int(scyllaPort.Num()),
+		Hosts: []string{host},
+		Port:  port,
 		Reset: true,
 		// Disable initial host lookup in tests.
 		// See https://github.com/apache/cassandra-gocql-driver/issues/1020#issuecomment-362494859
@@ -408,32 +421,7 @@ func sharedScylla(t testing.TB) (string, int) {
 	t.Helper()
 
 	sharedOnce.Do(func() {
-		img := scyllaDBImage
-		if imgFromEnv := os.Getenv(scyllaDBEnvVar); imgFromEnv != "" {
-			img = imgFromEnv
-		}
-
-		ctx := context.Background()
-		c, err := scylladb.Run(ctx, img)
-		if c != nil {
-			sharedContainer = c
-		}
-		if err != nil {
-			sharedErr = err
-			return
-		}
-
-		host, err := c.NonShardAwareConnectionHost(ctx)
-		if err != nil {
-			sharedErr = err
-			return
-		}
-		port, err := c.MappedPort(ctx, "9042/tcp")
-		if err != nil {
-			sharedErr = err
-			return
-		}
-		sharedHost, sharedPort = host, int(port.Num())
+		sharedContainer, sharedHost, sharedPort, sharedErr = startScylla(context.Background())
 	})
 	require.NoError(t, sharedErr)
 
@@ -462,10 +450,48 @@ func newSharedStore(t testing.TB, table string) *Storage {
 	return NewFromConnection(newSharedSession(t), Config{Table: table, Reset: true})
 }
 
-// recoverPanic runs fn and returns what it panicked with, or nil.
-func recoverPanic(fn func()) (recovered any) {
-	defer func() { recovered = recover() }()
+// sharedConfig returns a Config for a storage on its own table of the shared container, one that opens a
+// session of its own.
+func sharedConfig(t testing.TB, table string) Config {
+	t.Helper()
+
+	host, port := sharedScylla(t)
+
+	return Config{
+		Hosts: []string{host},
+		Port:  port,
+		Table: table,
+		// Disable initial host lookup, as in newTestStore.
+		DisableInitialHostLookup: true,
+	}
+}
+
+// createSharedTable creates table with the given column definitions in the default keyspace of the shared
+// container, so that a storage can be pointed at a layout it would not have created itself. It returns the
+// session it used.
+func createSharedTable(t testing.TB, table, columns string) *gocql.Session {
+	t.Helper()
+
+	session := newSharedSession(t)
+	require.NoError(t, session.Query(fmt.Sprintf(createKeyspaceQuery, ConfigDefault.Keyspace)).Exec())
+	require.NoError(t, session.Query(fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (%s)`, ConfigDefault.Keyspace, table, columns)).Exec())
+
+	return session
+}
+
+// panicError runs fn, which must panic with an error, and returns that error.
+func panicError(t testing.TB, fn func()) (err error) {
+	t.Helper()
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		e, ok := r.(error)
+		require.True(t, ok, "panic value should be an error, got %T", r)
+		err = e
+	}()
 	fn()
+
 	return nil
 }
 
@@ -486,58 +512,41 @@ func Test_ScyllaDB_ConfigDefault(t *testing.T) {
 	require.Equal(t, ConfigDefault, configDefault())
 
 	// Zero values and blank strings are replaced by the defaults.
-	cfg := configDefault(Config{Table: "  ", Keyspace: "\t", Consistency: " ", Port: -1})
-	require.Equal(t, ConfigDefault.Hosts, cfg.Hosts)
-	require.Equal(t, ConfigDefault.Port, cfg.Port)
-	require.Equal(t, ConfigDefault.Table, cfg.Table)
-	require.Equal(t, ConfigDefault.Keyspace, cfg.Keyspace)
-	require.Equal(t, ConfigDefault.Consistency, cfg.Consistency)
+	require.Equal(t, ConfigDefault, configDefault(Config{Table: "  ", Keyspace: "\t", Consistency: " ", Port: -1}))
 
 	// Explicit values are kept.
-	cfg = configDefault(Config{
+	in := Config{
 		Hosts:       []string{"10.0.0.1"},
 		Port:        9999,
 		Table:       "t",
 		Keyspace:    "k",
 		Consistency: "ONE",
 		Reset:       true,
-	})
-	require.Equal(t, []string{"10.0.0.1"}, cfg.Hosts)
-	require.Equal(t, 9999, cfg.Port)
-	require.Equal(t, "t", cfg.Table)
-	require.Equal(t, "k", cfg.Keyspace)
-	require.Equal(t, "ONE", cfg.Consistency)
-	require.True(t, cfg.Reset)
+	}
+	require.Equal(t, in, configDefault(in))
 }
 
 func Test_ScyllaDB_New_Invalid_Names_Panic(t *testing.T) {
 	// Names are validated before any connection is attempted, so no server is needed.
-	r := recoverPanic(func() { New(Config{Keyspace: "bad-keyspace"}) })
-	err, ok := r.(error)
-	require.True(t, ok)
+	err := panicError(t, func() { New(Config{Keyspace: "bad-keyspace"}) })
 	require.ErrorContains(t, err, "invalid keyspace name")
 
-	r = recoverPanic(func() { New(Config{Table: "bad table"}) })
-	err, ok = r.(error)
-	require.True(t, ok)
+	err = panicError(t, func() { New(Config{Table: "bad table"}) })
 	require.ErrorContains(t, err, "invalid table name")
 }
 
 func Test_ScyllaDB_New_Unreachable_Host_Panics(t *testing.T) {
-	r := recoverPanic(func() {
-		New(Config{
-			Hosts:                    []string{"127.0.0.1"},
-			Port:                     closedPort(t),
-			Username:                 "user",
-			Password:                 "pass",
-			Consistency:              "ONE",
-			SslOpts:                  &gocql.SslOptions{Config: &tls.Config{InsecureSkipVerify: true}}, //nolint:gosec // never connects
-			DisableInitialHostLookup: true,
-		})
-	})
-	err, ok := r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
-	require.Error(t, err)
+	cfg := Config{
+		Hosts:                    []string{"127.0.0.1"},
+		Port:                     closedPort(t),
+		Username:                 "user",
+		Password:                 "pass",
+		Consistency:              "ONE",
+		SslOpts:                  &gocql.SslOptions{Config: &tls.Config{InsecureSkipVerify: true}}, //nolint:gosec // never connects
+		DisableInitialHostLookup: true,
+	}
+
+	_ = panicError(t, func() { New(cfg) })
 }
 
 func Test_ScyllaDB_Validate_Identifier_Messages(t *testing.T) {
@@ -551,33 +560,23 @@ func Test_ScyllaDB_New_Closed_Session_Panics(t *testing.T) {
 	session := newSharedSession(t)
 	session.Close()
 
-	r := recoverPanic(func() { NewFromConnection(session, Config{Table: "closed_session_table"}) })
-	err, ok := r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
+	err := panicError(t, func() { NewFromConnection(session, Config{Table: "closed_session_table"}) })
 	require.ErrorIs(t, err, gocql.ErrSessionClosed)
 
 	// The same holds when a reset is requested.
-	r = recoverPanic(func() { NewFromConnection(session, Config{Table: "closed_session_table", Reset: true}) })
-	err, ok = r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
+	err = panicError(t, func() { NewFromConnection(session, Config{Table: "closed_session_table", Reset: true}) })
 	require.ErrorIs(t, err, gocql.ErrSessionClosed)
 }
 
 func Test_ScyllaDB_New_Owned_Session(t *testing.T) {
-	host, port := sharedScylla(t)
-
 	// Credentials are sent only when both are set; the test server does not require authentication,
 	// so the session still opens, and the storage owns it.
-	store := New(Config{
-		Hosts:                    []string{host},
-		Port:                     port,
-		Username:                 "cassandra",
-		Password:                 "cassandra",
-		Consistency:              "ONE",
-		Table:                    "owned_session_table",
-		Reset:                    true,
-		DisableInitialHostLookup: true,
-	})
+	cfg := sharedConfig(t, "owned_session_table")
+	cfg.Username = "cassandra"
+	cfg.Password = "cassandra"
+	cfg.Consistency = "ONE"
+	cfg.Reset = true
+	store := New(cfg)
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
 	got, err := store.Get("john")
@@ -592,53 +591,27 @@ func Test_ScyllaDB_New_Owned_Session(t *testing.T) {
 }
 
 func Test_ScyllaDB_New_Schema_Mismatch_Panics(t *testing.T) {
-	host, port := sharedScylla(t)
-	session := newSharedSession(t)
-	require.NoError(t, session.Query(fmt.Sprintf(createKeyspaceQuery, ConfigDefault.Keyspace)).Exec())
-
 	// A table whose value column is TEXT is the pre-migration layout and must be refused.
-	require.NoError(t, session.Query(`CREATE TABLE IF NOT EXISTS fiber.legacy_text_table (key TEXT PRIMARY KEY, value TEXT)`).Exec())
+	session := createSharedTable(t, "legacy_text_table", "key TEXT PRIMARY KEY, value TEXT")
 
 	// With an owned session, the failed initialization must close it again.
-	r := recoverPanic(func() {
-		New(Config{
-			Hosts:                    []string{host},
-			Port:                     port,
-			Table:                    "legacy_text_table",
-			DisableInitialHostLookup: true,
-		})
-	})
-	err, ok := r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
+	cfg := sharedConfig(t, "legacy_text_table")
+	err := panicError(t, func() { New(cfg) })
 	require.ErrorContains(t, err, "should be BLOB")
 	require.ErrorContains(t, err, "text")
 
 	// The same table is refused on a borrowed session, which must stay open.
-	r = recoverPanic(func() { NewFromConnection(session, Config{Table: "legacy_text_table"}) })
-	err, ok = r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
+	err = panicError(t, func() { NewFromConnection(session, Config{Table: "legacy_text_table"}) })
 	require.ErrorContains(t, err, "should be BLOB")
 	require.False(t, session.Closed())
 }
 
 func Test_ScyllaDB_New_Missing_Value_Column_Panics(t *testing.T) {
-	host, port := sharedScylla(t)
-	session := newSharedSession(t)
-	require.NoError(t, session.Query(fmt.Sprintf(createKeyspaceQuery, ConfigDefault.Keyspace)).Exec())
-
 	// The table exists but has no `value` column, so the schema lookup finds no row.
-	require.NoError(t, session.Query(`CREATE TABLE IF NOT EXISTS fiber.no_value_table (key TEXT PRIMARY KEY, other BLOB)`).Exec())
+	createSharedTable(t, "no_value_table", "key TEXT PRIMARY KEY, other BLOB")
 
-	r := recoverPanic(func() {
-		New(Config{
-			Hosts:                    []string{host},
-			Port:                     port,
-			Table:                    "no_value_table",
-			DisableInitialHostLookup: true,
-		})
-	})
-	err, ok := r.(error)
-	require.True(t, ok, "expected an error panic, got %v", r)
+	cfg := sharedConfig(t, "no_value_table")
+	err := panicError(t, func() { New(cfg) })
 	require.ErrorIs(t, err, gocql.ErrNotFound)
 }
 
@@ -705,8 +678,9 @@ func Test_ScyllaDB_Set_TTL_Rounding_And_Clamp(t *testing.T) {
 
 	// A sub-second expiry is rounded up to one second rather than down to "no TTL".
 	require.NoError(t, store.Set("subsecond", []byte("v"), 100*time.Millisecond))
-	require.InDelta(t, 1, ttlOf("subsecond"), 1)
-	require.Positive(t, ttlOf("subsecond"))
+	subsecondTTL := ttlOf("subsecond")
+	require.GreaterOrEqual(t, subsecondTTL, 1)
+	require.LessOrEqual(t, subsecondTTL, 2)
 
 	// A fractional expiry is rounded up to the next whole second.
 	require.NoError(t, store.Set("fraction", []byte("v"), 1500*time.Millisecond+100*time.Hour))
@@ -759,7 +733,7 @@ func Test_ScyllaDB_Context_Deadline_Exceeded(t *testing.T) {
 	defer cancel()
 
 	_, err := store.GetWithContext(ctx, "john")
-	require.True(t, errors.Is(err, context.DeadlineExceeded), "got %v", err)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), context.DeadlineExceeded)
 	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.DeadlineExceeded)
 	require.ErrorIs(t, store.ResetWithContext(ctx), context.DeadlineExceeded)
