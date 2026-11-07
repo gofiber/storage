@@ -375,15 +375,13 @@ func Test_Etcd_ConfigDefault(t *testing.T) {
 	})
 
 	t.Run("provided values are kept", func(t *testing.T) {
-		cfg := configDefault(Config{
+		want := Config{
 			Endpoints:   []string{"example:2379"},
 			DialTimeout: time.Minute,
 			Username:    "user",
 			Password:    "pass",
-		})
-		require.Equal(t, time.Minute, cfg.DialTimeout)
-		require.Equal(t, "user", cfg.Username)
-		require.Equal(t, "pass", cfg.Password)
+		}
+		require.Equal(t, want, configDefault(want))
 	})
 }
 
@@ -446,39 +444,36 @@ func TestEtcd_SetWithContext_GrantFails_WhenContextCancelled(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-func TestEtcd_SetWithSubSecondTTL_IsReadableImmediately(t *testing.T) {
+func TestEtcd_SetWithTTL(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
 
-	require.NoError(t, store.Set("john", []byte("doe"), 500*time.Millisecond))
+	// Runs first on purpose: it expects the server to hold no leases, and the next subtest leaves one behind.
+	t.Run("lease is revoked when the put fails", func(t *testing.T) {
+		// Larger than etcd's default request size limit (1.5 MiB): the lease is granted, then the put is rejected.
+		tooLarge := make([]byte, 2*1024*1024)
 
-	val, err := store.Get("john")
-	require.NoError(t, err)
-	require.Equal(t, []byte("doe"), val)
-}
+		err := store.Set("big", tooLarge, time.Minute)
+		require.Error(t, err)
 
-func TestEtcd_SetWithTTL_RevokesLease_WhenPutFails(t *testing.T) {
-	store := newTestStore(t)
-	defer store.Close()
+		val, err := store.Get("big")
+		require.NoError(t, err)
+		require.Nil(t, val)
 
-	// Larger than etcd's default request size limit (1.5 MiB): the lease is granted, then the put is rejected.
-	tooLarge := make([]byte, 2*1024*1024)
-	for i := range tooLarge {
-		tooLarge[i] = 'a'
-	}
+		// The lease granted for the failed put must not be left occupying the server.
+		require.Eventually(t, func() bool {
+			leases, err := store.Conn().Leases(context.Background())
+			return err == nil && len(leases.Leases) == 0
+		}, 5*time.Second, 50*time.Millisecond)
+	})
 
-	err := store.Set("big", tooLarge, time.Minute)
-	require.Error(t, err)
+	t.Run("sub-second TTL is readable immediately", func(t *testing.T) {
+		require.NoError(t, store.Set("john", []byte("doe"), 500*time.Millisecond))
 
-	val, err := store.Get("big")
-	require.NoError(t, err)
-	require.Nil(t, val)
-
-	// The lease granted for the failed put must not be left occupying the server.
-	require.Eventually(t, func() bool {
-		leases, err := store.Conn().Leases(context.Background())
-		return err == nil && len(leases.Leases) == 0
-	}, 5*time.Second, 50*time.Millisecond)
+		val, err := store.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val)
+	})
 }
 
 func TestEtcd_Close_ReportsClientCloseError_Once(t *testing.T) {

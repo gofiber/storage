@@ -309,6 +309,28 @@ func Test_Memcache_NewFromConnection(t *testing.T) {
 	require.Equal(t, []byte("doe"), result)
 
 	require.NoError(t, store.Close())
+
+	// The context variants reach the same live server (the owner's storage is reused to save a container).
+	ctx := context.Background()
+
+	require.NoError(t, owner.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, owner.DeleteWithContext(ctx, "john"))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, owner.SetWithContext(ctx, "john", []byte("doe"), 0))
+	require.NoError(t, owner.ResetWithContext(ctx))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
@@ -317,18 +339,24 @@ func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
 	})
 }
 
-// unreachableClient returns a client pointed at a port nothing listens on, so every operation fails
-// with a connection error without needing a container.
-func unreachableClient(t testing.TB) *mc.Client {
+// closedAddr returns the address of a listener that has been closed, so connections to it are refused.
+func closedAddr(t testing.TB) string {
 	t.Helper()
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := l.Addr().String()
-	// Release the port so connections to it are refused.
 	require.NoError(t, l.Close())
 
-	client := mc.New(addr)
+	return addr
+}
+
+// unreachableClient returns a client pointed at a port nothing listens on, so every operation fails
+// with a connection error without needing a container.
+func unreachableClient(t testing.TB) *mc.Client {
+	t.Helper()
+
+	client := mc.New(closedAddr(t))
 	client.Timeout = 200 * time.Millisecond
 
 	return client
@@ -353,10 +381,7 @@ func Test_Memcache_ConfigDefault(t *testing.T) {
 }
 
 func Test_Memcache_New_Unreachable(t *testing.T) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := l.Addr().String()
-	require.NoError(t, l.Close())
+	addr := closedAddr(t)
 
 	// New pings the server and panics when it cannot be reached.
 	require.Panics(t, func() {
@@ -411,30 +436,4 @@ func Test_Memcache_Unreachable_Errors(t *testing.T) {
 	require.Error(t, testStore.DeleteWithContext(ctx, "john"))
 	require.Error(t, testStore.Reset())
 	require.Error(t, testStore.ResetWithContext(ctx))
-}
-
-func Test_Memcache_WithContext(t *testing.T) {
-	testStore := newTestStore(t)
-	defer testStore.Close()
-
-	ctx := context.Background()
-
-	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
-
-	result, err := testStore.GetWithContext(ctx, "john")
-	require.NoError(t, err)
-	require.Equal(t, []byte("doe"), result)
-
-	require.NoError(t, testStore.DeleteWithContext(ctx, "john"))
-
-	result, err = testStore.GetWithContext(ctx, "john")
-	require.NoError(t, err)
-	require.Nil(t, result)
-
-	require.NoError(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
-	require.NoError(t, testStore.ResetWithContext(ctx))
-
-	result, err = testStore.GetWithContext(ctx, "john")
-	require.NoError(t, err)
-	require.Nil(t, result)
 }
