@@ -2,6 +2,8 @@ package cassandra
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"sync"
@@ -25,14 +27,9 @@ const (
 func newTestStore(t testing.TB) *Storage {
 	t.Helper()
 
-	img := cassandraImage
-	if imgFromEnv := os.Getenv(cassandraImageEnvVar); imgFromEnv != "" {
-		img = imgFromEnv
-	}
-
 	ctx := context.Background()
 
-	c, err := cassandra.Run(ctx, img)
+	c, err := cassandra.Run(ctx, testImage())
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
@@ -49,6 +46,100 @@ func newTestStore(t testing.TB) *Storage {
 	require.NoError(t, err)
 
 	return store
+}
+
+// testImage returns the Cassandra image to run, honoring the TEST_CASSANDRA_IMAGE override.
+func testImage() string {
+	if imgFromEnv := os.Getenv(cassandraImageEnvVar); imgFromEnv != "" {
+		return imgFromEnv
+	}
+	return cassandraImage
+}
+
+// runTLSContainer starts a Cassandra container with TLS enabled and returns the SSL host
+// together with the client TLS config that trusts the container's generated CA.
+func runTLSContainer(t testing.TB) (host string, tlsConfig *tls.Config) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	c, err := cassandra.Run(ctx, testImage(), cassandra.WithTLS())
+	testcontainers.CleanupContainer(t, c)
+	require.NoError(t, err)
+
+	host, err = c.ConnectionHost(ctx)
+	require.NoError(t, err)
+
+	tlsConfig, err = c.TLSConfig()
+	require.NoError(t, err)
+	require.NotNil(t, tlsConfig)
+
+	return host, tlsConfig
+}
+
+// Test_TLS verifies the storage works over a TLS connection and rejects untrusted or missing TLS.
+// The subtests share one container because starting Cassandra is slow.
+func Test_TLS(t *testing.T) {
+	host, tlsConfig := runTLSContainer(t)
+
+	t.Run("trusted CA", func(t *testing.T) {
+		store, err := New(Config{
+			Hosts:       []string{host},
+			Keyspace:    "test_cassandra_tls",
+			Table:       "test_kv",
+			Consistency: gocql.One,
+			SslOpts: &gocql.SslOptions{
+				Config:                 tlsConfig,
+				EnableHostVerification: true,
+			},
+		})
+		require.NoError(t, err)
+		defer store.Close()
+
+		require.NoError(t, store.Set("tls-key", []byte("tls-value"), 0))
+
+		val, err := store.Get("tls-key")
+		require.NoError(t, err)
+		require.Equal(t, []byte("tls-value"), val)
+
+		require.NoError(t, store.Delete("tls-key"))
+
+		val, err = store.Get("tls-key")
+		require.NoError(t, err)
+		require.Nil(t, val)
+	})
+
+	t.Run("untrusted CA", func(t *testing.T) {
+		// An empty root pool trusts no CA, so verifying the server certificate must fail.
+		untrusted := tlsConfig.Clone()
+		untrusted.RootCAs = x509.NewCertPool()
+
+		store, err := New(Config{
+			Hosts:          []string{host},
+			Keyspace:       "test_cassandra_tls",
+			Table:          "test_kv",
+			Consistency:    gocql.One,
+			ConnectTimeout: 2 * time.Second,
+			SslOpts: &gocql.SslOptions{
+				Config:                 untrusted,
+				EnableHostVerification: true,
+			},
+		})
+		require.Error(t, err)
+		require.Nil(t, store)
+	})
+
+	t.Run("plaintext to TLS port", func(t *testing.T) {
+		store, err := New(Config{
+			Hosts:          []string{host},
+			Keyspace:       "test_cassandra_tls",
+			Table:          "test_kv",
+			Consistency:    gocql.One,
+			ConnectTimeout: 2 * time.Second,
+		})
+		require.Error(t, err)
+		require.Nil(t, store)
+	})
 }
 
 // Test_Set tests the Set operation
