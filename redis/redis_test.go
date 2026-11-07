@@ -1,15 +1,9 @@
 package redis
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"net"
 	"os"
-	"strconv"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -726,144 +720,6 @@ func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
 	require.NotNil(t, testStore.Conn())
 }
 
-// fakeRedis is a minimal RESP server for exercising failure paths a real Redis does not
-// produce on demand (a refused FLUSHDB, a cluster topology). handler receives the upper-cased
-// command name and its arguments and returns a raw RESP reply.
-type fakeRedis struct {
-	ln net.Listener
-
-	mu       sync.Mutex
-	commands []string
-}
-
-func newFakeRedis(t testing.TB, handler func(f *fakeRedis, cmd string, args []string) string) *fakeRedis {
-	t.Helper()
-
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	f := &fakeRedis{ln: ln}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				defer conn.Close() //nolint:errcheck // best effort cleanup
-				f.serve(conn, handler)
-			}()
-		}
-	}()
-
-	t.Cleanup(func() {
-		_ = ln.Close()
-		wg.Wait()
-	})
-
-	return f
-}
-
-func (f *fakeRedis) addr() string { return f.ln.Addr().String() }
-
-func (f *fakeRedis) port() int { return f.ln.Addr().(*net.TCPAddr).Port }
-
-func (f *fakeRedis) seen(cmd string) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, c := range f.commands {
-		if c == cmd {
-			return true
-		}
-	}
-	return false
-}
-
-func (f *fakeRedis) serve(conn net.Conn, handler func(f *fakeRedis, cmd string, args []string) string) {
-	r := bufio.NewReader(conn)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil || !strings.HasPrefix(line, "*") {
-			return
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(line[1:]))
-		if err != nil {
-			return
-		}
-		parts := make([]string, 0, n)
-		for i := 0; i < n; i++ {
-			hdr, err := r.ReadString('\n')
-			if err != nil || !strings.HasPrefix(hdr, "$") {
-				return
-			}
-			size, err := strconv.Atoi(strings.TrimSpace(hdr[1:]))
-			if err != nil {
-				return
-			}
-			buf := make([]byte, size+2)
-			if _, err := io.ReadFull(r, buf); err != nil {
-				return
-			}
-			parts = append(parts, string(buf[:size]))
-		}
-		if len(parts) == 0 {
-			return
-		}
-
-		cmd := strings.ToUpper(parts[0])
-		f.mu.Lock()
-		f.commands = append(f.commands, cmd)
-		f.mu.Unlock()
-
-		if _, err := io.WriteString(conn, handler(f, cmd, parts[1:])); err != nil {
-			return
-		}
-	}
-}
-
-// refuseFlush answers like a server that accepts connections but denies FLUSHDB.
-func refuseFlush(_ *fakeRedis, cmd string, _ []string) string {
-	switch cmd {
-	case "PING":
-		return "+PONG\r\n"
-	case "FLUSHDB":
-		return "-NOPERM this user has no permissions to run the 'flushdb' command\r\n"
-	case "CLIENT":
-		return "+OK\r\n"
-	default:
-		return "-ERR unknown command\r\n"
-	}
-}
-
-// clusterOfOne answers as a single-master cluster owning every slot; SCAN pages through
-// two batches so key collection across cursors is exercised.
-func clusterOfOne(f *fakeRedis, cmd string, args []string) string {
-	switch cmd {
-	case "PING", "READONLY":
-		if cmd == "READONLY" {
-			return "+OK\r\n"
-		}
-		return "+PONG\r\n"
-	case "CLIENT", "FLUSHDB":
-		return "+OK\r\n"
-	case "CLUSTER":
-		return fmt.Sprintf("*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:%d\r\n$4\r\nnode\r\n", f.port())
-	case "SCAN":
-		if len(args) > 0 && args[0] == "0" {
-			return "*2\r\n$1\r\n7\r\n*2\r\n$1\r\na\r\n$1\r\nb\r\n"
-		}
-		return "*2\r\n$1\r\n0\r\n*1\r\n$1\r\nc\r\n"
-	default:
-		return "-ERR unknown command\r\n"
-	}
-}
-
 func Test_Redis_New_InvalidURL_Panics(t *testing.T) {
 	t.Parallel()
 
@@ -908,14 +764,24 @@ func Test_Redis_New_ConnectionCheckFailure_Panics(t *testing.T) {
 func Test_Redis_New_ResetFailure_Panics(t *testing.T) {
 	t.Parallel()
 
-	fake := newFakeRedis(t, refuseFlush)
+	ctx := context.Background()
+	addr := newConfigFromContainer(t, testredis.WithAddress()).Addrs[0]
 
-	// The PING succeeds but the server refuses FLUSHDB: a requested reset that fails must not be swallowed.
-	require.PanicsWithError(t, "NOPERM this user has no permissions to run the 'flushdb' command", func() {
-		New(Config{Addrs: []string{fake.addr()}, Reset: true})
+	// A user that may run everything but FLUSHDB: its connection check passes, its reset is refused.
+	admin := goredis.NewClient(&goredis.Options{Addr: addr})
+	defer admin.Close() //nolint:errcheck // best effort cleanup
+	require.NoError(t, admin.Do(ctx, "ACL", "SETUSER", "limited", "on", ">secret", "~*", "+@all", "-flushdb").Err())
+
+	// The wording of the refusal differs between servers, so ask the server for it.
+	limited := goredis.NewClient(&goredis.Options{Addr: addr, Username: "limited", Password: "secret"})
+	defer limited.Close() //nolint:errcheck // best effort cleanup
+	refusal := limited.FlushDB(ctx).Err()
+	require.ErrorContains(t, refusal, "NOPERM")
+
+	// A requested reset that fails must not be swallowed, nor its error replaced.
+	require.PanicsWithError(t, refusal.Error(), func() {
+		New(Config{Addrs: []string{addr}, Username: "limited", Password: "secret", Reset: true})
 	})
-	require.True(t, fake.seen("PING"))
-	require.True(t, fake.seen("FLUSHDB"))
 }
 
 func Test_Redis_NewFromConnection_TypedNil_Panics(t *testing.T) {
@@ -1008,26 +874,40 @@ func Test_Redis_Operations_ClientClosedUnderneath(t *testing.T) {
 func Test_Redis_Cluster_FansOutToEveryMaster(t *testing.T) {
 	t.Parallel()
 
-	fake := newFakeRedis(t, clusterOfOne)
+	ctx := context.Background()
+	addr := newConfigFromContainer(t, testredis.WithAddress()).Addrs[0]
 
-	store := New(Config{
-		Addrs:         []string{fake.addr()},
-		IsClusterMode: true,
-		Reset:         true,
+	// ClusterSlots lets a standalone server stand in for a cluster: one master owning every slot.
+	cluster := goredis.NewClusterClient(&goredis.ClusterOptions{
+		ClusterSlots: func(context.Context) ([]goredis.ClusterSlot, error) {
+			return []goredis.ClusterSlot{{Start: 0, End: 16383, Nodes: []goredis.ClusterNode{{Addr: addr}}}}, nil
+		},
 	})
-	defer store.Close() //nolint:errcheck // best effort cleanup
+	defer cluster.Close() //nolint:errcheck // best effort cleanup
 
-	_, ok := store.Conn().(*goredis.ClusterClient)
-	require.True(t, ok)
-
-	// The reset during New and an explicit one both reach the master.
-	require.True(t, fake.seen("FLUSHDB"))
-	require.NoError(t, store.Reset())
-
-	// Keys gathers every SCAN batch from the master.
+	// The reset on construction reaches the master.
+	require.NoError(t, cluster.Set(ctx, "stale", "value", 0).Err())
+	store := NewFromConnection(cluster, Config{Reset: true})
 	keys, err := store.Keys()
 	require.NoError(t, err)
-	require.ElementsMatch(t, [][]byte{[]byte("a"), []byte("b"), []byte("c")}, keys)
+	require.Nil(t, keys)
+
+	// Keys gathers every SCAN page from the master: 25 keys do not fit in one page of 10.
+	var want [][]byte
+	for i := range 25 {
+		key := fmt.Sprintf("key-%d", i)
+		require.NoError(t, store.Set(key, []byte("value"), 0))
+		want = append(want, []byte(key))
+	}
+	keys, err = store.Keys()
+	require.NoError(t, err)
+	require.ElementsMatch(t, want, keys)
+
+	// An explicit reset reaches the master too.
+	require.NoError(t, store.Reset())
+	keys, err = store.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
 }
 
 func Test_Redis_Cluster_UnreachableReturnsError(t *testing.T) {
@@ -1039,6 +919,9 @@ func Test_Redis_Cluster_UnreachableReturnsError(t *testing.T) {
 		SkipConnectionCheck: true,
 	})
 	defer store.Close() //nolint:errcheck // the cluster is unreachable
+
+	_, ok := store.Conn().(*goredis.ClusterClient)
+	require.True(t, ok)
 
 	// The topology cannot be loaded, so fanning out must report that instead of silently doing nothing.
 	require.Error(t, store.Reset())
