@@ -307,6 +307,7 @@ func Test_MYSQL_New_Unreachable(t *testing.T) {
 	t.Parallel()
 
 	host, port := closedListenerAddr(t)
+	uri := "u:p@tcp(" + host + ":" + strconv.Itoa(port) + ")/fiber"
 
 	// Owned connection built from the individual fields.
 	require.Panics(t, func() {
@@ -315,11 +316,11 @@ func Test_MYSQL_New_Unreachable(t *testing.T) {
 
 	// Owned connection built from a URI.
 	require.Panics(t, func() {
-		New(Config{ConnectionURI: "u:p@tcp(" + host + ":" + strconv.Itoa(port) + ")/fiber"})
+		New(Config{ConnectionURI: uri})
 	})
 
 	// A borrowed handle is left open for the caller when initialization fails.
-	db, err := sql.Open("mysql", "u:p@tcp("+host+":"+strconv.Itoa(port)+")/fiber")
+	db, err := sql.Open("mysql", uri)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
@@ -334,20 +335,17 @@ func Test_MYSQL_New_Unreachable(t *testing.T) {
 func Test_MYSQL_ClosedStorage(t *testing.T) {
 	t.Parallel()
 
-	// A closed *sql.DB can never be pinged, so build the storage by hand the way New would.
+	// A closed *sql.DB can never be pinged, so build the storage by hand instead of through New.
+	// No statements are set: a closed handle fails before the query text matters.
 	db, err := sql.Open("mysql", "u:p@tcp(127.0.0.1:1)/fiber")
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 
 	s := &Storage{
-		db:        db,
-		ownsDB:    true,
-		done:      make(chan struct{}),
-		stopped:   make(chan struct{}),
-		sqlSelect: "SELECT v, e FROM t WHERE k=?;",
-		sqlInsert: "INSERT INTO t (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?",
-		sqlDelete: "DELETE FROM t WHERE k=?",
-		sqlReset:  "TRUNCATE TABLE t;",
+		db:      db,
+		ownsDB:  true,
+		done:    make(chan struct{}),
+		stopped: make(chan struct{}),
 	}
 	close(s.stopped) // no collector is running
 
@@ -389,9 +387,19 @@ func Test_MYSQL_Errors(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = rawDB.Close() })
 
-	t.Run("context errors", func(t *testing.T) {
-		store := New(Config{ConnectionURI: dsn, Table: "ctx_errors", Reset: true})
+	// newStore opens a storage of its own on the shared container that is closed with the subtest.
+	newStore := func(t *testing.T, cfg Config) *Storage {
+		t.Helper()
+
+		cfg.ConnectionURI = dsn
+		store := New(cfg)
 		t.Cleanup(func() { _ = store.Close() })
+
+		return store
+	}
+
+	t.Run("context errors", func(t *testing.T) {
+		store := newStore(t, Config{Table: "ctx_errors", Reset: true})
 
 		require.NoError(t, store.Set("john", []byte("doe"), 0))
 
@@ -415,11 +423,10 @@ func Test_MYSQL_Errors(t *testing.T) {
 	})
 
 	t.Run("expired entry is a miss", func(t *testing.T) {
-		store := New(Config{ConnectionURI: dsn, Table: "expired_entry", Reset: true, GCInterval: time.Hour})
-		t.Cleanup(func() { _ = store.Close() })
+		store := newStore(t, Config{Table: "expired_entry", Reset: true, GCInterval: time.Hour})
 
 		past := time.Now().Add(-time.Minute).Unix()
-		_, err := store.db.Exec("INSERT INTO expired_entry (k, v, e) VALUES (?,?,?)", "old", []byte("v"), past)
+		_, err := store.Conn().Exec("INSERT INTO expired_entry (k, v, e) VALUES (?,?,?)", "old", []byte("v"), past)
 		require.NoError(t, err)
 
 		val, err := store.Get("old")
@@ -428,7 +435,7 @@ func Test_MYSQL_Errors(t *testing.T) {
 
 		// Get does not delete the row.
 		var n int
-		require.NoError(t, store.db.QueryRow("SELECT COUNT(*) FROM expired_entry WHERE k = 'old'").Scan(&n))
+		require.NoError(t, store.Conn().QueryRow("SELECT COUNT(*) FROM expired_entry WHERE k = 'old'").Scan(&n))
 		require.Equal(t, 1, n)
 
 		// An entry expiring in the future is returned.
@@ -439,15 +446,17 @@ func Test_MYSQL_Errors(t *testing.T) {
 	})
 
 	t.Run("gc ticker removes expired entries", func(t *testing.T) {
-		store := New(Config{ConnectionURI: dsn, Table: "gc_ticker", Reset: true, GCInterval: 100 * time.Millisecond})
-		t.Cleanup(func() { _ = store.Close() })
+		store := newStore(t, Config{Table: "gc_ticker", Reset: true, GCInterval: 100 * time.Millisecond})
 
-		require.NoError(t, store.Set("short", []byte("v"), time.Nanosecond))
+		// The deadline of this row has passed already, so the first sweep has something to collect.
+		past := time.Now().Add(-time.Minute).Unix()
+		_, err := store.Conn().Exec("INSERT INTO gc_ticker (k, v, e) VALUES (?,?,?)", "short", []byte("v"), past)
+		require.NoError(t, err)
 		require.NoError(t, store.Set("forever", []byte("v"), 0))
 
 		require.Eventually(t, func() bool {
 			var n int
-			if err := store.db.QueryRow("SELECT COUNT(*) FROM gc_ticker WHERE k = 'short'").Scan(&n); err != nil {
+			if err := store.Conn().QueryRow("SELECT COUNT(*) FROM gc_ticker WHERE k = 'short'").Scan(&n); err != nil {
 				return false
 			}
 			return n == 0
@@ -458,44 +467,40 @@ func Test_MYSQL_Errors(t *testing.T) {
 		require.Equal(t, []byte("v"), val)
 	})
 
-	t.Run("reset fails on invalid table name", func(t *testing.T) {
-		require.Panics(t, func() {
-			New(Config{ConnectionURI: dsn, Table: "bad table name", Reset: true})
+	// An invalid table name breaks the DROP when Reset is set and the CREATE otherwise.
+	for _, tc := range []struct {
+		name  string
+		reset bool
+	}{
+		{"reset fails on invalid table name", true},
+		{"init fails on invalid table name", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Panics(t, func() {
+				New(Config{ConnectionURI: dsn, Table: "bad table name", Reset: tc.reset})
+			})
+
+			// With a borrowed handle the failure must not close the caller's database.
+			require.Panics(t, func() {
+				NewFromConnection(rawDB, Config{Table: "bad table name", Reset: tc.reset})
+			})
+			require.NoError(t, rawDB.Ping())
+		})
+	}
+
+	t.Run("schema check failure panics", func(t *testing.T) {
+		// CREATE TABLE IF NOT EXISTS leaves an existing table alone, so the schema lookup for its missing `v` column finds no row.
+		_, err := rawDB.Exec("CREATE TABLE no_v_table (k VARCHAR(64) NOT NULL DEFAULT '', e BIGINT NOT NULL DEFAULT '0', PRIMARY KEY (k))")
+		require.NoError(t, err)
+
+		require.PanicsWithValue(t, sql.ErrNoRows, func() {
+			New(Config{ConnectionURI: dsn, Table: "no_v_table"})
 		})
 
 		// With a borrowed handle the failure must not close the caller's database.
-		require.Panics(t, func() {
-			NewFromConnection(rawDB, Config{Table: "bad table name", Reset: true})
+		require.PanicsWithValue(t, sql.ErrNoRows, func() {
+			NewFromConnection(rawDB, Config{Table: "no_v_table"})
 		})
-		require.NoError(t, rawDB.Ping())
-	})
-
-	t.Run("init fails on invalid table name", func(t *testing.T) {
-		require.Panics(t, func() {
-			New(Config{ConnectionURI: dsn, Table: "bad table name"})
-		})
-
-		require.Panics(t, func() {
-			NewFromConnection(rawDB, Config{Table: "bad table name"})
-		})
-		require.NoError(t, rawDB.Ping())
-	})
-
-	t.Run("schema check failure panics", func(t *testing.T) {
-		// The quoted name creates a valid table, but the schema lookup does not find it.
-		var recovered any
-		require.NotPanics(t, func() {
-			defer func() { recovered = recover() }()
-			New(Config{ConnectionURI: dsn, Table: "`quoted_table`"})
-		})
-		require.ErrorIs(t, recovered.(error), sql.ErrNoRows)
-
-		recovered = nil
-		require.NotPanics(t, func() {
-			defer func() { recovered = recover() }()
-			NewFromConnection(rawDB, Config{Table: "`quoted_table`"})
-		})
-		require.ErrorIs(t, recovered.(error), sql.ErrNoRows)
 		require.NoError(t, rawDB.Ping())
 	})
 

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	mssqldb "github.com/microsoft/go-mssqldb"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
@@ -401,10 +402,19 @@ func Test_MSSQL_NewFromConnection_Nil(t *testing.T) {
 	})
 }
 
-// panicValue runs fn and returns whatever it panicked with, or nil when it did not panic.
-func panicValue(fn func()) (v any) {
-	defer func() { v = recover() }()
+// panicError runs fn, which must panic with an error, and returns that error.
+func panicError(t *testing.T, fn func()) (err error) {
+	t.Helper()
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		e, ok := r.(error)
+		require.True(t, ok, "panic value should be an error, got %T", r)
+		err = e
+	}()
 	fn()
+
 	return nil
 }
 
@@ -431,8 +441,9 @@ func adminDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// limitedDB creates a login that may connect but owns nothing, and returns a handle opened as that login.
-func limitedDB(t *testing.T, admin *sql.DB, name string) *sql.DB {
+// limitedDB creates a login that may connect but owns nothing, and returns a handle opened as that login
+// together with the connection URI it was opened from.
+func limitedDB(t *testing.T, admin *sql.DB, name string) (*sql.DB, string) {
 	t.Helper()
 
 	const pass = "Lim!ted1234"
@@ -451,12 +462,31 @@ func limitedDB(t *testing.T, admin *sql.DB, name string) *sql.DB {
 	u, err := url.Parse(testConnURI)
 	require.NoError(t, err)
 	u.User = url.UserPassword(name, pass)
+	uri := u.String()
 
-	db, err := sql.Open("sqlserver", u.String())
+	db, err := sql.Open("sqlserver", uri)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	return db
+	return db, uri
+}
+
+// createTable (re)creates a table with the given columns on the shared container and drops it again when the test ends.
+func createTable(t *testing.T, admin *sql.DB, name, columns string) {
+	t.Helper()
+
+	_, err := admin.Exec(fmt.Sprintf("IF OBJECT_ID('%[1]s') IS NOT NULL DROP TABLE %[1]s; CREATE TABLE %[1]s (%[2]s)", name, columns))
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = admin.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", name)) })
+}
+
+// requireSQLError asserts that err is the SQL Server error with the given number, which, unlike its message, does not depend on the server's language.
+func requireSQLError(t *testing.T, err error, number int32) {
+	t.Helper()
+
+	var sqlErr mssqldb.Error
+	require.ErrorAs(t, err, &sqlErr)
+	require.Equal(t, number, sqlErr.Number, "got %q", sqlErr.Message)
 }
 
 func Test_MSSQL_ConfigDefault_NoConfig(t *testing.T) {
@@ -495,30 +525,26 @@ func Test_MSSQL_ValidateTableName(t *testing.T) {
 	}
 
 	for _, name := range []string{"", "1table", "my-table", "my table", "t;DROP TABLE x", "dbo.t", "[t]", "tab'le"} {
-		err := validateTableName(name)
-		require.Error(t, err, name)
-		require.Contains(t, err.Error(), "invalid table name")
+		require.ErrorContains(t, validateTableName(name), "invalid table name", name)
 	}
 }
 
 func Test_MSSQL_New_InvalidTableName(t *testing.T) {
+	port := closedPort(t)
+
 	// The name is refused before any connection is attempted, so the dead port is never dialled.
-	v := panicValue(func() {
-		New(Config{Port: closedPort(t), Table: "bad;name", Reset: true})
+	err := panicError(t, func() {
+		New(Config{Port: port, Table: "bad;name", Reset: true})
 	})
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
 	require.ErrorContains(t, err, "invalid table name")
 }
 
 func Test_MSSQL_NewFromConnection_InvalidTableName(t *testing.T) {
 	db := adminDB(t)
 
-	v := panicValue(func() {
+	err := panicError(t, func() {
 		NewFromConnection(db, Config{Table: "bad name"})
 	})
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
 	require.ErrorContains(t, err, "invalid table name")
 
 	// The handle is the caller's, so a refused config must leave it open.
@@ -538,9 +564,7 @@ func Test_MSSQL_New_UnreachableServer(t *testing.T) {
 
 	for name, cfg := range cases {
 		t.Run(name, func(t *testing.T) {
-			v := panicValue(func() { New(cfg) })
-			_, ok := v.(error)
-			require.True(t, ok, "expected an error panic, got %v", v)
+			_ = panicError(t, func() { New(cfg) })
 		})
 	}
 }
@@ -550,60 +574,42 @@ func Test_MSSQL_NewFromConnection_PingFails(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close() //nolint:errcheck // best effort cleanup
 
-	v := panicValue(func() { NewFromConnection(db) })
-	require.NotNil(t, v)
+	require.Panics(t, func() { NewFromConnection(db) })
 }
 
 func Test_MSSQL_NewFromConnection_ClosedDB(t *testing.T) {
 	db := adminDB(t)
 	require.NoError(t, db.Close())
 
-	v := panicValue(func() { NewFromConnection(db, Config{Table: "fiber_closed_db"}) })
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
+	err := panicError(t, func() { NewFromConnection(db, Config{Table: "fiber_closed_db"}) })
 	require.ErrorContains(t, err, "closed")
 }
 
-func Test_MSSQL_New_ReleasesConnectionOnFailure(t *testing.T) {
-	admin := adminDB(t)
-
+func Test_MSSQL_CheckSchema_MissingValueColumn(t *testing.T) {
 	// A table whose `v` column is missing makes checkSchema panic after the table was prepared.
-	_, err := admin.Exec(`IF OBJECT_ID('fiber_no_v') IS NOT NULL DROP TABLE fiber_no_v; CREATE TABLE fiber_no_v (k VARCHAR(64) PRIMARY KEY NOT NULL, x BIGINT NOT NULL)`)
-	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = admin.Exec(`DROP TABLE IF EXISTS fiber_no_v`) })
+	createTable(t, adminDB(t), "fiber_no_v", "k VARCHAR(64) PRIMARY KEY NOT NULL, e BIGINT NOT NULL DEFAULT '0'")
 
-	v := panicValue(func() {
-		New(Config{ConnectionURI: testConnURI, Table: "fiber_no_v"})
+	t.Run("owned handle", func(t *testing.T) {
+		// New opened the handle itself, so the failed constructor has to release it before panicking.
+		require.PanicsWithValue(t, sql.ErrNoRows, func() {
+			New(Config{ConnectionURI: testConnURI, Table: "fiber_no_v"})
+		})
 	})
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-}
 
-func Test_MSSQL_NewFromConnection_MissingValueColumn(t *testing.T) {
-	admin := adminDB(t)
+	t.Run("borrowed handle", func(t *testing.T) {
+		db := adminDB(t)
 
-	_, err := admin.Exec(`IF OBJECT_ID('fiber_no_v2') IS NOT NULL DROP TABLE fiber_no_v2; CREATE TABLE fiber_no_v2 (k VARCHAR(64) PRIMARY KEY NOT NULL, x BIGINT NOT NULL)`)
-	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = admin.Exec(`DROP TABLE IF EXISTS fiber_no_v2`) })
+		require.PanicsWithValue(t, sql.ErrNoRows, func() {
+			NewFromConnection(db, Config{Table: "fiber_no_v"})
+		})
 
-	db := adminDB(t)
-	v := panicValue(func() { NewFromConnection(db, Config{Table: "fiber_no_v2"}) })
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-
-	// A borrowed handle is not closed by the failed constructor.
-	require.NoError(t, db.Ping())
+		// A borrowed handle is not closed by the failed constructor.
+		require.NoError(t, db.Ping())
+	})
 }
 
 func Test_MSSQL_CheckSchema_WrongDataType(t *testing.T) {
-	admin := adminDB(t)
-
-	_, err := admin.Exec(`IF OBJECT_ID('fiber_old_schema') IS NOT NULL DROP TABLE fiber_old_schema;
-		CREATE TABLE fiber_old_schema (k VARCHAR(64) PRIMARY KEY NOT NULL, v VARCHAR(MAX) NOT NULL, e BIGINT NOT NULL DEFAULT '0')`)
-	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = admin.Exec(`DROP TABLE IF EXISTS fiber_old_schema`) })
+	createTable(t, adminDB(t), "fiber_old_schema", "k VARCHAR(64) PRIMARY KEY NOT NULL, v VARCHAR(MAX) NOT NULL, e BIGINT NOT NULL DEFAULT '0'")
 
 	// checkSchema reports the stale column type on stdout rather than failing.
 	stdout := os.Stdout
@@ -629,42 +635,29 @@ func Test_MSSQL_CheckSchema_WrongDataType(t *testing.T) {
 
 func Test_MSSQL_New_InitFailsWithoutPermission(t *testing.T) {
 	admin := adminDB(t)
-	limited := limitedDB(t, admin, "fiber_noperm")
+	limited, limitedURI := limitedDB(t, admin, "fiber_noperm")
 
 	// The login may connect, but it cannot create the table.
-	v := panicValue(func() { NewFromConnection(limited, Config{Table: "fiber_noperm_tbl"}) })
-	err, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
-	require.ErrorContains(t, err, "permission")
+	err := panicError(t, func() { NewFromConnection(limited, Config{Table: "fiber_noperm_tbl"}) })
+	requireSQLError(t, err, 262) // CREATE TABLE permission denied in database
 	require.NoError(t, limited.Ping())
 
 	// With an owned handle the failed constructor must panic as well.
-	u, perr := url.Parse(testConnURI)
-	require.NoError(t, perr)
-	u.User = url.UserPassword("fiber_noperm", "Lim!ted1234")
-	v = panicValue(func() { New(Config{ConnectionURI: u.String(), Table: "fiber_noperm_tbl"}) })
-	err, ok = v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
-	require.ErrorContains(t, err, "permission")
+	err = panicError(t, func() { New(Config{ConnectionURI: limitedURI, Table: "fiber_noperm_tbl"}) })
+	requireSQLError(t, err, 262)
 }
 
 func Test_MSSQL_New_ResetFailsWithoutPermission(t *testing.T) {
 	admin := adminDB(t)
+	createTable(t, admin, "fiber_nodrop", "k VARCHAR(64) PRIMARY KEY NOT NULL, v VARBINARY(MAX) NOT NULL, e BIGINT NOT NULL DEFAULT '0'")
 
-	_, err := admin.Exec(`IF OBJECT_ID('fiber_nodrop') IS NOT NULL DROP TABLE fiber_nodrop;
-		CREATE TABLE fiber_nodrop (k VARCHAR(64) PRIMARY KEY NOT NULL, v VARBINARY(MAX) NOT NULL, e BIGINT NOT NULL DEFAULT '0')`)
-	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = admin.Exec(`DROP TABLE IF EXISTS fiber_nodrop`) })
-
-	limited := limitedDB(t, admin, "fiber_nodrop_user")
+	limited, _ := limitedDB(t, admin, "fiber_nodrop_user")
 	// SELECT makes the table visible to the login, but dropping it stays forbidden.
-	_, err = admin.Exec(`GRANT SELECT ON fiber_nodrop TO fiber_nodrop_user`)
+	_, err := admin.Exec(`GRANT SELECT ON fiber_nodrop TO fiber_nodrop_user`)
 	require.NoError(t, err)
 
-	v := panicValue(func() { NewFromConnection(limited, Config{Table: "fiber_nodrop", Reset: true}) })
-	perr, ok := v.(error)
-	require.True(t, ok, "expected an error panic, got %v", v)
-	require.ErrorContains(t, perr, "permission")
+	err = panicError(t, func() { NewFromConnection(limited, Config{Table: "fiber_nodrop", Reset: true}) })
+	requireSQLError(t, err, 3701) // cannot drop the table: it does not exist or there is no permission
 
 	// The refused drop must have left the table in place.
 	var n int
@@ -748,7 +741,9 @@ func Test_MSSQL_GC_Ticker(t *testing.T) {
 	})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	require.NoError(t, store.Set("short", []byte("doe"), time.Second))
+	// The deadline of this row has passed already, so the first sweep has something to collect.
+	_, err := store.Conn().Exec(`INSERT INTO fiber_gc_ticker (k, v, e) VALUES ('expired', 0x01, @p1)`, time.Now().Add(-time.Minute).Unix())
+	require.NoError(t, err)
 	require.NoError(t, store.Set("forever", []byte("doe"), 0))
 
 	count := func(key string) int {
@@ -758,7 +753,7 @@ func Test_MSSQL_GC_Ticker(t *testing.T) {
 	}
 
 	// The collector, not a read, removes the expired row.
-	require.Eventually(t, func() bool { return count("short") == 0 }, 15*time.Second, 100*time.Millisecond)
+	require.Eventually(t, func() bool { return count("expired") == 0 }, 15*time.Second, 100*time.Millisecond)
 	require.Equal(t, 1, count("forever"))
 }
 
