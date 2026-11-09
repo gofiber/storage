@@ -2,16 +2,21 @@ package clickhouse
 
 import (
 	"context"
+	"crypto/tls"
+	"database/sql"
+	"errors"
+	"net"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
+	chdriver "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/clickhouse"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -409,4 +414,304 @@ func Test_Clickhouse_NewFromConnection_Errors(t *testing.T) {
 
 	_, err = NewFromConnection(conn, Config{})
 	require.Error(t, err)
+}
+
+// closedListenerConfig returns a Config pointing at a local port nothing listens on,
+// so every connection attempt is refused without needing a container.
+func closedListenerConfig(t testing.TB, cfg Config) Config {
+	t.Helper()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+	require.NoError(t, ln.Close())
+
+	cfg.Host = addr.IP.String()
+	cfg.Port = addr.Port
+
+	return cfg
+}
+
+// newUnreachableStorage returns a Storage over a connection to a closed port, so every call that reaches the
+// server is refused and no container is needed. It is built as a literal because the constructors dial the
+// server to create the table; driver.Open itself never dials.
+func newUnreachableStorage(t testing.TB) *Storage {
+	t.Helper()
+
+	cfg := closedListenerConfig(t, Config{Table: "unreachable"})
+	opts, _, err := defaultConfig(cfg)
+	require.NoError(t, err)
+
+	conn, err := driver.Open(&opts)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	return &Storage{session: conn, table: cfg.Table}
+}
+
+// stubConn is a driver.Conn whose behavior is injected per call; any other method panics via the nil embedded interface.
+type stubConn struct {
+	driver.Conn
+
+	exec     func(query string) error
+	ping     error
+	row      chdriver.Row
+	closeErr error
+	closed   int
+}
+
+func (c *stubConn) Exec(_ context.Context, query string, _ ...any) error {
+	if c.exec != nil {
+		return c.exec(query)
+	}
+	return nil
+}
+
+func (c *stubConn) Ping(context.Context) error { return c.ping }
+
+func (c *stubConn) QueryRow(context.Context, string, ...any) chdriver.Row { return c.row }
+
+func (c *stubConn) Close() error {
+	c.closed++
+	return c.closeErr
+}
+
+// stubRow is a chdriver.Row for the two methods GetWithContext uses: Err never fails, and ScanStruct either
+// fails with scanErr or yields result. Any other method panics via the nil embedded interface.
+type stubRow struct {
+	chdriver.Row
+
+	scanErr error
+	result  schema
+}
+
+func (stubRow) Err() error { return nil }
+
+func (r stubRow) ScanStruct(dest any) error {
+	if r.scanErr != nil {
+		return r.scanErr
+	}
+	// GetWithContext always scans into a *schema.
+	*dest.(*schema) = r.result
+	return nil
+}
+
+func Test_DefaultConfig_Defaults(t *testing.T) {
+	opts, engine, err := defaultConfig(Config{Table: "t"})
+	require.NoError(t, err)
+
+	require.Equal(t, Memory, engine)
+	require.Equal(t, []string{"localhost:9000"}, opts.Addr)
+	require.Empty(t, opts.Auth.Username)
+	require.Nil(t, opts.TLS)
+	require.Nil(t, opts.Debugf) //nolint:staticcheck // Debugf is the hook defaultConfig populates.
+}
+
+func Test_DefaultConfig_Explicit(t *testing.T) {
+	opts, engine, err := defaultConfig(Config{
+		Table:    "t",
+		Host:     "db.internal",
+		Port:     9440,
+		Database: "fiber",
+		Username: "user",
+		Password: "secret",
+		Engine:   MergeTree,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, MergeTree, engine)
+	require.Equal(t, []string{"db.internal:9440"}, opts.Addr)
+	require.Equal(t, driver.Auth{Database: "fiber", Username: "user", Password: "secret"}, opts.Auth)
+}
+
+func Test_DefaultConfig_AuthRequiresUserAndPassword(t *testing.T) {
+	opts, _, err := defaultConfig(Config{Table: "t", Username: "user"})
+	require.NoError(t, err)
+	require.Equal(t, driver.Auth{}, opts.Auth)
+}
+
+func Test_DefaultConfig_TLS(t *testing.T) {
+	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: "db.internal"}
+
+	opts, _, err := defaultConfig(Config{Table: "t", TLSConfig: tlsCfg})
+	require.NoError(t, err)
+	require.Same(t, tlsCfg, opts.TLS)
+}
+
+func Test_DefaultConfig_Debug(t *testing.T) {
+	opts, _, err := defaultConfig(Config{Table: "t", Debug: true})
+	require.NoError(t, err)
+	require.NotNil(t, opts.Debugf) //nolint:staticcheck // Debugf is the hook defaultConfig populates.
+}
+
+func Test_DefaultConfig_MissingTable(t *testing.T) {
+	_, _, err := defaultConfig(Config{})
+	require.EqualError(t, err, "table name not provided")
+}
+
+func Test_NewWithContext_MissingTable(t *testing.T) {
+	client, err := NewWithContext(context.Background(), Config{})
+	require.Error(t, err)
+	require.Nil(t, client)
+}
+
+func Test_NewWithContext_ConnectionRefused(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := NewWithContext(ctx, closedListenerConfig(t, Config{Table: "test_table", Clean: true}))
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
+	require.Nil(t, client)
+}
+
+// A failed initialization closes the connection only when this driver opened it;
+// one handed to NewFromConnection stays the caller's to close.
+func Test_NewStorage_FailureClosesOnlyOwnedConnection(t *testing.T) {
+	failure := errors.New("boom")
+
+	tests := []struct {
+		name string
+		exec func(query string) error
+		ping error
+		cfg  Config
+	}{
+		{name: "create", exec: func(string) error { return failure }, cfg: Config{Table: "t"}},
+		{name: "clean", exec: func(query string) error {
+			if query == resetDataString {
+				return failure
+			}
+			return nil
+		}, cfg: Config{Table: "t", Clean: true}},
+		{name: "ping", ping: failure, cfg: Config{Table: "t"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owned := &stubConn{exec: tt.exec, ping: tt.ping}
+			client, err := newStorage(context.Background(), owned, true, Memory, tt.cfg)
+			require.ErrorIs(t, err, failure)
+			require.Nil(t, client)
+			require.Equal(t, 1, owned.closed)
+
+			borrowed := &stubConn{exec: tt.exec, ping: tt.ping}
+			client, err = NewFromConnection(borrowed, tt.cfg)
+			require.ErrorIs(t, err, failure)
+			require.Nil(t, client)
+			require.Zero(t, borrowed.closed)
+		})
+	}
+}
+
+func Test_NewStorage_Success(t *testing.T) {
+	conn := &stubConn{}
+
+	client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t", Clean: true})
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.Equal(t, "t", client.table)
+	require.True(t, client.ownsConn)
+	require.Zero(t, conn.closed)
+}
+
+func Test_EmptyKeyAndValue_AreNoOps(t *testing.T) {
+	// The connection is unreachable: these calls must return before touching it.
+	client := newUnreachableStorage(t)
+
+	require.NoError(t, client.Set("", []byte("value"), 0))
+	require.NoError(t, client.Set("key", nil, 0))
+	require.NoError(t, client.Set("key", []byte{}, time.Minute))
+
+	value, err := client.Get("")
+	require.NoError(t, err)
+	require.Empty(t, value)
+
+	require.NoError(t, client.Delete(""))
+}
+
+func Test_OperationsOnUnreachableServer(t *testing.T) {
+	client := newUnreachableStorage(t)
+
+	require.Error(t, client.Set("key", []byte("value"), time.Minute))
+
+	_, err := client.Get("key")
+	require.Error(t, err)
+
+	require.Error(t, client.Delete("key"))
+	require.Error(t, client.Reset())
+}
+
+func Test_OperationsAfterClose(t *testing.T) {
+	client := newUnreachableStorage(t)
+	require.NoError(t, client.Close())
+
+	require.ErrorIs(t, client.Set("key", []byte("value"), 0), ErrClosed)
+	require.ErrorIs(t, client.SetWithContext(context.Background(), "key", []byte("value"), 0), ErrClosed)
+
+	value, err := client.Get("key")
+	require.ErrorIs(t, err, ErrClosed)
+	require.Nil(t, value)
+
+	require.ErrorIs(t, client.Delete("key"), ErrClosed)
+	require.ErrorIs(t, client.Reset(), ErrClosed)
+	require.ErrorIs(t, client.ResetWithContext(context.Background()), ErrClosed)
+}
+
+func Test_Close_Idempotent(t *testing.T) {
+	conn := &stubConn{}
+	client := &Storage{session: conn, table: "t", ownsConn: true}
+
+	require.NoError(t, client.Close())
+	require.NoError(t, client.Close())
+	require.Equal(t, 1, conn.closed)
+}
+
+func Test_Close_BorrowedConnectionStaysOpen(t *testing.T) {
+	conn := &stubConn{}
+	client := &Storage{session: conn, table: "t"}
+
+	require.NoError(t, client.Close())
+	require.Zero(t, conn.closed)
+}
+
+func Test_Close_ReportsFailureOnce(t *testing.T) {
+	closeErr := errors.New("close failed")
+	conn := &stubConn{closeErr: closeErr}
+	client := &Storage{session: conn, table: "t", ownsConn: true}
+
+	require.ErrorIs(t, client.Close(), closeErr)
+	require.NoError(t, client.Close())
+	require.Equal(t, 1, conn.closed)
+}
+
+// An empty want is a miss: the key is absent or its row has expired.
+func Test_Get_ScanOutcomes(t *testing.T) {
+	scanErr := errors.New("scan failed")
+
+	tests := []struct {
+		name    string
+		row     stubRow
+		want    string
+		wantErr error
+	}{
+		{name: "scan error", row: stubRow{scanErr: scanErr}, wantErr: scanErr},
+		{name: "no rows", row: stubRow{scanErr: sql.ErrNoRows}},
+		{name: "no expiration", row: stubRow{result: schema{Value: "v", Expiration: time.Unix(0, 0)}}, want: "v"},
+		{name: "future", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(time.Hour)}}, want: "v"},
+		{name: "past", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(-time.Hour)}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &Storage{session: &stubConn{row: tt.row}, table: "t"}
+
+			value, err := client.Get("key")
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, string(value))
+		})
+	}
 }

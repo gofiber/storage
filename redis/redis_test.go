@@ -2,13 +2,14 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	testredis "github.com/gofiber/storage/testhelpers/redis"
+	goredis "github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -717,4 +718,240 @@ func Test_Redis_SkipConnectionCheck_WithReset(t *testing.T) {
 	defer testStore.Close() //nolint:errcheck // the server is unreachable
 
 	require.NotNil(t, testStore.Conn())
+}
+
+func Test_Redis_New_InvalidURL_Panics(t *testing.T) {
+	t.Parallel()
+
+	require.Panics(t, func() {
+		New(Config{URL: "not-a-redis-url://nowhere"})
+	})
+}
+
+func Test_Redis_New_URL_DefaultsTLSFromScheme(t *testing.T) {
+	t.Parallel()
+
+	// A rediss:// URL carries TLS settings the config did not supply; they must reach the client.
+	var store *Storage
+	require.NotPanics(t, func() {
+		store = New(Config{
+			URL:                 "rediss://user:secret@127.0.0.1:1/3",
+			SkipConnectionCheck: true,
+		})
+	})
+	defer store.Close() //nolint:errcheck // the server is unreachable
+
+	client, ok := store.Conn().(*goredis.Client)
+	require.True(t, ok)
+
+	opts := client.Options()
+	require.NotNil(t, opts.TLSConfig)
+	require.Equal(t, "127.0.0.1:1", opts.Addr)
+	require.Equal(t, "user", opts.Username)
+	require.Equal(t, "secret", opts.Password)
+	require.Equal(t, 3, opts.DB)
+}
+
+func Test_Redis_New_ConnectionCheckFailure_Panics(t *testing.T) {
+	t.Parallel()
+
+	// Nothing listens on port 1, so the PING must fail construction instead of returning a broken storage.
+	require.Panics(t, func() {
+		New(Config{Host: "127.0.0.1", Port: 1})
+	})
+}
+
+func Test_Redis_New_ResetFailure_Panics(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	addr := newConfigFromContainer(t, testredis.WithAddress()).Addrs[0]
+
+	// A user that may run everything but FLUSHDB: its connection check passes, its reset is refused.
+	admin := goredis.NewClient(&goredis.Options{Addr: addr})
+	defer admin.Close() //nolint:errcheck // best effort cleanup
+	require.NoError(t, admin.Do(ctx, "ACL", "SETUSER", "limited", "on", ">secret", "~*", "+@all", "-flushdb").Err())
+
+	// The wording of the refusal differs between servers, so ask the server for it.
+	limited := goredis.NewClient(&goredis.Options{Addr: addr, Username: "limited", Password: "secret"})
+	defer limited.Close() //nolint:errcheck // best effort cleanup
+	refusal := limited.FlushDB(ctx).Err()
+	require.ErrorContains(t, refusal, "NOPERM")
+
+	// A requested reset that fails must not be swallowed, nor its error replaced.
+	require.PanicsWithError(t, refusal.Error(), func() {
+		New(Config{Addrs: []string{addr}, Username: "limited", Password: "secret", Reset: true})
+	})
+}
+
+func Test_Redis_NewFromConnection_TypedNil_Panics(t *testing.T) {
+	t.Parallel()
+
+	var client *goredis.Client
+	require.PanicsWithValue(t, "redis: nil client", func() {
+		NewFromConnection(client)
+	})
+}
+
+func Test_Redis_EmptyKeyAndValue(t *testing.T) {
+	t.Parallel()
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// Empty keys are ignored by every operation.
+	val, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, testStore.Set("", []byte("doe"), 0))
+	require.NoError(t, testStore.Delete(""))
+
+	// An empty value is not stored either.
+	require.NoError(t, testStore.Set("john", nil, 0))
+	require.NoError(t, testStore.Set("john", []byte{}, 0))
+
+	keys, err := testStore.Keys()
+	require.NoError(t, err)
+	require.Nil(t, keys)
+
+	val, err = testStore.Get("john")
+	require.NoError(t, err)
+	require.Nil(t, val)
+}
+
+func Test_Redis_Set_NegativeExpirationClearsTTL(t *testing.T) {
+	t.Parallel()
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	ctx := context.Background()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Hour))
+	ttl, err := testStore.Conn().TTL(ctx, "john").Result()
+	require.NoError(t, err)
+	require.Greater(t, ttl, time.Duration(0))
+
+	// A negative expiration means no expiry; it must not keep the previous TTL (go-redis KeepTTL).
+	require.NoError(t, testStore.Set("john", []byte("smith"), -time.Second))
+	ttl, err = testStore.Conn().TTL(ctx, "john").Result()
+	require.NoError(t, err)
+	require.Equal(t, time.Duration(-1), ttl, "key must have no expiry")
+
+	val, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("smith"), val)
+}
+
+func Test_Redis_Operations_ClientClosedUnderneath(t *testing.T) {
+	t.Parallel()
+
+	owner := newTestStore(t)
+	require.NoError(t, owner.Set("john", []byte("doe"), 0))
+
+	// A borrowed storage is not marked closed when the client dies under it, so the
+	// underlying client's errors must surface from every operation.
+	borrowed := NewFromConnection(owner.Conn())
+	require.NoError(t, owner.Conn().Close())
+
+	keys, err := borrowed.Keys()
+	require.ErrorIs(t, err, goredis.ErrClosed)
+	require.Nil(t, keys)
+
+	_, err = borrowed.Get("john")
+	require.ErrorIs(t, err, goredis.ErrClosed)
+	require.ErrorIs(t, borrowed.Set("john", []byte("doe"), 0), goredis.ErrClosed)
+	require.ErrorIs(t, borrowed.Delete("john"), goredis.ErrClosed)
+	require.ErrorIs(t, borrowed.Reset(), goredis.ErrClosed)
+
+	// Closing the owner reports the already-closed client but still latches the storage.
+	require.ErrorIs(t, owner.Close(), goredis.ErrClosed)
+	_, err = owner.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+}
+
+func Test_Redis_Cluster_FansOutToEveryMaster(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	addrs := []string{
+		newConfigFromContainer(t, testredis.WithAddress()).Addrs[0],
+		newConfigFromContainer(t, testredis.WithAddress()).Addrs[0],
+	}
+
+	// ClusterSlots lets standalone servers stand in for a cluster: two masters splitting the slots.
+	cluster := goredis.NewClusterClient(&goredis.ClusterOptions{
+		ClusterSlots: func(context.Context) ([]goredis.ClusterSlot, error) {
+			return []goredis.ClusterSlot{
+				{Start: 0, End: 8191, Nodes: []goredis.ClusterNode{{Addr: addrs[0]}}},
+				{Start: 8192, End: 16383, Nodes: []goredis.ClusterNode{{Addr: addrs[1]}}},
+			}, nil
+		},
+	})
+	defer cluster.Close() //nolint:errcheck // best effort cleanup
+
+	// Each master is also read directly, so a command that reached only one of them shows.
+	nodes := make([]*goredis.Client, 0, len(addrs))
+	for _, addr := range addrs {
+		node := goredis.NewClient(&goredis.Options{Addr: addr})
+		t.Cleanup(func() { _ = node.Close() })
+		nodes = append(nodes, node)
+	}
+	dbSize := func(node *goredis.Client) int64 {
+		t.Helper()
+		size, err := node.DBSize(ctx).Result()
+		require.NoError(t, err)
+		return size
+	}
+
+	// The reset on construction reaches both masters.
+	for _, node := range nodes {
+		require.NoError(t, node.Set(ctx, "stale", "value", 0).Err())
+	}
+	store := NewFromConnection(cluster, Config{Reset: true})
+	for _, node := range nodes {
+		require.Zero(t, dbSize(node))
+	}
+
+	// Keys gathers every SCAN page from both masters, and the keys are spread over both.
+	var want [][]byte
+	for i := range 25 {
+		key := fmt.Sprintf("key-%d", i)
+		require.NoError(t, store.Set(key, []byte("value"), 0))
+		want = append(want, []byte(key))
+	}
+	for _, node := range nodes {
+		require.Positive(t, dbSize(node))
+	}
+	keys, err := store.Keys()
+	require.NoError(t, err)
+	require.ElementsMatch(t, want, keys)
+
+	// An explicit reset reaches both masters too.
+	require.NoError(t, store.Reset())
+	for _, node := range nodes {
+		require.Zero(t, dbSize(node))
+	}
+}
+
+func Test_Redis_Cluster_UnreachableReturnsError(t *testing.T) {
+	t.Parallel()
+
+	store := New(Config{
+		Addrs:               []string{"127.0.0.1:1"},
+		IsClusterMode:       true,
+		SkipConnectionCheck: true,
+	})
+	defer store.Close() //nolint:errcheck // the cluster is unreachable
+
+	_, ok := store.Conn().(*goredis.ClusterClient)
+	require.True(t, ok)
+
+	// The topology cannot be loaded, so fanning out must report that instead of silently doing nothing.
+	require.Error(t, store.Reset())
+
+	keys, err := store.Keys()
+	require.Error(t, err)
+	require.Nil(t, keys)
 }

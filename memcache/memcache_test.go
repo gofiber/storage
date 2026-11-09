@@ -4,9 +4,11 @@ import (
 	"context"
 	"math"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
+	mc "github.com/bradfitz/gomemcache/memcache"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -307,10 +309,120 @@ func Test_Memcache_NewFromConnection(t *testing.T) {
 	require.Equal(t, []byte("doe"), result)
 
 	require.NoError(t, store.Close())
+
+	// The context variants reach the same live server (the owner's storage is reused to save a container).
+	ctx := context.Background()
+
+	require.NoError(t, owner.SetWithContext(ctx, "john", []byte("doe"), 0))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, owner.DeleteWithContext(ctx, "john"))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, owner.SetWithContext(ctx, "john", []byte("doe"), 0))
+	require.NoError(t, owner.ResetWithContext(ctx))
+
+	result, err = owner.GetWithContext(ctx, "john")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
 	})
+}
+
+// unreachableAddr is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableAddr = "127.0.0.1:1"
+
+// unreachableClient returns a client pointed at a port nothing listens on, so every operation fails
+// with a connection error without needing a container.
+func unreachableClient(t testing.TB) *mc.Client {
+	t.Helper()
+
+	client := mc.New(unreachableAddr)
+	client.Timeout = 200 * time.Millisecond
+
+	return client
+}
+
+func Test_Memcache_ConfigDefault(t *testing.T) {
+	// No config returns the defaults as is.
+	cfg := configDefault()
+	require.Equal(t, ConfigDefault, cfg)
+	require.Equal(t, "127.0.0.1:11211", cfg.Servers)
+	require.Equal(t, 100*time.Millisecond, cfg.timeout)
+	require.Equal(t, 2, cfg.maxIdleConns)
+
+	// An empty server list falls back to the default, other fields are kept.
+	cfg = configDefault(Config{Reset: true})
+	require.Equal(t, ConfigDefault.Servers, cfg.Servers)
+	require.True(t, cfg.Reset)
+
+	// An explicit server list is kept.
+	cfg = configDefault(Config{Servers: "example:11212"})
+	require.Equal(t, "example:11212", cfg.Servers)
+}
+
+func Test_Memcache_New_Unreachable(t *testing.T) {
+	// New pings the server and panics when it cannot be reached.
+	require.Panics(t, func() {
+		New(Config{Servers: unreachableAddr})
+	})
+}
+
+func Test_Memcache_NewFromConnection_Reset_Unreachable(t *testing.T) {
+	// Reset is requested but the flush fails, which must not be swallowed.
+	require.Panics(t, func() {
+		NewFromConnection(unreachableClient(t), Config{Reset: true})
+	})
+
+	// Without Reset the client is never contacted during construction.
+	require.NotPanics(t, func() {
+		NewFromConnection(unreachableClient(t))
+	})
+}
+
+func Test_Memcache_EmptyKeyOrValue(t *testing.T) {
+	// An unreachable client proves that none of these calls touch the server.
+	testStore := NewFromConnection(unreachableClient(t))
+
+	require.NoError(t, testStore.Set("", []byte("doe"), 0))
+	require.NoError(t, testStore.Set("john", nil, 0))
+	require.NoError(t, testStore.Set("john", []byte{}, 0))
+
+	result, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.Delete(""))
+}
+
+func Test_Memcache_Unreachable_Errors(t *testing.T) {
+	testStore := NewFromConnection(unreachableClient(t))
+	ctx := context.Background()
+
+	require.ErrorIs(t, testStore.Set("john", []byte("doe"), 0), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), syscall.ECONNREFUSED)
+
+	// A connection failure is not a cache miss, so it must be reported rather than turned into nil.
+	result, err := testStore.Get("john")
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
+	require.Nil(t, result)
+
+	result, err = testStore.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
+	require.Nil(t, result)
+
+	require.ErrorIs(t, testStore.Delete("john"), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.Reset(), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), syscall.ECONNREFUSED)
 }

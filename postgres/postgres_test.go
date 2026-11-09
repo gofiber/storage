@@ -5,10 +5,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -654,5 +657,380 @@ func Test_Postgres_NewFromConnection(t *testing.T) {
 func Test_Postgres_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
+	})
+}
+
+func Test_Config_Default_NoArgs(t *testing.T) {
+	require.Equal(t, ConfigDefault, configDefault())
+}
+
+func Test_Config_Default_FillsZeroValues(t *testing.T) {
+	cfg := configDefault(Config{
+		Host:       "",
+		Port:       -1,
+		Database:   "",
+		Table:      "",
+		GCInterval: -time.Second,
+		Reset:      true,
+	})
+
+	require.Equal(t, ConfigDefault.Host, cfg.Host)
+	require.Equal(t, ConfigDefault.Port, cfg.Port)
+	require.Equal(t, ConfigDefault.Database, cfg.Database)
+	require.Equal(t, ConfigDefault.Table, cfg.Table)
+	require.Equal(t, ConfigDefault.GCInterval, cfg.GCInterval)
+	// Explicit values are preserved.
+	require.True(t, cfg.Reset)
+}
+
+func Test_Config_Default_KeepsExplicitValues(t *testing.T) {
+	cfg := configDefault(Config{
+		Host:       "db.internal",
+		Port:       6543,
+		Database:   "other",
+		Table:      "other_table",
+		GCInterval: time.Minute,
+	})
+
+	require.Equal(t, "db.internal", cfg.Host)
+	require.Equal(t, 6543, cfg.Port)
+	require.Equal(t, "other", cfg.Database)
+	require.Equal(t, "other_table", cfg.Table)
+	require.Equal(t, time.Minute, cfg.GCInterval)
+}
+
+func Test_Config_GetDSN(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{
+			name: "connection uri wins over every other field",
+			cfg:  Config{ConnectionURI: "postgres://u:p@h:1/d", Host: "ignored", Username: "ignored"},
+			want: "postgres://u:p@h:1/d",
+		},
+		{
+			name: "defaults without credentials",
+			cfg:  ConfigDefault,
+			want: "postgresql://127.0.0.1:5432/fiber?sslmode=disable",
+		},
+		{
+			name: "username and password are escaped",
+			cfg: Config{
+				Username: "us er", Password: "p@ss/word:1",
+				Host: "db.internal", Port: 6543, Database: "my db", SSLMode: "require",
+			},
+			want: "postgresql://us+er:p%40ss%2Fword%3A1@db.internal:6543/my+db?sslmode=require",
+		},
+		{
+			name: "username only",
+			cfg:  Config{Username: "alice", Host: "h", Port: 1, Database: "d", SSLMode: "disable"},
+			want: "postgresql://alice@h:1/d?sslmode=disable",
+		},
+		{
+			name: "password only",
+			cfg:  Config{Password: "secret", Host: "h", Port: 1, Database: "d", SSLMode: "disable"},
+			want: "postgresql://:secret@h:1/d?sslmode=disable",
+		},
+		{
+			name: "unix socket host is not escaped",
+			cfg:  Config{Username: "alice", Host: "/var/run/postgresql", Port: 5432, Database: "d", SSLMode: "disable"},
+			want: "postgresql://alice@/var/run/postgresql:5432/d?sslmode=disable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.cfg.getDSN())
+		})
+	}
+}
+
+// cancelOnSQL is a pgx.QueryTracer that cancels a context when a statement
+// containing marker starts.
+type cancelOnSQL struct {
+	marker string
+	cancel context.CancelFunc
+}
+
+func (c cancelOnSQL) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if strings.Contains(data.SQL, c.marker) {
+		c.cancel()
+	}
+	return ctx
+}
+
+func (cancelOnSQL) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+
+// newCancelOnSQLPool returns a pool for uri that cancels the initialization
+// context when a statement containing marker starts. NewWithContext therefore
+// fails on that statement with context.Canceled, however many statements run
+// before it.
+func newCancelOnSQLPool(t testing.TB, uri, marker string, cancel context.CancelFunc) *pgxpool.Pool {
+	t.Helper()
+
+	poolCfg, err := pgxpool.ParseConfig(uri)
+	require.NoError(t, err)
+	poolCfg.ConnConfig.Tracer = cancelOnSQL{marker: marker, cancel: cancel}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	return pool
+}
+
+var tableSeq atomic.Int64
+
+func uniqueTable(prefix string) string {
+	return "public." + prefix + "_" + strconv.FormatInt(tableSeq.Add(1), 10)
+}
+
+func recoverPanicError(t testing.TB, fn func()) error {
+	t.Helper()
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		fn()
+	}()
+	require.NotNil(t, recovered, "expected a panic")
+
+	err, ok := recovered.(error)
+	require.True(t, ok, "expected the panic value to be an error, got %T", recovered)
+	return err
+}
+
+func Test_Postgres_New_InvalidConnectionURI(t *testing.T) {
+	err := recoverPanicError(t, func() {
+		New(Config{ConnectionURI: "postgres://user:pass@127.0.0.1:notaport/fiber"})
+	})
+	var parseErr *pgconn.ParseConfigError
+	require.ErrorAs(t, err, &parseErr)
+}
+
+func Test_Postgres_NewWithContext_CancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Ping fails because the context is already cancelled.
+	err := recoverPanicError(t, func() {
+		NewWithContext(ctx, Config{ConnectionURI: "postgres://user:pass@127.0.0.1:1/fiber?sslmode=disable"})
+	})
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+// Test_Postgres_SharedContainer runs the tests that need a scratch database as
+// subtests of one parent, so that they share a single container instead of each
+// starting their own. They run one after the other and none relies on what an
+// earlier one left behind: each either resets the default table or creates
+// tables with names of its own.
+func Test_Postgres_SharedContainer(t *testing.T) {
+	base := newTestConfig(t)
+
+	// Fails every statement of the initialization sequence in turn and checks
+	// that the panic carries the cause and that the caller's pool is left open.
+	t.Run("NewWithContext_InitFailures", func(t *testing.T) {
+		owner := newTestStoreWithConfig(t, Config{ConnectionURI: base.ConnectionURI, Table: uniqueTable("init_owner"), Reset: true})
+		defer owner.Close()
+
+		existing := uniqueTable("init_existing")
+		require.NoError(t, newTestStoreWithConfig(t, Config{ConnectionURI: base.ConnectionURI, Table: existing}).Close())
+
+		legacy := uniqueTable("init_legacy")
+		_, err := owner.Conn().Exec(context.Background(), `CREATE TABLE `+legacy+` (
+			k VARCHAR(64) PRIMARY KEY NOT NULL DEFAULT '',
+			v BYTEA NOT NULL,
+			e BIGINT NOT NULL DEFAULT '0'
+		);`)
+		require.NoError(t, err)
+
+		tests := []struct {
+			name      string
+			table     string
+			reset     bool
+			failOnSQL string // marker of the statement that fails
+		}{
+			{name: "reset drop", table: uniqueTable("init_drop"), reset: true, failOnSQL: "DROP TABLE"},
+			{name: "table exists check (reset)", table: uniqueTable("init_check_reset"), reset: true, failOnSQL: "information_schema.tables"},
+			{name: "table exists check", table: existing, failOnSQL: "information_schema.tables"},
+			{name: "create table", table: uniqueTable("init_create"), reset: true, failOnSQL: "CREATE TABLE"},
+			{name: "create index", table: uniqueTable("init_index"), reset: true, failOnSQL: "CREATE INDEX"},
+			{name: "schema check after create", table: uniqueTable("init_schema_new"), reset: true, failOnSQL: "column_name IN"},
+			{name: "column type lookup", table: existing, failOnSQL: "column_name = 'k'"},
+			{name: "key column migration", table: legacy, failOnSQL: "ALTER TABLE"},
+			{name: "schema check of existing table", table: existing, failOnSQL: "column_name IN"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				pool := newCancelOnSQLPool(t, base.ConnectionURI, tt.failOnSQL, cancel)
+
+				err := recoverPanicError(t, func() {
+					NewWithContext(ctx, Config{DB: pool, Table: tt.table, Reset: tt.reset})
+				})
+				require.ErrorIs(t, err, context.Canceled)
+
+				// The pool belongs to the caller and must survive a failed initialization.
+				require.NoError(t, pool.Ping(context.Background()))
+			})
+		}
+
+		// The legacy key column is untouched by the failed migration and is widened by a successful one.
+		var dataType string
+		query := `SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'k'`
+		legacyName := strings.TrimPrefix(legacy, "public.")
+		require.NoError(t, owner.Conn().QueryRow(context.Background(), query, legacyName).Scan(&dataType))
+		require.Equal(t, "character varying", dataType)
+
+		migrated := NewFromConnection(owner.Conn(), Config{Table: legacy})
+		defer migrated.Close()
+		require.NoError(t, owner.Conn().QueryRow(context.Background(), query, legacyName).Scan(&dataType))
+		require.Equal(t, "text", dataType)
+	})
+
+	t.Run("New_MissingColumn", func(t *testing.T) {
+		owner := newTestStoreWithConfig(t, base)
+		defer owner.Close()
+
+		table := uniqueTable("missing_column")
+		_, err := owner.Conn().Exec(context.Background(), `CREATE TABLE `+table+` (
+			k TEXT PRIMARY KEY NOT NULL DEFAULT '',
+			v BYTEA NOT NULL
+		);`)
+		require.NoError(t, err)
+
+		err = recoverPanicError(t, func() {
+			New(Config{ConnectionURI: base.ConnectionURI, Table: table})
+		})
+		require.ErrorContains(t, err, "required column e does not exist")
+
+		// checkSchema reports the same problem when called directly.
+		err = recoverPanicError(t, func() {
+			owner.checkSchema(context.Background(), table)
+		})
+		require.ErrorContains(t, err, "required column e does not exist")
+	})
+
+	t.Run("CheckSchema_MissingTable", func(t *testing.T) {
+		store := newTestStoreWithConfig(t, base)
+		defer store.Close()
+
+		err := recoverPanicError(t, func() {
+			store.checkSchema(context.Background(), "public.table_that_does_not_exist")
+		})
+		require.ErrorContains(t, err, "table table_that_does_not_exist does not exist")
+	})
+
+	t.Run("CheckSchema_QueryError", func(t *testing.T) {
+		store := newTestStoreWithConfig(t, base)
+		defer store.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := recoverPanicError(t, func() {
+			store.checkSchema(ctx, "fiber_storage")
+		})
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("Closed_ReturnsErrClosed", func(t *testing.T) {
+		store := newTestStoreWithConfig(t, base)
+		require.NoError(t, store.Set("john", []byte("doe"), 0))
+		require.NoError(t, store.Close())
+
+		ctx := context.Background()
+
+		val, err := store.GetWithContext(ctx, "john")
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+
+		val, err = store.Get("john")
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+
+		require.ErrorIs(t, store.SetWithContext(ctx, "john", []byte("doe"), 0), ErrClosed)
+		require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), ErrClosed)
+		require.ErrorIs(t, store.Delete("john"), ErrClosed)
+		require.ErrorIs(t, store.ResetWithContext(ctx), ErrClosed)
+		require.ErrorIs(t, store.Reset(), ErrClosed)
+	})
+
+	t.Run("EmptyKeyAndValue", func(t *testing.T) {
+		store := newTestStoreWithConfig(t, base)
+		defer store.Close()
+
+		// Empty keys and values are ignored rather than stored or rejected.
+		require.NoError(t, store.Set("", []byte("doe"), 0))
+		require.NoError(t, store.Set("john", nil, 0))
+		require.NoError(t, store.Set("john", []byte{}, 0))
+
+		var count int
+		require.NoError(t, store.Conn().QueryRow(context.Background(), `SELECT COUNT(*) FROM fiber_storage`).Scan(&count))
+		require.Zero(t, count)
+
+		val, err := store.Get("")
+		require.NoError(t, err)
+		require.Nil(t, val)
+
+		// An empty key neither deletes nor errors; other entries are kept.
+		require.NoError(t, store.Set("jane", []byte("doe"), 0))
+		require.NoError(t, store.Delete(""))
+		val, err = store.Get("jane")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val)
+	})
+
+	t.Run("Operations_CancelledContext", func(t *testing.T) {
+		store := newTestStoreWithConfig(t, base)
+		defer store.Close()
+
+		require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		val, err := store.GetWithContext(ctx, "john")
+		require.ErrorIs(t, err, context.Canceled)
+		require.Nil(t, val)
+
+		require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
+		require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+
+		// The failed operations changed nothing.
+		val, err = store.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val)
+	})
+
+	t.Run("GC_Ticker", func(t *testing.T) {
+		cfg := base
+		cfg.GCInterval = 100 * time.Millisecond
+
+		store := newTestStoreWithConfig(t, cfg)
+		defer store.Close()
+
+		// The expired row is inserted directly, so no real time has to pass before it may be collected.
+		_, err := store.Conn().Exec(context.Background(), `INSERT INTO fiber_storage (k, v, e) VALUES ($1, $2, $3)`,
+			"expiring", []byte("doe"), time.Now().Add(-time.Minute).Unix())
+		require.NoError(t, err)
+		require.NoError(t, store.Set("persistent", []byte("doe"), 0))
+
+		// The background collector, not a manual sweep or a read, removes the expired row.
+		require.Eventually(t, func() bool {
+			var count int
+			err := store.Conn().QueryRow(context.Background(),
+				`SELECT COUNT(*) FROM fiber_storage WHERE k = $1`, "expiring").Scan(&count)
+			return err == nil && count == 0
+		}, 10*time.Second, 100*time.Millisecond)
+
+		val, err := store.Get("persistent")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val)
 	})
 }

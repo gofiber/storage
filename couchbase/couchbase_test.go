@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -130,8 +131,9 @@ func TestSetAndDelete_DeleteShouldReturn_NoError(t *testing.T) {
 	err = testStore.Delete("test")
 	require.NoError(t, err)
 
-	_, err = testStore.Get("test")
+	val, err := testStore.Get("test")
 	require.NoError(t, err)
+	require.Nil(t, val)
 }
 
 func TestSetAndReset_ResetShouldReturn_NoError(t *testing.T) {
@@ -247,4 +249,185 @@ func TestCouchbase_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
 	})
+}
+
+// A single container is shared by the subtests below because starting one is slow.
+func TestCouchbase_ErrorPaths(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	t.Run("get with invalid key returns the key-value error", func(t *testing.T) {
+		val, err := store.Get(strings.Repeat("k", 300))
+
+		var kvErr *gocb.KeyValueError
+		require.ErrorAs(t, err, &kvErr)
+		require.ErrorIs(t, err, gocb.ErrInvalidArgument)
+		require.Nil(t, val)
+	})
+
+	t.Run("set with invalid key returns error", func(t *testing.T) {
+		require.ErrorIs(t, store.Set(strings.Repeat("k", 300), []byte("v"), 0), gocb.ErrInvalidArgument)
+	})
+
+	t.Run("get of a JSON document returns a decode error", func(t *testing.T) {
+		_, err := store.Conn().Bucket(couchbaseBucket).DefaultCollection().Upsert("json_doc", map[string]string{"a": "b"}, nil)
+		require.NoError(t, err)
+
+		// The document is fetched; only decoding it as raw bytes fails.
+		val, err := store.Get("json_doc")
+		require.Error(t, err)
+		var kvErr *gocb.KeyValueError
+		require.NotErrorAs(t, err, &kvErr)
+		require.Nil(t, val)
+	})
+
+	t.Run("delete of a missing key returns not found", func(t *testing.T) {
+		require.ErrorIs(t, store.Delete("missing_key"), gocb.ErrDocumentNotFound)
+	})
+
+	t.Run("get from a missing bucket times out", func(t *testing.T) {
+		bad := NewFromConnection(store.Conn(), Config{Bucket: "no_such_bucket"})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		val, err := bad.GetWithContext(ctx, "key")
+		require.ErrorIs(t, err, gocb.ErrTimeout)
+		require.Nil(t, val)
+	})
+
+	t.Run("cancelled context is reported", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// A live cluster would serve these, so only the context can make them fail.
+		val, err := store.GetWithContext(ctx, "key")
+		require.ErrorIs(t, err, gocb.ErrRequestCanceled)
+		require.Nil(t, val)
+
+		require.ErrorIs(t, store.SetWithContext(ctx, "key", []byte("v"), time.Minute), gocb.ErrRequestCanceled)
+		require.ErrorIs(t, store.DeleteWithContext(ctx, "key"), gocb.ErrRequestCanceled)
+		require.ErrorIs(t, store.ResetWithContext(ctx), gocb.ErrRequestCanceled)
+	})
+}
+
+// unreachableHost is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableHost = "couchbase://127.0.0.1:1"
+
+// newUnreachableCluster returns a cluster that points at a closed port; gocb connects lazily, so it
+// builds fine and every operation on it fails.
+func newUnreachableCluster(t testing.TB) *gocb.Cluster {
+	t.Helper()
+
+	cluster, err := gocb.Connect(unreachableHost, gocb.ClusterOptions{
+		Authenticator: gocb.PasswordAuthenticator{Username: "u", Password: "p"},
+		Transcoder:    transcoder,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cluster.Close(nil) })
+
+	return cluster
+}
+
+// newUnreachableStore returns a storage on an unreachable cluster: it builds fine, and every
+// operation that reaches the cluster fails.
+func newUnreachableStore(t testing.TB) *Storage {
+	t.Helper()
+
+	return NewFromConnection(newUnreachableCluster(t), Config{Bucket: "missing"})
+}
+
+func TestConfigDefault_NoArgs_ReturnsDefaults(t *testing.T) {
+	require.Equal(t, ConfigDefault, configDefault())
+}
+
+func TestConfigDefault_EmptyConfig_FillsAllDefaults(t *testing.T) {
+	require.Equal(t, ConfigDefault, configDefault(Config{}))
+}
+
+func TestConfigDefault_KeepsProvidedValues(t *testing.T) {
+	in := Config{
+		Username:          "user",
+		Password:          "pass",
+		Host:              "example.invalid:1234",
+		Bucket:            "bucket",
+		ConnectionTimeout: 7 * time.Second,
+		KVTimeout:         9 * time.Second,
+	}
+	require.Equal(t, in, configDefault(in))
+}
+
+func TestConfigDefault_PartialConfig_FillsOnlyMissing(t *testing.T) {
+	want := ConfigDefault
+	want.Bucket = "custom"
+	want.KVTimeout = time.Minute
+
+	require.Equal(t, want, configDefault(Config{Bucket: "custom", KVTimeout: time.Minute}))
+}
+
+func TestNewFromConnection_DefaultBucket(t *testing.T) {
+	cluster := newUnreachableCluster(t)
+
+	store := NewFromConnection(cluster)
+	require.Same(t, cluster, store.Conn())
+	require.Equal(t, ConfigDefault.Bucket, store.bucket.Name())
+
+	// The cluster is the caller's, so closing the storage leaves it open for the caller to close.
+	require.NoError(t, store.Close())
+	require.NoError(t, cluster.Close(nil))
+}
+
+func TestNew_InvalidConnectionString_Panics(t *testing.T) {
+	// gocb rejects a host:port without a scheme as ambiguous unless the port is a well-known one.
+	host := strings.TrimPrefix(unreachableHost, "couchbase://")
+
+	require.Panics(t, func() {
+		New(Config{Host: host, ConnectionTimeout: time.Second})
+	})
+}
+
+func TestNew_UnreachableHost_ReturnsStorageWhoseOperationsFail(t *testing.T) {
+	// Connecting and pinging are lazy in gocb, so New succeeds and the failure surfaces on first use.
+	store := New(Config{
+		Host:              unreachableHost,
+		ConnectionTimeout: 500 * time.Millisecond,
+		KVTimeout:         200 * time.Millisecond,
+	})
+	require.NotNil(t, store.Conn())
+
+	require.Error(t, store.Set("key", []byte("v"), 0))
+
+	// New built the cluster, so closing the storage closes it too: closing it again reports a failure.
+	require.NoError(t, store.Close())
+	require.Error(t, store.Conn().Close(nil))
+	require.ErrorIs(t, store.Set("key", []byte("v"), 0), ErrClosed)
+}
+
+func TestOperations_AfterClose_ReturnErrClosed(t *testing.T) {
+	store := newUnreachableStore(t)
+	require.NoError(t, store.Close())
+
+	ctx := context.Background()
+
+	_, err := store.Get("key")
+	require.ErrorIs(t, err, ErrClosed)
+	_, err = store.GetWithContext(ctx, "key")
+	require.ErrorIs(t, err, ErrClosed)
+
+	require.ErrorIs(t, store.Set("key", []byte("v"), 0), ErrClosed)
+	require.ErrorIs(t, store.SetWithContext(ctx, "key", []byte("v"), 0), ErrClosed)
+
+	require.ErrorIs(t, store.Delete("key"), ErrClosed)
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "key"), ErrClosed)
+
+	require.ErrorIs(t, store.Reset(), ErrClosed)
+	require.ErrorIs(t, store.ResetWithContext(ctx), ErrClosed)
+}
+
+func TestClose_IsIdempotent(t *testing.T) {
+	store := newUnreachableStore(t)
+
+	require.NoError(t, store.Close())
+	require.NoError(t, store.Close())
+	require.True(t, store.isClosed())
 }

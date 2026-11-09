@@ -2,7 +2,10 @@ package neo4j
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -286,9 +289,7 @@ func Benchmark_Neo4jStore_SetAndDelete(b *testing.B) {
 
 func Test_Neo4jStore_NewFromConnection(t *testing.T) {
 	// A driver of its own: Test_Neo4jStore_Close has already closed the shared testStore's.
-	driver, err := neo4jdriver.NewDriverWithContext(testConfig.URI, neo4jdriver.BasicAuth(testConfig.Username, testConfig.Password, ""))
-	require.NoError(t, err)
-	defer driver.Close(context.Background()) //nolint:errcheck // best effort cleanup
+	driver := newTestDriver(t)
 
 	store := NewFromConnection(driver, Config{Node: "existing_storage"})
 	require.True(t, driver == store.Conn())
@@ -309,4 +310,297 @@ func Test_Neo4jStore_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
 	})
+}
+
+// newTestDriver opens a driver of its own on the shared test container.
+func newTestDriver(t *testing.T) neo4jdriver.DriverWithContext {
+	t.Helper()
+
+	driver, err := neo4jdriver.NewDriverWithContext(testConfig.URI, neo4jdriver.BasicAuth(testConfig.Username, testConfig.Password, ""))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = driver.Close(context.Background()) })
+
+	return driver
+}
+
+// closedAddr returns a loopback address nothing listens on.
+func closedAddr(t *testing.T) string {
+	t.Helper()
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	require.NoError(t, l.Close())
+
+	return addr
+}
+
+// requirePanicContains runs fn and requires it to panic with a message containing want.
+// log.Panicf panics with the text it logs, so the recovered value carries the message.
+func requirePanicContains(t *testing.T, want string, fn func()) {
+	t.Helper()
+
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		fn()
+	}()
+
+	require.NotNil(t, recovered, "expected a panic")
+	require.Contains(t, fmt.Sprint(recovered), want)
+}
+
+// closeFailDriver wraps a real driver, failing Close until failClose is cleared.
+type closeFailDriver struct {
+	neo4jdriver.DriverWithContext
+	failClose bool
+	closed    int
+}
+
+func (d *closeFailDriver) Close(ctx context.Context) error {
+	d.closed++
+	if d.failClose {
+		return errors.New("close failed")
+	}
+	return d.DriverWithContext.Close(ctx)
+}
+
+func Test_Neo4jConfig_Default_NoArgs(t *testing.T) {
+	require.Equal(t, ConfigDefault, configDefault())
+}
+
+func Test_Neo4jConfig_Default_Overrides(t *testing.T) {
+	cfg := configDefault(Config{Username: "neo4j", Password: "secret"})
+	require.Equal(t, ConfigDefault.URI, cfg.URI)
+	require.Equal(t, ConfigDefault.Node, cfg.Node)
+	require.Equal(t, ConfigDefault.GCInterval, cfg.GCInterval)
+	require.NotNil(t, cfg.Auth)
+
+	cfg = configDefault(Config{URI: "bolt://example:7687", Node: "custom", GCInterval: time.Minute})
+	require.Equal(t, "bolt://example:7687", cfg.URI)
+	require.Equal(t, "custom", cfg.Node)
+	require.Equal(t, time.Minute, cfg.GCInterval)
+	require.NotNil(t, cfg.Auth)
+}
+
+func Test_Neo4jStore_New_InvalidURI(t *testing.T) {
+	requirePanicContains(t, "Unable to create connection pool", func() {
+		NewWithContext(context.Background(), Config{URI: "bad://localhost"})
+	})
+}
+
+func Test_Neo4jStore_New_Unreachable(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	requirePanicContains(t, "Unable to verify connection", func() {
+		NewWithContext(ctx, Config{URI: "bolt://" + closedAddr(t)})
+	})
+}
+
+func Test_Neo4jStore_New_ResetFails(t *testing.T) {
+	driver := newTestDriver(t)
+
+	// A node name that is not a valid Cypher label makes the reset query fail.
+	requirePanicContains(t, "Unable to reset storage", func() {
+		NewFromConnectionWithContext(context.Background(), driver, Config{Node: "bad name", Reset: true})
+	})
+
+	// A borrowed driver is not closed on failure.
+	require.NoError(t, driver.VerifyConnectivity(context.Background()))
+}
+
+func Test_Neo4jStore_New_IndexFails(t *testing.T) {
+	driver := newTestDriver(t)
+
+	requirePanicContains(t, "Unable to create index on key", func() {
+		NewFromConnectionWithContext(context.Background(), driver, Config{Node: "bad name"})
+	})
+	require.NoError(t, driver.VerifyConnectivity(context.Background()))
+}
+
+func Test_Neo4jStore_New_OwnedDriver_IndexFails(t *testing.T) {
+	requirePanicContains(t, "Unable to create index on key", func() {
+		NewWithContext(context.Background(), Config{
+			URI:      testConfig.URI,
+			Username: testConfig.Username,
+			Password: testConfig.Password,
+			Node:     "bad name",
+		})
+	})
+}
+
+func Test_Neo4jStore_Closed(t *testing.T) {
+	store := NewFromConnection(newTestDriver(t), Config{Node: "closed_store"})
+	require.NoError(t, store.Close())
+
+	val, err := store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.Nil(t, val)
+
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
+}
+
+func Test_Neo4jStore_EmptyKeyOrValue(t *testing.T) {
+	driver := newTestDriver(t)
+	store := NewFromConnection(driver, Config{Node: "empty_store", Reset: true})
+	defer store.Close()
+
+	val, err := store.Get("")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, store.Set("", []byte("doe"), 0))
+	require.NoError(t, store.Set("john", nil, 0))
+	require.NoError(t, store.Set("john", []byte{}, 0))
+
+	// Nothing may have been written.
+	res, err := neo4jdriver.ExecuteQuery(context.Background(), driver,
+		"MATCH (n:empty_store) RETURN count(n) AS c", nil, neo4jdriver.EagerResultTransformer)
+	require.NoError(t, err)
+	count, _, err := neo4jdriver.GetRecordValue[int64](res.Records[0], "c")
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// An empty key deletes nothing.
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	require.NoError(t, store.Delete(""))
+
+	val, err = store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+}
+
+func Test_Neo4jStore_CancelledContext(t *testing.T) {
+	store := NewFromConnection(newTestDriver(t), Config{Node: "cancelled_store"})
+	defer store.Close()
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	val, err := store.GetWithContext(ctx, "john")
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, val)
+	require.ErrorIs(t, store.DeleteWithContext(ctx, "john"), context.Canceled)
+	require.ErrorIs(t, store.ResetWithContext(ctx), context.Canceled)
+
+	// The failed delete and reset left the entry in place.
+	val, err = store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+}
+
+func Test_Neo4jStore_Get_MalformedData(t *testing.T) {
+	driver := newTestDriver(t)
+	store := NewFromConnection(driver, Config{Node: "malformed_get", Reset: true})
+	defer store.Close()
+
+	// The expiration is stored as a string, which cannot be decoded into the model.
+	_, err := neo4jdriver.ExecuteQuery(context.Background(), driver,
+		"CREATE (n:malformed_get { k: $key, v: $val, e: 'never' }) FINISH",
+		map[string]any{"key": "broken", "val": []byte("doe")},
+		neo4jdriver.EagerResultTransformer,
+	)
+	require.NoError(t, err)
+
+	val, err := store.Get("broken")
+	require.ErrorContains(t, err, "error parsing result data")
+	require.Nil(t, val)
+
+	// Well-formed entries on the same node label remain readable.
+	require.NoError(t, store.Set("fine", []byte("doe"), 0))
+	val, err = store.Get("fine")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
+}
+
+func Test_Neo4jStore_Operations_DriverClosed(t *testing.T) {
+	// A driver closed behind the storage's back fails with the driver's error, not ErrClosed.
+	driver := newTestDriver(t)
+	store := NewFromConnection(driver, Config{Node: "driver_closed"})
+	defer store.Close()
+	require.NoError(t, driver.Close(context.Background()))
+
+	var usageErr *neo4jdriver.UsageError
+	_, err := store.Get("john")
+	require.ErrorAs(t, err, &usageErr)
+	require.ErrorAs(t, store.Set("john", []byte("doe"), 0), &usageErr)
+	require.ErrorAs(t, store.Delete("john"), &usageErr)
+	require.ErrorAs(t, store.Reset(), &usageErr)
+}
+
+func Test_Neo4jStore_Close_OwnedDriverFailure(t *testing.T) {
+	driver := &closeFailDriver{DriverWithContext: newTestDriver(t), failClose: true}
+	store := &Storage{
+		db:      driver,
+		ownsDB:  true,
+		done:    make(chan struct{}),
+		stopped: make(chan struct{}),
+	}
+	close(store.stopped)
+
+	// A failed close is reported and not latched, so it can be retried.
+	require.ErrorContains(t, store.Close(), "close failed")
+	require.False(t, store.isClosed())
+	require.Equal(t, 1, driver.closed)
+
+	driver.failClose = false
+	require.NoError(t, store.Close())
+	require.True(t, store.isClosed())
+	require.Equal(t, 2, driver.closed)
+
+	// Idempotent once closed: the driver is not closed again.
+	require.NoError(t, store.Close())
+	require.Equal(t, 2, driver.closed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+}
+
+func Test_Neo4jStore_GC_RemovesExpired(t *testing.T) {
+	driver := newTestDriver(t)
+	store := NewFromConnection(driver, Config{
+		Node:       "gc_store",
+		Reset:      true,
+		GCInterval: 100 * time.Millisecond,
+	})
+	defer store.Close()
+
+	// Entries are written directly so the expiration can already lie in the past.
+	_, err := neo4jdriver.ExecuteQuery(context.Background(), driver,
+		`CREATE (:gc_store { k: 'expired', v: $val, e: 1 }),
+		        (:gc_store { k: 'forever', v: $val, e: 0 }),
+		        (:gc_store { k: 'future', v: $val, e: $future }) FINISH`,
+		map[string]any{"val": []byte("doe"), "future": time.Now().Add(time.Hour).Unix()},
+		neo4jdriver.EagerResultTransformer,
+	)
+	require.NoError(t, err)
+
+	count := func(key string) (int64, error) {
+		res, err := neo4jdriver.ExecuteQuery(context.Background(), driver,
+			"MATCH (n:gc_store { k: $key }) RETURN count(n) AS c",
+			map[string]any{"key": key}, neo4jdriver.EagerResultTransformer)
+		if err != nil {
+			return 0, err
+		}
+		c, _, err := neo4jdriver.GetRecordValue[int64](res.Records[0], "c")
+		return c, err
+	}
+
+	require.Eventually(t, func() bool {
+		c, err := count("expired")
+		return err == nil && c == 0
+	}, 10*time.Second, 50*time.Millisecond)
+
+	for _, key := range []string{"forever", "future"} {
+		c, err := count(key)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, c, key)
+	}
+
+	val, err := store.Get("future")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), val)
 }

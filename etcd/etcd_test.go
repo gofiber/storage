@@ -337,3 +337,148 @@ func TestEtcd_NewFromConnection_Nil(t *testing.T) {
 		NewFromConnection(nil)
 	})
 }
+
+// unreachableEndpoint is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableEndpoint = "127.0.0.1:1"
+
+// newOfflineStore returns a Storage whose endpoint refuses connections, so no container is needed.
+func newOfflineStore(t testing.TB) *Storage {
+	t.Helper()
+
+	store := New(Config{Endpoints: []string{unreachableEndpoint}})
+	t.Cleanup(func() { _ = store.Close() })
+
+	return store
+}
+
+func Test_Etcd_ConfigDefault(t *testing.T) {
+	t.Run("no config", func(t *testing.T) {
+		require.Equal(t, ConfigDefault, configDefault())
+	})
+
+	t.Run("zero values fall back to defaults", func(t *testing.T) {
+		cfg := configDefault(Config{Endpoints: []string{"example:2379"}})
+		require.Equal(t, []string{"example:2379"}, cfg.Endpoints)
+		require.Equal(t, ConfigDefault.DialTimeout, cfg.DialTimeout)
+		require.Equal(t, ConfigDefault.Username, cfg.Username)
+		require.Equal(t, ConfigDefault.Password, cfg.Password)
+	})
+
+	t.Run("provided values are kept", func(t *testing.T) {
+		want := Config{
+			Endpoints:   []string{"example:2379"},
+			DialTimeout: time.Minute,
+			Username:    "user",
+			Password:    "pass",
+		}
+		require.Equal(t, want, configDefault(want))
+	})
+}
+
+func TestEtcd_New_Panics_WithoutEndpoints(t *testing.T) {
+	require.Panics(t, func() {
+		New(Config{Endpoints: []string{}})
+	})
+}
+
+func TestEtcd_OperationsAfterClose_ReturnErrClosed(t *testing.T) {
+	store := newOfflineStore(t)
+	require.NoError(t, store.Close())
+
+	val, err := store.Get("john")
+	require.ErrorIs(t, err, ErrClosed)
+	require.Nil(t, val)
+
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), ErrClosed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), time.Minute), ErrClosed)
+	require.ErrorIs(t, store.Delete("john"), ErrClosed)
+	require.ErrorIs(t, store.Reset(), ErrClosed)
+}
+
+func TestEtcd_EmptyKeyOrValue_AreNoOps(t *testing.T) {
+	// The endpoint is unreachable: these calls must return before touching the network.
+	store := newOfflineStore(t)
+
+	val, err := store.Get("")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.NoError(t, store.Set("", []byte("doe"), 0))
+	require.NoError(t, store.Set("john", nil, 0))
+	require.NoError(t, store.Set("john", []byte{}, time.Minute))
+	require.NoError(t, store.Delete(""))
+}
+
+func TestEtcd_UnreachableServer_ReturnsErrors(t *testing.T) {
+	store := newOfflineStore(t)
+
+	// A budget per call: a shared one would be spent by the first, failing the rest without a dial.
+	callCtx := func() context.Context {
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		t.Cleanup(cancel)
+		return ctx
+	}
+
+	val, err := store.GetWithContext(callCtx(), "john")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Nil(t, val)
+
+	require.ErrorIs(t, store.SetWithContext(callCtx(), "john", []byte("doe"), 0), context.DeadlineExceeded)
+	require.ErrorIs(t, store.DeleteWithContext(callCtx(), "john"), context.DeadlineExceeded)
+	require.ErrorIs(t, store.ResetWithContext(callCtx()), context.DeadlineExceeded)
+}
+
+func TestEtcd_SetWithContext_GrantFails_WhenContextCancelled(t *testing.T) {
+	store := newOfflineStore(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := store.SetWithContext(ctx, "john", []byte("doe"), time.Minute)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestEtcd_SetWithTTL(t *testing.T) {
+	store := newTestStore(t)
+	defer store.Close()
+
+	t.Run("lease is revoked when the put fails", func(t *testing.T) {
+		before, err := store.Conn().Leases(context.Background())
+		require.NoError(t, err)
+
+		// Larger than etcd's default request size limit (1.5 MiB): the lease is granted, then the put is rejected.
+		tooLarge := make([]byte, 2*1024*1024)
+
+		err = store.Set("big", tooLarge, time.Minute)
+		require.Error(t, err)
+
+		val, err := store.Get("big")
+		require.NoError(t, err)
+		require.Nil(t, val)
+
+		// The lease granted for the failed put must not be left occupying the server.
+		require.Eventually(t, func() bool {
+			leases, err := store.Conn().Leases(context.Background())
+			return err == nil && len(leases.Leases) <= len(before.Leases)
+		}, 5*time.Second, 50*time.Millisecond)
+	})
+
+	t.Run("sub-second TTL is readable immediately", func(t *testing.T) {
+		require.NoError(t, store.Set("john", []byte("doe"), 500*time.Millisecond))
+
+		val, err := store.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val)
+	})
+}
+
+func TestEtcd_Close_ReportsClientCloseError_Once(t *testing.T) {
+	store := newOfflineStore(t)
+
+	// Closing the client behind the storage's back makes the storage's own close fail.
+	_ = store.Conn().Close()
+
+	require.Error(t, store.Close())
+	// Latched: later closes are no-ops.
+	require.NoError(t, store.Close())
+}

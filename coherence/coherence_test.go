@@ -5,10 +5,12 @@ package coherence
  */
 import (
 	"context"
+	"crypto/tls"
 	"os"
 	"testing"
 	"time"
 
+	coh "github.com/oracle/coherence-go-client/v2/coherence"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -521,4 +523,132 @@ func Test_Coherence_NewFromConnectionWithContext(t *testing.T) {
 	val, err = cancelledStore.Get(key1)
 	require.NoError(t, err)
 	require.Nil(t, val)
+}
+
+func Test_Coherence_SetupConfig(t *testing.T) {
+	// no config at all falls back to the defaults
+	require.Equal(t, DefaultConfig, setupConfig())
+
+	// zero values in a supplied config are replaced by the defaults
+	want := DefaultConfig
+	want.Reset = true
+	want.NearCacheTimeout = time.Second
+	require.Equal(t, want, setupConfig(Config{Reset: true, NearCacheTimeout: time.Second}))
+
+	// values that are set are kept
+	custom := Config{Address: "example:1234", ScopeName: "custom", Timeout: 5 * time.Second}
+	require.Equal(t, custom, setupConfig(custom))
+}
+
+// Test_Coherence_New_InvalidSessionConfig checks that a session which cannot be created is reported
+// for plain text and TLS alike, without needing a running Coherence server.
+func Test_Coherence_New_InvalidSessionConfig(t *testing.T) {
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+	t.Setenv("COHERENCE_SESSION_DISCONNECT_TIMEOUT", "not-a-number")
+
+	// plain text connection, from the default config
+	store, err := New()
+	require.Error(t, err)
+	require.Nil(t, store)
+
+	// TLS connection
+	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}})
+	require.Error(t, err)
+	require.Nil(t, store)
+}
+
+// Test_Coherence_NewFromConnection_UnusableSession checks the failures of opening the named cache on
+// sessions that cannot serve it, without needing a running Coherence server.
+func Test_Coherence_NewFromConnection_UnusableSession(t *testing.T) {
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+
+	// Nothing listens on port 1; the client connects lazily, so the session is created regardless and
+	// it is opening the named cache that reports the connection failure.
+	session, _ := coh.NewSession(context.Background(),
+		coh.WithAddress("127.0.0.1:1"), coh.WithPlainText(), coh.WithRequestTimeout(time.Second))
+	require.NotNil(t, session)
+	defer session.Close()
+
+	// opening the cache fails first, so a requested reset never gets that far either
+	for _, reset := range []bool{false, true} {
+		store, err := NewFromConnection(session, Config{ScopeName: "unreachable", Reset: reset})
+		require.Error(t, err, "reset=%v", reset)
+		require.Nil(t, store, "reset=%v", reset)
+	}
+
+	// an already closed session cannot open a named cache
+	session.Close()
+	store, err := NewFromConnection(session, Config{ScopeName: "closed"})
+	require.ErrorIs(t, err, coh.ErrClosed)
+	require.Nil(t, store)
+}
+
+// Test_Coherence_NearCacheTimeout_Exceeds_SessionTimeout checks that a near cache outliving the session
+// timeout is rejected before any request is made, without needing a running Coherence server.
+func Test_Coherence_NearCacheTimeout_Exceeds_SessionTimeout(t *testing.T) {
+	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
+
+	// the session this driver opened is released and nothing is returned
+	store, err := New(Config{Address: "127.0.0.1:1", Timeout: time.Second, NearCacheTimeout: 5 * time.Second})
+	require.ErrorContains(t, err, "you cannot set the near cache timeout")
+	require.Nil(t, store)
+}
+
+// A single container is shared by the subtests below because starting one is slow; each subtest
+// uses its own scope.
+func Test_Coherence_ErrorPaths(t *testing.T) {
+	cfg := newTestConfig(t)
+	owner := newTestStoreWithConfig(t, &cfg)
+	defer owner.Close()
+
+	t.Run("near cache timeout above the borrowed session timeout is rejected", func(t *testing.T) {
+		// a borrowed session is validated against its own timeout and left open
+		store, err := NewFromConnection(owner.Conn(), Config{ScopeName: "near", NearCacheTimeout: 2 * defaultTimeout})
+		require.ErrorContains(t, err, "you cannot set the near cache timeout")
+		require.Nil(t, store)
+
+		require.NoError(t, owner.Set(key1, value1, 0))
+		val, err := owner.Get(key1)
+		require.NoError(t, err)
+		require.Equal(t, value1, val)
+	})
+
+	t.Run("closed storage reports ErrClosed", func(t *testing.T) {
+		closedCfg := cfg
+		closedCfg.ScopeName = "closed"
+		testStore := newTestStoreWithConfig(t, &closedCfg)
+
+		require.NoError(t, testStore.Set(key1, value1, 0))
+		require.NoError(t, testStore.Close())
+
+		// every operation reports ErrClosed once closed, and closing again is harmless
+		val, err := testStore.Get(key1)
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+		val, err = testStore.GetWithContext(context.Background(), key1)
+		require.ErrorIs(t, err, ErrClosed)
+		require.Nil(t, val)
+		require.ErrorIs(t, testStore.Set(key1, value2, 0), ErrClosed)
+		require.ErrorIs(t, testStore.Delete(key1), ErrClosed)
+		require.ErrorIs(t, testStore.DeleteWithContext(context.Background(), key1), ErrClosed)
+		require.ErrorIs(t, testStore.Reset(), ErrClosed)
+		require.NoError(t, testStore.Close())
+	})
+
+	t.Run("failed construction-time reset still returns the storage", func(t *testing.T) {
+		// A context whose deadline has already passed is used as is, so the construction-time reset fails.
+		// The storage is returned alongside the error, as it is still usable.
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+		defer cancel()
+
+		testStore, err := NewFromConnectionWithContext(ctx, owner.Conn(), Config{ScopeName: "reset-fails", Reset: true})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.NotNil(t, testStore)
+
+		require.NoError(t, testStore.Set(key1, value1, 0))
+		val, err := testStore.Get(key1)
+		require.NoError(t, err)
+		require.Equal(t, value1, val)
+		require.NoError(t, testStore.Close())
+	})
 }

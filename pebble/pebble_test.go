@@ -2,6 +2,7 @@ package pebble
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,9 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/cockroachdb/pebble"
+	"github.com/stretchr/testify/require"
 )
 
 var testStore *Storage
@@ -318,17 +318,7 @@ func Test_Pebble_GC_Resumes_Across_Batches(t *testing.T) {
 	time.Sleep(2100 * time.Millisecond)
 	store.collect()
 
-	iter, err := store.Conn().NewIter(nil)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, iter.Close())
-	}()
-
-	remaining := 0
-	for iter.First(); iter.Valid(); iter.Next() {
-		remaining++
-	}
-	require.Zero(t, remaining, "every expired key should have been reclaimed")
+	require.Zero(t, countKeys(t, store.Conn()), "every expired key should have been reclaimed")
 }
 
 func Test_Pebble_ExpiredCandidates_Resumes_After_Key(t *testing.T) {
@@ -486,7 +476,7 @@ func Test_Pebble_NewFromConnection_SharedDB(t *testing.T) {
 // Pebble panics on a closed database, so a sibling on a handle an owning storage closed must
 // report ErrClosed rather than reach it; a Reset must also rewind every collector on the handle.
 func Test_Pebble_SharedDB_OwnerCloseAndReset(t *testing.T) {
-	owner := New(Config{Path: t.TempDir(), GCInterval: time.Hour})
+	owner := newTempStore(t)
 	sibling := NewFromConnection(owner.Conn(), Config{GCInterval: time.Hour})
 
 	require.NoError(t, sibling.Set("john", []byte("doe"), 0))
@@ -504,4 +494,355 @@ func Test_Pebble_SharedDB_OwnerCloseAndReset(t *testing.T) {
 	require.ErrorIs(t, sibling.Delete("john"), ErrClosed)
 	require.ErrorIs(t, sibling.Reset(), ErrClosed)
 	require.NoError(t, sibling.Close())
+}
+
+// rawEntry encodes an entry the way Set does, with an explicit deadline.
+func rawEntry(t testing.TB, expires int64) []byte {
+	t.Helper()
+
+	b, err := json.Marshal(CacheType{Data: []byte("doe"), Created: 1, Expires: expires})
+	require.NoError(t, err)
+	return b
+}
+
+// openReadOnly seeds a database with the given keys, then reopens it read-only so every write fails.
+func openReadOnly(t *testing.T, seed func(db *pebble.DB)) *pebble.DB {
+	t.Helper()
+
+	dir := t.TempDir()
+	db, err := pebble.Open(dir, &pebble.Options{})
+	require.NoError(t, err)
+	seed(db)
+	require.NoError(t, db.Close())
+
+	ro, err := pebble.Open(dir, &pebble.Options{ReadOnly: true})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, ro.Close())
+	})
+	return ro
+}
+
+// newTempStore opens a storage in a temp dir with its collector idle, so tests drive collect themselves,
+// and closes it when the test ends. Writes are synced unless write options say otherwise.
+func newTempStore(t *testing.T, writeOptions ...*pebble.WriteOptions) *Storage {
+	t.Helper()
+
+	cfg := Config{Path: t.TempDir(), GCInterval: time.Hour}
+	if len(writeOptions) > 0 {
+		cfg.WriteOptions = writeOptions[0]
+	}
+
+	store := New(cfg)
+	t.Cleanup(func() {
+		require.NoError(t, store.Close())
+	})
+
+	return store
+}
+
+// putEntries commits n entries in one batch, each keyed by format applied to its index and all expiring
+// at the same time: 0 for never, 1 for long ago.
+func putEntries(t *testing.T, db *pebble.DB, n int, format string, expires int64) {
+	t.Helper()
+
+	val := rawEntry(t, expires)
+	b := db.NewBatch()
+	for i := range n {
+		require.NoError(t, b.Set([]byte(fmt.Sprintf(format, i)), val, nil))
+	}
+	require.NoError(t, b.Commit(pebble.NoSync))
+	require.NoError(t, b.Close())
+}
+
+// countKeys reports how many keys the database holds.
+func countKeys(t *testing.T, db *pebble.DB) int {
+	t.Helper()
+
+	iter, err := db.NewIter(nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, iter.Close())
+	}()
+
+	n := 0
+	for iter.First(); iter.Valid(); iter.Next() {
+		n++
+	}
+	require.NoError(t, iter.Error())
+
+	return n
+}
+
+func Test_Pebble_New_InvalidPath(t *testing.T) {
+	// The parent directory does not exist, so the path can be neither stat'ed nor written.
+	path := filepath.Join(t.TempDir(), "missing", "test.db")
+
+	require.PanicsWithError(t, "invalid filepath", func() {
+		New(Config{Path: path})
+	})
+}
+
+func Test_Pebble_New_OpenFails(t *testing.T) {
+	// A regular file passes the path check but cannot be opened as a database directory.
+	path := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(path, []byte("x"), 0o600))
+
+	require.Panics(t, func() {
+		New(Config{Path: path})
+	})
+}
+
+func Test_Pebble_New_DirectoryLocked(t *testing.T) {
+	dir := t.TempDir()
+	store := New(Config{Path: dir, GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Pebble holds a directory lock, so a second owner of the same directory cannot open it.
+	require.Panics(t, func() {
+		New(Config{Path: dir})
+	})
+}
+
+func Test_Pebble_ReleaseDBState_Unknown(t *testing.T) {
+	db, err := pebble.Open(t.TempDir(), &pebble.Options{})
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	// Releasing a handle that never acquired state is a no-op rather than a panic.
+	require.NotPanics(t, func() {
+		releaseDBState(db)
+	})
+
+	dbStatesMu.Lock()
+	_, held := dbStates[db]
+	dbStatesMu.Unlock()
+	require.False(t, held)
+}
+
+func Test_Pebble_EmptyArguments(t *testing.T) {
+	// Empty keys and values are ignored rather than stored.
+	result, err := testStore.Get("")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.Set("", []byte("doe"), 0))
+	require.NoError(t, testStore.Set("empty-val", nil, 0))
+	require.NoError(t, testStore.Delete(""))
+
+	result, err = testStore.Get("empty-val")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Pebble_WithContext(t *testing.T) {
+	ctx := context.Background()
+
+	require.NoError(t, testStore.SetWithContext(ctx, "ctx-john", []byte("doe"), 0))
+
+	result, err := testStore.GetWithContext(ctx, "ctx-john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.NoError(t, testStore.DeleteWithContext(ctx, "ctx-john"))
+
+	result, err = testStore.GetWithContext(ctx, "ctx-john")
+	require.NoError(t, err)
+	require.Nil(t, result)
+
+	require.NoError(t, testStore.SetWithContext(ctx, "ctx-jane", []byte("doe"), 0))
+	require.NoError(t, testStore.ResetWithContext(ctx))
+
+	result, err = testStore.GetWithContext(ctx, "ctx-jane")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Pebble_Get_Corrupt_Entry(t *testing.T) {
+	require.NoError(t, testStore.Conn().Set([]byte("corrupt"), []byte("not json"), pebble.Sync))
+	defer func() {
+		require.NoError(t, testStore.Delete("corrupt"))
+	}()
+
+	result, err := testStore.Get("corrupt")
+	require.Error(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Pebble_Get_Expired_Entry(t *testing.T) {
+	// An entry past its deadline reads as a miss even though the collector has not reclaimed it.
+	require.NoError(t, testStore.Conn().Set([]byte("stale"), rawEntry(t, time.Now().Unix()-10), pebble.Sync))
+	defer func() {
+		require.NoError(t, testStore.Delete("stale"))
+	}()
+
+	result, err := testStore.Get("stale")
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func Test_Pebble_Reset_Empty(t *testing.T) {
+	store := newTempStore(t)
+
+	require.NoError(t, store.Reset())
+}
+
+func Test_Pebble_ReadOnly_WriteErrors(t *testing.T) {
+	db := openReadOnly(t, func(db *pebble.DB) {
+		require.NoError(t, db.Set([]byte("john"), rawEntry(t, 0), pebble.Sync))
+	})
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Reads still work.
+	result, err := store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// The database's own write errors are reported rather than swallowed.
+	require.ErrorIs(t, store.Set("jane", []byte("doe"), 0), pebble.ErrReadOnly)
+	require.ErrorIs(t, store.Delete("john"), pebble.ErrReadOnly)
+	require.ErrorIs(t, store.Reset(), pebble.ErrReadOnly)
+
+	// The failed delete and reset left the entry in place.
+	result, err = store.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_Pebble_ReadOnly_Reset_LargerThanOneBatch(t *testing.T) {
+	db := openReadOnly(t, func(db *pebble.DB) {
+		putEntries(t, db, resetBatchSize+5, "key-%d", 0)
+	})
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// More keys than one batch holds, and the write error still surfaces.
+	require.ErrorIs(t, store.Reset(), pebble.ErrReadOnly)
+}
+
+func Test_Pebble_ReadOnly_Collect_StopsOnCommitFailure(t *testing.T) {
+	db := openReadOnly(t, func(db *pebble.DB) {
+		require.NoError(t, db.Set([]byte("a"), rawEntry(t, 1), pebble.Sync))
+		require.NoError(t, db.Set([]byte("b"), rawEntry(t, 0), pebble.Sync))
+	})
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	candidates, _, _ := store.expiredCandidates(nil)
+	require.Equal(t, [][]byte{[]byte("a")}, candidates)
+	require.False(t, store.deleteIfStillExpired(candidates), "a failed commit should end the sweep")
+
+	// The sweep stops where it began, so the next tick retries the same keys. A nil start would
+	// look the same as a sweep that ran to the end.
+	store.shared.gcCursor = []byte("0")
+	store.collect()
+	require.Equal(t, []byte("0"), store.shared.gcCursor)
+
+	value, closer, err := db.Get([]byte("a"))
+	require.NoError(t, err)
+	require.NotEmpty(t, value)
+	require.NoError(t, closer.Close())
+}
+
+func Test_Pebble_DeleteIfStillExpired(t *testing.T) {
+	store := newTempStore(t)
+
+	past := time.Now().Unix() - 10
+	require.NoError(t, store.Conn().Set([]byte("stale"), rawEntry(t, past), pebble.Sync))
+	// Refreshed after the candidate list was taken: must survive.
+	require.NoError(t, store.Conn().Set([]byte("refreshed"), rawEntry(t, 0), pebble.Sync))
+
+	// "gone" vanished since it was listed; that is skipped rather than failing the sweep.
+	require.True(t, store.deleteIfStillExpired([][]byte{[]byte("gone"), []byte("refreshed"), []byte("stale")}))
+
+	_, closer, err := store.Conn().Get([]byte("stale"))
+	require.ErrorIs(t, err, pebble.ErrNotFound)
+	require.Nil(t, closer)
+
+	result, err := store.Get("refreshed")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	// Nothing left to delete is still a successful pass.
+	require.True(t, store.deleteIfStillExpired([][]byte{[]byte("gone")}))
+}
+
+func Test_Pebble_Closed_Internals(t *testing.T) {
+	store := newTempStore(t)
+	require.NoError(t, store.Set("a", []byte("doe"), 0))
+	require.NoError(t, store.Close())
+
+	// A closed storage must not touch the database: the collector reports an empty, finished pass.
+	candidates, last, reachedEnd := store.expiredCandidates(nil)
+	require.Empty(t, candidates)
+	require.Nil(t, last)
+	require.True(t, reachedEnd)
+
+	require.False(t, store.deleteIfStillExpired([][]byte{[]byte("a")}))
+	require.NotPanics(t, store.collect)
+	require.Nil(t, store.shared.gcCursor)
+}
+
+func Test_Pebble_Collect_StopsWhenClosing(t *testing.T) {
+	store := newTempStore(t, pebble.NoSync)
+
+	putEntries(t, store.Conn(), collectBatchSize+10, "key-%05d", 1)
+
+	// Signal shutdown as Close does, without closing the database, so the sweep sees it between batches.
+	store.stopOnce.Do(func() {
+		close(store.done)
+		<-store.stopped
+	})
+
+	store.collect()
+
+	// One batch was reclaimed and the position saved, rather than finishing the whole sweep.
+	require.Equal(t, []byte(fmt.Sprintf("key-%05d", collectBatchSize-1)), store.shared.gcCursor)
+	require.Equal(t, 10, countKeys(t, store.Conn()))
+}
+
+func Test_Pebble_Collect_BoundedBatchesPerSweep(t *testing.T) {
+	store := newTempStore(t, pebble.NoSync)
+
+	// One key more than a sweep may reclaim, all expired.
+	putEntries(t, store.Conn(), collectMaxBatches*collectBatchSize+1, "key-%07d", 1)
+
+	store.collect()
+
+	// The sweep gave up at its budget and left the rest for the next tick, remembering where it stopped.
+	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectMaxBatches*collectBatchSize-1)), store.shared.gcCursor)
+	require.Equal(t, 1, countKeys(t, store.Conn()))
+
+	// The next sweep resumes and finishes, clearing the cursor.
+	store.collect()
+	require.Nil(t, store.shared.gcCursor)
+}
+
+func Test_Pebble_StoreCursor_IgnoresStaleEpoch(t *testing.T) {
+	store := newTempStore(t)
+
+	cursor, epoch := store.loadCursor()
+	require.Nil(t, cursor)
+
+	// A Reset between loading and storing invalidates the position the sweep holds.
+	require.NoError(t, store.Reset())
+	store.storeCursor([]byte("z"), epoch)
+	require.Nil(t, store.shared.gcCursor)
+
+	_, epoch = store.loadCursor()
+	store.storeCursor([]byte("z"), epoch)
+	require.Equal(t, []byte("z"), store.shared.gcCursor)
+}
+
+func Test_Pebble_Expired(t *testing.T) {
+	now := time.Now().Unix()
+
+	require.True(t, expired(rawEntry(t, now-1), now))
+	require.True(t, expired(rawEntry(t, now), now))
+	require.False(t, expired(rawEntry(t, now+10), now))
+	require.False(t, expired(rawEntry(t, 0), now), "no deadline never expires")
+
+	// An undecodable value is left for Get to report rather than reclaimed.
+	require.False(t, expired([]byte("not json"), now))
 }
