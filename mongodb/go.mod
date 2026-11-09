@@ -6,7 +6,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/mongodb v0.45.0
-	go.mongodb.org/mongo-driver/v2 v2.9.3
+	go.mongodb.org/mongo-driver/v2 v2.10.0
 )
 
 require (
