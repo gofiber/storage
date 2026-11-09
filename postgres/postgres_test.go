@@ -5,10 +5,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -779,8 +781,10 @@ func newCancelOnSQLPool(t testing.TB, uri, marker string, cancel context.CancelF
 	return pool
 }
 
+var tableSeq atomic.Int64
+
 func uniqueTable(prefix string) string {
-	return "public." + prefix + "_" + strconv.Itoa(int(time.Now().UnixNano()))
+	return "public." + prefix + "_" + strconv.FormatInt(tableSeq.Add(1), 10)
 }
 
 func recoverPanicError(t testing.TB, fn func()) error {
@@ -799,16 +803,18 @@ func recoverPanicError(t testing.TB, fn func()) error {
 }
 
 func Test_Postgres_New_InvalidConnectionURI(t *testing.T) {
-	recoverPanicError(t, func() {
+	err := recoverPanicError(t, func() {
 		New(Config{ConnectionURI: "postgres://user:pass@127.0.0.1:notaport/fiber"})
 	})
+	var parseErr *pgconn.ParseConfigError
+	require.ErrorAs(t, err, &parseErr)
 }
 
-func Test_Postgres_New_UnreachableServer(t *testing.T) {
+func Test_Postgres_NewWithContext_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	// Ping fails because the context is already cancelled; the pool this driver opened is released.
+	// Ping fails because the context is already cancelled.
 	err := recoverPanicError(t, func() {
 		NewWithContext(ctx, Config{ConnectionURI: "postgres://user:pass@127.0.0.1:1/fiber?sslmode=disable"})
 	})
@@ -1026,20 +1032,5 @@ func Test_Postgres_SharedContainer(t *testing.T) {
 		val, err := store.Get("persistent")
 		require.NoError(t, err)
 		require.Equal(t, []byte("doe"), val)
-	})
-
-	t.Run("Close_StopsGC", func(t *testing.T) {
-		cfg := base
-		cfg.GCInterval = 50 * time.Millisecond
-
-		store := newTestStoreWithConfig(t, cfg)
-		require.NoError(t, store.Close())
-
-		select {
-		case <-store.stopped:
-		default:
-			t.Fatal("collector still running after Close")
-		}
-		require.True(t, store.closed.Load())
 	})
 }

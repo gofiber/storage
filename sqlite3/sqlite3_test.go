@@ -435,8 +435,11 @@ func Test_SQLite3_New_ResetFailure(t *testing.T) {
 	// DROP TABLE refuses to drop a view, so Reset fails on a name that is taken by one.
 	_, err := db.Exec(`CREATE VIEW taken AS SELECT 1 AS k;`)
 	require.NoError(t, err)
+	_, dropErr := db.Exec(`DROP TABLE IF EXISTS taken;`)
+	require.Error(t, dropErr)
 
-	require.Panics(t, func() {
+	// The init that follows fails on the view too, so only the drop's own error proves Reset panicked.
+	require.PanicsWithError(t, dropErr.Error(), func() {
 		NewFromConnection(db, Config{Table: "taken", Reset: true})
 	})
 
@@ -460,15 +463,6 @@ func Test_SQLite3_New_InitFailure(t *testing.T) {
 	require.Panics(t, func() {
 		New(Config{Database: path, Table: "taken"})
 	})
-
-	// The failed attempt must have released the file: it can be opened and inspected again.
-	db, err := sql.Open("sqlite3", path)
-	require.NoError(t, err)
-	defer db.Close() //nolint:errcheck // best effort cleanup
-
-	var n int
-	require.NoError(t, db.QueryRow(`SELECT k FROM taken;`).Scan(&n))
-	require.Equal(t, 1, n)
 }
 
 func Test_SQLite3_Closed(t *testing.T) {

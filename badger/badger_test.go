@@ -343,9 +343,9 @@ func Test_Badger_Underlying_DB_Closed(t *testing.T) {
 	require.NoError(t, store.Conn().Close())
 
 	_, err := store.Get("john")
-	require.Error(t, err)
-	require.Error(t, store.Set("john", []byte("doe"), 0))
-	require.Error(t, store.Delete("john"))
+	require.ErrorIs(t, err, badger.ErrDBClosed)
+	require.ErrorIs(t, store.Set("john", []byte("doe"), 0), badger.ErrDBClosed)
+	require.ErrorIs(t, store.Delete("john"), badger.ErrDBClosed)
 	require.Error(t, store.Reset())
 
 	require.NoError(t, store.Close())
@@ -391,7 +391,7 @@ func Test_Badger_NewFromConnection_Reset_Drops_Keys(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
-func Test_Badger_Garbage_Collector_Runs(t *testing.T) {
+func Test_Badger_Garbage_Collector_Does_Not_Disturb_Data(t *testing.T) {
 	dir := t.TempDir()
 
 	store := New(Config{
@@ -401,7 +401,7 @@ func Test_Badger_Garbage_Collector_Runs(t *testing.T) {
 	})
 
 	require.NoError(t, store.Set("john", []byte("doe"), 0))
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond) // lets a few sweeps run
 
 	// The collector sweeps in the background without disturbing stored data, and Close waits for it.
 	result, err := store.Get("john")

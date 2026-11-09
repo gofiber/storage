@@ -555,18 +555,23 @@ func Test_MSSQL_New_UnreachableServer(t *testing.T) {
 	port := closedPort(t)
 
 	cases := map[string]Config{
-		"username and password": {Port: port, Username: "user", Password: "pass"},
-		"username only":         {Port: port, Username: "user"},
-		"password only":         {Port: port, Password: "pass"},
-		"instance":              {Port: port, Instance: "SQLEXPRESS"},
-		"unix socket host":      {Host: "/nonexistent/mssql.sock", Port: port},
+		"username only": {Port: port, Username: "user"},
+		"password only": {Port: port, Password: "pass"},
+		"instance":      {Port: port, Instance: "SQLEXPRESS"},
 	}
 
 	for name, cfg := range cases {
 		t.Run(name, func(t *testing.T) {
-			_ = panicError(t, func() { New(cfg) })
+			err := panicError(t, func() { New(cfg) })
+			var dialErr *net.OpError
+			require.ErrorAs(t, err, &dialErr)
 		})
 	}
+
+	// The driver reads a path host as an instance name, and its failed lookup is an untyped error.
+	t.Run("unix socket host", func(t *testing.T) {
+		_ = panicError(t, func() { New(Config{Host: "/nonexistent/mssql.sock", Port: port}) })
+	})
 }
 
 func Test_MSSQL_NewFromConnection_PingFails(t *testing.T) {
@@ -574,7 +579,9 @@ func Test_MSSQL_NewFromConnection_PingFails(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close() //nolint:errcheck // best effort cleanup
 
-	require.Panics(t, func() { NewFromConnection(db) })
+	err = panicError(t, func() { NewFromConnection(db) })
+	var dialErr *net.OpError
+	require.ErrorAs(t, err, &dialErr)
 }
 
 func Test_MSSQL_NewFromConnection_ClosedDB(t *testing.T) {
@@ -590,7 +597,6 @@ func Test_MSSQL_CheckSchema_MissingValueColumn(t *testing.T) {
 	createTable(t, adminDB(t), "fiber_no_v", "k VARCHAR(64) PRIMARY KEY NOT NULL, e BIGINT NOT NULL DEFAULT '0'")
 
 	t.Run("owned handle", func(t *testing.T) {
-		// New opened the handle itself, so the failed constructor has to release it before panicking.
 		require.PanicsWithValue(t, sql.ErrNoRows, func() {
 			New(Config{ConnectionURI: testConnURI, Table: "fiber_no_v"})
 		})
@@ -746,15 +752,21 @@ func Test_MSSQL_GC_Ticker(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.Set("forever", []byte("doe"), 0))
 
-	count := func(key string) int {
+	count := func(key string) (int, error) {
 		var n int
-		require.NoError(t, store.Conn().QueryRow(`SELECT COUNT(*) FROM fiber_gc_ticker WHERE k = @p1`, key).Scan(&n))
-		return n
+		err := store.Conn().QueryRow(`SELECT COUNT(*) FROM fiber_gc_ticker WHERE k = @p1`, key).Scan(&n)
+		return n, err
 	}
 
 	// The collector, not a read, removes the expired row.
-	require.Eventually(t, func() bool { return count("expired") == 0 }, 15*time.Second, 100*time.Millisecond)
-	require.Equal(t, 1, count("forever"))
+	require.Eventually(t, func() bool {
+		n, err := count("expired")
+		return err == nil && n == 0
+	}, 15*time.Second, 100*time.Millisecond)
+
+	n, err := count("forever")
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
 }
 
 func Test_MSSQL_Close_OwnedHandle(t *testing.T) {

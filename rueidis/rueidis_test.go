@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"math"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -804,9 +805,10 @@ func Test_Rueidis_TLS_URL_Uses_URL_TLSConfig(t *testing.T) {
 }
 
 func Test_Rueidis_New_Unreachable(t *testing.T) {
-	recoverPanicError(t, func() {
+	err := recoverPanicError(t, func() {
 		New(Config{InitAddress: []string{"127.0.0.1:1"}})
 	})
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
 }
 
 func Test_Rueidis_New_InvalidURL(t *testing.T) {

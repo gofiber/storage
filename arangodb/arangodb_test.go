@@ -610,7 +610,8 @@ func Test_ArangoDB_Storage_Behavior(t *testing.T) {
 
 	t.Run("expiration is stored as a future unix deadline", func(t *testing.T) {
 		before := time.Now().Unix()
-		require.NoError(t, owner.Set("exp", []byte("v"), 500*time.Millisecond))
+		// One nanosecond, so a truncated deadline lands on now and fails regardless of the clock's phase.
+		require.NoError(t, owner.Set("exp", []byte("v"), time.Nanosecond))
 
 		var m model
 		_, err := owner.collection.ReadDocument(context.Background(), "exp", &m)

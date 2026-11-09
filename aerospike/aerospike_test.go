@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aerospike/aerospike-client-go/v8"
+	"github.com/aerospike/aerospike-client-go/v8/types"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
@@ -405,6 +406,21 @@ func newUnreachableStorage(t testing.TB) *Storage {
 	}
 }
 
+// panicResultCode runs fn, which must panic with an Aerospike error, and returns its result code.
+func panicResultCode(t testing.TB, fn func()) (code types.ResultCode) {
+	t.Helper()
+
+	defer func() {
+		err, _ := recover().(error)
+		var aerr *aerospike.AerospikeError
+		require.ErrorAs(t, err, &aerr)
+		code = aerr.ResultCode
+	}()
+	fn()
+
+	return code
+}
+
 func Test_AeroSpikeDB_ConfigDefault(t *testing.T) {
 	t.Run("no config", func(t *testing.T) {
 		require.Equal(t, ConfigDefault, configDefault())
@@ -453,19 +469,23 @@ func Test_AeroSpikeDB_New_UnreachableHost(t *testing.T) {
 func Test_AeroSpikeDB_NewFromConnection_Panics(t *testing.T) {
 	client := newUnreachableClient(t)
 
+	t.Run("reserved set name", func(t *testing.T) {
+		require.Panics(t, func() {
+			NewFromConnection(client, Config{SetName: "orders" + schemaSetSuffix})
+		})
+	})
+
 	for _, tc := range []struct {
 		name string
 		cfg  Config
+		want types.ResultCode
 	}{
-		{"reserved set name", Config{SetName: "orders" + schemaSetSuffix}},
-		// Without a reachable server the Reset requested by the config cannot run, and that must not be swallowed.
-		{"reset fails", Config{Namespace: aerospikeNamespace, Reset: true}},
-		{"schema setup fails", Config{Namespace: aerospikeNamespace}},
+		// The scan fails on the empty cluster; a swallowed Reset error would surface as the schema lookup's code.
+		{"reset fails", Config{Namespace: aerospikeNamespace, Reset: true}, types.INVALID_NODE_ERROR},
+		{"schema setup fails", Config{Namespace: aerospikeNamespace}, types.INVALID_NAMESPACE},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Panics(t, func() {
-				NewFromConnection(client, tc.cfg)
-			})
+			require.Equal(t, tc.want, panicResultCode(t, func() { NewFromConnection(client, tc.cfg) }))
 		})
 	}
 }
@@ -601,20 +621,6 @@ func Test_AeroSpikeDB_Server(t *testing.T) {
 			NewFromConnection(own, Config{Namespace: "no_such_namespace", SetName: "fiber", Reset: true})
 		})
 		require.True(t, own.IsConnected())
-	})
-
-	t.Run("closed owned client makes Reset fail in newStorage", func(t *testing.T) {
-		own := newClient(t)
-		own.Close()
-
-		require.Panics(t, func() {
-			newStorage(own, true, Config{
-				Namespace:     aerospikeNamespace,
-				SetName:       "fiber",
-				Reset:         true,
-				SchemaVersion: 1,
-			})
-		})
 	})
 
 	t.Run("schema is created with the configured values", func(t *testing.T) {

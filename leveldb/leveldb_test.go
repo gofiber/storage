@@ -989,7 +989,7 @@ func Test_Get_VersionedLegacyEnvelope(t *testing.T) {
 	require.Nil(t, value)
 }
 
-func Test_Close_ReleasesSharedStateOnlyOnce(t *testing.T) {
+func Test_releaseDBState_UnknownHandle(t *testing.T) {
 	// Releasing a handle no storage registered must leave the registry as it was.
 	db, err := leveldb.OpenFile(t.TempDir(), nil)
 	require.NoError(t, err)
@@ -1231,10 +1231,10 @@ func Test_WriteErrors_AreReported(t *testing.T) {
 	require.Equal(t, []byte("v"), value)
 }
 
-func Test_Reset_ChunkWriteError(t *testing.T) {
+func Test_Reset_LargerThanOneBatch_WriteError(t *testing.T) {
 	store := readOnlyHandle(t, resetBatchSize+10)
 
-	// The first full chunk fails, so nothing was removed.
+	// The write error surfaces and nothing was removed.
 	require.ErrorIs(t, store.Reset(), leveldb.ErrReadOnly)
 	require.Equal(t, resetBatchSize+10, countKeys(t, store.Conn()))
 }

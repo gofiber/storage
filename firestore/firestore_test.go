@@ -737,6 +737,8 @@ func Test_Firestore_Fake_Get_DecodeError(t *testing.T) {
 
 	val, err := store.Get("broken")
 	require.Error(t, err)
+	// Unknown means the error is not an RPC status, so it came from decoding the document.
+	require.Equal(t, codes.Unknown, status.Code(err))
 	require.Nil(t, val)
 }
 
@@ -913,13 +915,21 @@ func Test_Firestore_Unreachable_Operations(t *testing.T) {
 	})
 	defer store.Close()
 
+	// Retrying ends at the deadline, as a context error in the backoff or an RPC status in an attempt.
+	requireUnreachable := func(err error) {
+		t.Helper()
+		if !errors.Is(err, context.DeadlineExceeded) {
+			require.Contains(t, []codes.Code{codes.Unavailable, codes.DeadlineExceeded}, status.Code(err), "%v", err)
+		}
+	}
+
 	val, err := store.Get("john")
-	require.Error(t, err)
+	requireUnreachable(err)
 	require.Nil(t, val)
 
-	require.Error(t, store.Set("john", []byte("doe"), 0))
-	require.Error(t, store.Delete("john"))
-	require.Error(t, store.Reset())
+	requireUnreachable(store.Set("john", []byte("doe"), 0))
+	requireUnreachable(store.Delete("john"))
+	requireUnreachable(store.Reset())
 }
 
 func Test_Firestore_New_InvalidCredentialsJSONPanics(t *testing.T) {

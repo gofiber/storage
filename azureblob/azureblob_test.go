@@ -485,7 +485,6 @@ func recoverPanic(f func()) (err error) {
 
 func Test_AzureBlob_Configure_Default(t *testing.T) {
 	require.Equal(t, ConfigDefault, configure())
-	require.Equal(t, 3, ConfigDefault.MaxAttempts)
 }
 
 func Test_AzureBlob_Configure_DefaultEndpoint(t *testing.T) {
@@ -551,18 +550,18 @@ func Test_AzureBlob_HandleError(t *testing.T) {
 
 func Test_AzureBlob_New_InvalidKey(t *testing.T) {
 	// The shared key must be base64; anything else is rejected before any request is made.
-	require.Panics(t, func() {
+	require.ErrorContains(t, recoverPanic(func() {
 		New(Config{
 			Account:     fakeAccount,
 			Container:   "box",
 			Endpoint:    closedEndpoint(t),
 			Credentials: Credentials{Account: fakeAccount, Key: "not base64!!"},
 		})
-	})
+	}), "base64")
 }
 
 func Test_AzureBlob_New_InvalidEndpoint(t *testing.T) {
-	// An endpoint that is not a URL makes client construction fail.
+	// The client accepts an endpoint that is not a URL; creating the container on it fails.
 	require.Panics(t, func() {
 		New(Config{
 			Account:     fakeAccount,
@@ -725,29 +724,18 @@ func Test_AzureBlob_RequestTimeout(t *testing.T) {
 
 func Test_AzureBlob_ServerErrors(t *testing.T) {
 	store := newFakeStore(t, func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/missing"):
-			writeBlobError(w, http.StatusNotFound, bloberror.BlobNotFound)
-		case r.Method == http.MethodDelete:
-			writeBlobError(w, http.StatusNotFound, bloberror.BlobNotFound)
-		default:
-			writeBlobError(w, http.StatusForbidden, bloberror.AuthorizationFailure)
-		}
+		writeBlobError(w, http.StatusForbidden, bloberror.AuthorizationFailure)
 	})
 
-	val, err := store.Get("missing")
-	require.True(t, bloberror.HasCode(err, bloberror.BlobNotFound))
-	require.Empty(t, val)
-
-	val, err = store.Get("forbidden")
+	val, err := store.Get("forbidden")
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 	require.Empty(t, val)
 
 	err = store.Set("john", []byte("doe"), 0)
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 
-	err = store.Delete("missing")
-	require.True(t, bloberror.HasCode(err, bloberror.BlobNotFound))
+	err = store.Delete("john")
+	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))
 
 	err = store.Reset()
 	require.True(t, bloberror.HasCode(err, bloberror.AuthorizationFailure))

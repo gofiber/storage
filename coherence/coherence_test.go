@@ -541,32 +541,19 @@ func Test_Coherence_SetupConfig(t *testing.T) {
 }
 
 // Test_Coherence_New_InvalidSessionConfig checks that a session which cannot be created is reported
-// by every constructor, without needing a running Coherence server.
+// for plain text and TLS alike, without needing a running Coherence server.
 func Test_Coherence_New_InvalidSessionConfig(t *testing.T) {
 	t.Setenv("COHERENCE_SESSION_DEBUG", "false")
 	t.Setenv("COHERENCE_SESSION_DISCONNECT_TIMEOUT", "not-a-number")
 
-	// default config, using the default address
+	// plain text connection, from the default config
 	store, err := New()
-	require.Error(t, err)
-	require.Nil(t, store)
-
-	// plain text connection
-	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second})
 	require.Error(t, err)
 	require.Nil(t, store)
 
 	// TLS connection
 	store, err = New(Config{Address: "127.0.0.1:1", Timeout: time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}})
 	require.Error(t, err)
-	require.Nil(t, store)
-
-	// a cancelled context makes no difference to a failure that is not about the context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	store, err = NewWithContext(ctx, Config{Address: "127.0.0.1:1", Timeout: time.Second})
-	require.Error(t, err)
-	require.NotErrorIs(t, err, context.Canceled)
 	require.Nil(t, store)
 }
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/gofiber/storage/testhelpers/tck"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -309,71 +310,47 @@ func Test_MYSQL_New_Unreachable(t *testing.T) {
 	host, port := closedListenerAddr(t)
 	uri := "u:p@tcp(" + host + ":" + strconv.Itoa(port) + ")/fiber"
 
+	var dialErr *net.OpError
+
 	// Owned connection built from the individual fields.
-	require.Panics(t, func() {
+	err := panicError(t, func() {
 		New(Config{Host: host, Port: port, Username: "u", Password: "p"})
 	})
+	require.ErrorAs(t, err, &dialErr)
 
 	// Owned connection built from a URI.
-	require.Panics(t, func() {
+	err = panicError(t, func() {
 		New(Config{ConnectionURI: uri})
 	})
+	require.ErrorAs(t, err, &dialErr)
 
 	// A borrowed handle is left open for the caller when initialization fails.
 	db, err := sql.Open("mysql", uri)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	require.Panics(t, func() {
+	err = panicError(t, func() {
 		NewFromConnection(db)
 	})
-	err = db.Ping()
-	require.Error(t, err)
-	require.NotContains(t, err.Error(), "database is closed")
+	require.ErrorAs(t, err, &dialErr)
+	// A dial error rather than "database is closed" shows the handle is still open.
+	require.ErrorAs(t, db.Ping(), &dialErr)
 }
 
-func Test_MYSQL_ClosedStorage(t *testing.T) {
-	t.Parallel()
+// panicError runs fn, which must panic with an error, and returns that error.
+func panicError(t testing.TB, fn func()) (err error) {
+	t.Helper()
 
-	// A closed *sql.DB can never be pinged, so build the storage by hand instead of through New.
-	// No statements are set: a closed handle fails before the query text matters.
-	db, err := sql.Open("mysql", "u:p@tcp(127.0.0.1:1)/fiber")
-	require.NoError(t, err)
-	require.NoError(t, db.Close())
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		e, ok := r.(error)
+		require.True(t, ok, "panic value should be an error, got %T", r)
+		err = e
+	}()
+	fn()
 
-	s := &Storage{
-		db:      db,
-		ownsDB:  true,
-		done:    make(chan struct{}),
-		stopped: make(chan struct{}),
-	}
-	close(s.stopped) // no collector is running
-
-	// Operations on a closed *sql.DB surface the driver error.
-	_, err = s.Get("k")
-	require.ErrorContains(t, err, "closed")
-	require.ErrorContains(t, s.Set("k", []byte("v"), 0), "closed")
-	require.ErrorContains(t, s.Delete("k"), "closed")
-	require.ErrorContains(t, s.Reset(), "closed")
-
-	// Empty keys/values short-circuit before touching the database.
-	val, err := s.Get("")
-	require.NoError(t, err)
-	require.Nil(t, val)
-	require.NoError(t, s.Set("", []byte("v"), 0))
-	require.NoError(t, s.Set("k", nil, 0))
-	require.NoError(t, s.Delete(""))
-
-	// Closing an already-closed handle is not an error, and a second Close is a no-op.
-	require.NoError(t, s.Close())
-	require.NoError(t, s.Close())
-
-	// Once the storage is closed every operation reports ErrClosed.
-	_, err = s.Get("k")
-	require.ErrorIs(t, err, ErrClosed)
-	require.ErrorIs(t, s.Set("k", []byte("v"), 0), ErrClosed)
-	require.ErrorIs(t, s.Delete("k"), ErrClosed)
-	require.ErrorIs(t, s.Reset(), ErrClosed)
+	return nil
 }
 
 // Test_MYSQL_Errors shares one container across all the cases that need a live server.
@@ -397,6 +374,37 @@ func Test_MYSQL_Errors(t *testing.T) {
 
 		return store
 	}
+
+	t.Run("handle closed behind the storage", func(t *testing.T) {
+		s := New(Config{ConnectionURI: dsn, Table: "closed_handle"})
+		require.NoError(t, s.Conn().Close())
+
+		// database/sql exports no sentinel for a closed handle.
+		_, err := s.Get("k")
+		require.ErrorContains(t, err, "database is closed")
+		require.ErrorContains(t, s.Set("k", []byte("v"), 0), "database is closed")
+		require.ErrorContains(t, s.Delete("k"), "database is closed")
+		require.ErrorContains(t, s.Reset(), "database is closed")
+
+		// Empty keys/values short-circuit before touching the database.
+		val, err := s.Get("")
+		require.NoError(t, err)
+		require.Nil(t, val)
+		require.NoError(t, s.Set("", []byte("v"), 0))
+		require.NoError(t, s.Set("k", nil, 0))
+		require.NoError(t, s.Delete(""))
+
+		// Closing an already-closed handle is not an error, and a second Close is a no-op.
+		require.NoError(t, s.Close())
+		require.NoError(t, s.Close())
+
+		// Once the storage is closed every operation reports ErrClosed.
+		_, err = s.Get("k")
+		require.ErrorIs(t, err, ErrClosed)
+		require.ErrorIs(t, s.Set("k", []byte("v"), 0), ErrClosed)
+		require.ErrorIs(t, s.Delete("k"), ErrClosed)
+		require.ErrorIs(t, s.Reset(), ErrClosed)
+	})
 
 	t.Run("context errors", func(t *testing.T) {
 		store := newStore(t, Config{Table: "ctx_errors", Reset: true})
@@ -467,6 +475,14 @@ func Test_MYSQL_Errors(t *testing.T) {
 		require.Equal(t, []byte("v"), val)
 	})
 
+	requireParseError := func(t *testing.T, err error) {
+		t.Helper()
+
+		var myErr *mysqldriver.MySQLError
+		require.ErrorAs(t, err, &myErr)
+		require.EqualValues(t, 1064, myErr.Number, myErr.Message) // ER_PARSE_ERROR
+	}
+
 	// An invalid table name breaks the DROP when Reset is set and the CREATE otherwise.
 	for _, tc := range []struct {
 		name  string
@@ -476,14 +492,14 @@ func Test_MYSQL_Errors(t *testing.T) {
 		{"init fails on invalid table name", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Panics(t, func() {
+			requireParseError(t, panicError(t, func() {
 				New(Config{ConnectionURI: dsn, Table: "bad table name", Reset: tc.reset})
-			})
+			}))
 
 			// With a borrowed handle the failure must not close the caller's database.
-			require.Panics(t, func() {
+			requireParseError(t, panicError(t, func() {
 				NewFromConnection(rawDB, Config{Table: "bad table name", Reset: tc.reset})
-			})
+			}))
 			require.NoError(t, rawDB.Ping())
 		})
 	}

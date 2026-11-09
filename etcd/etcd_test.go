@@ -2,7 +2,6 @@ package etcd
 
 import (
 	"context"
-	"net"
 	"os"
 	"sync"
 	"testing"
@@ -339,23 +338,14 @@ func TestEtcd_NewFromConnection_Nil(t *testing.T) {
 	})
 }
 
-// closedEndpoint returns the address of a listener that has been closed, so nothing answers on it.
-func closedEndpoint(t testing.TB) string {
-	t.Helper()
-
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := l.Addr().String()
-	require.NoError(t, l.Close())
-
-	return addr
-}
+// unreachableEndpoint is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableEndpoint = "127.0.0.1:1"
 
 // newOfflineStore returns a Storage whose endpoint refuses connections, so no container is needed.
 func newOfflineStore(t testing.TB) *Storage {
 	t.Helper()
 
-	store := New(Config{Endpoints: []string{closedEndpoint(t)}})
+	store := New(Config{Endpoints: []string{unreachableEndpoint}})
 	t.Cleanup(func() { _ = store.Close() })
 
 	return store
@@ -422,16 +412,20 @@ func TestEtcd_EmptyKeyOrValue_AreNoOps(t *testing.T) {
 func TestEtcd_UnreachableServer_ReturnsErrors(t *testing.T) {
 	store := newOfflineStore(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
+	// A budget per call: a shared one would be spent by the first, failing the rest without a dial.
+	callCtx := func() context.Context {
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		t.Cleanup(cancel)
+		return ctx
+	}
 
-	val, err := store.GetWithContext(ctx, "john")
-	require.Error(t, err)
+	val, err := store.GetWithContext(callCtx(), "john")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.Nil(t, val)
 
-	require.Error(t, store.SetWithContext(ctx, "john", []byte("doe"), 0))
-	require.Error(t, store.DeleteWithContext(ctx, "john"))
-	require.Error(t, store.ResetWithContext(ctx))
+	require.ErrorIs(t, store.SetWithContext(callCtx(), "john", []byte("doe"), 0), context.DeadlineExceeded)
+	require.ErrorIs(t, store.DeleteWithContext(callCtx(), "john"), context.DeadlineExceeded)
+	require.ErrorIs(t, store.ResetWithContext(callCtx()), context.DeadlineExceeded)
 }
 
 func TestEtcd_SetWithContext_GrantFails_WhenContextCancelled(t *testing.T) {
@@ -448,12 +442,14 @@ func TestEtcd_SetWithTTL(t *testing.T) {
 	store := newTestStore(t)
 	defer store.Close()
 
-	// Runs first on purpose: it expects the server to hold no leases, and the next subtest leaves one behind.
 	t.Run("lease is revoked when the put fails", func(t *testing.T) {
+		before, err := store.Conn().Leases(context.Background())
+		require.NoError(t, err)
+
 		// Larger than etcd's default request size limit (1.5 MiB): the lease is granted, then the put is rejected.
 		tooLarge := make([]byte, 2*1024*1024)
 
-		err := store.Set("big", tooLarge, time.Minute)
+		err = store.Set("big", tooLarge, time.Minute)
 		require.Error(t, err)
 
 		val, err := store.Get("big")
@@ -463,7 +459,7 @@ func TestEtcd_SetWithTTL(t *testing.T) {
 		// The lease granted for the failed put must not be left occupying the server.
 		require.Eventually(t, func() bool {
 			leases, err := store.Conn().Leases(context.Background())
-			return err == nil && len(leases.Leases) == 0
+			return err == nil && len(leases.Leases) <= len(before.Leases)
 		}, 5*time.Second, 50*time.Millisecond)
 	})
 

@@ -3,8 +3,8 @@ package memcache
 import (
 	"context"
 	"math"
-	"net"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -339,24 +339,15 @@ func Test_Memcache_NewFromConnection_Nil(t *testing.T) {
 	})
 }
 
-// closedAddr returns the address of a listener that has been closed, so connections to it are refused.
-func closedAddr(t testing.TB) string {
-	t.Helper()
-
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := l.Addr().String()
-	require.NoError(t, l.Close())
-
-	return addr
-}
+// unreachableAddr is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableAddr = "127.0.0.1:1"
 
 // unreachableClient returns a client pointed at a port nothing listens on, so every operation fails
 // with a connection error without needing a container.
 func unreachableClient(t testing.TB) *mc.Client {
 	t.Helper()
 
-	client := mc.New(closedAddr(t))
+	client := mc.New(unreachableAddr)
 	client.Timeout = 200 * time.Millisecond
 
 	return client
@@ -381,11 +372,9 @@ func Test_Memcache_ConfigDefault(t *testing.T) {
 }
 
 func Test_Memcache_New_Unreachable(t *testing.T) {
-	addr := closedAddr(t)
-
 	// New pings the server and panics when it cannot be reached.
 	require.Panics(t, func() {
-		New(Config{Servers: addr})
+		New(Config{Servers: unreachableAddr})
 	})
 }
 
@@ -420,20 +409,20 @@ func Test_Memcache_Unreachable_Errors(t *testing.T) {
 	testStore := NewFromConnection(unreachableClient(t))
 	ctx := context.Background()
 
-	require.Error(t, testStore.Set("john", []byte("doe"), 0))
-	require.Error(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0))
+	require.ErrorIs(t, testStore.Set("john", []byte("doe"), 0), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "john", []byte("doe"), 0), syscall.ECONNREFUSED)
 
 	// A connection failure is not a cache miss, so it must be reported rather than turned into nil.
 	result, err := testStore.Get("john")
-	require.Error(t, err)
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
 	require.Nil(t, result)
 
 	result, err = testStore.GetWithContext(ctx, "john")
-	require.Error(t, err)
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
 	require.Nil(t, result)
 
-	require.Error(t, testStore.Delete("john"))
-	require.Error(t, testStore.DeleteWithContext(ctx, "john"))
-	require.Error(t, testStore.Reset())
-	require.Error(t, testStore.ResetWithContext(ctx))
+	require.ErrorIs(t, testStore.Delete("john"), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "john"), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.Reset(), syscall.ECONNREFUSED)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), syscall.ECONNREFUSED)
 }

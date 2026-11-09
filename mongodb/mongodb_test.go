@@ -513,9 +513,10 @@ func Test_MongoDB_New_InvalidURI(t *testing.T) {
 
 func Test_MongoDB_New_Unreachable(t *testing.T) {
 	// No caller deadline: initialization falls back on the server selection timeout.
-	_ = panicError(t, func() {
+	err := panicError(t, func() {
 		New(Config{ConnectionURI: unreachableURI(t)})
 	})
+	require.True(t, mongo.IsTimeout(err), "expected a timeout, got %v", err)
 }
 
 func Test_MongoDB_NewWithContext_Unreachable_Deadline(t *testing.T) {
@@ -668,7 +669,9 @@ func Test_MongoDB_Server_Errors(t *testing.T) {
 		require.NoError(t, err)
 
 		val, err := store.Get("bad")
-		require.Error(t, err)
+		var decodeErr *bson.DecodeError
+		require.ErrorAs(t, err, &decodeErr)
+		require.Equal(t, []string{"value"}, decodeErr.Keys())
 		require.Nil(t, val)
 	})
 

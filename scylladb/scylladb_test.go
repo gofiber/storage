@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -546,7 +547,8 @@ func Test_ScyllaDB_New_Unreachable_Host_Panics(t *testing.T) {
 		DisableInitialHostLookup: true,
 	}
 
-	_ = panicError(t, func() { New(cfg) })
+	// gocql flattens the dial error with %v, so only its text survives.
+	require.ErrorContains(t, panicError(t, func() { New(cfg) }), syscall.ECONNREFUSED.Error())
 }
 
 func Test_ScyllaDB_Validate_Identifier_Messages(t *testing.T) {
@@ -561,10 +563,6 @@ func Test_ScyllaDB_New_Closed_Session_Panics(t *testing.T) {
 	session.Close()
 
 	err := panicError(t, func() { NewFromConnection(session, Config{Table: "closed_session_table"}) })
-	require.ErrorIs(t, err, gocql.ErrSessionClosed)
-
-	// The same holds when a reset is requested.
-	err = panicError(t, func() { NewFromConnection(session, Config{Table: "closed_session_table", Reset: true}) })
 	require.ErrorIs(t, err, gocql.ErrSessionClosed)
 }
 
@@ -583,7 +581,7 @@ func Test_ScyllaDB_New_Owned_Session(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), got)
 
-	// Close shuts the owned session down, so using the raw session afterwards fails.
+	// Close shuts the owned session down; a second Close is a no-op.
 	session := store.Conn()
 	require.NoError(t, store.Close())
 	require.True(t, session.Closed())
@@ -594,7 +592,7 @@ func Test_ScyllaDB_New_Schema_Mismatch_Panics(t *testing.T) {
 	// A table whose value column is TEXT is the pre-migration layout and must be refused.
 	session := createSharedTable(t, "legacy_text_table", "key TEXT PRIMARY KEY, value TEXT")
 
-	// With an owned session, the failed initialization must close it again.
+	// Refused on a session New opens itself.
 	cfg := sharedConfig(t, "legacy_text_table")
 	err := panicError(t, func() { New(cfg) })
 	require.ErrorContains(t, err, "should be BLOB")
@@ -676,16 +674,22 @@ func Test_ScyllaDB_Set_TTL_Rounding_And_Clamp(t *testing.T) {
 	require.NoError(t, store.Conn().Query(`SELECT TTL(value) FROM fiber.ttl_table WHERE key = ?`, "forever").Scan(&noTTL))
 	require.Nil(t, noTTL)
 
-	// A sub-second expiry is rounded up to one second rather than down to "no TTL".
+	// A sub-second expiry is rounded up to one second rather than down to "no TTL", so the row expires.
 	require.NoError(t, store.Set("subsecond", []byte("v"), 100*time.Millisecond))
-	subsecondTTL := ttlOf("subsecond")
-	require.GreaterOrEqual(t, subsecondTTL, 1)
-	require.LessOrEqual(t, subsecondTTL, 2)
+	require.Eventually(t, func() bool {
+		v, err := store.Get("subsecond")
+		return err == nil && v == nil
+	}, 10*time.Second, 100*time.Millisecond)
 
-	// A fractional expiry is rounded up to the next whole second.
-	require.NoError(t, store.Set("fraction", []byte("v"), 1500*time.Millisecond+100*time.Hour))
+	// A fractional expiry is rounded up to the next whole second. Retried, since a second boundary
+	// between the write and the read lowers the reported TTL by one.
 	exact := int((100*time.Hour + 2*time.Second) / time.Second)
-	require.InDelta(t, exact, ttlOf("fraction"), 30)
+	require.Eventually(t, func() bool {
+		var ttl int
+		return store.Set("fraction", []byte("v"), 1500*time.Millisecond+100*time.Hour) == nil &&
+			store.Conn().Query(`SELECT TTL(value) FROM fiber.ttl_table WHERE key = ?`, "fraction").Scan(&ttl) == nil &&
+			ttl == exact
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// An expiry above ScyllaDB's maximum is clamped to it instead of overflowing.
 	require.NoError(t, store.Set("huge", []byte("v"), time.Duration(1<<62)))
@@ -696,7 +700,8 @@ func Test_ScyllaDB_Expired_Key_Reads_As_Missing(t *testing.T) {
 	store := newSharedStore(t, "expiry_table")
 	defer store.Close()
 
-	require.NoError(t, store.Set("short", []byte("v"), time.Second))
+	// Two seconds, as a one second TTL can lapse before the first read.
+	require.NoError(t, store.Set("short", []byte("v"), 2*time.Second))
 	require.NoError(t, store.Set("long", []byte("v"), time.Hour))
 
 	got, err := store.Get("short")

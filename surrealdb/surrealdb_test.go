@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/surrealdb/surrealdb.go/pkg/connection"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/surrealdb"
@@ -376,18 +377,37 @@ func Test_Surrealdb_IsTableNotFoundError(t *testing.T) {
 	require.True(t, isTableNotFoundError(errors.New("The table 'other' does not exist"), ""))
 }
 
+// panicError runs fn, which must panic with an error, and returns that error.
+func panicError(t testing.TB, fn func()) (err error) {
+	t.Helper()
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "expected a panic")
+		e, ok := r.(error)
+		require.True(t, ok, "panic value should be an error, got %T", r)
+		err = e
+	}()
+	fn()
+
+	return nil
+}
+
 func Test_Surrealdb_NewWithContext_ConnectFails(t *testing.T) {
 	addr := closedListenerAddr(t)
 
-	require.Panics(t, func() {
+	err := panicError(t, func() {
 		NewWithContext(context.Background(), Config{ConnectionString: "ws://" + addr})
 	})
+	var dialErr *net.OpError
+	require.ErrorAs(t, err, &dialErr)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	require.Panics(t, func() {
+	err = panicError(t, func() {
 		NewWithContext(ctx, Config{ConnectionString: "ws://" + addr})
 	})
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_Surrealdb_NewWithContext_CancelledContext(t *testing.T) {
@@ -395,18 +415,22 @@ func Test_Surrealdb_NewWithContext_CancelledContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	require.Panics(t, func() {
+	err := panicError(t, func() {
 		NewWithContext(ctx, cfg)
 	})
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_Surrealdb_NewWithContext_BadCredentials(t *testing.T) {
 	cfg := newTestConfig(t)
 	cfg.Password = "definitely-not-the-password"
 
-	require.Panics(t, func() {
+	// The server refuses the sign-in, so the error is an RPC error rather than a connection failure.
+	err := panicError(t, func() {
 		New(cfg)
 	})
+	var rpcErr *connection.RPCError
+	require.ErrorAs(t, err, &rpcErr)
 }
 
 func Test_Surrealdb_EmptyKeyAndValue(t *testing.T) {
@@ -508,12 +532,12 @@ func Test_Surrealdb_CancelledContext(t *testing.T) {
 	cancel()
 
 	val, err := testStore.GetWithContext(ctx, "key")
-	require.Error(t, err)
+	require.ErrorIs(t, err, context.Canceled)
 	require.Nil(t, val)
 
-	require.Error(t, testStore.SetWithContext(ctx, "key", []byte("other"), 0))
-	require.Error(t, testStore.DeleteWithContext(ctx, "key"))
-	require.Error(t, testStore.ResetWithContext(ctx))
+	require.ErrorIs(t, testStore.SetWithContext(ctx, "key", []byte("other"), 0), context.Canceled)
+	require.ErrorIs(t, testStore.DeleteWithContext(ctx, "key"), context.Canceled)
+	require.ErrorIs(t, testStore.ResetWithContext(ctx), context.Canceled)
 
 	// None of the cancelled operations took effect.
 	val, err = testStore.Get("key")

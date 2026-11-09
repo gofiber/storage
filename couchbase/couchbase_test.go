@@ -2,7 +2,6 @@ package couchbase
 
 import (
 	"context"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -274,8 +273,11 @@ func TestCouchbase_ErrorPaths(t *testing.T) {
 		_, err := store.Conn().Bucket(couchbaseBucket).DefaultCollection().Upsert("json_doc", map[string]string{"a": "b"}, nil)
 		require.NoError(t, err)
 
+		// The document is fetched; only decoding it as raw bytes fails.
 		val, err := store.Get("json_doc")
 		require.Error(t, err)
+		var kvErr *gocb.KeyValueError
+		require.NotErrorAs(t, err, &kvErr)
 		require.Nil(t, val)
 	})
 
@@ -290,29 +292,34 @@ func TestCouchbase_ErrorPaths(t *testing.T) {
 		defer cancel()
 
 		val, err := bad.GetWithContext(ctx, "key")
-		require.Error(t, err)
+		require.ErrorIs(t, err, gocb.ErrTimeout)
 		require.Nil(t, val)
+	})
+
+	t.Run("cancelled context is reported", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// A live cluster would serve these, so only the context can make them fail.
+		val, err := store.GetWithContext(ctx, "key")
+		require.ErrorIs(t, err, gocb.ErrRequestCanceled)
+		require.Nil(t, val)
+
+		require.ErrorIs(t, store.SetWithContext(ctx, "key", []byte("v"), time.Minute), gocb.ErrRequestCanceled)
+		require.ErrorIs(t, store.DeleteWithContext(ctx, "key"), gocb.ErrRequestCanceled)
+		require.ErrorIs(t, store.ResetWithContext(ctx), gocb.ErrRequestCanceled)
 	})
 }
 
-// closedPortHost returns a couchbase:// connection string for a port nothing is listening on.
-func closedPortHost(t testing.TB) string {
-	t.Helper()
-
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := l.Addr().String()
-	require.NoError(t, l.Close())
-
-	return "couchbase://" + addr
-}
+// unreachableHost is a loopback port nothing listens on, so a dial is refused immediately.
+const unreachableHost = "couchbase://127.0.0.1:1"
 
 // newUnreachableCluster returns a cluster that points at a closed port; gocb connects lazily, so it
 // builds fine and every operation on it fails.
 func newUnreachableCluster(t testing.TB) *gocb.Cluster {
 	t.Helper()
 
-	cluster, err := gocb.Connect(closedPortHost(t), gocb.ClusterOptions{
+	cluster, err := gocb.Connect(unreachableHost, gocb.ClusterOptions{
 		Authenticator: gocb.PasswordAuthenticator{Username: "u", Password: "p"},
 		Transcoder:    transcoder,
 	})
@@ -372,7 +379,7 @@ func TestNewFromConnection_DefaultBucket(t *testing.T) {
 
 func TestNew_InvalidConnectionString_Panics(t *testing.T) {
 	// gocb rejects a host:port without a scheme as ambiguous unless the port is a well-known one.
-	host := strings.TrimPrefix(closedPortHost(t), "couchbase://")
+	host := strings.TrimPrefix(unreachableHost, "couchbase://")
 
 	require.Panics(t, func() {
 		New(Config{Host: host, ConnectionTimeout: time.Second})
@@ -382,7 +389,7 @@ func TestNew_InvalidConnectionString_Panics(t *testing.T) {
 func TestNew_UnreachableHost_ReturnsStorageWhoseOperationsFail(t *testing.T) {
 	// Connecting and pinging are lazy in gocb, so New succeeds and the failure surfaces on first use.
 	store := New(Config{
-		Host:              closedPortHost(t),
+		Host:              unreachableHost,
 		ConnectionTimeout: 500 * time.Millisecond,
 		KVTimeout:         200 * time.Millisecond,
 	})
@@ -423,20 +430,4 @@ func TestClose_IsIdempotent(t *testing.T) {
 	require.NoError(t, store.Close())
 	require.NoError(t, store.Close())
 	require.True(t, store.isClosed())
-}
-
-func TestOperations_CancelledContext_ReturnError(t *testing.T) {
-	store := newUnreachableStore(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	val, err := store.GetWithContext(ctx, "key")
-	require.Error(t, err)
-	require.NotErrorIs(t, err, ErrClosed)
-	require.Nil(t, val)
-
-	require.Error(t, store.SetWithContext(ctx, "key", []byte("v"), time.Minute))
-	require.Error(t, store.DeleteWithContext(ctx, "key"))
-	require.Error(t, store.ResetWithContext(ctx))
 }

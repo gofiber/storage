@@ -85,7 +85,7 @@ const batchWriteMaxAttempts = 10
 // batchWriteBaseDelay is the first pause before re-sending unprocessed items; it doubles per
 // attempt up to batchWriteMaxDelay. AWS asks for exponential backoff here, since items come back
 // unprocessed because the table is throttling, and re-sending them at once keeps it throttled.
-const (
+var (
 	batchWriteBaseDelay = 50 * time.Millisecond
 	batchWriteMaxDelay  = 2 * time.Second
 )

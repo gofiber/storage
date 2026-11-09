@@ -419,8 +419,7 @@ func Test_Neo4jStore_New_IndexFails(t *testing.T) {
 	require.NoError(t, driver.VerifyConnectivity(context.Background()))
 }
 
-func Test_Neo4jStore_New_OwnedDriverClosedOnFailure(t *testing.T) {
-	// Owned driver: an initialization failure must close it before panicking.
+func Test_Neo4jStore_New_OwnedDriver_IndexFails(t *testing.T) {
 	requirePanicContains(t, "Unable to create index on key", func() {
 		NewWithContext(context.Background(), Config{
 			URI:      testConfig.URI,
@@ -519,37 +518,19 @@ func Test_Neo4jStore_Get_MalformedData(t *testing.T) {
 	require.Equal(t, []byte("doe"), val)
 }
 
-func Test_Neo4jStore_Operations_ServerUnreachable(t *testing.T) {
-	// A driver is lazy, so it can be built on a closed port without a container.
-	driver, err := neo4jdriver.NewDriverWithContext("bolt://"+closedAddr(t), neo4jdriver.NoAuth())
-	require.NoError(t, err)
-	defer driver.Close(context.Background()) //nolint:errcheck // best effort cleanup
+func Test_Neo4jStore_Operations_DriverClosed(t *testing.T) {
+	// A driver closed behind the storage's back fails with the driver's error, not ErrClosed.
+	driver := newTestDriver(t)
+	store := NewFromConnection(driver, Config{Node: "driver_closed"})
+	defer store.Close()
+	require.NoError(t, driver.Close(context.Background()))
 
-	store := &Storage{
-		db:           driver,
-		done:         make(chan struct{}),
-		stopped:      make(chan struct{}),
-		cypherMatch:  "OPTIONAL MATCH (n:unreachable{ k: $key }) RETURN n { .* } AS data",
-		cypherMerge:  "MERGE (n:unreachable{ k: $key }) SET n.v = $val, n.e = $exp FINISH",
-		cypherDelete: "MATCH (n:unreachable{ k: $key }) DELETE n FINISH",
-		cypherReset:  "MATCH (n:unreachable) DELETE n FINISH",
-	}
-	close(store.stopped)
-
-	// The driver retries a connectivity error until the context is done, so each call gets a short
-	// deadline of its own: one shared by all four is spent on the first, and the rest would fail on
-	// the expired context without ever reaching the server.
-	callCtx := func() context.Context {
-		ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
-		t.Cleanup(cancel)
-		return ctx
-	}
-
-	_, err = store.GetWithContext(callCtx(), "john")
-	require.Error(t, err)
-	require.Error(t, store.SetWithContext(callCtx(), "john", []byte("doe"), 0))
-	require.Error(t, store.DeleteWithContext(callCtx(), "john"))
-	require.Error(t, store.ResetWithContext(callCtx()))
+	var usageErr *neo4jdriver.UsageError
+	_, err := store.Get("john")
+	require.ErrorAs(t, err, &usageErr)
+	require.ErrorAs(t, store.Set("john", []byte("doe"), 0), &usageErr)
+	require.ErrorAs(t, store.Delete("john"), &usageErr)
+	require.ErrorAs(t, store.Reset(), &usageErr)
 }
 
 func Test_Neo4jStore_Close_OwnedDriverFailure(t *testing.T) {
@@ -597,19 +578,27 @@ func Test_Neo4jStore_GC_RemovesExpired(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	count := func(key string) int64 {
+	count := func(key string) (int64, error) {
 		res, err := neo4jdriver.ExecuteQuery(context.Background(), driver,
 			"MATCH (n:gc_store { k: $key }) RETURN count(n) AS c",
 			map[string]any{"key": key}, neo4jdriver.EagerResultTransformer)
-		require.NoError(t, err)
+		if err != nil {
+			return 0, err
+		}
 		c, _, err := neo4jdriver.GetRecordValue[int64](res.Records[0], "c")
-		require.NoError(t, err)
-		return c
+		return c, err
 	}
 
-	require.Eventually(t, func() bool { return count("expired") == 0 }, 10*time.Second, 50*time.Millisecond)
-	require.EqualValues(t, 1, count("forever"))
-	require.EqualValues(t, 1, count("future"))
+	require.Eventually(t, func() bool {
+		c, err := count("expired")
+		return err == nil && c == 0
+	}, 10*time.Second, 50*time.Millisecond)
+
+	for _, key := range []string{"forever", "future"} {
+		c, err := count(key)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, c, key)
+	}
 
 	val, err := store.Get("future")
 	require.NoError(t, err)

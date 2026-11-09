@@ -875,39 +875,64 @@ func Test_Redis_Cluster_FansOutToEveryMaster(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	addr := newConfigFromContainer(t, testredis.WithAddress()).Addrs[0]
+	addrs := []string{
+		newConfigFromContainer(t, testredis.WithAddress()).Addrs[0],
+		newConfigFromContainer(t, testredis.WithAddress()).Addrs[0],
+	}
 
-	// ClusterSlots lets a standalone server stand in for a cluster: one master owning every slot.
+	// ClusterSlots lets standalone servers stand in for a cluster: two masters splitting the slots.
 	cluster := goredis.NewClusterClient(&goredis.ClusterOptions{
 		ClusterSlots: func(context.Context) ([]goredis.ClusterSlot, error) {
-			return []goredis.ClusterSlot{{Start: 0, End: 16383, Nodes: []goredis.ClusterNode{{Addr: addr}}}}, nil
+			return []goredis.ClusterSlot{
+				{Start: 0, End: 8191, Nodes: []goredis.ClusterNode{{Addr: addrs[0]}}},
+				{Start: 8192, End: 16383, Nodes: []goredis.ClusterNode{{Addr: addrs[1]}}},
+			}, nil
 		},
 	})
 	defer cluster.Close() //nolint:errcheck // best effort cleanup
 
-	// The reset on construction reaches the master.
-	require.NoError(t, cluster.Set(ctx, "stale", "value", 0).Err())
-	store := NewFromConnection(cluster, Config{Reset: true})
-	keys, err := store.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
+	// Each master is also read directly, so a command that reached only one of them shows.
+	nodes := make([]*goredis.Client, 0, len(addrs))
+	for _, addr := range addrs {
+		node := goredis.NewClient(&goredis.Options{Addr: addr})
+		t.Cleanup(func() { _ = node.Close() })
+		nodes = append(nodes, node)
+	}
+	dbSize := func(node *goredis.Client) int64 {
+		t.Helper()
+		size, err := node.DBSize(ctx).Result()
+		require.NoError(t, err)
+		return size
+	}
 
-	// Keys gathers every SCAN page from the master: 25 keys do not fit in one page of 10.
+	// The reset on construction reaches both masters.
+	for _, node := range nodes {
+		require.NoError(t, node.Set(ctx, "stale", "value", 0).Err())
+	}
+	store := NewFromConnection(cluster, Config{Reset: true})
+	for _, node := range nodes {
+		require.Zero(t, dbSize(node))
+	}
+
+	// Keys gathers every SCAN page from both masters, and the keys are spread over both.
 	var want [][]byte
 	for i := range 25 {
 		key := fmt.Sprintf("key-%d", i)
 		require.NoError(t, store.Set(key, []byte("value"), 0))
 		want = append(want, []byte(key))
 	}
-	keys, err = store.Keys()
+	for _, node := range nodes {
+		require.Positive(t, dbSize(node))
+	}
+	keys, err := store.Keys()
 	require.NoError(t, err)
 	require.ElementsMatch(t, want, keys)
 
-	// An explicit reset reaches the master too.
+	// An explicit reset reaches both masters too.
 	require.NoError(t, store.Reset())
-	keys, err = store.Keys()
-	require.NoError(t, err)
-	require.Nil(t, keys)
+	for _, node := range nodes {
+		require.Zero(t, dbSize(node))
+	}
 }
 
 func Test_Redis_Cluster_UnreachableReturnsError(t *testing.T) {

@@ -992,7 +992,10 @@ func testOwned(t *testing.T, base Config) {
 
 	t.Run("reset fails when the bucket cannot be recreated", func(t *testing.T) {
 		s := ownedStore(t, "norecreate")
+		// Locked: the async connect handler reads cfg under mu.
+		s.mu.Lock()
 		s.cfg.KeyValueConfig.Replicas = 3
+		s.mu.Unlock()
 
 		err := s.Reset()
 		require.ErrorContains(t, err, "create kv")
@@ -1071,12 +1074,13 @@ func testBorrowed(t *testing.T, base Config) {
 		require.Equal(t, []byte("again"), v)
 	})
 
-	t.Run("a failed read keeps the handle but a failed delete re-resolves", func(t *testing.T) {
+	t.Run("a failed read does not re-resolve yet but a failed delete does", func(t *testing.T) {
 		s, nc := newBorrowed(t, "readgone")
 		require.NoError(t, s.Set("john", []byte("doe"), 0))
 
 		deleteBucket(t, nc, "readgone")
 
+		// Known gap: invalidateOnStreamGone ignores ErrNoResponders; once it doesn't, the Delete below succeeds.
 		_, err := s.Get("john")
 		require.ErrorContains(t, err, "get:")
 		require.ErrorIs(t, err, nats.ErrNoResponders)
@@ -1090,7 +1094,7 @@ func testBorrowed(t *testing.T, base Config) {
 		require.Nil(t, v)
 	})
 
-	t.Run("keys on a vanished bucket fails then recovers", func(t *testing.T) {
+	t.Run("keys on a vanished bucket fails until a write re-resolves it", func(t *testing.T) {
 		s, nc := newBorrowed(t, "keysgone")
 		require.NoError(t, s.Set("john", []byte("doe"), 0))
 
@@ -1098,6 +1102,7 @@ func testBorrowed(t *testing.T, base Config) {
 		_, err := s.Keys()
 		require.ErrorContains(t, err, "keys:")
 
+		// Known gap: Watch reports the legacy nats.ErrStreamNotFound, which does not invalidate; the failed Set does.
 		require.Error(t, s.Set("john", []byte("doe"), 0))
 		keys, err := s.Keys()
 		require.NoError(t, err)

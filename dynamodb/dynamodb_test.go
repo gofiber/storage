@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awsdynamodb "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/dynamodb"
@@ -637,7 +638,7 @@ func requestKeys(t *testing.T, body []byte) []string {
 			}
 		}
 	}
-	require.NoError(t, json.Unmarshal(body, &req))
+	assert.NoError(t, json.Unmarshal(body, &req))
 
 	var keys []string
 	for _, wr := range req.RequestItems[fakeTable] {
@@ -793,7 +794,7 @@ func Test_DynamoDB_NewFromConnection_DescribeError(t *testing.T) {
 	require.Equal(t, 0, fake.calls("CreateTable"))
 }
 
-func Test_DynamoDB_NewFromConnection_DescribeTimeout(t *testing.T) {
+func Test_DynamoDB_NewFromConnection_DescribeCancelled(t *testing.T) {
 	// The parent context is already done, so describing the table fails before any request.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -816,7 +817,7 @@ func Test_DynamoDB_NewFromConnection_CreatesMissingTable(t *testing.T) {
 			respondJSON(tableDescription("ACTIVE")),
 		),
 		"CreateTable": func(w http.ResponseWriter, _ int, body []byte) {
-			require.NoError(t, json.Unmarshal(body, &created))
+			assert.NoError(t, json.Unmarshal(body, &created))
 			writeOK(w)
 		},
 	})
@@ -1015,8 +1016,8 @@ func Test_DynamoDB_Get_ItemValue(t *testing.T) {
 				TableName string
 				Key       map[string]struct{ S string }
 			}
-			require.NoError(t, json.Unmarshal(body, &req))
-			require.Equal(t, fakeTable, req.TableName)
+			assert.NoError(t, json.Unmarshal(body, &req))
+			assert.Equal(t, fakeTable, req.TableName)
 			gotKey = req.Key[keyAttrName].S
 
 			// "doe" in base64.
@@ -1051,10 +1052,10 @@ func Test_DynamoDB_Set_SendsKeyAndValue(t *testing.T) {
 				TableName string
 				Item      map[string]map[string]string
 			}
-			require.NoError(t, json.Unmarshal(body, &req))
-			require.Equal(t, fakeTable, req.TableName)
-			require.Equal(t, "john", req.Item[keyAttrName]["S"])
-			require.Equal(t, "ZG9l", req.Item[valAttrName]["B"])
+			assert.NoError(t, json.Unmarshal(body, &req))
+			assert.Equal(t, fakeTable, req.TableName)
+			assert.Equal(t, "john", req.Item[keyAttrName]["S"])
+			assert.Equal(t, "ZG9l", req.Item[valAttrName]["B"])
 			writeOK(w)
 		},
 	})
@@ -1134,9 +1135,9 @@ func Test_DynamoDB_Reset_Paginates(t *testing.T) {
 				ExpressionAttributeNames map[string]string
 				ExclusiveStartKey        map[string]struct{ S string }
 			}
-			require.NoError(t, json.Unmarshal(body, &req))
-			require.Equal(t, "#k", req.ProjectionExpression)
-			require.Equal(t, map[string]string{"#k": keyAttrName}, req.ExpressionAttributeNames)
+			assert.NoError(t, json.Unmarshal(body, &req))
+			assert.Equal(t, "#k", req.ProjectionExpression)
+			assert.Equal(t, map[string]string{"#k": keyAttrName}, req.ExpressionAttributeNames)
 			startKeys = append(startKeys, req.ExclusiveStartKey[keyAttrName].S)
 
 			if call == 1 {
@@ -1199,7 +1200,7 @@ func Test_DynamoDB_Reset_BatchesAndRetriesUnprocessed(t *testing.T) {
 			var raw struct {
 				RequestItems map[string][]json.RawMessage
 			}
-			require.NoError(t, json.Unmarshal(body, &raw))
+			assert.NoError(t, json.Unmarshal(body, &raw))
 			writeJSON(w, map[string]any{"UnprocessedItems": map[string]any{
 				fakeTable: raw.RequestItems[fakeTable][len(keys)-3:],
 			}})
@@ -1245,6 +1246,11 @@ func Test_DynamoDB_Reset_CancelledDuringBackoff(t *testing.T) {
 }
 
 func Test_DynamoDB_Reset_GivesUpOnUnprocessedItems(t *testing.T) {
+	// The real backoff would sleep about 9s across all attempts.
+	base, maxDelay := batchWriteBaseDelay, batchWriteMaxDelay
+	batchWriteBaseDelay, batchWriteMaxDelay = time.Millisecond, time.Millisecond
+	t.Cleanup(func() { batchWriteBaseDelay, batchWriteMaxDelay = base, maxDelay })
+
 	store, fake := newFakeStore(t, decliningHandlers())
 
 	// A table that keeps declining the work ends the reset after a bounded number of attempts.

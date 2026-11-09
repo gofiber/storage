@@ -710,14 +710,14 @@ func Test_Pebble_ReadOnly_WriteErrors(t *testing.T) {
 	require.Equal(t, []byte("doe"), result)
 }
 
-func Test_Pebble_ReadOnly_Reset_FailsMidway(t *testing.T) {
+func Test_Pebble_ReadOnly_Reset_LargerThanOneBatch(t *testing.T) {
 	db := openReadOnly(t, func(db *pebble.DB) {
 		putEntries(t, db, resetBatchSize+5, "key-%d", 0)
 	})
 	store := NewFromConnection(db, Config{GCInterval: time.Hour})
 	defer store.Close() //nolint:errcheck // best effort cleanup
 
-	// The first full chunk is the one that fails to commit.
+	// More keys than one batch holds, and the write error still surfaces.
 	require.ErrorIs(t, store.Reset(), pebble.ErrReadOnly)
 }
 
@@ -733,9 +733,11 @@ func Test_Pebble_ReadOnly_Collect_StopsOnCommitFailure(t *testing.T) {
 	require.Equal(t, [][]byte{[]byte("a")}, candidates)
 	require.False(t, store.deleteIfStillExpired(candidates), "a failed commit should end the sweep")
 
-	// The sweep stops where it began, so the next tick retries the same keys.
+	// The sweep stops where it began, so the next tick retries the same keys. A nil start would
+	// look the same as a sweep that ran to the end.
+	store.shared.gcCursor = []byte("0")
 	store.collect()
-	require.Nil(t, store.shared.gcCursor)
+	require.Equal(t, []byte("0"), store.shared.gcCursor)
 
 	value, closer, err := db.Get([]byte("a"))
 	require.NoError(t, err)

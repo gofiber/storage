@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -560,7 +561,7 @@ func Test_NewWithContext_ConnectionRefused(t *testing.T) {
 	defer cancel()
 
 	client, err := NewWithContext(ctx, closedListenerConfig(t, Config{Table: "test_table", Clean: true}))
-	require.Error(t, err)
+	require.ErrorIs(t, err, syscall.ECONNREFUSED)
 	require.Nil(t, client)
 }
 

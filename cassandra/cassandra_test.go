@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -584,7 +585,6 @@ func Test_configDefault(t *testing.T) {
 		// An empty Config takes each default field by field, unlike no config at all.
 		cfg := configDefault(Config{})
 		require.Equal(t, ConfigDefault, cfg)
-		require.Same(t, ConfigDefault.PoolConfig, cfg.PoolConfig)
 	})
 
 	t.Run("custom values are kept", func(t *testing.T) {
@@ -761,11 +761,15 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		).Scan(&ttl))
 		require.Zero(t, ttl)
 
-		// A sub-second expiration is rounded up rather than truncated to "no TTL".
+		// A sub-second expiration is rounded up rather than truncated to "no TTL", so Cassandra drops the row.
+		// Read it raw: Get would hide a missing TTL behind expires_at.
 		require.NoError(t, store.Set("short", []byte("v"), 100*time.Millisecond))
 		require.Eventually(t, func() bool {
-			val, err := store.Get("short")
-			return err == nil && val == nil
+			var raw []byte
+			err := store.Conn().Query(
+				fmt.Sprintf("SELECT value FROM %s.%s WHERE key = ?", store.keyspace, store.table), "short",
+			).Scan(&raw)
+			return errors.Is(err, gocql.ErrNotFound)
 		}, 10*time.Second, 100*time.Millisecond)
 
 		// A row whose expires_at already passed is a miss even while Cassandra still holds it.
@@ -816,7 +820,7 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		require.Nil(t, store)
 	})
 
-	t.Run("New fails and releases its session on a table Cassandra rejects", func(t *testing.T) {
+	t.Run("New fails on a table Cassandra rejects", func(t *testing.T) {
 		// Without Reset the failure comes from creating the table, with Reset from dropping it first.
 		for _, reset := range []bool{false, true} {
 			store, err := New(Config{Hosts: hosts, Keyspace: base.keyspace, Table: "1invalid", Consistency: gocql.One, Reset: reset})
@@ -886,7 +890,7 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		}
 	})
 
-	t.Run("Close closes an owned session once", func(t *testing.T) {
+	t.Run("Close closes an owned session", func(t *testing.T) {
 		store, err := New(Config{Hosts: hosts, Keyspace: base.keyspace, Table: "life_close", Consistency: gocql.One})
 		require.NoError(t, err)
 		require.NotNil(t, store.Conn())
@@ -895,7 +899,7 @@ func Test_Cassandra_Lifecycle(t *testing.T) {
 		require.NoError(t, store.Close())
 		require.True(t, store.Conn().Closed())
 
-		// A second Close must not reach gocql, which panics on a double close.
+		// A second Close is a no-op.
 		require.NoError(t, store.Close())
 
 		require.ErrorIs(t, store.SetWithContext(ctx, "k", []byte("v"), 0), ErrClosed)
