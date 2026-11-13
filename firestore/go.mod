@@ -7,7 +7,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.45.0
-	google.golang.org/api v0.313.0
+	google.golang.org/api v0.314.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
