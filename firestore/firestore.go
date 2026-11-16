@@ -27,6 +27,9 @@ import (
 // ErrClosed is returned by every operation attempted after Close; a borrowed client stays open, so the latch is the only signal.
 var ErrClosed = errors.New("firestore: storage is closed")
 
+// Reset holds at most twice resetChunk delete jobs before checking the older half.
+const resetChunk = 1000
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	closed     atomic.Bool
@@ -133,7 +136,11 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		go func() {
 			delCtx, cancel := context.WithTimeout(s.ctx, s.timeout)
 			defer cancel()
-			if _, err := s.client.Collection(s.collection).Doc(key).Delete(delCtx); err != nil {
+			// Only the version read as expired: a Set that landed since must survive.
+			if _, err := doc.Ref.Delete(delCtx, firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
+				if code := status.Code(err); code == codes.FailedPrecondition || code == codes.NotFound {
+					return
+				}
 				if err != context.Canceled && err != context.DeadlineExceeded {
 					log.Printf("firestore: failed to delete expired document %s: %v", key, err)
 				}
@@ -233,6 +240,16 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	docs := s.client.Collection(s.collection).Documents(ctx)
 	defer docs.Stop()
 
+	var jobs []*firestore.BulkWriterJob
+	// Results also waits for deletes BulkWriter re-queued after a retryable error, which Flush does not.
+	waitFor := func(jobs []*firestore.BulkWriterJob) error {
+		for _, job := range jobs {
+			if _, err := job.Results(); err != nil {
+				return fmt.Errorf("failed to delete documents: %w", err)
+			}
+		}
+		return nil
+	}
 	for {
 		doc, err := docs.Next()
 		if err == iterator.Done {
@@ -242,12 +259,22 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			return fmt.Errorf("failed to iterate documents: %w", err)
 		}
 
-		if _, err := bulkWriter.Delete(doc.Ref); err != nil {
+		job, err := bulkWriter.Delete(doc.Ref)
+		if err != nil {
 			return fmt.Errorf("failed to schedule delete for doc %s: %w", doc.Ref.ID, err)
+		}
+		jobs = append(jobs, job)
+		// The newer half stays in flight while the older one is checked, so the writer never stalls.
+		if len(jobs) == 2*resetChunk {
+			if err := waitFor(jobs[:resetChunk]); err != nil {
+				return err
+			}
+			jobs = append(jobs[:0], jobs[resetChunk:]...)
 		}
 	}
 
-	return nil
+	bulkWriter.Flush()
+	return waitFor(jobs)
 }
 
 // Close the storage, and the client unless it came from NewFromConnection.

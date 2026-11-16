@@ -11,6 +11,8 @@ A Firestore storage driver using [cloud.google.com/go/firestore](https://pkg.go.
 
 **Note:** If no credentials are provided, the driver uses Application Default Credentials (ADC) or the `GOOGLE_APPLICATION_CREDENTIALS` environment variable. If credentials are provided via config (`Credentials` or `CredentialsPath`), those take precedence. See: [Google Cloud Authentication Guide](https://cloud.google.com/docs/authentication)
 
+**Note:** An expired entry is never returned, but the driver deletes its document only when that key is read again. To have Firestore remove the others, enable a [TTL policy](https://cloud.google.com/firestore/docs/ttl) on the `exp_at` field of the collection, e.g. `gcloud firestore fields ttls update exp_at --collection-group=fiber_storage --enable-ttl` (add `--database=<id>` for a named database). Entries stored without an expiration have no `exp_at` field and are kept.
+
 ### Table of Contents
 
 - [Signatures](#signatures)
@@ -146,7 +148,7 @@ type Config struct {
 	// Optional. Default is 10 seconds
 	RequestTimeout time.Duration
 
-	// Reset clears all documents in the collection on initialization
+	// Reset clears all documents in the collection on initialization; New panics if that fails
 	//
 	// Optional. Default is false
 	Reset bool

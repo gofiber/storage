@@ -35,7 +35,7 @@ type Config struct {
 	// Optional. Default is 10 seconds
 	RequestTimeout time.Duration
 
-	// Reset clears all documents in the collection on initialization
+	// Reset clears all documents in the collection on initialization; New panics if that fails
 	//
 	// Optional. Default is false
 	Reset bool
