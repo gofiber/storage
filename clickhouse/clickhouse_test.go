@@ -1,14 +1,17 @@
 package clickhouse
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
 	"errors"
+	"log"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -249,6 +252,48 @@ func Test_Get_With_Exp_ServerTimeZone(t *testing.T) {
 	}
 }
 
+func countRows(t *testing.T, client *Storage) uint64 {
+	t.Helper()
+
+	var rows uint64
+	row := client.session.QueryRow(context.Background(), "SELECT count() FROM {table:Identifier}", driver.Named("table", client.table))
+	require.NoError(t, row.Scan(&rows))
+	return rows
+}
+
+func Test_Set_Overwrites_And_GC(t *testing.T) {
+	cfg := newTestConfig(t, Config{Clean: true, GCInterval: time.Second})
+
+	for _, engine := range []ClickhouseEngine{Memory, MergeTree} {
+		t.Run(string(engine), func(t *testing.T) {
+			cfg.Engine = engine
+			cfg.Table = "test_table_" + string(engine)
+			client, err := New(cfg)
+			require.NoError(t, err)
+			defer client.Close()
+
+			for i := range 50 {
+				key := "key" + strconv.Itoa(i)
+				require.NoError(t, client.Set(key, []byte("old"), time.Hour))
+				require.NoError(t, client.Set(key, []byte("new"), 0))
+
+				value, err := client.Get(key)
+				require.NoError(t, err)
+				require.Equal(t, "new", string(value))
+			}
+			require.NoError(t, client.Set("expiring", []byte("somevalue"), time.Second))
+			require.NoError(t, client.Delete("key0"))
+
+			// Only the newest row of each of the 49 remaining keys survives the sweeps.
+			require.Eventually(t, func() bool { return countRows(t, client) == 49 }, 15*time.Second, 250*time.Millisecond)
+
+			value, err := client.Get("key1")
+			require.NoError(t, err)
+			require.Equal(t, "new", string(value))
+		})
+	}
+}
+
 func Test_DeleteWithContext(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
@@ -466,6 +511,53 @@ func Test_Clickhouse_NewFromConnection_Errors(t *testing.T) {
 	require.Error(t, err)
 }
 
+func Test_New_MigratesTableWithoutVersion(t *testing.T) {
+	cfg := newTestConfig(t, Config{Table: "legacy_table"})
+
+	options, _, err := defaultConfig(cfg)
+	require.NoError(t, err)
+	conn, err := driver.Open(&options)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	ctx := context.Background()
+	for _, engine := range []ClickhouseEngine{Memory, TinyLog} {
+		require.NoError(t, conn.Exec(ctx, "CREATE TABLE legacy_"+string(engine)+
+			" (key String, value String, expiration Datetime) ENGINE="+string(engine)))
+		require.NoError(t, conn.Exec(ctx, "INSERT INTO legacy_"+string(engine)+" VALUES ('john', 'doe', 0)"))
+	}
+
+	cfg.Table = "legacy_Memory"
+	client, err := New(cfg)
+	require.NoError(t, err)
+	defer client.Close()
+
+	value, err := client.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, "doe", string(value))
+
+	require.NoError(t, client.Set("john", []byte("smith"), 0))
+	value, err = client.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, "smith", string(value))
+
+	// The Log engines cannot add a column, so an old table there fails unless Clean lets it be recreated.
+	cfg.Table = "legacy_TinyLog"
+	cfg.Engine = TinyLog
+	_, err = New(cfg)
+	require.ErrorContains(t, err, "add version column")
+
+	cfg.Clean = true
+	recreated, err := New(cfg)
+	require.NoError(t, err)
+	require.NoError(t, recreated.Close())
+
+	cfg.Clean = false
+	reopened, err := New(cfg)
+	require.NoError(t, err)
+	require.NoError(t, reopened.Close())
+}
+
 // closedListenerConfig returns a Config pointing at a local port nothing listens on,
 // so every connection attempt is refused without needing a container.
 func closedListenerConfig(t testing.TB, cfg Config) Config {
@@ -534,9 +626,16 @@ type stubRow struct {
 
 	scanErr error
 	result  schema
+	count   uint64
 }
 
 func (stubRow) Err() error { return nil }
+
+// Scan serves the collector's count query.
+func (r stubRow) Scan(dest ...any) error {
+	*dest[0].(*uint64) = r.count
+	return nil
+}
 
 func (r stubRow) ScanStruct(dest any) error {
 	if r.scanErr != nil {
@@ -659,6 +758,7 @@ func Test_NewStorage_Success(t *testing.T) {
 	client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t", Clean: true})
 	require.NoError(t, err)
 	require.NotNil(t, client)
+	defer client.Close()
 	require.Equal(t, "t", client.table)
 	require.True(t, client.ownsConn)
 	require.Zero(t, conn.closed)
@@ -692,7 +792,8 @@ func Test_OperationsOnUnreachableServer(t *testing.T) {
 }
 
 func Test_OperationsAfterClose(t *testing.T) {
-	client := newUnreachableStorage(t)
+	client, err := newStorage(context.Background(), &stubConn{}, true, Memory, Config{Table: "t"})
+	require.NoError(t, err)
 	require.NoError(t, client.Close())
 
 	require.ErrorIs(t, client.Set("key", []byte("value"), 0), ErrClosed)
@@ -709,7 +810,8 @@ func Test_OperationsAfterClose(t *testing.T) {
 
 func Test_Close_Idempotent(t *testing.T) {
 	conn := &stubConn{}
-	client := &Storage{session: conn, table: "t", ownsConn: true}
+	client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t"})
+	require.NoError(t, err)
 
 	require.NoError(t, client.Close())
 	require.NoError(t, client.Close())
@@ -718,7 +820,8 @@ func Test_Close_Idempotent(t *testing.T) {
 
 func Test_Close_BorrowedConnectionStaysOpen(t *testing.T) {
 	conn := &stubConn{}
-	client := &Storage{session: conn, table: "t"}
+	client, err := NewFromConnection(conn, Config{Table: "t"})
+	require.NoError(t, err)
 
 	require.NoError(t, client.Close())
 	require.Zero(t, conn.closed)
@@ -727,7 +830,8 @@ func Test_Close_BorrowedConnectionStaysOpen(t *testing.T) {
 func Test_Close_ReportsFailureOnce(t *testing.T) {
 	closeErr := errors.New("close failed")
 	conn := &stubConn{closeErr: closeErr}
-	client := &Storage{session: conn, table: "t", ownsConn: true}
+	client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t"})
+	require.NoError(t, err)
 
 	require.ErrorIs(t, client.Close(), closeErr)
 	require.NoError(t, client.Close())
@@ -764,4 +868,69 @@ func Test_Get_ScanOutcomes(t *testing.T) {
 			require.Equal(t, tt.want, value)
 		})
 	}
+}
+
+func Test_GC_SkipsMutationWithoutDeadRows(t *testing.T) {
+	mutated := false
+	conn := &stubConn{row: stubRow{}, exec: func(string) error {
+		mutated = true
+		return nil
+	}}
+	client := &Storage{session: conn, table: "t"}
+
+	require.NoError(t, client.gc(context.Background(), time.Now()))
+	require.False(t, mutated)
+}
+
+func Test_GC_StopsOnPermanentErrors(t *testing.T) {
+	for _, code := range []int32{36, 48, 497} {
+		conn := &stubConn{row: stubRow{count: 1}, exec: func(string) error { return &driver.Exception{Code: code} }}
+		client := &Storage{session: conn, table: "t"}
+
+		stopped := make(chan struct{})
+		go func() {
+			client.gcTicker(context.Background(), time.Millisecond)
+			close(stopped)
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("collector kept running after code %d", code)
+		}
+	}
+
+	var sweeps atomic.Int32
+	conn := &stubConn{row: stubRow{count: 1}, exec: func(string) error {
+		sweeps.Add(1)
+		return errors.New("timeout")
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
+	defer log.SetOutput(os.Stderr)
+
+	(&Storage{session: conn, table: "t"}).gcTicker(ctx, time.Millisecond)
+	require.Greater(t, sweeps.Load(), int32(1))
+	require.Contains(t, logged.String(), "timeout")
+}
+
+func Test_New_CleanKeepsTableWhenAddColumnIsDenied(t *testing.T) {
+	dropped := false
+	conn := &stubConn{exec: func(query string) error {
+		switch query {
+		case probeVersionString:
+			return errors.New("missing column")
+		case addVersionString:
+			return &driver.Exception{Code: 497}
+		case dropTableString:
+			dropped = true
+		}
+		return nil
+	}}
+
+	_, err := NewFromConnection(conn, Config{Table: "t", Clean: true})
+	require.ErrorContains(t, err, "add version column")
+	require.False(t, dropped, "a table that only lacks a grant must not be recreated")
 }

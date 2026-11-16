@@ -49,7 +49,12 @@ type Config struct {
 	Debug bool
 	// The function to use with the debug config, default print function. It only works when debug is true
 	Debugf func(format string, v ...any)
+	// Time between sweeps of expired and replaced rows, default 10 * time.Minute; a negative value disables them
+	GCInterval time.Duration
 }
+
+// Longer than MergeTree's default old_parts_lifetime (8 minutes), so the parts a sweep replaces are gone before the next one.
+const defaultGCInterval = 10 * time.Minute
 
 func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, error) {
 	if configuration.Table == "" {
@@ -95,24 +100,47 @@ const resetDataString = `
   TRUNCATE TABLE {table:Identifier}
 `
 
-// MergeTree runs a mutation in the background unless told to wait, and Get would keep serving the key meanwhile.
-const deleteDataString = `
-  ALTER TABLE {table:Identifier} DELETE WHERE key = {key:String} SETTINGS mutations_sync = 1
-`
-
+// Rows are never updated in place: a key's entry is its row with the highest version.
 const selectDataString = `
-	SELECT value, expiration FROM {table:Identifier} WHERE key = {key:String}
+	SELECT value, expiration FROM {table:Identifier} WHERE key = {key:String} ORDER BY version DESC LIMIT 1
 `
 
 // The expiration goes in as Unix seconds, since zone-less DateTime text is read in the server's time zone.
 const insertDataString = `
-  INSERT INTO {table:Identifier} (*) VALUES ({key:String}, {value:String}, toDateTime({expiration:UInt32}))
+  INSERT INTO {table:Identifier} (key, value, expiration, version)
+  VALUES ({key:String}, {value:String}, toDateTime({expiration:UInt32}), toUnixTimestamp64Nano(now64(9)))
 `
+
+// Matches every row but the newest of each key that still has a live row. The newest row of such a key is never
+// deleted, so whatever order the rows are swept in, no replaced value can resurface.
+const gcWhereString = `
+  (key, version) NOT IN (
+    SELECT key, max(version) FROM {table:Identifier} GROUP BY key
+    HAVING countIf(expiration = toDateTime(0) OR expiration > toDateTime({now:UInt32})) > 0
+  )
+`
+
+const gcCountString = `SELECT count() FROM {table:Identifier} WHERE ` + gcWhereString
+
+const gcDataString = `ALTER TABLE {table:Identifier} DELETE WHERE ` + gcWhereString + ` SETTINGS mutations_sync = 1`
 
 const createTableString = `
   CREATE TABLE IF NOT EXISTS {table:Identifier} (
   	  key String CODEC(ZSTD(1))
   	, value String CODEC(ZSTD(1))
   	, expiration Datetime CODEC(ZSTD(1))
+  	, version UInt64 CODEC(ZSTD(1))
   ) ENGINE=%s
+`
+
+const probeVersionString = `
+  SELECT version FROM {table:Identifier} LIMIT 0
+`
+
+const addVersionString = `
+  ALTER TABLE {table:Identifier} ADD COLUMN IF NOT EXISTS version UInt64 CODEC(ZSTD(1))
+`
+
+const dropTableString = `
+  DROP TABLE {table:Identifier}
 `
