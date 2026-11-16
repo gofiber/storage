@@ -21,6 +21,12 @@ var ErrClosed = errors.New("nats: storage is closed")
 // errNotInitialized is returned before the bucket exists, which is how an unestablished connection looks.
 var errNotInitialized = errors.New("nats: kv not initialized")
 
+// errKeyTooLong wraps jetstream.ErrInvalidKey, which callers already get for keys outside the KV alphabet.
+var errKeyTooLong = fmt.Errorf("%w: too long", jetstream.ErrInvalidKey)
+
+// controlLineReserve covers the reply inbox and sizes next to the subject, with headroom for a custom inbox prefix.
+const controlLineReserve = 128
+
 // notInitialized wraps the initialization failure, if one was recorded; there may be none.
 func notInitialized(initErr error) error {
 	if initErr == nil {
@@ -112,9 +118,28 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err != nil {
-		s.err = errors.Join(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
+	if err == nil {
+		return
 	}
+	// Connection-level errors come with a nil subscription.
+	if sub != nil {
+		err = fmt.Errorf("subject %q: %w", sub.Subject, err)
+	}
+	s.err = errors.Join(s.err, err)
+}
+
+// checkKey refuses a key whose direct-get subject, the longest one a key goes into, would overrun
+// nats-server's default max_control_line: the server then closes the connection for good.
+func (s *Storage) checkKey(key string) error {
+	if len(key) > s.maxKeyLength() {
+		return errKeyTooLong
+	}
+	return nil
+}
+
+func (s *Storage) maxKeyLength() int {
+	bucket := len(s.cfg.KeyValueConfig.Bucket)
+	return nats.MAX_CONTROL_LINE_SIZE - controlLineReserve - len("$JS.API.DIRECT.GET.KV_.$KV..") - 2*bucket
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
@@ -392,6 +417,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
+	if err := s.checkKey(key); err != nil {
+		return nil, err
+	}
 
 	kv, err := s.keyValue(ctx)
 	if err != nil {
@@ -456,6 +484,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+	if err := s.checkKey(key); err != nil {
+		return err
+	}
 
 	kv, err := s.keyValue(ctx)
 	if err != nil {
@@ -509,6 +540,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 	if len(key) <= 0 {
 		return nil
+	}
+	if err := s.checkKey(key); err != nil {
+		return err
 	}
 
 	kv, err := s.keyValue(ctx)

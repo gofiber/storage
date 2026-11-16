@@ -40,6 +40,10 @@ func (s *Storage) Keys() ([]string, error)
 
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
+**Note:** An expired entry is never returned, but the driver removes it from the bucket only when that key is read again, and the default bucket has no age limit. If every entry you store has an expiration, set `KeyValueConfig.TTL` to at least the longest one so the server drops the rest; it applies to all entries, including those stored without an expiration. An existing bucket keeps its settings, so change its TTL with `jetstream.UpdateKeyValue` or the nats CLI on stream `KV_<bucket>`.
+
+**Note:** Keys must be valid NATS KV keys. A key longer than about 3,900 bytes (less for a long bucket name) is refused with `jetstream.ErrInvalidKey`, since nats-server closes the connection on a protocol line over its default `max_control_line` of 4096 bytes.
+
 ### Installation
 
 [NATS Key/Value Store](https://docs.nats.io/nats-concepts/jetstream/key-value-store) driver is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:

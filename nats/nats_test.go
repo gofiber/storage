@@ -742,6 +742,9 @@ func testHandlers(t *testing.T, base Config) {
 		s.errorHandler(nc, sub, nats.ErrSlowConsumer)
 		require.ErrorIs(t, s.err, nats.ErrSlowConsumer)
 		require.ErrorContains(t, s.err, `subject "orders.created"`)
+
+		s.errorHandler(nc, nil, nats.ErrPermissionViolation)
+		require.ErrorIs(t, s.err, nats.ErrPermissionViolation)
 	})
 }
 
@@ -945,6 +948,28 @@ func testOwned(t *testing.T, base Config) {
 		// Listing never writes: the expired entry is still there to be reclaimed by a get.
 		_, err = kv.Get(context.Background(), "stale")
 		require.NoError(t, err)
+	})
+
+	t.Run("over-long key is refused before it can close the connection", func(t *testing.T) {
+		s := ownedStore(t, "longkey")
+		longest := strings.Repeat("a", s.maxKeyLength())
+
+		require.NoError(t, s.Set(longest, []byte("doe"), 0))
+		v, err := s.Get(longest)
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), v)
+		require.NoError(t, s.Delete(longest))
+
+		tooLong := strings.Repeat("a", nats.MAX_CONTROL_LINE_SIZE)
+		_, err = s.Get(tooLong)
+		require.ErrorIs(t, err, jetstream.ErrInvalidKey)
+		require.ErrorIs(t, s.Set(tooLong, []byte("doe"), 0), jetstream.ErrInvalidKey)
+		require.ErrorIs(t, s.Delete(tooLong), jetstream.ErrInvalidKey)
+
+		require.NoError(t, s.Set("john", []byte("doe"), 0))
+		v, err = s.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), v)
 	})
 
 	t.Run("undecodable value is an error, not an expiry", func(t *testing.T) {
