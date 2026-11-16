@@ -591,15 +591,16 @@ func Test_Badger_Garbage_Collector_Does_Not_Flush_A_Fresh_Store(t *testing.T) {
 	require.Empty(t, store.db.Tables(), "a new database has nothing for a flush to reclaim")
 }
 
-// flattenHook runs fn when Flatten starts its first compaction.
-type flattenHook struct {
+// logHook runs fn the first time Badger logs a message starting with prefix.
+type logHook struct {
 	testLogger
-	once sync.Once
-	fn   func()
+	once   sync.Once
+	prefix string
+	fn     func()
 }
 
-func (h *flattenHook) Infof(format string, _ ...any) {
-	if strings.HasPrefix(format, "Attempting to compact") {
+func (h *logHook) Infof(format string, _ ...any) {
+	if strings.HasPrefix(format, h.prefix) {
 		h.once.Do(h.fn)
 	}
 }
@@ -609,7 +610,7 @@ func Test_Badger_Reset_Waits_For_Flatten(t *testing.T) {
 
 	var store *Storage
 	var resetDone, resetDuringFlatten atomic.Bool
-	hook := &flattenHook{}
+	hook := &logHook{prefix: "Attempting to compact"}
 	hook.fn = func() {
 		go func() {
 			_ = store.Reset() //nolint:errcheck // only its timing matters
@@ -643,6 +644,43 @@ func Test_Badger_Reset_Waits_For_Flatten(t *testing.T) {
 	require.Eventually(t, resetDone.Load, 5*time.Second, 10*time.Millisecond, "Flatten never compacted")
 	// DropAll restarting the compactors under a running Flatten leaks them, and they crash after Close.
 	require.False(t, resetDuringFlatten.Load(), "Reset ran while Flatten did")
+}
+
+func Test_Badger_Reset_Waits_For_Value_Log_Rewrite(t *testing.T) {
+	dir := t.TempDir()
+
+	var store *Storage
+	var resetDone, resetDuringRewrite atomic.Bool
+	hook := &logHook{prefix: "Rewriting fid"}
+	hook.fn = func() {
+		go func() {
+			_ = store.Reset() //nolint:errcheck // only its timing matters
+			resetDone.Store(true)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		resetDuringRewrite.Store(resetDone.Load())
+	}
+	store = New(Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20).WithLogger(hook),
+		GCInterval:    time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	val := make([]byte, 64<<10)
+	for i := range 96 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, time.Second))
+	}
+	require.Eventually(t, func() bool {
+		result, err := store.Get("key95")
+		return err == nil && result == nil
+	}, 5*time.Second, 50*time.Millisecond)
+
+	store.collect()
+
+	require.Eventually(t, resetDone.Load, 5*time.Second, 10*time.Millisecond, "no value-log file was rewritten")
+	// DropAll deleting the file a rewrite reads crashes the process.
+	require.False(t, resetDuringRewrite.Load(), "Reset ran while a value-log file was rewritten")
 }
 
 func Test_Badger_Garbage_Collector_Flush_Keeps_Writes_Working(t *testing.T) {

@@ -40,8 +40,10 @@ type Storage struct {
 	// vlogWritten counts the bytes of values Badger kept in the value log since the collector last flushed.
 	vlogWritten atomic.Int64
 	// flushing is held exclusively while Badger refuses writes, in a flush or Reset's DropAll, so the storage's own
-	// writes wait. Flatten holds it shared: it and DropAll both restart Badger's compactors and must not overlap.
+	// writes wait.
 	flushing sync.RWMutex
+	// collecting keeps Reset's DropAll apart from Flatten and value-log rewrites, which it breaks, without stopping writes.
+	collecting sync.Mutex
 }
 
 // New creates a new memory storage
@@ -99,6 +101,11 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 			}
 			panic(err)
 		}
+	}
+
+	// With VLogPercentile Badger lowers the threshold on its own, so every value counts.
+	if db.Opts().VLogPercentile > 0 {
+		store.vlogThreshold = 0
 	}
 
 	// Space an earlier process left in the value log is only counted by a flush, so the first collection makes one.
@@ -221,6 +228,8 @@ func (s *Storage) Reset() error {
 	if s.isClosed() {
 		return ErrClosed
 	}
+	s.collecting.Lock()
+	defer s.collecting.Unlock()
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
 	return s.db.DropAll()
@@ -288,9 +297,9 @@ func (s *Storage) collect() {
 		return
 	}
 	// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
-	s.flushing.RLock()
+	s.collecting.Lock()
 	_ = s.db.Flatten(1)
-	s.flushing.RUnlock()
+	s.collecting.Unlock()
 	_ = s.runValueLogGC()
 }
 
@@ -307,7 +316,10 @@ func (s *Storage) stopping() bool {
 // runValueLogGC repeats RunValueLogGC, which rewrites at most one file per call, until it has nothing left or Close waits.
 func (s *Storage) runValueLogGC() error {
 	for !s.stopping() {
-		if err := s.db.RunValueLogGC(0.7); err != nil {
+		s.collecting.Lock()
+		err := s.db.RunValueLogGC(0.7)
+		s.collecting.Unlock()
+		if err != nil {
 			return err
 		}
 	}
