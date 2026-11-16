@@ -2,6 +2,7 @@ package s3
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -72,6 +73,15 @@ func Test_S3_Set_Expiration(t *testing.T) {
 	result, err = testStore.Get("jane")
 	require.NoError(t, err)
 	require.Equal(t, []byte("roe"), result)
+
+	// truncating the deadline would store about half of these as already expired
+	for i := range 10 {
+		key := "short" + strconv.Itoa(i)
+		require.NoError(t, testStore.Set(key, []byte("v"), 500*time.Millisecond))
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte("v"), result, key)
+	}
 }
 
 func Test_S3_Get(t *testing.T) {
