@@ -42,6 +42,11 @@ type Storage struct {
 	kv     jetstream.KeyValue
 	err    error
 	cfg    Config
+
+	// asyncErr is only the latest async error: a caller can trigger these at will (a denied subject),
+	// so joining them would grow without bound, and overwriting err would hide why the bucket is missing.
+	asyncErr error
+
 	ctx    context.Context
 	mu     sync.RWMutex
 	closed bool
@@ -125,8 +130,7 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 	if sub != nil {
 		err = fmt.Errorf("subject %q: %w", sub.Subject, err)
 	}
-	// Only the latest: a caller can trigger these at will (a denied subject), so a joined history would grow without bound.
-	s.err = err
+	s.asyncErr = err
 }
 
 // checkKey refuses a key whose direct-get subject, the longest one a key goes into, would overrun
@@ -139,7 +143,7 @@ func (s *Storage) checkKey(key string) error {
 }
 
 func (s *Storage) maxKeyLength() int {
-	// nc is nil only when the first dial failed; nats then uses the default prefix anyway.
+	// nc is nil only in a Storage built without a constructor.
 	inbox := len(nats.InboxPrefix)
 	if s.nc != nil && s.nc.Opts.InboxPrefix != "" {
 		inbox = len(s.nc.Opts.InboxPrefix) + len(".")
@@ -319,7 +323,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed, initErr := s.kv, s.closed, s.err
+	kv, closed, initErr := s.kv, s.closed, errors.Join(s.err, s.asyncErr)
 	s.mu.RUnlock()
 
 	if closed {
@@ -379,7 +383,7 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	}
 	if err != nil {
 		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
-		return nil, notInitialized(errors.Join(s.err, err))
+		return nil, notInitialized(errors.Join(s.err, s.asyncErr, err))
 	}
 	if s.kv == nil {
 		s.kv = kv

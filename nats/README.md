@@ -42,7 +42,7 @@ func (s *Storage) Keys() ([]string, error)
 
 **Note:** An expired entry is never returned, but the driver deletes it only when that key is read again (a small delete marker stays in the bucket), and the default bucket has no age limit. If every entry you store has an expiration, set `KeyValueConfig.TTL` to at least the longest one so the server drops the rest; it applies to all entries, including those stored without an expiration. An existing bucket keeps its settings, so change its TTL with `js.UpdateKeyValue` (pass the bucket's full `KeyValueConfig`) or the nats CLI on stream `KV_<bucket>`.
 
-**Note:** Keys must be valid NATS KV keys. A key longer than about 3,900 bytes (less for a long bucket name or inbox prefix) is refused with `jetstream.ErrInvalidKey`, since nats-server closes the connection on a protocol line over its default `max_control_line` of 4096 bytes. A server with a higher `max_control_line` does not raise this limit, and a longer key written by an earlier version can only be removed by `Reset` or the bucket TTL.
+**Note:** Keys must be valid NATS KV keys. A key longer than about 3,900 bytes (less for a long bucket name or inbox prefix) is refused with `jetstream.ErrInvalidKey`, since nats-server closes the connection on a protocol line over its default `max_control_line` of 4096 bytes. The limit assumes that default: a higher server value does not raise it, and a lower one closes the connection on shorter keys too. A longer key written by an earlier version cannot be deleted through this driver; use `Reset`, the bucket TTL or the KV handle from `Conn()`.
 
 ### Installation
 

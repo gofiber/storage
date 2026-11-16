@@ -737,15 +737,15 @@ func testHandlers(t *testing.T, base Config) {
 		sub := &nats.Subscription{Subject: "orders.created"}
 
 		s.errorHandler(nc, sub, nil)
-		require.NoError(t, s.err)
+		require.NoError(t, s.asyncErr)
 
 		s.errorHandler(nc, sub, nats.ErrSlowConsumer)
-		require.ErrorIs(t, s.err, nats.ErrSlowConsumer)
-		require.ErrorContains(t, s.err, `subject "orders.created"`)
+		require.ErrorIs(t, s.asyncErr, nats.ErrSlowConsumer)
+		require.ErrorContains(t, s.asyncErr, `subject "orders.created"`)
 
 		s.errorHandler(nc, nil, nats.ErrPermissionViolation)
-		require.ErrorIs(t, s.err, nats.ErrPermissionViolation)
-		require.NotErrorIs(t, s.err, nats.ErrSlowConsumer, "only the latest async error is kept")
+		require.ErrorIs(t, s.asyncErr, nats.ErrPermissionViolation)
+		require.NotErrorIs(t, s.asyncErr, nats.ErrSlowConsumer, "only the latest async error is kept")
 	})
 }
 
@@ -852,10 +852,12 @@ func Test_Storage_Nats_NewWithContext_Failures(t *testing.T) {
 func Test_Storage_Nats_KeyValue_NotInitialized(t *testing.T) {
 	cause := errors.New("dial failed")
 	s := &Storage{ownsNC: true, err: cause}
+	s.errorHandler(nil, nil, nats.ErrPermissionViolation)
 
 	_, err := s.keyValue(context.Background())
 	require.ErrorIs(t, err, errNotInitialized)
-	require.ErrorIs(t, err, cause)
+	require.ErrorIs(t, err, cause, "a later async error must not hide the cause")
+	require.ErrorIs(t, err, nats.ErrPermissionViolation)
 }
 
 func testOwned(t *testing.T, base Config) {
