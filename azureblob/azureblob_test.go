@@ -164,13 +164,8 @@ func Test_AzureBlob_Delete(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := testStore.Get(key)
-	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
-			err = nil
-		}
-	}
 	require.NoError(t, err)
-	require.Zero(t, len(result))
+	require.Nil(t, result)
 }
 
 func Test_AzureBlob_DeleteWithContext(t *testing.T) {
@@ -217,13 +212,37 @@ func Test_AzureBlob_Get_NotExist(t *testing.T) {
 	defer testStore.Close()
 
 	result, err := testStore.Get("notexist")
-	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
-			err = nil
-		}
-	}
 	require.NoError(t, err)
-	require.Zero(t, len(result))
+	require.Nil(t, result)
+}
+
+func Test_AzureBlob_Delete_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Delete("notexist"))
+}
+
+func Test_AzureBlob_Set_Expiration(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+	require.NoError(t, testStore.Set("jane", []byte("roe"), time.Second))
+	require.NoError(t, testStore.Set("jane", []byte("roe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.Eventually(t, func() bool {
+		result, err := testStore.Get("john")
+		return err == nil && result == nil
+	}, 3*time.Second, 100*time.Millisecond, "key should expire")
+
+	result, err = testStore.Get("jane")
+	require.NoError(t, err)
+	require.Equal(t, []byte("roe"), result)
 }
 
 func Test_AzureBlob_Reset(t *testing.T) {
@@ -242,22 +261,12 @@ func Test_AzureBlob_Reset(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := testStore.Get("john1")
-	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
-			err = nil
-		}
-	}
 	require.NoError(t, err)
-	require.Zero(t, len(result))
+	require.Nil(t, result)
 
 	result, err = testStore.Get("john2")
-	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
-			err = nil
-		}
-	}
 	require.NoError(t, err)
-	require.Zero(t, len(result))
+	require.Nil(t, result)
 }
 
 func Test_AzureBlob_Conn(t *testing.T) {
@@ -774,6 +783,24 @@ func Test_AzureBlob_Reset_DeleteFails(t *testing.T) {
 
 	// The first failed delete aborts the reset.
 	require.EqualValues(t, 1, deletes.Load())
+}
+
+func Test_AzureBlob_Reset_BlobAlreadyGone(t *testing.T) {
+	var deletes atomic.Int32
+
+	store := newFakeStore(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			writeBlobList(w, "john1", "john2")
+		case http.MethodDelete:
+			deletes.Add(1)
+			writeBlobError(w, http.StatusNotFound, bloberror.BlobNotFound)
+		}
+	})
+
+	// Blobs removed between listing and deleting are not an error.
+	require.NoError(t, store.Reset())
+	require.EqualValues(t, 2, deletes.Load())
 }
 
 func Test_AzureBlob_Reset_DeletesAllListed(t *testing.T) {
