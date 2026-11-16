@@ -27,6 +27,9 @@ import (
 // ErrClosed is returned by every operation attempted after Close; a borrowed client stays open, so the latch is the only signal.
 var ErrClosed = errors.New("firestore: storage is closed")
 
+// resetChunk bounds how many delete jobs Reset holds before waiting for their results.
+const resetChunk = 1000
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	closed     atomic.Bool
@@ -238,6 +241,17 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	defer docs.Stop()
 
 	var jobs []*firestore.BulkWriterJob
+	// Results also waits for deletes BulkWriter re-queued after a retryable error, which Flush does not.
+	waitForJobs := func() error {
+		bulkWriter.Flush()
+		for _, job := range jobs {
+			if _, err := job.Results(); err != nil {
+				return fmt.Errorf("failed to delete documents: %w", err)
+			}
+		}
+		jobs = jobs[:0]
+		return nil
+	}
 	for {
 		doc, err := docs.Next()
 		if err == iterator.Done {
@@ -252,17 +266,14 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			return fmt.Errorf("failed to schedule delete for doc %s: %w", doc.Ref.ID, err)
 		}
 		jobs = append(jobs, job)
-	}
-
-	bulkWriter.Flush()
-	// Results also waits for deletes BulkWriter re-queued after a retryable error, which Flush does not.
-	for _, job := range jobs {
-		if _, err := job.Results(); err != nil {
-			return fmt.Errorf("failed to delete documents: %w", err)
+		if len(jobs) == resetChunk {
+			if err := waitForJobs(); err != nil {
+				return err
+			}
 		}
 	}
 
-	return nil
+	return waitForJobs()
 }
 
 // Close the storage, and the client unless it came from NewFromConnection.

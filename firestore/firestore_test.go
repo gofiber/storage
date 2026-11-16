@@ -806,6 +806,28 @@ func Test_Firestore_Fake_Get_ExpiredDeleteFailureIsLogged(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
+func Test_Firestore_Fake_Get_ExpiredDeleteLosingToSetIsSilent(t *testing.T) {
+	fake, cfg := startFakeFirestore(t)
+	fake.putEntry(cfg.Collection, "stale-rewritten", []byte("doe"), time.Now().Add(-time.Minute))
+	fake.setCommitErr(status.Error(codes.FailedPrecondition, "the stored version does not match the required base version"))
+
+	out := captureLog(t)
+
+	store := New(cfg)
+	defer store.Close()
+
+	val, err := store.Get("stale-rewritten")
+	require.NoError(t, err)
+	require.Nil(t, val)
+
+	require.Eventually(t, func() bool {
+		return len(fake.commitRequests()) > 0
+	}, 5*time.Second, 10*time.Millisecond)
+	require.Never(t, func() bool {
+		return strings.Contains(out.String(), "failed to delete expired document")
+	}, 200*time.Millisecond, 10*time.Millisecond)
+}
+
 func Test_Firestore_Fake_Delete(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
 
@@ -873,6 +895,26 @@ func Test_Firestore_Fake_Reset_DeletesAllDocuments(t *testing.T) {
 		docName(cfg.Collection, "a"),
 		docName(cfg.Collection, "b"),
 	}, deleted)
+}
+
+func Test_Firestore_Fake_Reset_MoreThanOneChunk(t *testing.T) {
+	fake, cfg := startFakeFirestore(t)
+	keys := make([]string, resetChunk+1)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("k%d", i)
+	}
+	fake.setQueryDocs(cfg.Collection, keys...)
+
+	store := New(cfg)
+	defer store.Close()
+
+	require.NoError(t, store.Reset())
+
+	deleted := 0
+	for _, batch := range fake.batchRequests() {
+		deleted += len(batch.GetWrites())
+	}
+	require.Equal(t, len(keys), deleted)
 }
 
 func Test_Firestore_Fake_Reset_IterateError(t *testing.T) {
