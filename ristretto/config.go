@@ -48,7 +48,7 @@ func configDefault(config ...Config) Config {
 		cfg.BufferItems = ConfigDefault.BufferItems
 	}
 
-	if cfg.DefaultCost == 0 {
+	if cfg.DefaultCost < 1 {
 		cfg.DefaultCost = ConfigDefault.DefaultCost
 	}
 

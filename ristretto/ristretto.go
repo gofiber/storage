@@ -159,7 +159,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set stores the given value for the given key along
 // with an expiration value, time.Time{} means no expiration.
-// Empty key or value will be ignored without an error.
+// Empty key or value will be ignored without an error, and so is a value too large for MaxCost.
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
