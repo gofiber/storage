@@ -86,8 +86,12 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 
 	// An expiration of 0 never expires, so no lease: etcd would raise the TTL to its minimum and drop the key.
 	if exp <= 0 {
-		_, err := s.db.Put(ctx, key, string(val))
-		return err
+		resp, err := s.db.Put(ctx, key, string(val), clientv3.WithPrevKV())
+		if err != nil {
+			return err
+		}
+		s.revoke(ctx, clientv3.LeaseID(resp.PrevKv.GetLease()))
+		return nil
 	}
 
 	// Leases have a one-second granularity, so round up rather than letting etcd expire the key at once.
@@ -96,19 +100,31 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return err
 	}
 
-	if _, err = s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID)); err != nil {
-		// Nothing is attached to the lease, so revoke it rather than leaving it to occupy the server.
-		revokeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), revokeTimeout)
-		defer cancel()
-		_, _ = s.db.Revoke(revokeCtx, lease.ID)
+	resp, err := s.db.Put(ctx, key, string(val), clientv3.WithLease(lease.ID), clientv3.WithPrevKV())
+	if err != nil {
+		// Nothing is attached to the lease, so revoke it even after ctx ended rather than leave it on the server.
+		s.revoke(context.WithoutCancel(ctx), lease.ID)
 		return err
 	}
 
+	// The Put only detached the old entry from its lease, which would otherwise live on until its TTL.
+	s.revoke(ctx, clientv3.LeaseID(resp.PrevKv.GetLease()))
 	return nil
 }
 
-// revokeTimeout bounds the cleanup revoke, so an unresponsive server cannot hang the caller.
+// revokeTimeout bounds a revoke, so an unresponsive server cannot hang the caller.
 const revokeTimeout = 5 * time.Second
+
+// revoke drops a lease left without a key, best effort. Leases granted here hold one key; a lease another
+// writer attached to more keys deletes those keys too.
+func (s *Storage) revoke(ctx context.Context, id clientv3.LeaseID) {
+	if id == clientv3.NoLease {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, revokeTimeout)
+	defer cancel()
+	_, _ = s.db.Revoke(ctx, id)
+}
 
 // ttlSeconds rounds exp up so an expiration shorter than a second never becomes zero.
 func ttlSeconds(exp time.Duration) int64 {
@@ -131,9 +147,13 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return nil
 	}
 
-	_, err := s.db.Delete(ctx, key)
+	resp, err := s.db.Delete(ctx, key, clientv3.WithPrevKV())
 	if err != nil {
 		return err
+	}
+
+	for _, kv := range resp.PrevKvs {
+		s.revoke(ctx, clientv3.LeaseID(kv.GetLease()))
 	}
 
 	return nil
