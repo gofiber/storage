@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -103,7 +102,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errors.New("the key value is required")
 	}
 
-	// Core returns the object's size with the body of the same GET, so the caller-owned value is allocated once.
+	// Core returns the size with the body of the same GET, so the caller-owned value is allocated once.
 	body, info, _, err := minio.Core{Client: s.minio}.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
 	if err != nil {
 		return nil, err
@@ -114,14 +113,15 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		}
 	}()
 
-	if info.Size < 0 {
-		return io.ReadAll(body)
+	var bb bytes.Buffer
+	if info.Size > 0 {
+		// MinRead spare bytes take the final EOF read, which is where GetObjectOptions.Checksum is verified.
+		bb.Grow(int(info.Size) + bytes.MinRead)
 	}
-	val := make([]byte, info.Size)
-	if _, err := io.ReadFull(body, val); err != nil {
+	if _, err := bb.ReadFrom(body); err != nil {
 		return nil, err
 	}
-	return val, nil
+	return bb.Bytes(), nil
 }
 
 // Get value by key
