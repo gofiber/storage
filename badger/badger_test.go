@@ -3,6 +3,7 @@ package badger
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -443,10 +444,59 @@ func Test_Badger_Garbage_Collector_Reclaims_Large_Values(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
 	require.NoError(t, err)
 	require.LessOrEqual(t, len(files), 2, "expired values were not collected")
+	require.Zero(t, store.vlogWritten.Load(), "the next collect would flush again without new writes")
 
 	result, err := store.Get("live")
 	require.NoError(t, err)
 	require.Equal(t, live, result)
+}
+
+func Test_Badger_Garbage_Collector_Reclaims_After_Reopen(t *testing.T) {
+	dir := t.TempDir()
+	cfg := Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20),
+		GCInterval:    time.Hour,
+	}
+
+	// Written by an earlier process, so the next one has counted none of it.
+	store := New(cfg)
+	val := make([]byte, 64<<10)
+	for i := range 96 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, time.Second))
+	}
+	require.NoError(t, store.Close())
+
+	store = New(cfg)
+	defer store.Close() //nolint:errcheck // best effort cleanup
+	require.Eventually(t, func() bool {
+		result, err := store.Get("key95")
+		return err == nil && result == nil
+	}, 5*time.Second, 50*time.Millisecond)
+
+	store.collect()
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(files), 2, "values expired before the restart were not collected")
+}
+
+func Test_Badger_Garbage_Collector_Does_Not_Flush_A_Shared_Database(t *testing.T) {
+	db, err := badger.Open(testOptions(t.TempDir()).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	val := make([]byte, 64<<10)
+	for i := range 17 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, 0))
+	}
+	store.collect()
+
+	// A flush would have failed the application's own writes meanwhile.
+	require.Empty(t, db.Tables(), "the memtable was flushed")
 }
 
 func Test_Badger_Garbage_Collector_Reclaims_Ascending_Keys(t *testing.T) {
@@ -482,6 +532,49 @@ func Test_Badger_Garbage_Collector_Reclaims_Ascending_Keys(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
 	require.NoError(t, err)
 	require.LessOrEqual(t, len(files), 3, "expired values on the base level were not collected")
+}
+
+func Test_Badger_Garbage_Collector_Reclaims_Below_The_Base_Level(t *testing.T) {
+	dir := t.TempDir()
+
+	store := New(Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20).WithBaseLevelSize(64 << 10),
+		GCInterval:    time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Small values beyond BaseLevelSize on the last level move the base level up.
+	for i := range 2000 {
+		session := make([]byte, 200)
+		_, _ = rand.Read(session) // incompressible, so the level outgrows BaseLevelSize
+		require.NoError(t, store.Set(fmt.Sprintf("session%04d", i), session, 0))
+	}
+	val := make([]byte, 64<<10)
+	for i := range 17 {
+		require.NoError(t, store.Set(fmt.Sprintf("live%d", i), val, 0))
+	}
+	store.collect()
+	levels := store.db.Levels()
+	require.False(t, levels[len(levels)-1].IsBaseLevel, "the LSM must span more than one level")
+
+	for i := range 96 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, time.Second))
+	}
+	require.Eventually(t, func() bool {
+		result, err := store.Get("key95")
+		return err == nil && result == nil
+	}, 5*time.Second, 50*time.Millisecond)
+
+	store.collect()
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(files), 3, "expired values above the last level were not collected")
+
+	result, err := store.Get("session1999")
+	require.NoError(t, err)
+	require.Len(t, result, 200)
 }
 
 func Test_Badger_Garbage_Collector_Flush_Keeps_Writes_Working(t *testing.T) {

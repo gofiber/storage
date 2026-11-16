@@ -3,6 +3,7 @@ package badger
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -97,6 +98,11 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 			}
 			panic(err)
 		}
+	}
+
+	// Space an earlier process left in the value log is only counted by a flush, so the first collection makes one.
+	if files, _ := filepath.Glob(filepath.Join(db.Opts().ValueDir, "*.vlog")); len(files) > 1 {
+		store.vlogWritten.Store(store.vlogFileSize)
 	}
 
 	// Start garbage collector
@@ -278,6 +284,8 @@ func (s *Storage) collect() {
 		return
 	}
 	if s.flush() == nil {
+		// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
+		_ = s.db.Flatten(1)
 		_ = s.runValueLogGC()
 	}
 }
