@@ -41,7 +41,7 @@ func (s *Storage) RemoveBucket() error
 func (s *Storage) Conn() *minio.Client
 ```
 
-**Note:** MinIO has no per-object time to live, so `Set` stores the expiration as the object's user metadata `exp` (a Unix timestamp, rounded up to the second) and `Get` returns `nil, nil` for an object past it. Expired objects are not deleted; use a bucket lifecycle rule to reclaim them. Objects written by earlier versions carry no expiration and never expire.
+**Note:** MinIO has no per-object time to live, so `Set` stores the expiration as the object's user metadata `exp` (a Unix timestamp, rounded up to the second) and `Get` returns `nil, nil` for an object past it. Expired objects are not deleted; use a bucket lifecycle rule to reclaim them. Objects written by earlier versions carry no expiration and never expire. An `exp` entry in the configured `PutObjectOptions.UserMetadata` is ignored.
 
 **Note:** Keys are used as object names unchanged. A key MinIO does not accept as an object name (for example longer than 1024 bytes, with a `/`-separated segment longer than 255 bytes, not valid UTF-8, or containing `//`, `.` or `..` segments) makes `Get`, `Set` and `Delete` return an error, so hash keys built from untrusted input. A leading `/` is dropped, so `/a` and `a` share one object.
 

@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"log"
-	"maps"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -159,6 +159,14 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	s.cfg.PutObjectOptions.ContentType = http.DetectContentType(val)
 
 	opts := s.cfg.PutObjectOptions
+	// Copied per call so a deadline never leaks into another call; a configured exp in any spelling maps to the
+	// same header and would override (or, with exp 0, invent) the deadline, so it is dropped.
+	opts.UserMetadata = make(map[string]string, len(s.cfg.PutObjectOptions.UserMetadata)+1)
+	for k, v := range s.cfg.PutObjectOptions.UserMetadata {
+		if !strings.EqualFold(k, expMetadataKey) && !strings.EqualFold(k, "X-Amz-Meta-"+expMetadataKey) {
+			opts.UserMetadata[k] = v
+		}
+	}
 	if exp > 0 {
 		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
 		deadline := time.Now().Add(exp)
@@ -166,9 +174,6 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		if deadline.Nanosecond() != 0 {
 			expireAt++
 		}
-		// copy the configured metadata so the deadline never leaks into another call
-		opts.UserMetadata = make(map[string]string, len(s.cfg.PutObjectOptions.UserMetadata)+1)
-		maps.Copy(opts.UserMetadata, s.cfg.PutObjectOptions.UserMetadata)
 		opts.UserMetadata[expMetadataKey] = strconv.FormatInt(expireAt, 10)
 	}
 

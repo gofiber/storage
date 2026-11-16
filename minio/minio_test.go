@@ -1,12 +1,14 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	miniogo "github.com/minio/minio-go/v7"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/minio"
@@ -227,22 +229,35 @@ func Test_Set_Not_Exists_Bucket(t *testing.T) {
 func Test_Set_Expiration(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close()
+	ctx := context.Background()
 
-	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+	// A configured exp in any spelling must neither override nor invent a deadline.
+	testStore.cfg.PutObjectOptions.UserMetadata = map[string]string{"Exp": "1", "X-Amz-Meta-Exp": "1"}
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Hour))
 	require.NoError(t, testStore.Set("jane", []byte("roe"), 0))
 
-	result, err := testStore.Get("john")
+	info, err := testStore.minio.StatObject(ctx, testStore.cfg.Bucket, "john", miniogo.StatObjectOptions{})
 	require.NoError(t, err)
-	require.Equal(t, []byte("doe"), result)
-
-	require.Eventually(t, func() bool {
-		result, err := testStore.Get("john")
-		return err == nil && result == nil
-	}, 3*time.Second, 100*time.Millisecond, "key should expire")
-
-	result, err = testStore.Get("jane")
+	deadline, err := strconv.ParseInt(info.Metadata.Get("X-Amz-Meta-Exp"), 10, 64)
 	require.NoError(t, err)
-	require.Equal(t, []byte("roe"), result)
+	require.InDelta(t, time.Now().Add(time.Hour).Unix(), deadline, 60)
+
+	for key, want := range map[string]string{"john": "doe", "jane": "roe"} {
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte(want), result)
+	}
+
+	// A past deadline is written directly, so the expired read needs no waiting.
+	opts := testStore.cfg.PutObjectOptions
+	opts.UserMetadata = map[string]string{expMetadataKey: "1"}
+	_, err = testStore.minio.PutObject(ctx, testStore.cfg.Bucket, "expired", bytes.NewReader([]byte("old")), 3, opts)
+	require.NoError(t, err)
+
+	result, err := testStore.Get("expired")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_Delete(t *testing.T) {
