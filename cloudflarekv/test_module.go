@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"path"
 
 	"github.com/cloudflare/cloudflare-go"
 )
@@ -127,6 +129,27 @@ func (t *TestModule) WriteWorkersKVEntry(ctx context.Context, rc *cloudflare.Res
 		Success: true,
 	}, nil
 
+}
+
+// Raw serves only the expiring write of Set; the test worker stores the value without the TTL.
+func (t *TestModule) Raw(ctx context.Context, method, endpoint string, data any, headers http.Header) (cloudflare.RawResponse, error) {
+	value, ok := data.([]byte)
+	if method != http.MethodPut || !ok {
+		return cloudflare.RawResponse{}, fmt.Errorf("test module: unsupported raw request %s %s", method, endpoint)
+	}
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return cloudflare.RawResponse{}, err
+	}
+	key, err := url.PathUnescape(path.Base(u.EscapedPath()))
+	if err != nil {
+		return cloudflare.RawResponse{}, err
+	}
+
+	resp, err := t.WriteWorkersKVEntry(ctx, nil, cloudflare.WriteWorkersKVEntryParams{Key: key, Value: value})
+
+	return cloudflare.RawResponse{Response: resp}, err
 }
 
 func (t *TestModule) DeleteWorkersKVEntry(ctx context.Context, rc *cloudflare.ResourceContainer, params cloudflare.DeleteWorkersKVEntryParams) (cloudflare.Response, error) {
