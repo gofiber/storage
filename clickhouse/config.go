@@ -70,14 +70,12 @@ func defaultConfig(configuration Config) (driver.Options, ClickhouseEngine, erro
 
 	config := driver.Options{
 		Addr: []string{fmt.Sprintf("%s:%d", configuration.Host, configuration.Port)},
-	}
-
-	if configuration.Username != "" && configuration.Password != "" {
-		config.Auth = driver.Auth{
+		// An empty Username logs in as "default", so a passwordless user still gets its Database.
+		Auth: driver.Auth{
 			Database: configuration.Database,
 			Username: configuration.Username,
 			Password: configuration.Password,
-		}
+		},
 	}
 
 	if configuration.TLSConfig != nil {
@@ -97,16 +95,19 @@ const resetDataString = `
   TRUNCATE TABLE {table:Identifier}
 `
 
+// MergeTree runs a mutation in the background unless told to wait, and Get would keep serving the key meanwhile.
+// 2 also waits for every replica and acts like 1 on other tables.
 const deleteDataString = `
-  ALTER TABLE {table:Identifier} DELETE WHERE key = {key:String}
+  ALTER TABLE {table:Identifier} DELETE WHERE key = {key:String} SETTINGS mutations_sync = 2
 `
 
 const selectDataString = `
 	SELECT value, expiration FROM {table:Identifier} WHERE key = {key:String}
 `
 
+// The expiration goes in as Unix seconds, since zone-less DateTime text is read in the server's time zone.
 const insertDataString = `
-  INSERT INTO {table:Identifier} (*) VALUES ({key:String}, {value:String}, {expiration:Datetime})
+  INSERT INTO {table:Identifier} (*) VALUES ({key:String}, {value:String}, toDateTime({expiration:UInt32}))
 `
 
 const createTableString = `

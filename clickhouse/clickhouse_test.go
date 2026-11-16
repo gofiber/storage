@@ -35,7 +35,7 @@ const (
 
 // newTestConfig starts a clickhouse testcontainer and returns the given config
 // populated with the connection details for that container.
-func newTestConfig(t testing.TB, cfg Config) Config {
+func newTestConfig(t testing.TB, cfg Config, opts ...testcontainers.ContainerCustomizer) Config {
 	t.Helper()
 
 	img := clickhouseImage
@@ -45,8 +45,7 @@ func newTestConfig(t testing.TB, cfg Config) Config {
 
 	ctx := context.Background()
 
-	c, err := clickhouse.Run(ctx,
-		img,
+	opts = append([]testcontainers.ContainerCustomizer{
 		clickhouse.WithUsername(clickhouseUser),
 		clickhouse.WithPassword(clickhousePass),
 		clickhouse.WithDatabase(clickhouseDB),
@@ -58,7 +57,9 @@ func newTestConfig(t testing.TB, cfg Config) Config {
 				}),
 			),
 		),
-	)
+	}, opts...)
+
+	c, err := clickhouse.Run(ctx, img, opts...)
 	testcontainers.CleanupContainer(t, c)
 	require.NoError(t, err)
 
@@ -172,7 +173,7 @@ func Test_GetWithContext(t *testing.T) {
 
 	value, err := client.GetWithContext(ctx, "somekey")
 	require.ErrorIs(t, err, context.Canceled)
-	assert.Equal(t, []byte{}, value)
+	assert.Nil(t, value)
 }
 
 func Test_Get(t *testing.T) {
@@ -215,7 +216,37 @@ func Test_Get_With_Exp(t *testing.T) {
 	value, err = client.Get("getsomekeywithexp")
 
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, value)
+	assert.Nil(t, value)
+}
+
+func Test_Get_With_Exp_ServerTimeZone(t *testing.T) {
+	for _, zone := range []string{"America/New_York", "Asia/Shanghai"} {
+		t.Run(zone, func(t *testing.T) {
+			client, err := New(newTestConfig(t, Config{
+				Engine: Memory,
+				Table:  "test_table",
+				Clean:  true,
+			}, testcontainers.WithEnv(map[string]string{"TZ": zone})))
+			require.NoError(t, err)
+			defer client.Close()
+
+			require.NoError(t, client.Set("short", []byte("somevalue"), time.Second))
+			require.NoError(t, client.Set("long", []byte("somevalue"), time.Hour))
+			require.NoError(t, client.Set("forever", []byte("somevalue"), 0))
+
+			for _, key := range []string{"long", "forever"} {
+				value, err := client.Get(key)
+				require.NoError(t, err)
+				require.Equal(t, "somevalue", string(value), key)
+			}
+
+			time.Sleep(3 * time.Second)
+
+			value, err := client.Get("short")
+			require.NoError(t, err)
+			require.Nil(t, value)
+		})
+	}
 }
 
 func Test_DeleteWithContext(t *testing.T) {
@@ -259,7 +290,26 @@ func Test_Delete(t *testing.T) {
 	value, err := client.Get("somekeytodelete")
 
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, value)
+	assert.Nil(t, value)
+}
+
+func Test_Delete_MergeTree(t *testing.T) {
+	client := newTestStore(t, Config{
+		Engine: MergeTree,
+		Table:  "test_table",
+		Clean:  true,
+	})
+	defer client.Close()
+
+	for i := range 50 {
+		key := "somekeytodelete" + strconv.Itoa(i)
+		require.NoError(t, client.Set(key, []byte("somevalue"), time.Hour))
+		require.NoError(t, client.Delete(key))
+
+		value, err := client.Get(key)
+		require.NoError(t, err)
+		require.Nil(t, value)
+	}
 }
 
 func Test_ResetWithContext(t *testing.T) {
@@ -303,7 +353,7 @@ func Test_Reset(t *testing.T) {
 	value, err := client.Get("testkey")
 
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, value)
+	assert.Nil(t, value)
 }
 
 func TestClose_ShouldReturn_NoError(t *testing.T) {
@@ -525,10 +575,10 @@ func Test_DefaultConfig_Explicit(t *testing.T) {
 	require.Equal(t, driver.Auth{Database: "fiber", Username: "user", Password: "secret"}, opts.Auth)
 }
 
-func Test_DefaultConfig_AuthRequiresUserAndPassword(t *testing.T) {
-	opts, _, err := defaultConfig(Config{Table: "t", Username: "user"})
+func Test_DefaultConfig_AuthWithoutPassword(t *testing.T) {
+	opts, _, err := defaultConfig(Config{Table: "t", Database: "fiber", Username: "user"})
 	require.NoError(t, err)
-	require.Equal(t, driver.Auth{}, opts.Auth)
+	require.Equal(t, driver.Auth{Database: "fiber", Username: "user"}, opts.Auth)
 }
 
 func Test_DefaultConfig_TLS(t *testing.T) {
@@ -684,20 +734,20 @@ func Test_Close_ReportsFailureOnce(t *testing.T) {
 	require.Equal(t, 1, conn.closed)
 }
 
-// An empty want is a miss: the key is absent or its row has expired.
+// A nil want is a miss: the key is absent or its row has expired.
 func Test_Get_ScanOutcomes(t *testing.T) {
 	scanErr := errors.New("scan failed")
 
 	tests := []struct {
 		name    string
 		row     stubRow
-		want    string
+		want    []byte
 		wantErr error
 	}{
 		{name: "scan error", row: stubRow{scanErr: scanErr}, wantErr: scanErr},
 		{name: "no rows", row: stubRow{scanErr: sql.ErrNoRows}},
-		{name: "no expiration", row: stubRow{result: schema{Value: "v", Expiration: time.Unix(0, 0)}}, want: "v"},
-		{name: "future", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(time.Hour)}}, want: "v"},
+		{name: "no expiration", row: stubRow{result: schema{Value: "v", Expiration: time.Unix(0, 0)}}, want: []byte("v")},
+		{name: "future", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(time.Hour)}}, want: []byte("v")},
 		{name: "past", row: stubRow{result: schema{Value: "v", Expiration: time.Now().Add(-time.Hour)}}},
 	}
 
@@ -711,7 +761,7 @@ func Test_Get_ScanOutcomes(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tt.want, string(value))
+			require.Equal(t, tt.want, value)
 		})
 	}
 }
