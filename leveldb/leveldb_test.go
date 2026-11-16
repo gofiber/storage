@@ -555,6 +555,19 @@ func Test_GarbageCollection_Resumes_And_Rechecks(t *testing.T) {
 	require.ErrorIs(t, err, leveldb.ErrNotFound)
 }
 
+func Test_GarbageCollection_Sweep_Reclaims_Every_Expired_Key(t *testing.T) {
+	store := newTestStorage(t)
+
+	// A sweep used to stop after 100 batches, capping what one GCInterval could reclaim.
+	putExpired(t, store, "key-", 100*collectBatchSize+1)
+	require.NoError(t, store.Set("live", []byte("doe"), time.Hour))
+
+	store.collect()
+
+	require.Nil(t, store.shared.gcCursor)
+	require.Equal(t, 1, countKeys(t, store.Conn()))
+}
+
 func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 	db := New(Config{Path: "./testdb_reset_cursor", GCInterval: time.Hour})
 	defer func() {

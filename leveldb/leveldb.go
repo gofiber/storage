@@ -64,9 +64,6 @@ const collectBatchSize = 1000
 // collectScanLimit bounds one pass, so the read lock is not held across a whole keyspace.
 const collectScanLimit = 10000
 
-// collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
-const collectMaxBatches = 100
-
 // item is the JSON envelope earlier builds wrote. Entries in it are still read,
 // but nothing writes it any more: see encode for why.
 type item struct {
@@ -587,7 +584,8 @@ func (s *Storage) gc() {
 	}
 }
 
-// collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete, and bounded so it cannot stall Close.
+// collect reclaims expired entries, re-reading candidates under the lock since LevelDB has no compare-and-delete.
+// A sweep runs to the end: capping it would cap what one GCInterval reclaims. Close is still honoured between passes.
 func (s *Storage) collect() {
 	if s.isClosed() {
 		return
@@ -595,7 +593,7 @@ func (s *Storage) collect() {
 
 	after, epoch := s.loadCursor()
 
-	for range collectMaxBatches {
+	for {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 {
 			s.deleteIfStillExpired(candidates)
@@ -614,8 +612,6 @@ func (s *Storage) collect() {
 		default:
 		}
 	}
-
-	s.storeCursor(after, epoch)
 }
 
 // loadCursor reports where the next sweep resumes, with the epoch that position belongs to.
