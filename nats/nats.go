@@ -24,8 +24,8 @@ var errNotInitialized = errors.New("nats: kv not initialized")
 // errKeyTooLong wraps jetstream.ErrInvalidKey, which callers already get for keys outside the KV alphabet.
 var errKeyTooLong = fmt.Errorf("%w: too long", jetstream.ErrInvalidKey)
 
-// controlLineReserve covers the reply inbox and sizes next to the subject, with headroom for a custom inbox prefix.
-const controlLineReserve = 128
+// controlLineReserve covers the reply inbox after its prefix and the sizes next to the subject, with headroom.
+const controlLineReserve = 121
 
 // notInitialized wraps the initialization failure, if one was recorded; there may be none.
 func notInitialized(initErr error) error {
@@ -125,7 +125,8 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 	if sub != nil {
 		err = fmt.Errorf("subject %q: %w", sub.Subject, err)
 	}
-	s.err = errors.Join(s.err, err)
+	// Only the latest: a caller can trigger these at will (a denied subject), so a joined history would grow without bound.
+	s.err = err
 }
 
 // checkKey refuses a key whose direct-get subject, the longest one a key goes into, would overrun
@@ -138,8 +139,13 @@ func (s *Storage) checkKey(key string) error {
 }
 
 func (s *Storage) maxKeyLength() int {
+	// nc is nil only when the first dial failed; nats then uses the default prefix anyway.
+	inbox := len(nats.InboxPrefix)
+	if s.nc != nil && s.nc.Opts.InboxPrefix != "" {
+		inbox = len(s.nc.Opts.InboxPrefix) + len(".")
+	}
 	bucket := len(s.cfg.KeyValueConfig.Bucket)
-	return nats.MAX_CONTROL_LINE_SIZE - controlLineReserve - len("$JS.API.DIRECT.GET.KV_.$KV..") - 2*bucket
+	return nats.MAX_CONTROL_LINE_SIZE - controlLineReserve - inbox - len("$JS.API.DIRECT.GET.KV_.$KV..") - 2*bucket
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {

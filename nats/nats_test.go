@@ -745,6 +745,7 @@ func testHandlers(t *testing.T, base Config) {
 
 		s.errorHandler(nc, nil, nats.ErrPermissionViolation)
 		require.ErrorIs(t, s.err, nats.ErrPermissionViolation)
+		require.NotErrorIs(t, s.err, nats.ErrSlowConsumer, "only the latest async error is kept")
 	})
 }
 
@@ -952,6 +953,7 @@ func testOwned(t *testing.T, base Config) {
 
 	t.Run("over-long key is refused before it can close the connection", func(t *testing.T) {
 		s := ownedStore(t, "longkey")
+		require.Equal(t, 3926, s.maxKeyLength(), "default inbox prefix, 7-byte bucket")
 		longest := strings.Repeat("a", s.maxKeyLength())
 
 		require.NoError(t, s.Set(longest, []byte("doe"), 0))
@@ -970,6 +972,20 @@ func testOwned(t *testing.T, base Config) {
 		v, err = s.Get("john")
 		require.NoError(t, err)
 		require.Equal(t, []byte("doe"), v)
+	})
+
+	t.Run("long inbox prefix shortens the key limit", func(t *testing.T) {
+		cfg := bucketCfg(base, "longinbox")
+		cfg.NatsOptions = append(cfg.NatsOptions, nats.CustomInboxPrefix(strings.Repeat("i", 200)))
+		s := New(cfg)
+		t.Cleanup(func() { _ = s.Close() })
+
+		longest := strings.Repeat("a", s.maxKeyLength())
+		require.NoError(t, s.Set(longest, []byte("doe"), 0))
+		v, err := s.Get(longest)
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), v)
+		require.True(t, s.nc.IsConnected())
 	})
 
 	t.Run("undecodable value is an error, not an expiry", func(t *testing.T) {
