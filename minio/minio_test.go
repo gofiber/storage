@@ -158,8 +158,10 @@ func Test_Get_Read_Error(t *testing.T) {
 		"checksum mismatch": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("X-Amz-Checksum-Type", "FULL_OBJECT")
 			w.Header().Set("X-Amz-Checksum-Crc32", "AAAAAA==")
-			w.Header().Set("Content-Length", "3")
-			_, _ = w.Write([]byte("abc"))
+			// minio.Object stops at the known size and skips the check for bodies this large
+			body := strings.Repeat("a", 4096)
+			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+			_, _ = w.Write([]byte(body))
 		},
 		"length beyond the body": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Length", strconv.FormatInt(1<<50, 10))
