@@ -37,6 +37,10 @@ func (s *Storage) Conn() *ristretto.Cache
 
 **Note:** `Set` calls Ristretto's `Wait` before returning, so a `Get` that follows a `Set` no longer races the cache's background writer. `Wait` drains the write buffer; it does not guarantee the entry was admitted. Ristretto is a cache with an admission policy, so an entry may be rejected on write or evicted later and a `Get` can still report a miss — read-after-write here is best-effort, not a guarantee, and this driver should not be used where a value must be readable once stored. Set `SkipWaitForWrite: true` to keep Ristretto's buffered write behaviour instead, which is roughly 3x faster on `Set` but makes a `Get` straight after a `Set` racy.
 
+**Note:** `MaxCost` is a byte budget: each entry costs the length of its value plus `DefaultCost` (which used to be the entry's whole cost), and Ristretto charges another 56 bytes per entry, so a new entry close to or larger than `MaxCost` is never stored, and `Set` returns nil as for any dropped write. Ristretto's own bookkeeping takes roughly 150 more bytes per entry that are not charged, so a cache of very small values can use a few times `MaxCost`.
+
+**Note:** Overwriting an existing key stores the new value at any size, even one larger than `MaxCost`, without evicting anything. While the cache is over `MaxCost`, each new key makes Ristretto evict some rarely read entries, and it drops the new key without an error once it samples entries read more often. This lasts until the grown entries expire or are deleted, so bound the size of values you overwrite, or keep growing values out of this storage.
+
 **Note:** Ristretto has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 
 ### Installation
@@ -74,11 +78,13 @@ type Config struct {
 	// NumCounters number of keys to track frequency of (10M).
 	NumCounters int64
 
-	// MaxCost maximum cost of cache (1GB).
+	// MaxCost maximum cost of cache (1GB). An entry costs the length of its value plus DefaultCost.
 	MaxCost int64
 
 	// BufferItems number of keys per Get buffer.
 	BufferItems int64
+
+	// DefaultCost is charged per entry on top of the length of its value.
 	DefaultCost int64
 
 	// SkipWaitForWrite makes Set return as soon as the write is buffered. It is
@@ -101,7 +107,7 @@ var ConfigDefault = Config{
 ```
 
 ### Using an Existing Ristretto Cache
-If your application already holds a `*ristretto.Cache`, you can build the storage on it instead of creating a second one. Only `DefaultCost` and `SkipWaitForWrite` are read; the sizing options come from the cache.
+If your application already holds a `*ristretto.Cache`, you can build the storage on it instead of creating a second one. Only `DefaultCost` and `SkipWaitForWrite` are read; the sizing options come from the cache. The storage charges each entry the length of its value plus `DefaultCost`, so size the cache's `MaxCost` in bytes.
 
 The cache stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working.
 

@@ -159,7 +159,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 // Set stores the given value for the given key along
 // with an expiration value, time.Time{} means no expiration.
-// Empty key or value will be ignored without an error.
+// Empty key or value will be ignored without an error, and so is a new key whose value is too large for MaxCost.
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
@@ -180,8 +180,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return ErrClosed
 	}
 
+	// Ristretto leaves sizing to the caller, so charge the value's bytes or MaxCost would only count entries.
 	// The result is ignored: a cache may drop a write under pressure or evict later, which is not an error.
-	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
+	s.cache.SetWithTTL(key, valCopy, s.defaultCost+int64(len(valCopy)), exp)
 
 	// Ristretto buffers writes, so without this a Get right after Set often misses; admission is still not guaranteed.
 	if s.waitForWrite {
