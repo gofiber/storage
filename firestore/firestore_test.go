@@ -197,6 +197,12 @@ func Test_Firestore_Set_Expiration(t *testing.T) {
 	result, err := testStore.Get(key)
 	require.NoError(t, err)
 	require.Zero(t, len(result), "Key should have expired")
+
+	// The conditional delete started by that read still reclaims the untouched document.
+	require.Eventually(t, func() bool {
+		_, err := testStore.Conn().Collection(testStore.collection).Doc(key).Get(context.Background())
+		return status.Code(err) == codes.NotFound
+	}, 5*time.Second, 50*time.Millisecond, "expired document was not deleted")
 }
 
 func Test_Firestore_Get_NotExist(t *testing.T) {
@@ -397,6 +403,7 @@ type fakeFirestore struct {
 	queryDocs []*firestorepb.Document
 	queryErr  error
 	commitErr error
+	batchErr  error
 	commits   []*firestorepb.CommitRequest
 	batches   []*firestorepb.BatchWriteRequest
 	getCalls  int
@@ -493,7 +500,12 @@ func (f *fakeFirestore) RunQuery(_ *firestorepb.RunQueryRequest, stream firestor
 func (f *fakeFirestore) BatchWrite(_ context.Context, req *firestorepb.BatchWriteRequest) (*firestorepb.BatchWriteResponse, error) {
 	f.mu.Lock()
 	f.batches = append(f.batches, req)
+	err := f.batchErr
 	f.mu.Unlock()
+
+	if err != nil {
+		return nil, err
+	}
 
 	resp := &firestorepb.BatchWriteResponse{}
 	for range req.GetWrites() {
@@ -519,6 +531,12 @@ func (f *fakeFirestore) setCommitErr(err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.commitErr = err
+}
+
+func (f *fakeFirestore) setBatchErr(err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.batchErr = err
 }
 
 func (f *fakeFirestore) setQueryErr(err error) {
@@ -761,6 +779,12 @@ func Test_Firestore_Fake_Get_ExpiredIsDeleted(t *testing.T) {
 	commits := fake.commitRequests()
 	require.Len(t, commits, 1)
 	require.Equal(t, docName(cfg.Collection, "stale"), commits[0].GetWrites()[0].GetDelete())
+
+	// The delete is conditional on the version read, so it cannot drop a Set that landed in between.
+	fake.mu.Lock()
+	readAt := fake.docs[docName(cfg.Collection, "stale")].GetUpdateTime().AsTime()
+	fake.mu.Unlock()
+	require.Equal(t, readAt, commits[0].GetWrites()[0].GetCurrentDocument().GetUpdateTime().AsTime())
 }
 
 func Test_Firestore_Fake_Get_ExpiredDeleteFailureIsLogged(t *testing.T) {
@@ -876,6 +900,19 @@ func Test_Firestore_Fake_Reset_ScheduleDeleteError(t *testing.T) {
 	err := store.Reset()
 	require.Error(t, err)
 	require.ErrorContains(t, err, "failed to schedule delete for doc dup")
+}
+
+func Test_Firestore_Fake_Reset_DeleteError(t *testing.T) {
+	fake, cfg := startFakeFirestore(t)
+	fake.setQueryDocs(cfg.Collection, "a")
+	fake.setBatchErr(status.Error(codes.PermissionDenied, "denied"))
+
+	store := New(cfg)
+	defer store.Close()
+
+	err := store.Reset()
+	require.ErrorContains(t, err, "failed to delete documents")
+	require.Equal(t, codes.PermissionDenied, status.Code(errors.Unwrap(err)))
 }
 
 func Test_Firestore_Fake_New_ResetOnInit(t *testing.T) {

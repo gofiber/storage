@@ -133,7 +133,11 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		go func() {
 			delCtx, cancel := context.WithTimeout(s.ctx, s.timeout)
 			defer cancel()
-			if _, err := s.client.Collection(s.collection).Doc(key).Delete(delCtx); err != nil {
+			// Only the version read as expired: a Set that landed since must survive.
+			if _, err := doc.Ref.Delete(delCtx, firestore.LastUpdateTime(doc.UpdateTime)); err != nil {
+				if code := status.Code(err); code == codes.FailedPrecondition || code == codes.NotFound {
+					return
+				}
 				if err != context.Canceled && err != context.DeadlineExceeded {
 					log.Printf("firestore: failed to delete expired document %s: %v", key, err)
 				}
@@ -233,6 +237,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	docs := s.client.Collection(s.collection).Documents(ctx)
 	defer docs.Stop()
 
+	var jobs []*firestore.BulkWriterJob
 	for {
 		doc, err := docs.Next()
 		if err == iterator.Done {
@@ -242,8 +247,18 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 			return fmt.Errorf("failed to iterate documents: %w", err)
 		}
 
-		if _, err := bulkWriter.Delete(doc.Ref); err != nil {
+		job, err := bulkWriter.Delete(doc.Ref)
+		if err != nil {
 			return fmt.Errorf("failed to schedule delete for doc %s: %w", doc.Ref.ID, err)
+		}
+		jobs = append(jobs, job)
+	}
+
+	bulkWriter.Flush()
+	// Results also waits for deletes BulkWriter re-queued after a retryable error, which Flush does not.
+	for _, job := range jobs {
+		if _, err := job.Results(); err != nil {
+			return fmt.Errorf("failed to delete documents: %w", err)
 		}
 	}
 
