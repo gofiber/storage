@@ -33,6 +33,8 @@ func (s *Storage) Conn() *sql.DB
 ```
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
+**Note:** SQLite allows one writer per database file, so a storage runs its `Set`, `Delete`, `Reset` and garbage collection one at a time, and `Get` waits while one of them runs, in WAL mode too. Waiting for that turn ignores the context, and a `MaxOpenConns` above 1 adds no write concurrency. Statements sent through `Conn()`, another storage or another process on the same file still contend for SQLite's lock, and while a write of this storage waits for such a lock, its `Get` calls wait as well.
+
 ### Installation
 SQLite3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash

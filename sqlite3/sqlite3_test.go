@@ -3,8 +3,10 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -582,6 +584,42 @@ func Test_SQLite3_GC_RemovesExpiredOnly(t *testing.T) {
 	require.Eventually(t, func() bool { return count("expired") == 0 }, 5*time.Second, 10*time.Millisecond)
 	require.Equal(t, 1, count("forever"))
 	require.Equal(t, 1, count("future"))
+}
+
+func Test_SQLite3_Concurrent_Clients(t *testing.T) {
+	// A short busy timeout turns any contention between the storage's own statements into an error.
+	store := New(Config{
+		Database: filepath.Join(t.TempDir(), "fiber.sqlite3") + "?_busy_timeout=100",
+		Reset:    true,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	const clients = 32
+	deadline := time.Now().Add(time.Second)
+	errs := make(chan error, clients)
+
+	var wg sync.WaitGroup
+	for i := range clients {
+		wg.Go(func() {
+			key := fmt.Sprintf("session:%d", i)
+			for time.Now().Before(deadline) {
+				if err := store.Set(key, []byte("v"), time.Hour); err != nil {
+					errs <- fmt.Errorf("set %s: %w", key, err)
+					return
+				}
+				if _, err := store.Get(key); err != nil {
+					errs <- fmt.Errorf("get %s: %w", key, err)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
 }
 
 func Test_SQLite3_Close_BorrowedHandleClosed(t *testing.T) {

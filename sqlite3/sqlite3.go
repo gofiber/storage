@@ -26,6 +26,9 @@ type Storage struct {
 	stopOnce   sync.Once
 	closed     atomic.Bool
 
+	// SQLite has one write lock per file and waiters poll for it unfairly, so statements queue here instead.
+	mu sync.RWMutex
+
 	sqlSelect string
 	sqlInsert string
 	sqlDelete string
@@ -152,13 +155,16 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	row := s.db.QueryRowContext(ctx, s.sqlSelect, key)
 	// Add db response to data
 	var (
 		data       = []byte{}
 		exp  int64 = 0
 	)
-	if err := row.Scan(&data, &exp); err != nil {
+	// Scan is inside the lock: the read lock on the file is held until the row is consumed.
+	s.mu.RLock()
+	err := s.db.QueryRowContext(ctx, s.sqlSelect, key).Scan(&data, &exp)
+	s.mu.RUnlock()
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -195,6 +201,8 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 			expSeconds++
 		}
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds)
 	return err
 }
@@ -213,6 +221,8 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, err := s.db.ExecContext(ctx, s.sqlDelete, key)
 	return err
 }
@@ -227,6 +237,8 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.isClosed() {
 		return ErrClosed
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, err := s.db.ExecContext(ctx, s.sqlReset)
 	return err
 }
@@ -288,6 +300,8 @@ func (s *Storage) gcTicker() {
 
 // gc deletes all expired entries
 func (s *Storage) gc(ctx context.Context, t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
 }
 
