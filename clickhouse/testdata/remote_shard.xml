@@ -1,0 +1,15 @@
+<clickhouse>
+    <remote_servers>
+        <!-- 127.0.0.2 is not local to the server, so a Distributed table sends its inserts over the network. -->
+        <remote_shard>
+            <shard>
+                <replica>
+                    <host>127.0.0.2</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password>password</password>
+                </replica>
+            </shard>
+        </remote_shard>
+    </remote_servers>
+</clickhouse>

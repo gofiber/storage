@@ -5,7 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math"
+	"math/rand/v2"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +23,9 @@ type Storage struct {
 	session  driver.Conn
 	table    string
 	ownsConn bool
+
+	stopGC context.CancelFunc
+	gcDone sync.WaitGroup
 
 	closed atomic.Bool
 }
@@ -79,6 +86,21 @@ func newStorage(ctx context.Context, conn driver.Conn, ownsConn bool, engine Cli
 		return nil, err
 	}
 
+	// Tables created by older versions lack the column; their rows read as version 0, older than any new write.
+	if conn.Exec(ctx, probeVersionString, driver.Named("table", configuration.Table)) != nil {
+		err := conn.Exec(ctx, addVersionString, driver.Named("table", configuration.Table))
+		if configuration.Clean && hasExceptionCode(err, 48) {
+			// Clean discards the rows anyway, so a table that cannot add a column (the Log engines) is recreated.
+			if err = conn.Exec(ctx, dropTableString, driver.Named("table", configuration.Table)); err == nil {
+				err = conn.Exec(ctx, queryWithEngine, driver.Named("table", configuration.Table))
+			}
+		}
+		if err != nil {
+			closeOwned()
+			return nil, fmt.Errorf("clickhouse: add version column to table %q: %w", configuration.Table, err)
+		}
+	}
+
 	if configuration.Clean {
 		if err := conn.Exec(ctx, resetDataString, driver.Named("table", configuration.Table)); err != nil {
 			closeOwned()
@@ -91,11 +113,23 @@ func newStorage(ctx context.Context, conn driver.Conn, ownsConn bool, engine Cli
 		return nil, err
 	}
 
-	return &Storage{
+	gcCtx, stopGC := context.WithCancel(context.Background())
+	store := &Storage{
 		session:  conn,
 		table:    configuration.Table,
 		ownsConn: ownsConn,
-	}, nil
+		stopGC:   stopGC,
+	}
+
+	gcInterval := configuration.GCInterval
+	if gcInterval == 0 {
+		gcInterval = defaultGCInterval
+	}
+	if gcInterval > 0 {
+		store.gcDone.Go(func() { store.gcTicker(gcCtx, gcInterval) })
+	}
+
+	return store, nil
 }
 
 func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, expiration time.Duration) error {
@@ -183,7 +217,16 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 		return nil
 	}
 
-	return s.session.Exec(ctx, deleteDataString, driver.Named("table", s.table), driver.Named("key", key))
+	// A tombstone instead of an ALTER TABLE ... DELETE mutation, which MergeTree runs in the background:
+	// the newest row is already expired, so Get misses at once on every engine, and the collector removes it.
+	return s.session.Exec(
+		ctx,
+		insertDataString,
+		driver.Named("table", s.table),
+		driver.Named("key", key),
+		driver.Named("value", ""),
+		driver.Named("expiration", uint32(1)),
+	)
 }
 
 func (s *Storage) Delete(key string) error {
@@ -206,8 +249,12 @@ func (s *Storage) isClosed() bool {
 	return s.closed.Load()
 }
 
-// Close the connection unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
+// Close stops the collector and closes the connection unless it came from NewFromConnection. Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
+	// Cancelling also abandons a running sweep, so a stalled mutation cannot hold Close open.
+	s.stopGC()
+	s.gcDone.Wait()
+
 	// Idempotent: only the first Close tears anything down.
 	if !s.closed.CompareAndSwap(false, true) {
 		return nil
@@ -220,4 +267,50 @@ func (s *Storage) Close() error {
 	// Latched even on failure: the driver tears the connection down once, so a retry would report a success that never happened.
 	err := s.session.Close()
 	return err
+}
+
+func (s *Storage) gcTicker(ctx context.Context, interval time.Duration) {
+	// A random first sweep keeps instances started together from rewriting the table at the same time.
+	timer := time.NewTimer(rand.N(interval))
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case t := <-timer.C:
+			err := s.gc(ctx, t)
+			timer.Reset(interval)
+			if err == nil || ctx.Err() != nil {
+				continue
+			}
+			if sweepCannotSucceed(err) {
+				log.Printf("clickhouse: stopped deleting expired and replaced rows from table %q: %v", s.table, err)
+				return
+			}
+			// Retried next tick, but logged so a sweep that keeps failing (memory limit, timeout) is noticed.
+			log.Printf("clickhouse: deleting expired and replaced rows from table %q: %v", s.table, err)
+		}
+	}
+}
+
+// gc deletes expired and replaced rows. The mutation rewrites the data, so it only runs when there is something to delete.
+func (s *Storage) gc(ctx context.Context, t time.Time) error {
+	table, now := driver.Named("table", s.table), driver.Named("now", uint32(t.Unix()))
+
+	var dead uint64
+	if err := s.session.QueryRow(ctx, gcCountString, table, now).Scan(&dead); err != nil || dead == 0 {
+		return err
+	}
+	return s.session.Exec(ctx, gcDataString, table, now)
+}
+
+// sweepCannotSucceed reports errors no later sweep gets past: the Log engines have no mutations (48),
+// replicated tables reject the subquery (36), and the user may lack the ALTER DELETE grant (497).
+func sweepCannotSucceed(err error) bool {
+	return hasExceptionCode(err, 36, 48, 497)
+}
+
+func hasExceptionCode(err error, codes ...int32) bool {
+	var exception *driver.Exception
+	return errors.As(err, &exception) && slices.Contains(codes, exception.Code)
 }
