@@ -20,6 +20,9 @@ type Storage struct {
 	mu    sync.Mutex
 }
 
+// maxPresize bounds how far Get trusts Content-Length for its up-front allocation.
+const maxPresize = 64 << 20
+
 // errBucketNotFound is returned by CheckBucketWithContext when the configured
 // bucket does not exist, as opposed to an operational error (auth, network,
 // context cancellation) where the bucket should not be (re)created.
@@ -114,7 +117,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}()
 
 	var bb bytes.Buffer
-	if info.Size > 0 {
+	if info.Size > 0 && info.Size <= maxPresize {
 		// MinRead spare bytes take the final EOF read, which is where GetObjectOptions.Checksum is verified.
 		bb.Grow(int(info.Size) + bytes.MinRead)
 	}

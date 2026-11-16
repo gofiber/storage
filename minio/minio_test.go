@@ -161,6 +161,10 @@ func Test_Get_Read_Error(t *testing.T) {
 			w.Header().Set("Content-Length", "3")
 			_, _ = w.Write([]byte("abc"))
 		},
+		"length beyond the body": func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", strconv.FormatInt(1<<50, 10))
+			_, _ = w.Write([]byte("abc"))
+		},
 		"body cut off without length": func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("abc"))
 			w.(http.Flusher).Flush()
