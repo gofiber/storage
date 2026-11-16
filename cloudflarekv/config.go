@@ -1,5 +1,7 @@
 package cloudflarekv
 
+import "time"
+
 // Config defines the config for storage.
 type Config struct {
 
@@ -23,6 +25,12 @@ type Config struct {
 	// Optional. Default is "fiber"
 	NamespaceID string
 
+	// RequestTimeout bounds each API call whose context has no deadline, including the wait
+	// for the client's rate limiter. A negative value disables it.
+	//
+	// Optional. Default is 10 seconds
+	RequestTimeout time.Duration
+
 	// Reset clears any existing keys in existing Table
 	//
 	// Optional. Default is false
@@ -31,11 +39,12 @@ type Config struct {
 
 // ConfigDefault is the default config
 var ConfigDefault = Config{
-	Key:         "",
-	Email:       "",
-	AccountID:   "fiber",
-	NamespaceID: "fiber",
-	Reset:       false,
+	Key:            "",
+	Email:          "",
+	AccountID:      "fiber",
+	NamespaceID:    "fiber",
+	RequestTimeout: 10 * time.Second,
+	Reset:          false,
 }
 
 // Helper function to set default values
@@ -60,6 +69,9 @@ func configDefault(config ...Config) Config {
 	}
 	if cfg.NamespaceID == "" {
 		cfg.NamespaceID = ConfigDefault.NamespaceID
+	}
+	if cfg.RequestTimeout == 0 {
+		cfg.RequestTimeout = ConfigDefault.RequestTimeout
 	}
 
 	return cfg
