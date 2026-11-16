@@ -93,6 +93,8 @@ If your application already holds a `*clientv3.Client`, you can build the storag
 The client stays yours to close: `Close` on a storage built this way leaves it open, so the rest of your application keeps working. The storage itself is closed: any operation on it afterwards returns `ErrClosed`.
 
 > **Warning:** the storage does not namespace its keys. `Reset` deletes **every key** reachable through the client — on a cluster shared with service discovery or configuration, that is all of it.
+>
+> `Set` and `Delete` revoke the lease of the entry they replace. A lease that other code attached to several keys, such as a `concurrency.Session` lease, takes all of its keys with it, so keep such keys out of the storage's reach.
 
 ```go
 import (

@@ -11,6 +11,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/etcd"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const (
@@ -469,6 +470,40 @@ func TestEtcd_SetWithTTL(t *testing.T) {
 		val, err := store.Get("john")
 		require.NoError(t, err)
 		require.Equal(t, []byte("doe"), val)
+	})
+
+	t.Run("overwrite and delete revoke the replaced lease", func(t *testing.T) {
+		ctx := context.Background()
+
+		leaseOf := func(key string) clientv3.LeaseID {
+			resp, err := store.Conn().Get(ctx, key)
+			require.NoError(t, err)
+			require.Len(t, resp.Kvs, 1)
+			id := clientv3.LeaseID(resp.Kvs[0].Lease)
+			// TimeToLive reports -1 for NoLease too, which would make requireRevoked pass vacuously.
+			require.NotEqual(t, clientv3.NoLease, id)
+			return id
+		}
+		requireRevoked := func(id clientv3.LeaseID) {
+			ttl, err := store.Conn().TimeToLive(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, int64(-1), ttl.TTL, "lease %x is still alive", id)
+		}
+
+		require.NoError(t, store.Set("leased", []byte("v1"), time.Hour))
+		first := leaseOf("leased")
+
+		require.NoError(t, store.Set("leased", []byte("v2"), time.Hour))
+		requireRevoked(first)
+		second := leaseOf("leased")
+
+		require.NoError(t, store.Set("leased", []byte("v3"), 0))
+		requireRevoked(second)
+
+		require.NoError(t, store.Set("leased", []byte("v4"), time.Hour))
+		third := leaseOf("leased")
+		require.NoError(t, store.Delete("leased"))
+		requireRevoked(third)
 	})
 }
 
