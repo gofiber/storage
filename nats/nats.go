@@ -21,6 +21,12 @@ var ErrClosed = errors.New("nats: storage is closed")
 // errNotInitialized is returned before the bucket exists, which is how an unestablished connection looks.
 var errNotInitialized = errors.New("nats: kv not initialized")
 
+// errKeyTooLong wraps jetstream.ErrInvalidKey, which callers already get for keys outside the KV alphabet.
+var errKeyTooLong = fmt.Errorf("%w: too long", jetstream.ErrInvalidKey)
+
+// controlLineReserve covers the reply inbox after its prefix and the sizes next to the subject, with headroom.
+const controlLineReserve = 121
+
 // notInitialized wraps the initialization failure, if one was recorded; there may be none.
 func notInitialized(initErr error) error {
 	if initErr == nil {
@@ -36,6 +42,11 @@ type Storage struct {
 	kv     jetstream.KeyValue
 	err    error
 	cfg    Config
+
+	// asyncErr is only the latest async error: a caller can trigger these at will (a denied subject),
+	// so joining them would grow without bound, and overwriting err would hide why the bucket is missing.
+	asyncErr error
+
 	ctx    context.Context
 	mu     sync.RWMutex
 	closed bool
@@ -112,9 +123,33 @@ func (s *Storage) errorHandler(nc *nats.Conn, sub *nats.Subscription, err error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err != nil {
-		s.err = errors.Join(s.err, fmt.Errorf("subject %q: %w", sub.Subject, err))
+	if err == nil {
+		return
 	}
+	// Connection-level errors come with a nil subscription.
+	if sub != nil {
+		err = fmt.Errorf("subject %q: %w", sub.Subject, err)
+	}
+	s.asyncErr = err
+}
+
+// checkKey refuses a key whose direct-get subject, the longest one a key goes into, would overrun
+// nats-server's default max_control_line: the server then closes the connection for good.
+func (s *Storage) checkKey(key string) error {
+	if len(key) > s.maxKeyLength() {
+		return errKeyTooLong
+	}
+	return nil
+}
+
+func (s *Storage) maxKeyLength() int {
+	// nc is nil only in a Storage built without a constructor.
+	inbox := len(nats.InboxPrefix)
+	if s.nc != nil && s.nc.Opts.InboxPrefix != "" {
+		inbox = len(s.nc.Opts.InboxPrefix) + len(".")
+	}
+	bucket := len(s.cfg.KeyValueConfig.Bucket)
+	return nats.MAX_CONTROL_LINE_SIZE - controlLineReserve - inbox - len("$JS.API.DIRECT.GET.KV_.$KV..") - 2*bucket
 }
 
 func newNatsKV(nc *nats.Conn, ctx context.Context, keyValueConfig jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
@@ -288,7 +323,7 @@ func NewFromConnectionWithContext(ctx context.Context, nc *nats.Conn, config ...
 // (JetStream not up yet, connection down) is retried here rather than being missing for good.
 func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	s.mu.RLock()
-	kv, closed, initErr := s.kv, s.closed, s.err
+	kv, closed, initErr := s.kv, s.closed, errors.Join(s.err, s.asyncErr)
 	s.mu.RUnlock()
 
 	if closed {
@@ -348,7 +383,7 @@ func (s *Storage) keyValue(ctx context.Context) (jetstream.KeyValue, error) {
 	}
 	if err != nil {
 		// Joined with what initialization recorded: that error is often the reason the bucket is missing.
-		return nil, notInitialized(errors.Join(s.err, err))
+		return nil, notInitialized(errors.Join(s.err, s.asyncErr, err))
 	}
 	if s.kv == nil {
 		s.kv = kv
@@ -391,6 +426,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}
 	if len(key) <= 0 {
 		return nil, nil
+	}
+	if err := s.checkKey(key); err != nil {
+		return nil, err
 	}
 
 	kv, err := s.keyValue(ctx)
@@ -456,6 +494,9 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
 	}
+	if err := s.checkKey(key); err != nil {
+		return err
+	}
 
 	kv, err := s.keyValue(ctx)
 	if err != nil {
@@ -509,6 +550,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 	if len(key) <= 0 {
 		return nil
+	}
+	if err := s.checkKey(key); err != nil {
+		return err
 	}
 
 	kv, err := s.keyValue(ctx)
