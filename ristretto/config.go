@@ -5,11 +5,13 @@ type Config struct {
 	// NumCounters number of keys to track frequency of (10M).
 	NumCounters int64
 
-	// MaxCost maximum cost of cache (1GB).
+	// MaxCost maximum cost of cache (1GB). An entry costs the length of its value plus DefaultCost.
 	MaxCost int64
 
 	// BufferItems number of keys per Get buffer.
 	BufferItems int64
+
+	// DefaultCost is charged per entry on top of the length of its value.
 	DefaultCost int64
 
 	// SkipWaitForWrite makes Set return as soon as the write is buffered. It is

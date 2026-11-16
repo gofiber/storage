@@ -180,8 +180,9 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		return ErrClosed
 	}
 
+	// Ristretto leaves sizing to the caller, so charge the value's bytes or MaxCost would only count entries.
 	// The result is ignored: a cache may drop a write under pressure or evict later, which is not an error.
-	s.cache.SetWithTTL(key, valCopy, s.defaultCost, exp)
+	s.cache.SetWithTTL(key, valCopy, s.defaultCost+int64(len(valCopy)), exp)
 
 	// Ristretto buffers writes, so without this a Get right after Set often misses; admission is still not guaranteed.
 	if s.waitForWrite {

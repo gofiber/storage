@@ -2,6 +2,7 @@ package ristretto
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -475,6 +476,28 @@ func Test_Ristretto_ReleaseCacheState_Unknown(t *testing.T) {
 	_, held := cacheStates[cache]
 	cacheStatesMu.Unlock()
 	require.False(t, held)
+}
+
+func Test_Ristretto_MaxCost_Bounds_Value_Bytes(t *testing.T) {
+	const maxCost = 1 << 20
+
+	store := New(Config{MaxCost: maxCost})
+	defer func() { require.NoError(t, store.Close()) }()
+
+	// Four times MaxCost in values, which a flat cost per entry let in whole.
+	val := make([]byte, 64<<10)
+	for i := range 64 {
+		require.NoError(t, store.Set(fmt.Sprintf("key-%d", i), val, 0))
+	}
+
+	held := 0
+	for i := range 64 {
+		got, err := store.Get(fmt.Sprintf("key-%d", i))
+		require.NoError(t, err)
+		held += len(got)
+	}
+	require.Positive(t, held)
+	require.LessOrEqual(t, held, maxCost)
 }
 
 func Test_Ristretto_ConfigDefault_Overrides(t *testing.T) {
