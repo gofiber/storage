@@ -144,20 +144,38 @@ func Test_MYSQL_GC_Does_Not_Block_Writes(t *testing.T) {
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
 	// Mostly expired rows: a range DELETE on e would then scan and lock the whole table.
-	for i := range 200 {
+	const expired = gcBatchSize - 1
+	for i := range expired {
 		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
 	}
+	// Expires last and sorts last, so the sweep reaches it last whichever index it walks.
+	require.NoError(t, testStore.Set("zz-expired", []byte("doe"), 1500*time.Millisecond))
 	require.NoError(t, testStore.Set("live-1", []byte("doe"), time.Hour))
 	require.NoError(t, testStore.Set("live-2", []byte("doe"), 2*time.Hour))
 	require.NoError(t, testStore.Set("forever", []byte("doe"), 0))
 
-	// Hold a sweep open.
-	sweep, err := testStore.db.Begin()
+	// Setting zz-expired again holds its row, so the sweep waits there with its other deletes uncommitted,
+	// which a dirty read shows as no expired rows left.
+	setAgain, err := testStore.db.Begin()
 	require.NoError(t, err)
-	defer sweep.Rollback() //nolint:errcheck // best effort cleanup
-	deleted, err := testStore.gcBatch(context.Background(), sweep, time.Now().Add(2*time.Second).Unix())
+	defer setAgain.Rollback() //nolint:errcheck // best effort cleanup
+	_, err = setAgain.Exec(testStore.sqlInsert, "zz-expired", []byte("jane"), 0, []byte("jane"), 0)
 	require.NoError(t, err)
-	require.Equal(t, 200, deleted)
+
+	swept := make(chan struct{})
+	go func() {
+		defer close(swept)
+		testStore.gc(context.Background(), time.Now().Add(3*time.Second))
+	}()
+	require.Eventually(t, func() bool {
+		tx, err := testStore.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadUncommitted, ReadOnly: true})
+		if err != nil {
+			return false
+		}
+		defer tx.Rollback() //nolint:errcheck // read only
+		var left int
+		return tx.QueryRow("SELECT COUNT(*) FROM fiber_storage WHERE e > 0 AND e < ?", time.Now().Add(time.Minute).Unix()).Scan(&left) == nil && left == 0
+	}, 10*time.Second, 10*time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -167,18 +185,38 @@ func Test_MYSQL_GC_Does_Not_Block_Writes(t *testing.T) {
 	require.NoError(t, testStore.SetWithContext(ctx, "new-long", []byte("jane"), 2*time.Hour))
 	require.NoError(t, testStore.SetWithContext(ctx, "new-forever", []byte("jane"), 0))
 	require.NoError(t, testStore.DeleteWithContext(ctx, "live-2"))
+
+	// The sweep rechecks the expiration under the row lock, so the entry set again survives.
+	require.NoError(t, setAgain.Commit())
+	<-swept
+	val, err := testStore.Get("zz-expired")
+	require.NoError(t, err)
+	require.Equal(t, []byte("jane"), val)
+	var left int
+	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage WHERE k LIKE 'expired-%'").Scan(&left))
+	require.Zero(t, left)
 }
 
 func Test_MYSQL_GC_Deletes_More_Than_A_Batch(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
-	for i := range 2*gcBatch + 1 {
+	for i := range 2*gcBatchSize + 1 {
 		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
 	}
 	require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
 
+	// A pool keeping no connection idle would dial for every statement of the sweep.
+	testStore.db.SetMaxIdleConns(0)
+	connections := func() int {
+		var name string
+		var n int
+		require.NoError(t, testStore.db.QueryRow("SHOW GLOBAL STATUS LIKE 'Connections'").Scan(&name, &n))
+		return n
+	}
+	before := connections()
 	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
+	require.Less(t, connections()-before, 5)
 
 	var rows int
 	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage").Scan(&rows))
@@ -312,7 +350,11 @@ func Test_MYSQL_Migration_Gives_Up_On_A_Busy_Table(t *testing.T) {
 	}()
 	select {
 	case r := <-done:
-		require.NotNil(t, r, "New must fail instead of migrating under a held lock")
+		err, ok := r.(error)
+		require.True(t, ok, "New must fail instead of migrating under a held lock: %v", r)
+		var lockWait *mysqldriver.MySQLError
+		require.ErrorAs(t, err, &lockWait)
+		require.EqualValues(t, 1205, lockWait.Number)
 	case <-time.After(3 * migrateLockWait * time.Second):
 		t.Fatal("New kept waiting for the metadata lock")
 	}
@@ -381,6 +423,24 @@ func Test_MySQL_Close_Twice(t *testing.T) {
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})
+}
+
+func Test_MYSQL_Migration_Leaves_Pooled_Sessions_Alone(t *testing.T) {
+	c := mustStartMySQL(t)
+
+	dsn, err := c.ConnectionString(context.Background(), "lock_wait_timeout=10")
+	require.NoError(t, err)
+	db, err := sql.Open("mysql", dsn)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+	db.SetMaxOpenConns(1)
+
+	store := NewFromConnection(db, Config{Table: "fiber_storage_session"})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	var wait int
+	require.NoError(t, db.QueryRow("SELECT @@SESSION.lock_wait_timeout").Scan(&wait))
+	require.Equal(t, 10, wait)
 }
 
 func Test_MYSQL_NewFromConnection(t *testing.T) {

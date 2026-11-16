@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,8 +20,9 @@ var ErrClosed = errors.New("mysql: storage is closed")
 // maxKeyLen holds any key of the old VARCHAR(64) column, even at 4 bytes per character.
 const maxKeyLen = 256
 
-// gcBatch bounds how many expired keys one garbage collection round reads.
-const gcBatch = 1000
+// gcBatchSize bounds how many expired keys one garbage collection transaction deletes,
+// and so how long a Set of one of them waits for it.
+const gcBatchSize = 100
 
 // migrateLockWait bounds, in seconds, the migration's wait for other transactions on the table:
 // meanwhile every read and write on it queues behind the ALTER.
@@ -43,12 +45,6 @@ type Storage struct {
 
 	sqlGCSelect string
 	sqlGCDelete string
-}
-
-// queryPreparer is a *sql.DB or a *sql.Tx.
-type queryPreparer interface {
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
 var (
@@ -148,7 +144,7 @@ func New(config ...Config) *Storage {
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
 		// The sweep reads expired keys without locking and deletes them one by one, rechecking e so an entry set again survives.
-		sqlGCSelect: fmt.Sprintf("SELECT k FROM %s WHERE e > 0 AND e <= ? ORDER BY e LIMIT %d", cfg.Table, gcBatch),
+		sqlGCSelect: fmt.Sprintf("SELECT k FROM %s WHERE e > 0 AND e <= ? ORDER BY e LIMIT %d", cfg.Table, gcBatchSize),
 		sqlGCDelete: fmt.Sprintf("DELETE FROM %s WHERE k = ? AND e > 0 AND e <= ?", cfg.Table),
 	}
 
@@ -348,19 +344,28 @@ func (s *Storage) gcTicker() {
 // gc deletes all expired entries by primary key: a DELETE over a range of e, or over many keys at once, turns
 // into a full table scan once most rows have expired, and under REPEATABLE READ that locks every live row.
 func (s *Storage) gc(ctx context.Context, t time.Time) {
+	// One connection for the sweep: a pool keeping none idle would dial for every statement.
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return
+	}
+	defer conn.Close() //nolint:errcheck // returns the connection to the pool
 	for {
-		n, err := s.gcBatch(ctx, s.db, t.Unix())
-		if err != nil || n < gcBatch {
+		keys, err := s.expiredKeys(ctx, conn, t.Unix())
+		if err != nil || len(keys) == 0 {
+			return
+		}
+		if s.deleteExpired(ctx, conn, keys, t.Unix()) != nil || len(keys) < gcBatchSize {
 			return
 		}
 	}
 }
 
-// gcBatch deletes up to gcBatch entries expired at now and returns how many keys it found.
-func (s *Storage) gcBatch(ctx context.Context, q queryPreparer, now int64) (int, error) {
-	rows, err := q.QueryContext(ctx, s.sqlGCSelect, now)
+// expiredKeys reads up to gcBatchSize keys expired at now without locking them.
+func (s *Storage) expiredKeys(ctx context.Context, conn *sql.Conn, now int64) ([][]byte, error) {
+	rows, err := conn.QueryContext(ctx, s.sqlGCSelect, now)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	var keys [][]byte
 	for rows.Next() {
@@ -374,21 +379,26 @@ func (s *Storage) gcBatch(ctx context.Context, q queryPreparer, now int64) (int,
 		err = rows.Err()
 	}
 	_ = rows.Close()
-	if err != nil || len(keys) == 0 {
-		return 0, err
-	}
+	return keys, err
+}
 
-	stmt, err := q.PrepareContext(ctx, s.sqlGCDelete)
+// deleteExpired deletes keys in one transaction, sparing those set again since they were read.
+func (s *Storage) deleteExpired(ctx context.Context, conn *sql.Conn, keys [][]byte, now int64) error {
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	defer stmt.Close() //nolint:errcheck // nothing to do about a failed close of a prepared statement
+	defer tx.Rollback() //nolint:errcheck // a no-op once committed
+	stmt, err := tx.PrepareContext(ctx, s.sqlGCDelete)
+	if err != nil {
+		return err
+	}
 	for _, k := range keys {
 		if _, err := stmt.ExecContext(ctx, k, now); err != nil {
-			return 0, err
+			return err
 		}
 	}
-	return len(keys), nil
+	return tx.Commit()
 }
 
 func (s *Storage) checkSchema(tableName string) {
@@ -415,8 +425,8 @@ func (s *Storage) migrate(tableName string) error {
 	if _, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION lock_wait_timeout = %d", migrateLockWait)); err != nil {
 		return fmt.Errorf(migrateErrMsg, tableName, err)
 	}
-	// Restored before the connection goes back to the pool.
-	defer func() { _, _ = conn.ExecContext(ctx, "SET SESSION lock_wait_timeout = DEFAULT") }()
+	// Discarded instead of pooled, so the short wait never reaches other statements, whatever the DSN set.
+	defer conn.Raw(func(any) error { return driver.ErrBadConn }) //nolint:errcheck // the error is what discards it
 
 	var collated bool
 	var width int64
