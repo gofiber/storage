@@ -10,11 +10,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
 // ErrClosed is returned by every operation attempted after Close.
 var ErrClosed = errors.New("mysql: storage is closed")
+
+// maxKeyLen holds any key of the old VARCHAR(64) column, even at 4 bytes per character.
+const maxKeyLen = 256
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -37,16 +40,28 @@ var (
 	checkSchemaMsg = "The `v` row has an incorrect data type. " +
 		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = "DROP TABLE IF EXISTS %s;"
+	// k is binary: a character collation folds case and accents and ignores trailing spaces, merging distinct keys.
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s ( 
-			k  VARCHAR(64) NOT NULL DEFAULT '', 
+			k  VARBINARY(256) NOT NULL DEFAULT '', 
 			v  BLOB NOT NULL, 
 			e  BIGINT NOT NULL DEFAULT '0', 
-			PRIMARY KEY (k)
+			PRIMARY KEY (k),
+			KEY e (e)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
 	}
 	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
 		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
+
+	// Tables created by earlier versions have k VARCHAR(64) and no index on e.
+	keyColumnQuery = `SELECT COLLATION_NAME IS NOT NULL, COALESCE(CHARACTER_OCTET_LENGTH, 0) FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE table_schema = DATABASE() AND table_name = ? AND COLUMN_NAME = 'k';`
+	migrateKeyQuery  = "ALTER TABLE %s MODIFY k VARBINARY(256) NOT NULL DEFAULT '';"
+	expiryIndexQuery = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+		WHERE table_schema = DATABASE() AND table_name = ? AND COLUMN_NAME = 'e' AND SEQ_IN_INDEX = 1;`
+	createExpiryIndexQuery = "CREATE INDEX e ON %s (e);"
+	migrateErrMsg          = "mysql: migrating table %s (see Migration in the README): %w"
+	expiryIndexMsg         = "mysql: could not add the index on e to table %s, so garbage collection scans the whole table (see Migration in the README): %v\n"
 )
 
 // New creates a new storage
@@ -131,6 +146,9 @@ func New(config ...Config) *Storage {
 			}
 		}()
 		store.checkSchema(cfg.Table)
+		if err := store.migrate(cfg.Table); err != nil {
+			panic(err)
+		}
 	}()
 
 	// Start garbage collector
@@ -200,6 +218,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
+	}
+	// Without strict sql_mode the server would truncate it and overwrite another key's entry.
+	if len(key) > maxKeyLen {
+		return fmt.Errorf("mysql: key too long: %d bytes, the limit is %d", len(key), maxKeyLen)
 	}
 	var expSeconds int64
 	if exp > 0 {
@@ -322,4 +344,35 @@ func (s *Storage) checkSchema(tableName string) {
 	if strings.ToLower(string(data)) != "blob" {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
+}
+
+// migrate brings a table created by an earlier version up to the current layout.
+func (s *Storage) migrate(tableName string) error {
+	var collated bool
+	var width int64
+	if err := s.db.QueryRow(keyColumnQuery, tableName).Scan(&collated, &width); err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	if collated {
+		// Byte equality is stricter than any collation, so only a key too wide for the new column could fail or be truncated.
+		if width > maxKeyLen {
+			return fmt.Errorf(migrateErrMsg, tableName, fmt.Errorf("key column holds up to %d bytes, more than %d", width, maxKeyLen))
+		}
+		if _, err := s.db.Exec(fmt.Sprintf(migrateKeyQuery, tableName)); err != nil {
+			return fmt.Errorf(migrateErrMsg, tableName, err)
+		}
+	}
+
+	// The index only speeds up garbage collection, so lacking the INDEX privilege must not stop the storage.
+	var indexes int
+	err := s.db.QueryRow(expiryIndexQuery, tableName).Scan(&indexes)
+	if err == nil && indexes == 0 {
+		_, err = s.db.Exec(fmt.Sprintf(createExpiryIndexQuery, tableName))
+	}
+	// ER_DUP_KEYNAME: another instance starting at the same time created it first.
+	var myErr *mysqldriver.MySQLError
+	if err != nil && (!errors.As(err, &myErr) || myErr.Number != 1061) {
+		fmt.Printf(expiryIndexMsg, tableName, err)
+	}
+	return nil
 }

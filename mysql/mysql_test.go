@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -138,6 +139,28 @@ func Test_MYSQL_GC(t *testing.T) {
 	require.Equal(t, testVal, val)
 }
 
+func Test_MYSQL_GC_Does_Not_Block_Writes(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, testStore.Set("expired", []byte("doe"), time.Nanosecond))
+	require.NoError(t, testStore.Set("live-1", []byte("doe"), time.Hour))
+	require.NoError(t, testStore.Set("live-2", []byte("doe"), 2*time.Hour))
+
+	// Hold a sweep open: without an index on e it scans and locks every row until it ends.
+	sweep, err := testStore.db.Begin()
+	require.NoError(t, err)
+	defer sweep.Rollback() //nolint:errcheck // best effort cleanup
+	_, err = sweep.Exec(testStore.sqlGC, time.Now().Add(2*time.Second).Unix())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, testStore.SetWithContext(ctx, "live-2", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.SetWithContext(ctx, "new", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.DeleteWithContext(ctx, "live-2"))
+}
+
 func Test_MYSQL_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
@@ -150,6 +173,79 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 	result, err := testStore.Get("0xF6")
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+}
+
+func Test_MYSQL_Key_Is_Exact(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const key = "session:AbCdEf"
+	require.NoError(t, testStore.Set(key, []byte("doe"), 0))
+
+	for _, other := range []string{"session:abcdef", "session:AbCdEf ", "session:ÀbCdEf"} {
+		val, err := testStore.Get(other)
+		require.NoError(t, err)
+		require.Nil(t, val, "%q must not read the entry of %q", other, key)
+
+		require.NoError(t, testStore.Set(other, []byte("other"), 0))
+		require.NoError(t, testStore.Delete(other))
+
+		val, err = testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val, "%q must not touch the entry of %q", other, key)
+	}
+
+	// Keys the old utf8mb3 VARCHAR(64) column refused.
+	for _, k := range []string{strings.Repeat("a", maxKeyLen), "session:😀", "session:\xff"} {
+		require.NoError(t, testStore.Set(k, []byte("v"), 0))
+		val, err := testStore.Get(k)
+		require.NoError(t, err)
+		require.Equal(t, []byte("v"), val)
+	}
+
+	// Refused rather than truncated onto another key when strict sql_mode is off.
+	require.ErrorContains(t, testStore.Set(strings.Repeat("a", maxKeyLen+1), []byte("v"), 0), "key too long")
+}
+
+// Test_MYSQL_Migrates_Legacy_Table opens a table in the layout earlier versions created.
+func Test_MYSQL_Migrates_Legacy_Table(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const table = "fiber_storage_legacy"
+	_, err := testStore.db.Exec("CREATE TABLE " + table + ` (
+		k  VARCHAR(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;`)
+	require.NoError(t, err)
+	_, err = testStore.db.Exec("INSERT INTO "+table+" (k, v, e) VALUES (?,?,0), (?,?,0)", "Jöhn", []byte("doe"), "jane ", []byte("roe"))
+	require.NoError(t, err)
+
+	// The second round finds the table migrated and leaves it alone.
+	for range 2 {
+		store := NewFromConnection(testStore.db, Config{Table: table})
+		require.NoError(t, store.Close())
+	}
+
+	var collated bool
+	var width int64
+	require.NoError(t, testStore.db.QueryRow(keyColumnQuery, table).Scan(&collated, &width))
+	require.False(t, collated)
+	require.EqualValues(t, maxKeyLen, width)
+	var indexes int
+	require.NoError(t, testStore.db.QueryRow(expiryIndexQuery, table).Scan(&indexes))
+	require.Equal(t, 1, indexes)
+
+	store := NewFromConnection(testStore.db, Config{Table: table})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	for key, want := range map[string][]byte{"Jöhn": []byte("doe"), "jane ": []byte("roe"), "john": nil, "jane": nil} {
+		val, err := store.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, want, val, key)
+	}
 }
 
 func TestMySQLStorageTCK(t *testing.T) {
@@ -536,6 +632,37 @@ func Test_MYSQL_Errors(t *testing.T) {
 			require.NoError(t, store.Close())
 		})
 		require.Empty(t, out)
+	})
+
+	t.Run("migration refuses a key column wider than the new one", func(t *testing.T) {
+		_, err := rawDB.Exec("CREATE TABLE wide_key (k VARCHAR(255) NOT NULL DEFAULT '', v BLOB NOT NULL, e BIGINT NOT NULL DEFAULT '0', PRIMARY KEY (k)) DEFAULT CHARSET=utf8mb4")
+		require.NoError(t, err)
+
+		err = panicError(t, func() {
+			NewFromConnection(rawDB, Config{Table: "wide_key"})
+		})
+		require.ErrorContains(t, err, "holds up to 1020 bytes")
+	})
+
+	t.Run("missing INDEX privilege only warns", func(t *testing.T) {
+		root, err := sql.Open("mysql", strings.Replace(dsn, mysqlUser+":", "root:", 1))
+		require.NoError(t, err)
+		defer root.Close() //nolint:errcheck // best effort cleanup
+
+		for _, query := range []string{
+			"CREATE USER 'noindex'@'%' IDENTIFIED BY '" + mysqlPass + "'",
+			"GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON " + mysqlDatabase + ".* TO 'noindex'@'%'",
+			"CREATE TABLE " + mysqlDatabase + ".no_index (k VARBINARY(256) NOT NULL DEFAULT '', v BLOB NOT NULL, e BIGINT NOT NULL DEFAULT '0', PRIMARY KEY (k))",
+		} {
+			_, err := root.Exec(query)
+			require.NoError(t, err)
+		}
+
+		out := captureStdout(t, func() {
+			store := New(Config{ConnectionURI: strings.Replace(dsn, mysqlUser+":", "noindex:", 1), Table: "no_index"})
+			require.NoError(t, store.Close())
+		})
+		require.Contains(t, out, "could not add the index on e")
 	})
 
 	t.Run("close releases owned connection only", func(t *testing.T) {
