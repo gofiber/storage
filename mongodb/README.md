@@ -33,6 +33,9 @@ func (s *Storage) ResetWithContext(ctx context.Context) error
 func (s *Storage) Close() error
 func (s *Storage) Conn() *mongo.Database
 ```
+
+**Note:** `Reset` deletes the documents and keeps the collection with its indexes. Its cost grows with the collection, each deleted document is replicated on its own and the disk space stays allocated; if it fails or its context ends, only part of the keys may be gone, so call it again.
+
 ### Installation
 MongoDB is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash

@@ -283,12 +283,16 @@ func Test_MongoDB_Reset_Keeps_Indexes(t *testing.T) {
 	specs, err := testStore.col.Indexes().ListSpecifications(context.Background())
 	require.NoError(t, err)
 
-	names := make([]string, 0, len(specs))
+	byName := make(map[string]mongo.IndexSpecification, len(specs))
 	for _, spec := range specs {
-		names = append(names, spec.Name)
+		byName[spec.Name] = spec
 	}
-	require.Contains(t, names, "exp_1")
-	require.Contains(t, names, "key_1")
+	require.Contains(t, byName, "exp_1")
+	require.NotNil(t, byName["exp_1"].ExpireAfterSeconds)
+	require.Zero(t, *byName["exp_1"].ExpireAfterSeconds)
+	require.Contains(t, byName, "key_1")
+	require.NotNil(t, byName["key_1"].Unique)
+	require.True(t, *byName["key_1"].Unique)
 }
 
 func Test_MongoDB_ResetWithContext(t *testing.T) {
