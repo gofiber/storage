@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,11 +11,22 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
 // ErrClosed is returned by every operation attempted after Close.
 var ErrClosed = errors.New("mysql: storage is closed")
+
+// maxKeyLen holds any key of the old VARCHAR(64) column, even at 4 bytes per character.
+const maxKeyLen = 256
+
+// gcBatchSize bounds how many expired keys one garbage collection transaction deletes,
+// and so how long a Set of one of them waits for it.
+const gcBatchSize = 100
+
+// migrateLockWait bounds, in seconds, the migration's wait for other transactions on the table:
+// meanwhile every read and write on it queues behind the ALTER.
+const migrateLockWait = 5
 
 // Storage interface that is implemented by storage providers
 type Storage struct {
@@ -30,23 +42,37 @@ type Storage struct {
 	sqlInsert string
 	sqlDelete string
 	sqlReset  string
-	sqlGC     string
+
+	sqlGCSelect string
+	sqlGCDelete string
 }
 
 var (
 	checkSchemaMsg = "The `v` row has an incorrect data type. " +
 		"It should be BLOB but is instead %s. This will cause encoding-related panics if the DB is not migrated (see https://github.com/gofiber/storage/blob/main/MIGRATE.md)."
 	dropQuery = "DROP TABLE IF EXISTS %s;"
+	// k is binary: a character collation folds case and accents and ignores trailing spaces, merging distinct keys.
 	initQuery = []string{
 		`CREATE TABLE IF NOT EXISTS %s ( 
-			k  VARCHAR(64) NOT NULL DEFAULT '', 
+			k  VARBINARY(256) NOT NULL DEFAULT '', 
 			v  BLOB NOT NULL, 
 			e  BIGINT NOT NULL DEFAULT '0', 
-			PRIMARY KEY (k)
+			PRIMARY KEY (k),
+			KEY e (e)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8;`,
 	}
 	checkSchemaQuery = `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
 		WHERE table_name = '%s' AND COLUMN_NAME = 'v';`
+
+	// Tables created by earlier versions have k VARCHAR(64) and no index on e.
+	keyColumnQuery = `SELECT COLLATION_NAME IS NOT NULL, COALESCE(CHARACTER_OCTET_LENGTH, 0) FROM INFORMATION_SCHEMA.COLUMNS
+		WHERE table_schema = DATABASE() AND table_name = ? AND COLUMN_NAME = 'k';`
+	migrateKeyQuery  = "ALTER TABLE %s MODIFY k VARBINARY(256) NOT NULL DEFAULT '';"
+	expiryIndexQuery = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+		WHERE table_schema = DATABASE() AND table_name = ? AND COLUMN_NAME = 'e' AND SEQ_IN_INDEX = 1;`
+	createExpiryIndexQuery = "CREATE INDEX e ON %s (e);"
+	migrateErrMsg          = "mysql: migrating table %s (see Migration in the README): %w"
+	expiryIndexMsg         = "mysql: could not add the index on e to table %s, so garbage collection scans the whole table (see Migration in the README): %v\n"
 )
 
 // New creates a new storage
@@ -117,7 +143,9 @@ func New(config ...Config) *Storage {
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
+		// The sweep reads expired keys without locking and deletes them one by one, rechecking e so an entry set again survives.
+		sqlGCSelect: fmt.Sprintf("SELECT k FROM %s WHERE e > 0 AND e <= ? ORDER BY e LIMIT %d", cfg.Table, gcBatchSize),
+		sqlGCDelete: fmt.Sprintf("DELETE FROM %s WHERE k = ? AND e > 0 AND e <= ?", cfg.Table),
 	}
 
 	// checkSchema panics on a mismatch, so release a connection this driver opened on the way out.
@@ -131,6 +159,9 @@ func New(config ...Config) *Storage {
 			}
 		}()
 		store.checkSchema(cfg.Table)
+		if err := store.migrate(cfg.Table); err != nil {
+			panic(err)
+		}
 	}()
 
 	// Start garbage collector
@@ -200,6 +231,10 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	// Ain't Nobody Got Time For That
 	if len(key) <= 0 || len(val) <= 0 {
 		return nil
+	}
+	// Without strict sql_mode the server would truncate it and overwrite another key's entry.
+	if len(key) > maxKeyLen {
+		return fmt.Errorf("mysql: key too long: %d bytes, the limit is %d", len(key), maxKeyLen)
 	}
 	var expSeconds int64
 	if exp > 0 {
@@ -306,9 +341,71 @@ func (s *Storage) gcTicker() {
 	}
 }
 
-// gc deletes all expired entries
+// gc deletes all expired entries one primary key at a time: a DELETE over a range of e, or over a list of keys,
+// can become a full table scan, and under REPEATABLE READ that locks every live row.
 func (s *Storage) gc(ctx context.Context, t time.Time) {
-	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
+	for {
+		n, err := s.gcBatch(ctx, t.Unix())
+		if err != nil || n < gcBatchSize {
+			return
+		}
+	}
+}
+
+// gcBatch deletes up to gcBatchSize expired keys and returns how many it found. It holds one connection
+// for the batch, as a pool keeping none idle would dial for every statement, and lets go of it after,
+// as a small pool shared with Get and Set would otherwise wait for the whole sweep.
+func (s *Storage) gcBatch(ctx context.Context, now int64) (int, error) {
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close() //nolint:errcheck // returns the connection to the pool
+	keys, err := s.expiredKeys(ctx, conn, now)
+	if err != nil || len(keys) == 0 {
+		return 0, err
+	}
+	return len(keys), s.deleteExpired(ctx, conn, keys, now)
+}
+
+// expiredKeys reads up to gcBatchSize keys expired at now without locking them.
+func (s *Storage) expiredKeys(ctx context.Context, conn *sql.Conn, now int64) ([][]byte, error) {
+	rows, err := conn.QueryContext(ctx, s.sqlGCSelect, now)
+	if err != nil {
+		return nil, err
+	}
+	var keys [][]byte
+	for rows.Next() {
+		var k []byte
+		if err = rows.Scan(&k); err != nil {
+			break
+		}
+		keys = append(keys, k)
+	}
+	if err == nil {
+		err = rows.Err()
+	}
+	_ = rows.Close()
+	return keys, err
+}
+
+// deleteExpired deletes keys in one transaction, sparing those set again since they were read.
+func (s *Storage) deleteExpired(ctx context.Context, conn *sql.Conn, keys [][]byte, now int64) error {
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck // a no-op once committed
+	stmt, err := tx.PrepareContext(ctx, s.sqlGCDelete)
+	if err != nil {
+		return err
+	}
+	for _, k := range keys {
+		if _, err := stmt.ExecContext(ctx, k, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Storage) checkSchema(tableName string) {
@@ -322,4 +419,48 @@ func (s *Storage) checkSchema(tableName string) {
 	if strings.ToLower(string(data)) != "blob" {
 		fmt.Printf(checkSchemaMsg, string(data))
 	}
+}
+
+// migrate brings a table created by an earlier version up to the current layout.
+func (s *Storage) migrate(tableName string) error {
+	ctx := context.Background()
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	defer conn.Close() //nolint:errcheck // returns the connection to the pool
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION lock_wait_timeout = %d", migrateLockWait)); err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	// Discarded instead of pooled, so the short wait never reaches other statements, whatever the DSN set.
+	defer conn.Raw(func(any) error { return driver.ErrBadConn }) //nolint:errcheck // the error is what discards it
+
+	var collated bool
+	var width int64
+	if err := conn.QueryRowContext(ctx, keyColumnQuery, tableName).Scan(&collated, &width); err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	// A binary column narrower than maxKeyLen would truncate keys that Set lets through.
+	if collated || width < maxKeyLen {
+		// Byte equality is stricter than any collation, so only a key too wide for the new column could fail or be truncated.
+		if width > maxKeyLen {
+			return fmt.Errorf(migrateErrMsg, tableName, fmt.Errorf("key column holds up to %d bytes, more than %d", width, maxKeyLen))
+		}
+		if _, err := conn.ExecContext(ctx, fmt.Sprintf(migrateKeyQuery, tableName)); err != nil {
+			return fmt.Errorf(migrateErrMsg, tableName, err)
+		}
+	}
+
+	// The index only speeds up garbage collection, so lacking the INDEX privilege must not stop the storage.
+	var indexes int
+	err = conn.QueryRowContext(ctx, expiryIndexQuery, tableName).Scan(&indexes)
+	if err == nil && indexes == 0 {
+		_, err = conn.ExecContext(ctx, fmt.Sprintf(createExpiryIndexQuery, tableName))
+	}
+	// ER_DUP_KEYNAME: another instance starting at the same time created it first.
+	var myErr *mysqldriver.MySQLError
+	if err != nil && (!errors.As(err, &myErr) || myErr.Number != 1061) {
+		fmt.Printf(expiryIndexMsg, tableName, err)
+	}
+	return nil
 }

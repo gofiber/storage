@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -138,6 +139,119 @@ func Test_MYSQL_GC(t *testing.T) {
 	require.Equal(t, testVal, val)
 }
 
+func Test_MYSQL_GC_Does_Not_Block_Writes(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	// Mostly expired rows: a range DELETE on e would then scan and lock the whole table.
+	const expired = gcBatchSize - 1
+	for i := range expired {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
+	// Expires last and sorts last, so the sweep reaches it last whichever index it walks.
+	require.NoError(t, testStore.Set("zz-expired", []byte("doe"), 1500*time.Millisecond))
+	require.NoError(t, testStore.Set("live-1", []byte("doe"), time.Hour))
+	require.NoError(t, testStore.Set("live-2", []byte("doe"), 2*time.Hour))
+	require.NoError(t, testStore.Set("forever", []byte("doe"), 0))
+
+	// Setting zz-expired again holds its row, so the sweep waits there with its other deletes uncommitted,
+	// which a dirty read shows as no expired rows left.
+	setAgain, err := testStore.db.Begin()
+	require.NoError(t, err)
+	defer setAgain.Rollback() //nolint:errcheck // best effort cleanup
+	_, err = setAgain.Exec(testStore.sqlInsert, "zz-expired", []byte("jane"), 0, []byte("jane"), 0)
+	require.NoError(t, err)
+
+	swept := make(chan struct{})
+	go func() {
+		defer close(swept)
+		testStore.gc(context.Background(), time.Now().Add(3*time.Second))
+	}()
+	require.Eventually(t, func() bool {
+		tx, err := testStore.db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelReadUncommitted, ReadOnly: true})
+		if err != nil {
+			return false
+		}
+		defer tx.Rollback() //nolint:errcheck // read only
+		var left int
+		return tx.QueryRow("SELECT COUNT(*) FROM fiber_storage WHERE e > 0 AND e < ?", time.Now().Add(time.Minute).Unix()).Scan(&left) == nil && left == 0
+	}, 10*time.Second, 10*time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, testStore.SetWithContext(ctx, "live-2", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.SetWithContext(ctx, "forever", []byte("jane"), 0))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-short", []byte("jane"), time.Minute))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-long", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-forever", []byte("jane"), 0))
+	require.NoError(t, testStore.DeleteWithContext(ctx, "live-2"))
+
+	// The sweep rechecks the expiration under the row lock, so the entry set again survives.
+	require.NoError(t, setAgain.Commit())
+	<-swept
+	val, err := testStore.Get("zz-expired")
+	require.NoError(t, err)
+	require.Equal(t, []byte("jane"), val)
+	var left int
+	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage WHERE k LIKE 'expired-%'").Scan(&left))
+	require.Zero(t, left)
+}
+
+func Test_MYSQL_GC_Deletes_More_Than_A_Batch(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	for i := range 2*gcBatchSize + 1 {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
+	require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
+
+	// A pool keeping no connection idle dials once per batch, not for every statement of the sweep.
+	testStore.db.SetMaxIdleConns(0)
+	connections := func() int {
+		var name string
+		var n int
+		require.NoError(t, testStore.db.QueryRow("SHOW GLOBAL STATUS LIKE 'Connections'").Scan(&name, &n))
+		return n
+	}
+	before := connections()
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
+	require.Less(t, connections()-before, 10)
+
+	var rows int
+	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage").Scan(&rows))
+	require.Equal(t, 1, rows)
+}
+
+func Test_MYSQL_GC_Shares_A_Small_Pool(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	for i := range 5 * gcBatchSize {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
+	testStore.db.SetMaxOpenConns(1)
+
+	swept := make(chan struct{})
+	go func() {
+		defer close(swept)
+		testStore.gc(context.Background(), time.Now().Add(2*time.Second))
+	}()
+
+	// Sets get the only connection between batches instead of after the whole sweep.
+	during := 0
+	for {
+		require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
+		select {
+		case <-swept:
+			require.Greater(t, during, 1)
+			return
+		default:
+			during++
+		}
+	}
+}
+
 func Test_MYSQL_Non_UTF8(t *testing.T) {
 	val := []byte("0xF5")
 
@@ -150,6 +264,129 @@ func Test_MYSQL_Non_UTF8(t *testing.T) {
 	result, err := testStore.Get("0xF6")
 	require.NoError(t, err)
 	require.Equal(t, val, result)
+}
+
+func Test_MYSQL_Key_Is_Exact(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const key = "session:AbCdEf"
+	require.NoError(t, testStore.Set(key, []byte("doe"), 0))
+
+	for _, other := range []string{"session:abcdef", "session:AbCdEf ", "session:ÀbCdEf"} {
+		val, err := testStore.Get(other)
+		require.NoError(t, err)
+		require.Nil(t, val, "%q must not read the entry of %q", other, key)
+
+		require.NoError(t, testStore.Set(other, []byte("other"), 0))
+		require.NoError(t, testStore.Delete(other))
+
+		val, err = testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val, "%q must not touch the entry of %q", other, key)
+	}
+
+	// Keys the old utf8mb3 VARCHAR(64) column refused.
+	for _, k := range []string{strings.Repeat("a", maxKeyLen), "session:😀", "session:\xff"} {
+		require.NoError(t, testStore.Set(k, []byte("v"), 0))
+		val, err := testStore.Get(k)
+		require.NoError(t, err)
+		require.Equal(t, []byte("v"), val)
+	}
+
+	// Refused rather than truncated onto another key when strict sql_mode is off.
+	require.ErrorContains(t, testStore.Set(strings.Repeat("a", maxKeyLen+1), []byte("v"), 0), "key too long")
+}
+
+// Test_MYSQL_Migrates_Legacy_Table opens a table in the layout earlier versions created.
+func Test_MYSQL_Migrates_Legacy_Table(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const table = "fiber_storage_legacy"
+	_, err := testStore.db.Exec("CREATE TABLE " + table + ` (
+		k  VARCHAR(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;`)
+	require.NoError(t, err)
+	_, err = testStore.db.Exec("INSERT INTO "+table+" (k, v, e) VALUES (?,?,0), (?,?,0)", "Jöhn", []byte("doe"), "jane ", []byte("roe"))
+	require.NoError(t, err)
+
+	// The second round finds the table migrated and leaves it alone.
+	for range 2 {
+		store := NewFromConnection(testStore.db, Config{Table: table})
+		require.NoError(t, store.Close())
+	}
+
+	var collated bool
+	var width int64
+	require.NoError(t, testStore.db.QueryRow(keyColumnQuery, table).Scan(&collated, &width))
+	require.False(t, collated)
+	require.EqualValues(t, maxKeyLen, width)
+	var indexes int
+	require.NoError(t, testStore.db.QueryRow(expiryIndexQuery, table).Scan(&indexes))
+	require.Equal(t, 1, indexes)
+
+	store := NewFromConnection(testStore.db, Config{Table: table})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	for key, want := range map[string][]byte{"Jöhn": []byte("doe"), "jane ": []byte("roe"), "john": nil, "jane": nil} {
+		val, err := store.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, want, val, key)
+	}
+
+	// A binary key column narrower than maxKeyLen would truncate keys Set accepts.
+	const narrow = "fiber_storage_narrow"
+	_, err = testStore.db.Exec("CREATE TABLE " + narrow + ` (
+		k  VARBINARY(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB;`)
+	require.NoError(t, err)
+	require.NoError(t, NewFromConnection(testStore.db, Config{Table: narrow}).Close())
+	require.NoError(t, testStore.db.QueryRow(keyColumnQuery, narrow).Scan(&collated, &width))
+	require.EqualValues(t, maxKeyLen, width)
+}
+
+func Test_MYSQL_Migration_Gives_Up_On_A_Busy_Table(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const table = "fiber_storage_busy"
+	_, err := testStore.db.Exec("CREATE TABLE " + table + ` (
+		k  VARCHAR(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;`)
+	require.NoError(t, err)
+
+	// An open transaction on the table holds a metadata lock the ALTER has to wait for.
+	busy, err := testStore.db.Begin()
+	require.NoError(t, err)
+	defer busy.Rollback() //nolint:errcheck // best effort cleanup
+	var rows int
+	require.NoError(t, busy.QueryRow("SELECT COUNT(*) FROM "+table).Scan(&rows))
+
+	done := make(chan any, 1)
+	go func() {
+		defer func() { done <- recover() }()
+		NewFromConnection(testStore.db, Config{Table: table})
+	}()
+	select {
+	case r := <-done:
+		err, ok := r.(error)
+		require.True(t, ok, "New must fail instead of migrating under a held lock: %v", r)
+		var lockWait *mysqldriver.MySQLError
+		require.ErrorAs(t, err, &lockWait)
+		require.EqualValues(t, 1205, lockWait.Number)
+	case <-time.After(3 * migrateLockWait * time.Second):
+		t.Fatal("New kept waiting for the metadata lock")
+	}
 }
 
 func TestMySQLStorageTCK(t *testing.T) {
@@ -215,6 +452,24 @@ func Test_MySQL_Close_Twice(t *testing.T) {
 	require.NotPanics(t, func() {
 		require.NoError(t, testStore.Close())
 	})
+}
+
+func Test_MYSQL_Migration_Leaves_Pooled_Sessions_Alone(t *testing.T) {
+	c := mustStartMySQL(t)
+
+	dsn, err := c.ConnectionString(context.Background(), "lock_wait_timeout=10")
+	require.NoError(t, err)
+	db, err := sql.Open("mysql", dsn)
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+	db.SetMaxOpenConns(1)
+
+	store := NewFromConnection(db, Config{Table: "fiber_storage_session"})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	var wait int
+	require.NoError(t, db.QueryRow("SELECT @@SESSION.lock_wait_timeout").Scan(&wait))
+	require.Equal(t, 10, wait)
 }
 
 func Test_MYSQL_NewFromConnection(t *testing.T) {
@@ -536,6 +791,37 @@ func Test_MYSQL_Errors(t *testing.T) {
 			require.NoError(t, store.Close())
 		})
 		require.Empty(t, out)
+	})
+
+	t.Run("migration refuses a key column wider than the new one", func(t *testing.T) {
+		_, err := rawDB.Exec("CREATE TABLE wide_key (k VARCHAR(255) NOT NULL DEFAULT '', v BLOB NOT NULL, e BIGINT NOT NULL DEFAULT '0', PRIMARY KEY (k)) DEFAULT CHARSET=utf8mb4")
+		require.NoError(t, err)
+
+		err = panicError(t, func() {
+			NewFromConnection(rawDB, Config{Table: "wide_key"})
+		})
+		require.ErrorContains(t, err, "holds up to 1020 bytes")
+	})
+
+	t.Run("missing INDEX privilege only warns", func(t *testing.T) {
+		root, err := sql.Open("mysql", strings.Replace(dsn, mysqlUser+":", "root:", 1))
+		require.NoError(t, err)
+		defer root.Close() //nolint:errcheck // best effort cleanup
+
+		for _, query := range []string{
+			"CREATE USER 'noindex'@'%' IDENTIFIED BY '" + mysqlPass + "'",
+			"GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON " + mysqlDatabase + ".* TO 'noindex'@'%'",
+			"CREATE TABLE " + mysqlDatabase + ".no_index (k VARBINARY(256) NOT NULL DEFAULT '', v BLOB NOT NULL, e BIGINT NOT NULL DEFAULT '0', PRIMARY KEY (k))",
+		} {
+			_, err := root.Exec(query)
+			require.NoError(t, err)
+		}
+
+		out := captureStdout(t, func() {
+			store := New(Config{ConnectionURI: strings.Replace(dsn, mysqlUser+":", "noindex:", 1), Table: "no_index"})
+			require.NoError(t, store.Close())
+		})
+		require.Contains(t, out, "could not add the index on e")
 	})
 
 	t.Run("close releases owned connection only", func(t *testing.T) {

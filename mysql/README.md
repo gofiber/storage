@@ -35,6 +35,10 @@ func (s *Storage) Conn() *sql.DB
 
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
+**Note:** Keys are compared byte for byte, so letter case, accents and trailing spaces are significant. A key may be up to 256 bytes long; `Set` returns an error for a longer one.
+
+**Migration:** Earlier versions created the key column as a case-insensitive `VARCHAR(64)` and no index on the expiration column, so every garbage collection scanned and locked the whole table. `New` upgrades such a table with `ALTER TABLE <table> MODIFY k VARBINARY(256) NOT NULL DEFAULT ''` and `CREATE INDEX e ON <table> (e)`, which keeps the stored entries. The `ALTER` needs the `ALTER` privilege and rebuilds the table while blocking writes to it; while it waits for open transactions on the table, reads and writes queue behind it, so it gives up after 5 seconds (`lock_wait_timeout`). If it fails, `New` panics. If the index cannot be created, `New` only prints a warning. On a large table, run both statements yourself before upgrading. A binary key column narrower than 256 bytes is widened the same way. A text key column widened by hand to more than 256 bytes is not converted and `New` panics: delete the longer keys and run the `ALTER` yourself.
+
 ### Installation
 MySQL is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
