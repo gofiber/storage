@@ -206,7 +206,7 @@ func Test_MYSQL_GC_Deletes_More_Than_A_Batch(t *testing.T) {
 	}
 	require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
 
-	// A pool keeping no connection idle would dial for every statement of the sweep.
+	// A pool keeping no connection idle dials once per batch, not for every statement of the sweep.
 	testStore.db.SetMaxIdleConns(0)
 	connections := func() int {
 		var name string
@@ -216,11 +216,40 @@ func Test_MYSQL_GC_Deletes_More_Than_A_Batch(t *testing.T) {
 	}
 	before := connections()
 	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
-	require.Less(t, connections()-before, 5)
+	require.Less(t, connections()-before, 10)
 
 	var rows int
 	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage").Scan(&rows))
 	require.Equal(t, 1, rows)
+}
+
+func Test_MYSQL_GC_Shares_A_Small_Pool(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	for i := range 5 * gcBatchSize {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
+	testStore.db.SetMaxOpenConns(1)
+
+	swept := make(chan struct{})
+	go func() {
+		defer close(swept)
+		testStore.gc(context.Background(), time.Now().Add(2*time.Second))
+	}()
+
+	// Sets get the only connection between batches instead of after the whole sweep.
+	during := 0
+	for {
+		require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
+		select {
+		case <-swept:
+			require.Greater(t, during, 1)
+			return
+		default:
+			during++
+		}
+	}
 }
 
 func Test_MYSQL_Non_UTF8(t *testing.T) {

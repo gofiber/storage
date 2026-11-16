@@ -341,24 +341,31 @@ func (s *Storage) gcTicker() {
 	}
 }
 
-// gc deletes all expired entries by primary key: a DELETE over a range of e, or over many keys at once, turns
-// into a full table scan once most rows have expired, and under REPEATABLE READ that locks every live row.
+// gc deletes all expired entries one primary key at a time: a DELETE over a range of e, or over a list of keys,
+// can become a full table scan, and under REPEATABLE READ that locks every live row.
 func (s *Storage) gc(ctx context.Context, t time.Time) {
-	// One connection for the sweep: a pool keeping none idle would dial for every statement.
+	for {
+		n, err := s.gcBatch(ctx, t.Unix())
+		if err != nil || n < gcBatchSize {
+			return
+		}
+	}
+}
+
+// gcBatch deletes up to gcBatchSize expired keys and returns how many it found. It holds one connection
+// for the batch, as a pool keeping none idle would dial for every statement, and lets go of it after,
+// as a small pool shared with Get and Set would otherwise wait for the whole sweep.
+func (s *Storage) gcBatch(ctx context.Context, now int64) (int, error) {
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
-		return
+		return 0, err
 	}
 	defer conn.Close() //nolint:errcheck // returns the connection to the pool
-	for {
-		keys, err := s.expiredKeys(ctx, conn, t.Unix())
-		if err != nil || len(keys) == 0 {
-			return
-		}
-		if s.deleteExpired(ctx, conn, keys, t.Unix()) != nil || len(keys) < gcBatchSize {
-			return
-		}
+	keys, err := s.expiredKeys(ctx, conn, now)
+	if err != nil || len(keys) == 0 {
+		return 0, err
 	}
+	return len(keys), s.deleteExpired(ctx, conn, keys, now)
 }
 
 // expiredKeys reads up to gcBatchSize keys expired at now without locking them.
