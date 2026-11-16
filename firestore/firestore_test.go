@@ -899,22 +899,44 @@ func Test_Firestore_Fake_Reset_DeletesAllDocuments(t *testing.T) {
 
 func Test_Firestore_Fake_Reset_MoreThanOneChunk(t *testing.T) {
 	fake, cfg := startFakeFirestore(t)
-	keys := make([]string, resetChunk+1)
-	for i := range keys {
-		keys[i] = fmt.Sprintf("k%d", i)
-	}
+	keys := resetKeys(2*resetChunk + 1)
 	fake.setQueryDocs(cfg.Collection, keys...)
 
 	store := New(cfg)
 	defer store.Close()
 
 	require.NoError(t, store.Reset())
+	require.Equal(t, len(keys), batchWrites(fake))
+}
 
-	deleted := 0
-	for _, batch := range fake.batchRequests() {
-		deleted += len(batch.GetWrites())
+func Test_Firestore_Fake_Reset_FailureInEarlyChunk(t *testing.T) {
+	fake, cfg := startFakeFirestore(t)
+	keys := resetKeys(3 * resetChunk)
+	fake.setQueryDocs(cfg.Collection, keys...)
+	fake.setBatchErr(status.Error(codes.PermissionDenied, "denied"))
+
+	store := New(cfg)
+	defer store.Close()
+
+	require.ErrorContains(t, store.Reset(), "failed to delete documents")
+	// Results are checked while reading, so the last chunk is never scheduled.
+	require.Less(t, batchWrites(fake), len(keys))
+}
+
+func resetKeys(n int) []string {
+	keys := make([]string, n)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("k%d", i)
 	}
-	require.Equal(t, len(keys), deleted)
+	return keys
+}
+
+func batchWrites(fake *fakeFirestore) int {
+	writes := 0
+	for _, batch := range fake.batchRequests() {
+		writes += len(batch.GetWrites())
+	}
+	return writes
 }
 
 func Test_Firestore_Fake_Reset_IterateError(t *testing.T) {
