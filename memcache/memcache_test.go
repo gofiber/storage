@@ -157,6 +157,14 @@ func Test_Memcache_Delete(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Memcache_Delete_NotExist(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Delete("notexist"))
+	require.NoError(t, testStore.DeleteWithContext(context.Background(), "notexist"))
+}
+
 func Test_Memcache_Reset(t *testing.T) {
 	val := []byte("doe")
 

@@ -127,7 +127,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 	if _, err := s.bucket.DefaultCollection().Remove(key, &gocb.RemoveOptions{
 		Context: ctx,
-	}); err != nil {
+	}); err != nil && !errors.Is(err, gocb.ErrDocumentNotFound) {
 		return err
 	}
 	return nil
