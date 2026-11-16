@@ -107,7 +107,7 @@ type Config struct {
     // Need to be defined
     Credentials Credentials
     
-    // GetObjectOptions Options for GET requests specifying additional options like encryption, If-Match
+    // GetObjectOptions Options for GET requests specifying additional options like encryption, If-Match; Get ignores ParallelWorkers and RDMABuffer
     GetObjectOptions minio.GetObjectOptions
     
     // PutObjectOptions
