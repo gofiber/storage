@@ -414,3 +414,26 @@ func Test_CloudflareKV_RequestTimeout_BoundsRateLimitQueue(t *testing.T) {
 		require.Equal(t, []byte("doe"), val)
 	})
 }
+
+func Test_CloudflareKV_RequestContext(t *testing.T) {
+	t.Parallel()
+
+	store := &Storage{requestTimeout: time.Minute}
+	ctx, cancel := store.requestContext(context.Background())
+	defer cancel()
+	deadline, ok := ctx.Deadline()
+	require.True(t, ok)
+	require.WithinDuration(t, time.Now().Add(time.Minute), deadline, time.Second)
+
+	parent, cancelParent := context.WithTimeout(context.Background(), time.Hour)
+	defer cancelParent()
+	ctx, cancel = store.requestContext(parent)
+	defer cancel()
+	require.Equal(t, parent, ctx)
+
+	store.requestTimeout = -1
+	ctx, cancel = store.requestContext(context.Background())
+	defer cancel()
+	_, ok = ctx.Deadline()
+	require.False(t, ok)
+}

@@ -124,7 +124,7 @@ var ConfigDefault = Config{
 
 ### Notes
 
-- A non-zero expiration passed to `Set` becomes the key's `expiration_ttl`. Workers KV accepts no TTL under 60 seconds, so shorter expirations are rounded up to 60 seconds: an entry may outlive a short expiration, but never expires early. Keys written by earlier versions of this driver have no TTL and never expire.
+- A non-zero expiration passed to `Set` becomes the key's `expiration_ttl`. Workers KV accepts no TTL under 60 seconds, so shorter expirations are rounded up to 60 seconds: an entry may outlive a short expiration, but never expires early. Keys written by earlier versions of this driver have no TTL and never expire; to drop them, clear the namespace (for example with `Reset`) once every instance runs this version.
 - `Get` returns `nil, nil` for a missing or expired key. Workers KV cannot store the keys `.` and `..`, so `Get` and `Delete` treat them as missing and `Set` returns `ErrInvalidKey`. A wrong `NamespaceID` also looks like a miss on `Get`, while `Set`, `Delete` and `Reset` return the API error.
 - `cloudflare-go` sends all calls of a client through one rate limiter (4 requests per second by default). `RequestTimeout` bounds the wait: a call that would not get a slot in time fails at once instead of queueing without limit. If your account allows more, build the client with `cloudflare.UsingRateLimit` and pass it to `NewFromConnection`.
 

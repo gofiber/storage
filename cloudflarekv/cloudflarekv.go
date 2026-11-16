@@ -162,7 +162,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 
 	if err != nil {
-		log.Printf("Error occur in WriteWorkersKVEntry: %v", err)
+		log.Printf("Error occur in Set: %v", err)
 		return err
 	}
 
