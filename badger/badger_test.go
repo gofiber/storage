@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -575,6 +577,72 @@ func Test_Badger_Garbage_Collector_Reclaims_Below_The_Base_Level(t *testing.T) {
 	result, err := store.Get("session1999")
 	require.NoError(t, err)
 	require.Len(t, result, 200)
+}
+
+func Test_Badger_Garbage_Collector_Does_Not_Flush_A_Fresh_Store(t *testing.T) {
+	dir := t.TempDir()
+
+	store := New(Config{Database: dir, BadgerOptions: testOptions(dir), GCInterval: time.Hour})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+	store.collect()
+
+	require.Empty(t, store.db.Tables(), "a new database has nothing for a flush to reclaim")
+}
+
+// flattenHook runs fn when Flatten starts its first compaction.
+type flattenHook struct {
+	testLogger
+	once sync.Once
+	fn   func()
+}
+
+func (h *flattenHook) Infof(format string, _ ...any) {
+	if strings.HasPrefix(format, "Attempting to compact") {
+		h.once.Do(h.fn)
+	}
+}
+
+func Test_Badger_Reset_Waits_For_Flatten(t *testing.T) {
+	dir := t.TempDir()
+
+	var store *Storage
+	var resetDone, resetDuringFlatten atomic.Bool
+	hook := &flattenHook{}
+	hook.fn = func() {
+		go func() {
+			_ = store.Reset() //nolint:errcheck // only its timing matters
+			resetDone.Store(true)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		resetDuringFlatten.Store(resetDone.Load())
+	}
+	store = New(Config{
+		Database: dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20).
+			WithBaseLevelSize(64 << 10).WithLogger(hook),
+		GCInterval: time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Two flushes over more than BaseLevelSize of small values, so Flatten has a level to compact.
+	val := make([]byte, 64<<10)
+	for round := range 2 {
+		for i := range 2000 {
+			session := make([]byte, 200)
+			_, _ = rand.Read(session)
+			require.NoError(t, store.Set(fmt.Sprintf("session%d-%04d", round, i), session, 0))
+		}
+		for i := range 17 {
+			require.NoError(t, store.Set(fmt.Sprintf("large%d-%d", round, i), val, 0))
+		}
+		store.collect()
+	}
+
+	require.Eventually(t, resetDone.Load, 5*time.Second, 10*time.Millisecond, "Flatten never compacted")
+	// DropAll restarting the compactors under a running Flatten leaks them, and they crash after Close.
+	require.False(t, resetDuringFlatten.Load(), "Reset ran while Flatten did")
 }
 
 func Test_Badger_Garbage_Collector_Flush_Keeps_Writes_Working(t *testing.T) {

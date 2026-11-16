@@ -39,7 +39,8 @@ type Storage struct {
 	vlogFileSize  int64
 	// vlogWritten counts the bytes of values Badger kept in the value log since the collector last flushed.
 	vlogWritten atomic.Int64
-	// flushing is held exclusively while a flush makes Badger refuse writes, so the storage's own writes wait.
+	// flushing is held exclusively while Badger refuses writes, in a flush or Reset's DropAll, so the storage's own
+	// writes wait. Flatten holds it shared: it and DropAll both restart Badger's compactors and must not overlap.
 	flushing sync.RWMutex
 }
 
@@ -220,8 +221,8 @@ func (s *Storage) Reset() error {
 	if s.isClosed() {
 		return ErrClosed
 	}
-	s.flushing.RLock()
-	defer s.flushing.RUnlock()
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
 	return s.db.DropAll()
 }
 
@@ -238,7 +239,7 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database once unless it came from NewFromConnection, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
+// Close the database once unless it came from NewFromConnection, waiting for the collector: RunValueLogGC and Flatten take no context, so a running step completes first.
 // Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
@@ -283,25 +284,34 @@ func (s *Storage) collect() {
 		s.vlogWritten.Load() < s.vlogFileSize {
 		return
 	}
-	if s.flush() == nil {
-		// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
-		_ = s.db.Flatten(1)
-		_ = s.runValueLogGC()
+	if s.flush() != nil || s.stopping() {
+		return
+	}
+	// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
+	s.flushing.RLock()
+	_ = s.db.Flatten(1)
+	s.flushing.RUnlock()
+	_ = s.runValueLogGC()
+}
+
+// stopping reports whether Close is waiting for the collector.
+func (s *Storage) stopping() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
 	}
 }
 
 // runValueLogGC repeats RunValueLogGC, which rewrites at most one file per call, until it has nothing left or Close waits.
 func (s *Storage) runValueLogGC() error {
-	for {
-		select {
-		case <-s.done:
-			return nil
-		default:
-		}
+	for !s.stopping() {
 		if err := s.db.RunValueLogGC(0.7); err != nil {
 			return err
 		}
 	}
+	return nil
 }
 
 // flush moves the memtable to level 0 and compacts it, which DropPrefix does only for a prefix that exists.
