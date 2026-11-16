@@ -3,8 +3,10 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -582,6 +584,120 @@ func Test_SQLite3_GC_RemovesExpiredOnly(t *testing.T) {
 	require.Eventually(t, func() bool { return count("expired") == 0 }, 5*time.Second, 10*time.Millisecond)
 	require.Equal(t, 1, count("forever"))
 	require.Equal(t, 1, count("future"))
+}
+
+func Test_SQLite3_Concurrent_Clients(t *testing.T) {
+	// A short busy timeout turns any contention between the storage's own statements into an error.
+	store := New(Config{
+		Database: filepath.Join(t.TempDir(), "fiber.sqlite3") + "?_busy_timeout=100",
+		Reset:    true,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	const clients = 32
+	deadline := time.Now().Add(time.Second)
+	errs := make(chan error, clients)
+
+	var wg sync.WaitGroup
+	for i := range clients {
+		wg.Go(func() {
+			key := fmt.Sprintf("session:%d", i)
+			for time.Now().Before(deadline) {
+				if err := store.Set(key, []byte("v"), time.Hour); err != nil {
+					errs <- fmt.Errorf("set %s: %w", key, err)
+					return
+				}
+				if _, err := store.Get(key); err != nil {
+					errs <- fmt.Errorf("get %s: %w", key, err)
+					return
+				}
+				if err := store.Delete(key); err != nil {
+					errs <- fmt.Errorf("delete %s: %w", key, err)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+}
+
+func Test_SQLite3_Writes_Wait_Their_Turn(t *testing.T) {
+	store := New(Config{Database: filepath.Join(t.TempDir(), "fiber.sqlite3")})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+	require.NoError(t, store.Set("john", []byte("doe"), time.Hour))
+
+	require.NoError(t, store.queue.Acquire(context.Background(), writeWeight))
+	wait := func() context.Context {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		t.Cleanup(cancel)
+		return ctx
+	}
+	require.ErrorIs(t, store.SetWithContext(wait(), "jane", []byte("doe"), 0), context.DeadlineExceeded)
+	require.ErrorIs(t, store.DeleteWithContext(wait(), "john"), context.DeadlineExceeded)
+	require.ErrorIs(t, store.ResetWithContext(wait()), context.DeadlineExceeded)
+	store.gc(wait(), time.Now().Add(2*time.Hour))
+	store.queue.Release(writeWeight)
+
+	var rows int
+	require.NoError(t, store.db.QueryRow("SELECT COUNT(*) FROM fiber_storage").Scan(&rows))
+	require.Equal(t, 1, rows)
+}
+
+func Test_SQLite3_Queued_Behind_A_Blocked_Write(t *testing.T) {
+	for _, tc := range []struct {
+		mode     string
+		getWaits bool
+	}{{mode: "DELETE", getWaits: true}, {mode: "WAL", getWaits: false}} {
+		t.Run(tc.mode, func(t *testing.T) {
+			dsn := filepath.Join(t.TempDir(), "fiber.sqlite3") + "?_busy_timeout=2000&_journal_mode=" + tc.mode
+			store := New(Config{Database: dsn})
+			defer store.Close() //nolint:errcheck // best effort cleanup
+			require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+			// Another handle holds SQLite's write lock, so the next write of the storage waits for it at the head of the queue.
+			other, err := sql.Open("sqlite3", dsn)
+			require.NoError(t, err)
+			defer other.Close() //nolint:errcheck // best effort cleanup
+			tx, err := other.Begin()
+			require.NoError(t, err)
+			_, err = tx.Exec("INSERT INTO fiber_storage (k, v, e) VALUES ('held', 'x', 0)")
+			require.NoError(t, err)
+
+			blocked := make(chan error, 1)
+			go func() { blocked <- store.Set("jane", []byte("doe"), 0) }()
+			require.Eventually(t, func() bool {
+				if store.queue.TryAcquire(1) {
+					store.queue.Release(1)
+					return false
+				}
+				return true
+			}, time.Second, time.Millisecond)
+
+			start := time.Now()
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+			require.ErrorIs(t, store.SetWithContext(ctx, "doe", []byte("x"), 0), context.DeadlineExceeded)
+
+			ctx, cancel = context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+			val, err := store.GetWithContext(ctx, "john")
+			if tc.getWaits {
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, []byte("doe"), val)
+			}
+			require.Less(t, time.Since(start), time.Second)
+
+			require.NoError(t, tx.Rollback())
+			require.NoError(t, <-blocked)
+		})
+	}
 }
 
 func Test_SQLite3_Close_BorrowedHandleClosed(t *testing.T) {

@@ -33,6 +33,8 @@ func (s *Storage) Conn() *sql.DB
 ```
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
+**Note:** SQLite allows one writer per database file, so a storage runs its `Set`, `Delete`, `Reset` and garbage collection one at a time, in the order they arrive. Outside WAL mode, a `Get` also waits for the writes queued before it, including one that waits for a lock held elsewhere. A context ends the wait for the turn. The queue covers one storage only: statements sent through `Conn()`, another storage or another process on the same file (Fiber's Prefork, or two storages with different tables on the default database) still contend for SQLite's lock, so use WAL mode there (`?_journal_mode=WAL`), where reads skip the queue; keep `MaxOpenConns` above 1 so they also find a free connection. `New` and `NewFromConnection` read the journal mode once and do not notice a later change.
+
 ### Installation
 SQLite3 is tested on the 2 last [Go versions](https://golang.org/dl/) with support for modules. So make sure to initialize one first if you didn't do that yet:
 ```bash
