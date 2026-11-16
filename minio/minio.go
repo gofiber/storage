@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +30,9 @@ const maxPresize = 64 << 20
 // bucket does not exist, as opposed to an operational error (auth, network,
 // context cancellation) where the bucket should not be (re)created.
 var errBucketNotFound = errors.New("the specified bucket does not exist")
+
+// expMetadataKey is the user metadata (x-amz-meta-exp) that holds an entry's deadline in Unix seconds.
+const expMetadataKey = "exp"
 
 // New creates a new minio storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
@@ -116,6 +122,14 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		}
 	}()
 
+	// objects without a deadline, such as those written by older versions, never expire
+	exp, _ := strconv.ParseInt(info.Metadata.Get("X-Amz-Meta-"+expMetadataKey), 10, 64)
+	if exp != 0 && exp <= time.Now().Unix() {
+		// drain small bodies so the keep-alive connection is reused
+		_, _ = io.Copy(io.Discard, io.LimitReader(body, 64<<10))
+		return nil, nil
+	}
+
 	var bb bytes.Buffer
 	if info.Size > 0 && info.Size <= maxPresize {
 		// MinRead spare bytes take the final EOF read, which is where GetObjectOptions.Checksum is verified.
@@ -145,8 +159,27 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	s.mu.Lock()
 	s.cfg.PutObjectOptions.ContentType = http.DetectContentType(val)
 
+	opts := s.cfg.PutObjectOptions
+	// Copied per call so a deadline never leaks into another call; a configured exp in any spelling maps to the
+	// same header and would override (or, with exp 0, invent) the deadline, so it is dropped.
+	opts.UserMetadata = make(map[string]string, len(s.cfg.PutObjectOptions.UserMetadata)+1)
+	for k, v := range s.cfg.PutObjectOptions.UserMetadata {
+		if !strings.EqualFold(k, expMetadataKey) && !strings.EqualFold(k, "X-Amz-Meta-"+expMetadataKey) {
+			opts.UserMetadata[k] = v
+		}
+	}
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
+		opts.UserMetadata[expMetadataKey] = strconv.FormatInt(expireAt, 10)
+	}
+
 	// put object
-	_, err := s.minio.PutObject(ctx, s.cfg.Bucket, key, file, file.Size(), s.cfg.PutObjectOptions)
+	_, err := s.minio.PutObject(ctx, s.cfg.Bucket, key, file, file.Size(), opts)
 	s.mu.Unlock()
 
 	return err

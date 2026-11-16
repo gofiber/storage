@@ -40,6 +40,11 @@ func (s *Storage) CreateBucketWithContext(ctx context.Context) error
 func (s *Storage) RemoveBucket() error
 func (s *Storage) Conn() *minio.Client
 ```
+
+**Note:** MinIO has no per-object time to live, so `Set` stores the expiration as the object's user metadata `exp` (a Unix timestamp, rounded up to the second) and `Get` returns `nil, nil` for an object past it. Expired objects are not deleted. A bucket lifecycle rule can reclaim them, but it only knows the object age: pick an age above your longest expiration, and note that it also removes entries stored without one. Objects written by earlier versions carry no expiration and never expire; to drop them, clear the bucket (for example with `Reset`) once every instance runs this version. An `exp` entry in the configured `PutObjectOptions.UserMetadata` is ignored.
+
+**Note:** Keys are used as object names unchanged. A key MinIO does not accept as an object name (for example longer than 1024 bytes, with a `/`-separated segment longer than 255 bytes, not valid UTF-8, or with `.` or `..` segments or a `//` after the start) makes `Get`, `Set` and `Delete` return an error, so hash keys built from untrusted input. Leading slashes are dropped, so `/a`, `//a` and `a` share one object.
+
 ### Installation
 Install the Minio implementation:
 ```bash
