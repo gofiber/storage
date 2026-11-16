@@ -3,6 +3,7 @@ package badger
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +15,16 @@ import (
 // ErrClosed is returned by every operation attempted after Close.
 var ErrClosed = errors.New("badger: storage is closed")
 
+// flushKey gives DropPrefix, Badger's only on-demand memtable flush, a prefix to act on. The leading NUL
+// keeps it clear of application keys: anything stored under this prefix is dropped by the next flush.
+var flushKey = []byte("\x00fiber-storage:badger:flush")
+
+// lowKey and highKey are deleted at each flush; their tombstones span the key space.
+var (
+	lowKey  = []byte("\x00fiber-storage:badger:lo")
+	highKey = []byte("\xff\xff\xff\xfffiber-storage:badger:hi")
+)
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *badger.DB
@@ -23,6 +34,16 @@ type Storage struct {
 	stopped    chan struct{}
 	stopOnce   sync.Once
 	closed     atomic.Bool
+
+	vlogThreshold int64
+	vlogFileSize  int64
+	// vlogWritten counts the bytes of values Badger kept in the value log since the collector last flushed.
+	vlogWritten atomic.Int64
+	// flushing is held exclusively while Badger refuses writes, in a flush or Reset's DropAll, so the storage's own
+	// writes wait.
+	flushing sync.RWMutex
+	// collecting keeps Reset's DropAll apart from Flatten and value-log rewrites, which it breaks, without stopping writes.
+	collecting sync.Mutex
 }
 
 // New creates a new memory storage
@@ -65,6 +86,9 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
+
+		vlogThreshold: db.Opts().ValueThreshold,
+		vlogFileSize:  db.Opts().ValueLogFileSize,
 	}
 
 	// Reset through the storage's own method rather than a second copy of the drop, before the
@@ -77,6 +101,16 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 			}
 			panic(err)
 		}
+	}
+
+	// With VLogPercentile Badger lowers the threshold on its own, so every value counts.
+	if db.Opts().VLogPercentile > 0 {
+		store.vlogThreshold = 0
+	}
+
+	// Space an earlier process left in the value log is only counted by a flush, so the first collection makes one.
+	if files, _ := filepath.Glob(filepath.Join(db.Opts().ValueDir, "*.vlog")); len(files) > 1 {
+		store.vlogWritten.Store(store.vlogFileSize)
 	}
 
 	// Start garbage collector
@@ -144,9 +178,17 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		}
 		entry.ExpiresAt = uint64(secs) //nolint:gosec // a deadline is never negative
 	}
-	return s.db.Update(func(tx *badger.Txn) error {
+	s.flushing.RLock()
+	defer s.flushing.RUnlock()
+	if err := s.db.Update(func(tx *badger.Txn) error {
 		return tx.SetEntry(entry)
-	})
+	}); err != nil {
+		return err
+	}
+	if int64(len(val)) >= s.vlogThreshold {
+		s.vlogWritten.Add(int64(len(val)))
+	}
+	return nil
 }
 
 // SetWithContext sets key with value, aborting if ctx is already done.
@@ -166,6 +208,8 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+	s.flushing.RLock()
+	defer s.flushing.RUnlock()
 	return s.db.Update(func(tx *badger.Txn) error {
 		return tx.Delete(utils.UnsafeBytes(key))
 	})
@@ -181,9 +225,14 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	s.collecting.Lock()
+	defer s.collecting.Unlock()
+	// Checked under the lock Close takes, as Close may latch while Reset waits for the collector.
 	if s.isClosed() {
 		return ErrClosed
 	}
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
 	return s.db.DropAll()
 }
 
@@ -200,13 +249,17 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	return s.Reset()
 }
 
-// Close the database once unless it came from NewFromConnection, waiting for the collector: RunValueLogGC takes no context, so a sweep runs to completion.
+// Close the database once unless it came from NewFromConnection, waiting for the collector: RunValueLogGC and Flatten take no context, so a running step completes first.
 // Safe to call more than once; a failed close is reported once.
 func (s *Storage) Close() error {
 	s.stopOnce.Do(func() {
 		close(s.done)
 		<-s.stopped
 	})
+
+	// A Reset holding the lock finishes its DropAll before the latch.
+	s.collecting.Lock()
+	defer s.collecting.Unlock()
 
 	// Idempotent: only the first Close tears anything down.
 	if !s.closed.CompareAndSwap(false, true) {
@@ -233,9 +286,78 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			_ = s.db.RunValueLogGC(0.7)
+			s.collect()
 		}
 	}
+}
+
+// collect runs value-log GC. Badger only rewrites files a compaction has counted and large values alone never fill
+// the memtable, so after a file's worth of them it is flushed, except on a shared database whose writes would fail.
+func (s *Storage) collect() {
+	if !errors.Is(s.runValueLogGC(), badger.ErrNoRewrite) || !s.ownsDB ||
+		s.vlogWritten.Load() < s.vlogFileSize {
+		return
+	}
+	if s.flush() != nil || s.stopping() {
+		return
+	}
+	// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
+	s.collecting.Lock()
+	err := s.db.Flatten(1)
+	s.collecting.Unlock()
+	if err != nil {
+		// Retried at the next collection instead of after another file's worth of large values.
+		s.vlogWritten.Add(s.vlogFileSize)
+	}
+	_ = s.runValueLogGC()
+}
+
+// stopping reports whether Close is waiting for the collector.
+func (s *Storage) stopping() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// runValueLogGC repeats RunValueLogGC, which rewrites at most one file per call, until it has nothing left or Close waits.
+func (s *Storage) runValueLogGC() error {
+	for !s.stopping() {
+		s.collecting.Lock()
+		err := s.db.RunValueLogGC(0.7)
+		s.collecting.Unlock()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// flush moves the memtable to level 0 and compacts it, which DropPrefix does only for a prefix that exists.
+func (s *Storage) flush() error {
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
+	if err := s.db.Update(func(tx *badger.Txn) error {
+		// Spanning the key space makes the compaction take in every base-level table, not only those next to
+		// the latest keys, or values that went down while live would never be counted once they expire.
+		if err := tx.Delete(lowKey); err != nil {
+			return err
+		}
+		if err := tx.Delete(highKey); err != nil {
+			return err
+		}
+		return tx.Set(flushKey, nil)
+	}); err != nil {
+		return err
+	}
+	if err := s.db.DropPrefix(flushKey); err != nil {
+		return err
+	}
+	// Under the exclusive lock no Set is between its write and its count, so nothing is lost.
+	s.vlogWritten.Store(0)
+	return nil
 }
 
 // Return database client

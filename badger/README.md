@@ -121,10 +121,17 @@ var ConfigDefault = Config{
 }
 ```
 
+### Garbage Collection
+Every `GCInterval` the storage runs Badger's value-log garbage collection until nothing is left to rewrite. Badger only collects value-log files that an LSM compaction has accounted for, and a value of `ValueThreshold` (1 MiB by default) or more leaves just a pointer in the memtable, so a store of mostly large values would never compact on its own. Once a value-log file's worth (`ValueLogFileSize`) of such values has been written, the storage flushes the memtable and compacts the LSM down to its last level, where Badger drops expired entries, rewriting most of it; the LSM holds the keys and the values below `ValueThreshold`, so it stays small while most values live in the value log. A value log of more than one file at startup makes the first collection flush as well, so space an earlier process left behind comes back; a value still live at a flush gives its space back only at the next one.
+
+The flush first waits for any compaction in progress, and while it runs, for longer the more keys and small values level 0 and the base level hold, reads stall, writes through the storage wait, and writes through `Conn()` fail with `badger.ErrBlockedWrites`. Moving the LSM down to its last level then pauses Badger's background compactions but not writes. `Reset` and `Close` wait for it and for a value-log file being rewritten. Don't call `DropAll`, `DropPrefix` or `Flatten` on the database while the storage is open, also not on one passed to `NewFromConnection`: they would race the collector; use `Reset` instead of `DropAll`. The flush reserves keys starting with `"\x00fiber-storage:badger:"` and the key `"\xff\xff\xff\xfffiber-storage:badger:hi"`, so don't store keys like these.
+
 ### Using an Existing Badger Database
 Badger allows a single writer per directory, so an application that already keeps a `*badger.DB` open cannot have the storage open the same directory again. Pass the open database instead. Only the `Reset` and `GCInterval` options are read.
 
 The database stays yours to close: `Close` on a storage built this way stops the value-log collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+On a shared database the collector never flushes the memtable, since that would fail the application's own concurrent writes, so the space of large values comes back only through the application's own compactions.
 
 > **Warning:** keys are not namespaced. `Reset` — the config option and the method — runs `DropAll` on the shared database, deleting every key your application stored in it, not just this storage's entries.
 
