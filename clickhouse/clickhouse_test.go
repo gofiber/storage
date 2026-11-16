@@ -357,6 +357,34 @@ func Test_Delete_MergeTree(t *testing.T) {
 	}
 }
 
+func Test_Delete_WithoutAsyncInsertWait(t *testing.T) {
+	cfg := newTestConfig(t, Config{Table: "async_table", Clean: true})
+	options, _, err := defaultConfig(cfg)
+	require.NoError(t, err)
+	options.Settings = driver.Settings{"async_insert": 1, "wait_for_async_insert": 0}
+	conn, err := driver.Open(&options)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // best effort cleanup
+
+	client, err := NewFromConnection(conn, cfg)
+	require.NoError(t, err)
+	defer client.Close()
+
+	for i := range 5 {
+		key := "async" + strconv.Itoa(i)
+		require.NoError(t, client.Set(key, []byte("somevalue"), time.Hour))
+		require.Eventually(t, func() bool {
+			value, err := client.Get(key)
+			return err == nil && value != nil
+		}, 5*time.Second, 10*time.Millisecond)
+		require.NoError(t, client.Delete(key))
+
+		value, err := client.Get(key)
+		require.NoError(t, err)
+		require.Nil(t, value, key)
+	}
+}
+
 func Test_ResetWithContext(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
@@ -521,25 +549,28 @@ func Test_New_MigratesTableWithoutVersion(t *testing.T) {
 	defer conn.Close() //nolint:errcheck // best effort cleanup
 
 	ctx := context.Background()
-	for _, engine := range []ClickhouseEngine{Memory, TinyLog} {
+	for _, engine := range []ClickhouseEngine{Memory, MergeTree, TinyLog} {
 		require.NoError(t, conn.Exec(ctx, "CREATE TABLE legacy_"+string(engine)+
 			" (key String, value String, expiration Datetime) ENGINE="+string(engine)))
 		require.NoError(t, conn.Exec(ctx, "INSERT INTO legacy_"+string(engine)+" VALUES ('john', 'doe', 0)"))
 	}
 
-	cfg.Table = "legacy_Memory"
-	client, err := New(cfg)
-	require.NoError(t, err)
-	defer client.Close()
+	for _, engine := range []ClickhouseEngine{Memory, MergeTree} {
+		cfg.Table = "legacy_" + string(engine)
+		cfg.Engine = engine
+		client, err := New(cfg)
+		require.NoError(t, err)
 
-	value, err := client.Get("john")
-	require.NoError(t, err)
-	require.Equal(t, "doe", string(value))
+		value, err := client.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, "doe", string(value), engine)
 
-	require.NoError(t, client.Set("john", []byte("smith"), 0))
-	value, err = client.Get("john")
-	require.NoError(t, err)
-	require.Equal(t, "smith", string(value))
+		require.NoError(t, client.Set("john", []byte("smith"), 0))
+		value, err = client.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, "smith", string(value), engine)
+		require.NoError(t, client.Close())
+	}
 
 	// The Log engines cannot add a column, so an old table there fails unless Clean lets it be recreated.
 	cfg.Table = "legacy_TinyLog"
@@ -914,6 +945,24 @@ func Test_GC_StopsOnPermanentErrors(t *testing.T) {
 	(&Storage{session: conn, table: "t"}).gcTicker(ctx, time.Millisecond)
 	require.Greater(t, sweeps.Load(), int32(1))
 	require.Contains(t, logged.String(), "timeout")
+}
+
+func Test_New_NegativeGCIntervalDisablesCollector(t *testing.T) {
+	var sweeps atomic.Int32
+	conn := &stubConn{row: stubRow{count: 1}, exec: func(query string) error {
+		if strings.Contains(query, "DELETE WHERE") {
+			sweeps.Add(1)
+		}
+		return nil
+	}}
+
+	for _, interval := range []time.Duration{-1, time.Millisecond} {
+		client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t", GCInterval: interval})
+		require.NoError(t, err)
+		time.Sleep(50 * time.Millisecond)
+		require.NoError(t, client.Close())
+		require.Equal(t, interval > 0, sweeps.Swap(0) > 0, interval)
+	}
 }
 
 func Test_New_CleanKeepsTableWhenAddColumnIsDenied(t *testing.T) {

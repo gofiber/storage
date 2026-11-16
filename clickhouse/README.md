@@ -35,7 +35,7 @@ func (s *Storage) Conn() *Session
 
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
-**Note:** ClickHouse has no in-place update, so `Set` and `Delete` each insert a row and `Get` reads the newest row of the key. See [Expired and Replaced Rows](#expired-and-replaced-rows) for how the old rows are removed.
+**Note:** ClickHouse has no in-place update, so `Set` and `Delete` each insert a row and `Get` reads the newest row of the key. See [Expired and Replaced Rows](#expired-and-replaced-rows) for how the old rows are removed. The version comes from the server clock, and replicas receive writes asynchronously: with several servers, keep their clocks in sync and read from the replica you write to.
 
 ### Installation
 
@@ -174,14 +174,14 @@ func main() {
 
 ### Expired and Replaced Rows
 
-Every `GCInterval` a collector looks for expired and replaced rows and, if it finds any, deletes them with an `ALTER TABLE ... DELETE` mutation, which needs the `ALTER DELETE` grant. A mutation rewrites the table's data: on `Memory` it blocks `Set` and `Reset` while it runs (about 2 seconds for 3 million rows), and on `MergeTree` the replaced parts stay on disk until `old_parts_lifetime` (8 minutes by default) has passed. Raise `GCInterval` for large tables, or set it to a negative value to turn the collector off. If the engine cannot run the mutation (`Log`, `TinyLog`, `StripeLog`, any `Replicated*MergeTree`) or the grant is missing, the collector logs the error once and stops; the table then only shrinks on `Reset`. Other failed sweeps are logged and retried at the next interval. Every instance runs its own collector.
+Every `GCInterval` a collector looks for expired and replaced rows and, if it finds any, deletes them with an `ALTER TABLE ... DELETE` mutation, which needs the `ALTER DELETE` grant. A mutation rewrites the table's data: on `Memory` it blocks `Set`, `Delete` and `Reset` while it runs (about 2 seconds for 3 million rows), and on `MergeTree` the replaced parts stay on disk until `old_parts_lifetime` (8 minutes by default) has passed. Raise `GCInterval` for large tables, or set it to a negative value to turn the collector off. If the engine cannot run the mutation (`Log`, `TinyLog`, `StripeLog`, any `Replicated*MergeTree`) or the grant is missing, the collector logs the error once and stops; the table then only shrinks on `Reset`. Other failed sweeps are logged and retried at the next interval. Every instance runs its own collector, starting at a random point of the first interval.
 
 For a large or busy table, create it with `Engine: "ReplacingMergeTree(version) ORDER BY key"`: `Get` becomes an index lookup, and background merges drop replaced rows on their own, leaving the collector mostly expired rows. Do not add a `TTL` to the table: it removes each row on its own, so it can drop a key's newest row (a deleted or shorter-lived entry) and bring back an older value.
 
 ### Upgrading From Earlier Versions
 
 - A table created by an earlier version gets a `version` column on start-up (`ALTER TABLE ... ADD COLUMN`, so the user needs that privilege once). The `Log`, `TinyLog` and `StripeLog` engines cannot add a column: `New` returns an error for such a table unless `Clean` is set, in which case the table is dropped and recreated.
-- Stop every instance running an earlier version before starting the new one: once the column exists, their `Set` fails.
+- Stop every instance running an earlier version before starting the new one: once the column exists, their `Set` fails. For the same reason, rolling back needs the column dropped first (`ALTER TABLE ... DROP COLUMN version`).
 - Rows written by an earlier version all count as version 0, older than any new write. If a key had several of them, `Get` may keep returning an older value until the key is written again.
 - `Database`, `Username` and `Password` are now always used. Earlier versions ignored all three unless both `Username` and `Password` were set, so such a deployment connected as user `default` and stored its entries in the server's default database. It now uses `<Database>.<Table>` (the database must exist, the table is created), and a user, password or database the server rejects makes `New` fail at start-up. Entries written before stay behind in the old table: once no instance runs an earlier version, drop that table, or copy its rows over with `INSERT ... SELECT` to keep them.
 - `Get` returns `nil` instead of an empty slice for a missing or expired key.

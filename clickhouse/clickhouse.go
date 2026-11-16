@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/rand/v2"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -269,14 +270,16 @@ func (s *Storage) Close() error {
 }
 
 func (s *Storage) gcTicker(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	// A random first sweep keeps instances started together from rewriting the table at the same time.
+	timer := time.NewTimer(rand.N(interval))
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case t := <-ticker.C:
+		case t := <-timer.C:
 			err := s.gc(ctx, t)
+			timer.Reset(interval)
 			if err == nil || ctx.Err() != nil {
 				continue
 			}
