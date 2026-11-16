@@ -225,11 +225,12 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 
 // Reset all keys
 func (s *Storage) Reset() error {
+	s.collecting.Lock()
+	defer s.collecting.Unlock()
+	// Checked under the lock Close takes, as Close may latch while Reset waits for the collector.
 	if s.isClosed() {
 		return ErrClosed
 	}
-	s.collecting.Lock()
-	defer s.collecting.Unlock()
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
 	return s.db.DropAll()
@@ -255,6 +256,10 @@ func (s *Storage) Close() error {
 		close(s.done)
 		<-s.stopped
 	})
+
+	// A Reset holding the lock finishes its DropAll before the latch.
+	s.collecting.Lock()
+	defer s.collecting.Unlock()
 
 	// Idempotent: only the first Close tears anything down.
 	if !s.closed.CompareAndSwap(false, true) {
@@ -298,8 +303,12 @@ func (s *Storage) collect() {
 	}
 	// Badger drops an expired entry, and counts its value-log space, only in a compaction into the last level.
 	s.collecting.Lock()
-	_ = s.db.Flatten(1)
+	err := s.db.Flatten(1)
 	s.collecting.Unlock()
+	if err != nil {
+		// Retried at the next collection instead of after another file's worth of large values.
+		s.vlogWritten.Add(s.vlogFileSize)
+	}
 	_ = s.runValueLogGC()
 }
 

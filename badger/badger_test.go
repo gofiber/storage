@@ -683,6 +683,48 @@ func Test_Badger_Reset_Waits_For_Value_Log_Rewrite(t *testing.T) {
 	require.False(t, resetDuringRewrite.Load(), "Reset ran while a value-log file was rewritten")
 }
 
+func Test_Badger_Reset_After_Close_Is_Refused(t *testing.T) {
+	db, err := badger.Open(testOptions(t.TempDir()))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+	require.NoError(t, store.Set("john", []byte("doe"), 0))
+
+	// Held as by the collector, so Reset waits while Close latches.
+	store.collecting.Lock()
+	resetErr := make(chan error, 1)
+	go func() { resetErr <- store.Reset() }()
+	time.Sleep(50 * time.Millisecond)
+	store.closed.Store(true)
+	store.collecting.Unlock()
+
+	require.ErrorIs(t, <-resetErr, ErrClosed)
+	require.NoError(t, db.View(func(tx *badger.Txn) error {
+		_, err := tx.Get([]byte("john"))
+		return err
+	}), "Reset dropped the keys of a closed storage")
+}
+
+func Test_Badger_Close_Waits_For_Reset(t *testing.T) {
+	db, err := badger.Open(testOptions(t.TempDir()))
+	require.NoError(t, err)
+	defer db.Close() //nolint:errcheck // best effort cleanup
+
+	store := NewFromConnection(db, Config{GCInterval: time.Hour})
+
+	// Held as by a Reset running its DropAll.
+	store.collecting.Lock()
+	closeErr := make(chan error, 1)
+	go func() { closeErr <- store.Close() }()
+	time.Sleep(50 * time.Millisecond)
+	require.False(t, store.isClosed(), "Close latched during a Reset")
+	store.collecting.Unlock()
+
+	require.NoError(t, <-closeErr)
+	require.True(t, store.isClosed())
+}
+
 func Test_Badger_Garbage_Collector_Flush_Keeps_Writes_Working(t *testing.T) {
 	dir := t.TempDir()
 
