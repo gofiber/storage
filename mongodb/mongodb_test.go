@@ -272,6 +272,25 @@ func Test_MongoDB_Reset(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_MongoDB_Reset_Keeps_Indexes(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+	require.NoError(t, testStore.Reset())
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+
+	specs, err := testStore.col.Indexes().ListSpecifications(context.Background())
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		names = append(names, spec.Name)
+	}
+	require.Contains(t, names, "exp_1")
+	require.Contains(t, names, "key_1")
+}
+
 func Test_MongoDB_ResetWithContext(t *testing.T) {
 	val := []byte("doe")
 

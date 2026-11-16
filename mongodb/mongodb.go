@@ -286,16 +286,18 @@ func (s *Storage) Delete(key string) error {
 	return s.DeleteWithContext(context.Background(), key)
 }
 
-// Reset all keys by drop collection with context
+// ResetWithContext deletes all keys with context
 func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.isClosed() {
 		return ErrClosed
 	}
 
-	return s.col.Drop(ctx)
+	// Not Drop: that also removes the TTL and unique key indexes, which only New creates.
+	_, err := s.col.DeleteMany(ctx, bson.D{})
+	return err
 }
 
-// Reset all keys by drop collection
+// Reset deletes all keys
 func (s *Storage) Reset() error {
 	return s.ResetWithContext(context.Background())
 }
