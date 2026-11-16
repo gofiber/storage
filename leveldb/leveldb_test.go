@@ -568,6 +568,19 @@ func Test_GarbageCollection_Sweep_Reclaims_Every_Expired_Key(t *testing.T) {
 	require.Equal(t, 1, countKeys(t, store.Conn()))
 }
 
+func Test_GarbageCollection_Stops_When_Deletes_Fail(t *testing.T) {
+	store := newTestStorage(t)
+	putExpired(t, store, "key-", 3*collectBatchSize)
+	require.NoError(t, store.Conn().SetReadOnly())
+
+	_, epoch := store.loadCursor()
+	store.storeCursor([]byte("key-001000"), epoch)
+	store.collect()
+
+	// The next sweep retries the failed pass instead of this one sweeping on in vain.
+	require.Equal(t, []byte("key-001000"), store.shared.gcCursor)
+}
+
 func Test_Reset_Clears_GC_Cursor(t *testing.T) {
 	db := New(Config{Path: "./testdb_reset_cursor", GCInterval: time.Hour})
 	defer func() {

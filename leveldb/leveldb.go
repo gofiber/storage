@@ -595,8 +595,9 @@ func (s *Storage) collect() {
 
 	for {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
-		if len(candidates) > 0 {
-			s.deleteIfStillExpired(candidates)
+		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
+			s.storeCursor(after, epoch)
+			return
 		}
 		if reachedEnd {
 			s.storeCursor(nil, epoch)
@@ -683,13 +684,13 @@ func (s *Storage) expiredCandidates(after []byte) (candidates [][]byte, last []b
 	return candidates, last, true
 }
 
-// deleteIfStillExpired re-reads each key and deletes the ones that are still expired.
-func (s *Storage) deleteIfStillExpired(keys [][]byte) {
+// deleteIfStillExpired re-reads each key, deletes the still-expired ones and reports whether to continue.
+func (s *Storage) deleteIfStillExpired(keys [][]byte) bool {
 	s.shared.mu.Lock()
 	defer s.shared.mu.Unlock()
 
 	if s.isClosed() {
-		return
+		return false
 	}
 
 	batch := new(leveldb.Batch)
@@ -707,7 +708,5 @@ func (s *Storage) deleteIfStillExpired(keys [][]byte) {
 		batch.Delete(key)
 	}
 
-	if batch.Len() > 0 {
-		_ = s.db.Write(batch, nil)
-	}
+	return batch.Len() == 0 || s.db.Write(batch, nil) == nil
 }

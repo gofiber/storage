@@ -807,11 +807,12 @@ func Test_Pebble_Collect_FinishesSweep(t *testing.T) {
 
 	// A sweep used to stop after 100 batches, capping what one GCInterval could reclaim.
 	putEntries(t, store.Conn(), 100*collectBatchSize+1, "key-%07d", 1)
+	require.NoError(t, store.Set("live", []byte("doe"), time.Hour))
 
 	store.collect()
 
 	require.Nil(t, store.shared.gcCursor)
-	require.Zero(t, countKeys(t, store.Conn()))
+	require.Equal(t, 1, countKeys(t, store.Conn()))
 }
 
 func Test_Pebble_StoreCursor_IgnoresStaleEpoch(t *testing.T) {
