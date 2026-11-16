@@ -14,6 +14,16 @@ import (
 // ErrClosed is returned by every operation attempted after Close.
 var ErrClosed = errors.New("badger: storage is closed")
 
+// flushKey gives DropPrefix, Badger's only on-demand memtable flush, a prefix to act on. The leading NUL
+// keeps it clear of application keys: anything stored under this prefix is dropped by the next flush.
+var flushKey = []byte("\x00fiber-storage:badger:flush")
+
+// lowKey and highKey are deleted at each flush; their tombstones span the key space.
+var (
+	lowKey  = []byte("\x00fiber-storage:badger:lo")
+	highKey = []byte("\xff\xff\xff\xfffiber-storage:badger:hi")
+)
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *badger.DB
@@ -23,6 +33,13 @@ type Storage struct {
 	stopped    chan struct{}
 	stopOnce   sync.Once
 	closed     atomic.Bool
+
+	vlogThreshold int64
+	vlogFileSize  int64
+	// vlogWritten counts the bytes of values Badger kept in the value log since the collector last flushed.
+	vlogWritten atomic.Int64
+	// flushing is held exclusively while a flush makes Badger refuse writes, so the storage's own writes wait.
+	flushing sync.RWMutex
 }
 
 // New creates a new memory storage
@@ -65,6 +82,9 @@ func newStorage(db *badger.DB, ownsDB bool, cfg Config) *Storage {
 		gcInterval: cfg.GCInterval,
 		done:       make(chan struct{}),
 		stopped:    make(chan struct{}),
+
+		vlogThreshold: db.Opts().ValueThreshold,
+		vlogFileSize:  db.Opts().ValueLogFileSize,
 	}
 
 	// Reset through the storage's own method rather than a second copy of the drop, before the
@@ -144,9 +164,17 @@ func (s *Storage) Set(key string, val []byte, exp time.Duration) error {
 		}
 		entry.ExpiresAt = uint64(secs) //nolint:gosec // a deadline is never negative
 	}
-	return s.db.Update(func(tx *badger.Txn) error {
+	s.flushing.RLock()
+	defer s.flushing.RUnlock()
+	if err := s.db.Update(func(tx *badger.Txn) error {
 		return tx.SetEntry(entry)
-	})
+	}); err != nil {
+		return err
+	}
+	if int64(len(val)) >= s.vlogThreshold {
+		s.vlogWritten.Add(int64(len(val)))
+	}
+	return nil
 }
 
 // SetWithContext sets key with value, aborting if ctx is already done.
@@ -166,6 +194,8 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
+	s.flushing.RLock()
+	defer s.flushing.RUnlock()
 	return s.db.Update(func(tx *badger.Txn) error {
 		return tx.Delete(utils.UnsafeBytes(key))
 	})
@@ -184,6 +214,8 @@ func (s *Storage) Reset() error {
 	if s.isClosed() {
 		return ErrClosed
 	}
+	s.flushing.RLock()
+	defer s.flushing.RUnlock()
 	return s.db.DropAll()
 }
 
@@ -233,9 +265,60 @@ func (s *Storage) gc() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			_ = s.db.RunValueLogGC(0.7)
+			s.collect()
 		}
 	}
+}
+
+// collect runs value-log GC. Badger only rewrites files a compaction has counted and large values alone never fill
+// the memtable, so after a file's worth of them it is flushed, except on a shared database whose writes would fail.
+func (s *Storage) collect() {
+	if !errors.Is(s.runValueLogGC(), badger.ErrNoRewrite) || !s.ownsDB ||
+		s.vlogWritten.Load() < s.vlogFileSize {
+		return
+	}
+	if s.flush() == nil {
+		_ = s.runValueLogGC()
+	}
+}
+
+// runValueLogGC repeats RunValueLogGC, which rewrites at most one file per call, until it has nothing left or Close waits.
+func (s *Storage) runValueLogGC() error {
+	for {
+		select {
+		case <-s.done:
+			return nil
+		default:
+		}
+		if err := s.db.RunValueLogGC(0.7); err != nil {
+			return err
+		}
+	}
+}
+
+// flush moves the memtable to level 0 and compacts it, which DropPrefix does only for a prefix that exists.
+func (s *Storage) flush() error {
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
+	if err := s.db.Update(func(tx *badger.Txn) error {
+		// Spanning the key space makes the compaction take in every base-level table, not only those next to
+		// the latest keys, or values that went down while live would never be counted once they expire.
+		if err := tx.Delete(lowKey); err != nil {
+			return err
+		}
+		if err := tx.Delete(highKey); err != nil {
+			return err
+		}
+		return tx.Set(flushKey, nil)
+	}); err != nil {
+		return err
+	}
+	if err := s.db.DropPrefix(flushKey); err != nil {
+		return err
+	}
+	// Under the exclusive lock no Set is between its write and its count, so nothing is lost.
+	s.vlogWritten.Store(0)
+	return nil
 }
 
 // Return database client

@@ -121,10 +121,15 @@ var ConfigDefault = Config{
 }
 ```
 
+### Garbage Collection
+Every `GCInterval` the storage runs Badger's value-log garbage collection until nothing is left to rewrite. Badger only collects value-log files that an LSM compaction has accounted for, and a value of `ValueThreshold` (1 MiB by default) or more leaves just a pointer in the memtable, so a store of mostly large values would never compact on its own. Once a value-log file's worth (`ValueLogFileSize`) of such values has been written, the storage flushes the memtable and compacts level 0 into the LSM's base level, rewriting all of it, which stays small while most values live in the value log. The flush first waits for any compaction in progress, and while it runs reads stall, writes through the storage wait, and writes through `Conn()` fail with `badger.ErrBlockedWrites`. The flush reserves keys starting with `"\x00fiber-storage:badger:"` and the key `"\xff\xff\xff\xfffiber-storage:badger:hi"`, so don't store keys like these.
+
 ### Using an Existing Badger Database
 Badger allows a single writer per directory, so an application that already keeps a `*badger.DB` open cannot have the storage open the same directory again. Pass the open database instead. Only the `Reset` and `GCInterval` options are read.
 
 The database stays yours to close: `Close` on a storage built this way stops the value-log collector but leaves the database open, so the rest of your application keeps working. The storage itself is closed, and any operation on it afterwards returns `ErrClosed`.
+
+On a shared database the collector never flushes the memtable, since that would fail the application's own concurrent writes, so the space of large values comes back only through the application's own compactions.
 
 > **Warning:** keys are not namespaced. `Reset` — the config option and the method — runs `DropAll` on the shared database, deleting every key your application stored in it, not just this storage's entries.
 

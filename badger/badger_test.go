@@ -1,7 +1,11 @@
 package badger
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -408,6 +412,127 @@ func Test_Badger_Garbage_Collector_Does_Not_Disturb_Data(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("doe"), result)
 	require.NoError(t, store.Close())
+}
+
+func Test_Badger_Garbage_Collector_Reclaims_Large_Values(t *testing.T) {
+	dir := t.TempDir()
+
+	// Values from ValueThreshold up leave only a pointer in the memtable, so it never fills and compacts on its own.
+	store := New(Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20),
+		GCInterval:    time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	live := bytes.Repeat([]byte("x"), 64<<10)
+	require.NoError(t, store.Set("live", live, 0))
+
+	// Six value-log files' worth of distinct keys, all expiring.
+	val := make([]byte, 64<<10)
+	for i := range 96 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, time.Second))
+	}
+	require.Eventually(t, func() bool {
+		result, err := store.Get("key95")
+		return err == nil && result == nil
+	}, 5*time.Second, 50*time.Millisecond)
+
+	store.collect()
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(files), 2, "expired values were not collected")
+
+	result, err := store.Get("live")
+	require.NoError(t, err)
+	require.Equal(t, live, result)
+}
+
+func Test_Badger_Garbage_Collector_Reclaims_Ascending_Keys(t *testing.T) {
+	dir := t.TempDir()
+
+	store := New(Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20),
+		GCInterval:    time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// Flushed while still live, these values reach the base level before they expire.
+	val := make([]byte, 64<<10)
+	for i := range 96 {
+		require.NoError(t, store.Set(fmt.Sprintf("a%03d", i), val, 2*time.Second))
+	}
+	result, err := store.Get("a095")
+	require.NoError(t, err)
+	require.NotNil(t, result, "values must still be live at the first flush")
+	store.collect()
+	require.Eventually(t, func() bool {
+		result, err := store.Get("a095")
+		return err == nil && result == nil
+	}, 6*time.Second, 50*time.Millisecond)
+
+	// Every later key sorts after them, so a flush of these alone never overlaps their table.
+	for i := range 17 {
+		require.NoError(t, store.Set(fmt.Sprintf("b%03d", i), val, 0))
+	}
+	store.collect()
+
+	files, err := filepath.Glob(filepath.Join(dir, "*.vlog"))
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(files), 3, "expired values on the base level were not collected")
+}
+
+func Test_Badger_Garbage_Collector_Flush_Keeps_Writes_Working(t *testing.T) {
+	dir := t.TempDir()
+
+	store := New(Config{
+		Database:      dir,
+		BadgerOptions: testOptions(dir).WithValueThreshold(1 << 10).WithValueLogFileSize(1 << 20),
+		GCInterval:    time.Hour,
+	})
+	defer store.Close() //nolint:errcheck // best effort cleanup
+
+	// A value-log file's worth of large values, so collect flushes.
+	val := make([]byte, 64<<10)
+	for i := range 17 {
+		require.NoError(t, store.Set(fmt.Sprintf("key%d", i), val, 0))
+	}
+
+	stop := make(chan struct{})
+	errs := make(chan error, 4)
+	var wg sync.WaitGroup
+	for i := range 4 {
+		wg.Go(func() {
+			key := fmt.Sprintf("writer%d", i)
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				if err := store.Set(key, []byte("v"), 0); err != nil {
+					errs <- err
+					return
+				}
+				if err := store.Delete(key); err != nil {
+					errs <- err
+					return
+				}
+			}
+		})
+	}
+
+	store.collect()
+	close(stop)
+	wg.Wait()
+	close(errs)
+
+	// Badger refuses writes during the flush; the storage's own writes must wait instead.
+	for err := range errs {
+		require.NoError(t, err)
+	}
 }
 
 func Test_Badger_Config_Defaults(t *testing.T) {
