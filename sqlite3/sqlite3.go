@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/sync/semaphore"
 )
 
 // ErrClosed is returned by every operation attempted after Close.
@@ -26,8 +28,11 @@ type Storage struct {
 	stopOnce   sync.Once
 	closed     atomic.Bool
 
-	// SQLite has one write lock per file and waiters poll for it unfairly, so statements queue here instead.
-	mu sync.RWMutex
+	// SQLite has one write lock per file and waiters poll for it unfairly, so statements queue here
+	// instead, first come first served: a write takes all of it, a read one unit.
+	queue *semaphore.Weighted
+	// In WAL mode a read never waits for the writer, so Get skips the queue.
+	walReads bool
 
 	sqlSelect string
 	sqlInsert string
@@ -127,8 +132,16 @@ func newStorage(db *sql.DB, ownsDB bool, cfg Config) *Storage {
 		}
 	}
 
+	var journalMode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&journalMode); err != nil {
+		closeOwned()
+		panic(err)
+	}
+
 	// Create storage
 	store := &Storage{
+		queue:      semaphore.NewWeighted(writeWeight),
+		walReads:   journalMode == "wal",
 		db:         db,
 		ownsDB:     ownsDB,
 		gcInterval: cfg.GCInterval,
@@ -160,11 +173,14 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		data       = []byte{}
 		exp  int64 = 0
 	)
-	// Scan is inside the lock: the read lock on the file is held until the row is consumed.
-	s.mu.RLock()
-	err := s.db.QueryRowContext(ctx, s.sqlSelect, key).Scan(&data, &exp)
-	s.mu.RUnlock()
-	if err != nil {
+	if !s.walReads {
+		if err := s.queue.Acquire(ctx, 1); err != nil {
+			return nil, err
+		}
+		// Released after Scan: the read lock on the file is held until the row is consumed.
+		defer s.queue.Release(1)
+	}
+	if err := s.db.QueryRowContext(ctx, s.sqlSelect, key).Scan(&data, &exp); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -201,10 +217,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 			expSeconds++
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.ExecContext(ctx, s.sqlInsert, key, val, expSeconds)
-	return err
+	return s.write(ctx, s.sqlInsert, key, val, expSeconds)
 }
 
 // Set sets key with value and expiration time
@@ -221,10 +234,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.ExecContext(ctx, s.sqlDelete, key)
-	return err
+	return s.write(ctx, s.sqlDelete, key)
 }
 
 // Delete deletes entry by key
@@ -237,9 +247,19 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 	if s.isClosed() {
 		return ErrClosed
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, err := s.db.ExecContext(ctx, s.sqlReset)
+	return s.write(ctx, s.sqlReset)
+}
+
+// writeWeight is the whole queue, so a write runs alone.
+const writeWeight = math.MaxInt64
+
+// write runs query once the statements queued before it are done.
+func (s *Storage) write(ctx context.Context, query string, args ...any) error {
+	if err := s.queue.Acquire(ctx, writeWeight); err != nil {
+		return err
+	}
+	defer s.queue.Release(writeWeight)
+	_, err := s.db.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -300,9 +320,7 @@ func (s *Storage) gcTicker() {
 
 // gc deletes all expired entries
 func (s *Storage) gc(ctx context.Context, t time.Time) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
+	_ = s.write(ctx, s.sqlGC, t.Unix())
 }
 
 // Return database client
