@@ -35,6 +35,8 @@ func (s *Storage) Conn() *Session
 
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
+**Note:** `Delete` is an `ALTER TABLE ... DELETE` mutation and waits for it to finish (`mutations_sync = 1`), so on a large `MergeTree` table it can take a while. Mutations on one table run one after another and a stuck mutation queue blocks `Delete`; use `DeleteWithContext` with a deadline to bound the wait. The `Log`, `TinyLog` and `StripeLog` engines do not support mutations, so `Delete` fails on them.
+
 ### Installation
 
 Clickhouse is supported on the last version of Go:
@@ -166,3 +168,9 @@ func main() {
     defer store.Close()
 }
 ```
+
+### Upgrading From Earlier Versions
+
+- `Database` and `Username` are now used even without a `Password`. Earlier versions ignored both unless `Password` was set too, so such a deployment stored its entries in the server's default database as user `default`. It now uses `<Database>.<Table>` (the database must exist, the table is created); entries written before stay behind in the old table.
+- `Get` returns `nil` instead of an empty slice for a missing or expired key.
+- Expirations no longer depend on the server's time zone. On a server outside UTC, rows written by an earlier version keep their shifted expiration until they expire.

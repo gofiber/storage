@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -105,14 +106,15 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 		return nil
 	}
 
-	exp := time.Time{}
+	var exp uint32
 	if expiration > 0 {
 		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be written as past.
-		deadline := time.Now().Add(expiration).UTC()
+		deadline := time.Now().Add(expiration)
 		if deadline.Nanosecond() != 0 {
 			deadline = deadline.Truncate(time.Second).Add(time.Second)
 		}
-		exp = deadline
+		// DateTime ends in 2106; a later deadline would wrap around into the past.
+		exp = uint32(min(deadline.Unix(), math.MaxUint32))
 	}
 
 	return s.
@@ -123,7 +125,7 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, value []byte, 
 			driver.Named("table", s.table),
 			driver.Named("key", key),
 			driver.Named("value", string(value)),
-			driver.Named("expiration", exp.Format("2006-01-02 15:04:05")),
+			driver.Named("expiration", exp),
 		)
 }
 
@@ -136,7 +138,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, ErrClosed
 	}
 	if len(key) == 0 {
-		return []byte{}, nil
+		return nil, nil
 	}
 
 	var result schema
@@ -148,22 +150,22 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		driver.Named("key", key),
 	)
 	if row.Err() != nil {
-		return []byte{}, row.Err()
+		return nil, row.Err()
 	}
 
 	if err := row.ScanStruct(&result); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return []byte{}, nil
+			return nil, nil
 		}
 
-		return []byte{}, err
+		return nil, err
 	}
 
 	// The result.Expiration.IsZero() was returning a false value even when the time was
 	// set to be the zero value of the time.Time struct (Jan 1st 1970, 00:00:00 UTC)
 	// so we had to change the comparison
 	if !time.Unix(0, 0).Equal(result.Expiration) && result.Expiration.Before(time.Now().UTC()) {
-		return []byte{}, nil
+		return nil, nil
 	}
 
 	return []byte(result.Value), nil
