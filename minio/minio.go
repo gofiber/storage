@@ -11,7 +11,6 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/valyala/bytebufferpool"
 )
 
 // Storage interface that is implemented by storage providers
@@ -115,8 +114,7 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	}()
 
 	// convert to byte
-	bb := bytebufferpool.Get()
-	defer bytebufferpool.Put(bb)
+	var bb bytes.Buffer
 	_, err = bb.ReadFrom(object)
 	if err != nil {
 		return nil, err

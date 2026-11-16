@@ -121,6 +121,31 @@ func Test_GetWithContext(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_Get_Result_Not_Overwritten(t *testing.T) {
+	var (
+		key1 = "john"
+		val1 = []byte("doe-doe-doe-doe")
+		key2 = "jane"
+		val2 = []byte("roe-roe-roe-roe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set(key1, val1, 0))
+	require.NoError(t, testStore.Set(key2, val2, 0))
+
+	// repeated because a pooled read buffer is not reused on every call
+	for range 20 {
+		result1, err := testStore.Get(key1)
+		require.NoError(t, err)
+
+		_, err = testStore.Get(key2)
+		require.NoError(t, err)
+		require.Equal(t, val1, result1)
+	}
+}
+
 func Test_Get_Empty_Key(t *testing.T) {
 	var (
 		key = ""
