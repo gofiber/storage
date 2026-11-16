@@ -11,6 +11,8 @@ A S3 storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-
 
 **Note:** If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role. If config fields of credentials given, credentials are using from config. Look at: [specifying credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
+**Note:** S3 has no per-object time to live, so `Set` stores the expiration as the object's user metadata `exp` (a Unix timestamp, rounded up to the second) and `Get` treats an object past it as missing. Expired objects are not deleted. A bucket lifecycle rule can reclaim them, but it only knows the object age: pick an age above your longest expiration, and note that it also removes entries stored without one. Objects written by earlier versions, or by `SetWithChecksum`, carry no expiration and never expire; to drop them, clear the bucket (for example with `Reset`) once every instance runs this version.
+
 ### Table of Contents
 
 - [Signatures](#signatures)
@@ -77,7 +79,7 @@ store := s3.New(s3.Config{
 
 Create an object with `Set()`:
 ```go
-err := store.Set("my-key", []byte("my-value"))
+err := store.Set("my-key", []byte("my-value"), 0)
 ```
 
 Or, call `SetWithChecksum()` to create an object with checksum to

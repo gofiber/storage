@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -21,12 +23,13 @@ import (
 type Storage struct {
 	svc *s3.Client
 	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-	downloader *manager.Downloader
-	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 	uploader       *manager.Uploader
 	requestTimeout time.Duration
 	bucket         string
 }
+
+// expMetadataKey is the user metadata (x-amz-meta-exp) that holds an entry's deadline in Unix seconds.
+const expMetadataKey = "exp"
 
 // resolverV2 is a custom endpoint resolver for S3
 type resolverV2 struct{}
@@ -79,8 +82,6 @@ func newStorage(svc *s3.Client, cfg Config) *Storage {
 	storage := &Storage{
 		svc: svc,
 		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-		downloader: manager.NewDownloader(svc),
-		//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
 		uploader:       manager.NewUploader(svc),
 		requestTimeout: cfg.RequestTimeout,
 		bucket:         cfg.Bucket,
@@ -103,18 +104,35 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, nil
 	}
 
-	buf := manager.NewWriteAtBuffer([]byte{})
-
-	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-	_, err := s.downloader.Download(ctx, buf, &s3.GetObjectInput{
+	// a plain GetObject, as the Downloader does not return the object's metadata
+	out, err := s.svc.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &s.bucket,
 		Key:    aws.String(key),
+	}, func(o *s3.Options) {
+		// multipart objects have no full-object checksum, the SDK would log a warning per Get
+		o.DisableLogOutputChecksumValidationSkipped = true
 	})
 	if _, ok := errors.AsType[*types.NoSuchKey](err); ok {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = out.Body.Close() }()
 
-	return buf.Bytes(), err
+	// objects without a deadline, such as those written by older versions, never expire
+	exp, _ := strconv.ParseInt(out.Metadata[expMetadataKey], 10, 64)
+	if exp != 0 && exp <= time.Now().Unix() {
+		// drain small bodies so the keep-alive connection is reused
+		_, _ = io.Copy(io.Discard, io.LimitReader(out.Body, 64<<10))
+		return nil, nil
+	}
+
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // Get gets value by key
@@ -131,12 +149,23 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
-	_, err := s.uploader.Upload(ctx, &s3.PutObjectInput{
+	input := &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(val),
-	})
+	}
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
+		input.Metadata = map[string]string{expMetadataKey: strconv.FormatInt(expireAt, 10)}
+	}
+
+	//nolint:staticcheck // Kept for compatibility; transfermanager migration is a breaking refactor.
+	_, err := s.uploader.Upload(ctx, input)
 
 	return err
 }
