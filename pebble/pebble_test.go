@@ -802,21 +802,17 @@ func Test_Pebble_Collect_StopsWhenClosing(t *testing.T) {
 	require.Equal(t, 10, countKeys(t, store.Conn()))
 }
 
-func Test_Pebble_Collect_BoundedBatchesPerSweep(t *testing.T) {
+func Test_Pebble_Collect_FinishesSweep(t *testing.T) {
 	store := newTempStore(t, pebble.NoSync)
 
-	// One key more than a sweep may reclaim, all expired.
-	putEntries(t, store.Conn(), collectMaxBatches*collectBatchSize+1, "key-%07d", 1)
+	// A sweep used to stop after 100 batches, capping what one GCInterval could reclaim.
+	putEntries(t, store.Conn(), 100*collectBatchSize+1, "key-%07d", 1)
+	require.NoError(t, store.Set("live", []byte("doe"), time.Hour))
 
 	store.collect()
 
-	// The sweep gave up at its budget and left the rest for the next tick, remembering where it stopped.
-	require.Equal(t, []byte(fmt.Sprintf("key-%07d", collectMaxBatches*collectBatchSize-1)), store.shared.gcCursor)
-	require.Equal(t, 1, countKeys(t, store.Conn()))
-
-	// The next sweep resumes and finishes, clearing the cursor.
-	store.collect()
 	require.Nil(t, store.shared.gcCursor)
+	require.Equal(t, 1, countKeys(t, store.Conn()))
 }
 
 func Test_Pebble_StoreCursor_IgnoresStaleEpoch(t *testing.T) {

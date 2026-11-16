@@ -21,9 +21,6 @@ const collectBatchSize = 1000
 // collectScanLimit bounds one pass, so the read lock is not held across a whole keyspace.
 const collectScanLimit = 10000
 
-// collectMaxBatches bounds one sweep, so keys expiring as fast as they are reclaimed cannot run it forever.
-const collectMaxBatches = 100
-
 // ErrClosed is returned after Close, since Pebble panics when a closed database is used.
 var ErrClosed = errors.New("pebble: storage is closed")
 
@@ -189,8 +186,8 @@ func (s *Storage) gc() {
 func (s *Storage) collect() {
 	after, epoch := s.loadCursor()
 
-	// Bounded so keys expiring as fast as they are reclaimed cannot hold the lock forever; the rest resumes next tick.
-	for range collectMaxBatches {
+	// No cap per sweep, which would cap what one GCInterval reclaims; locks are released after every pass.
+	for {
 		candidates, last, reachedEnd := s.expiredCandidates(after)
 		if len(candidates) > 0 && !s.deleteIfStillExpired(candidates) {
 			s.storeCursor(after, epoch)
@@ -210,8 +207,6 @@ func (s *Storage) collect() {
 		default:
 		}
 	}
-
-	s.storeCursor(after, epoch)
 }
 
 // loadCursor reports where the next sweep resumes, with the epoch that position belongs to.

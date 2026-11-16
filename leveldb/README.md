@@ -34,6 +34,8 @@ func (s *Storage) Close() error
 func (s *Storage) Conn() *leveldb.DB
 ```
 
+**Note:** Every `GCInterval` the collector reads the whole keyspace to find expired entries, in short passes that hold the storage's lock only while deleting, so on stores with millions of keys raise `GCInterval` to keep it from running all the time.
+
 **Note:** The tuning fields of `Config` are applied when the database is opened. They used to be ignored: only `Path` and `GCInterval` had any effect.
 
 **Note:** With `ReadOnly` set, `Set`, `Delete` and `Reset` return `ErrReadOnly`, which callers can match with `errors.Is`.
