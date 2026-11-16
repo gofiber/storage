@@ -19,6 +19,13 @@ var ErrClosed = errors.New("mysql: storage is closed")
 // maxKeyLen holds any key of the old VARCHAR(64) column, even at 4 bytes per character.
 const maxKeyLen = 256
 
+// gcBatch bounds how many expired keys one garbage collection round reads.
+const gcBatch = 1000
+
+// migrateLockWait bounds, in seconds, the migration's wait for other transactions on the table:
+// meanwhile every read and write on it queues behind the ALTER.
+const migrateLockWait = 5
+
 // Storage interface that is implemented by storage providers
 type Storage struct {
 	db         *sql.DB
@@ -33,7 +40,15 @@ type Storage struct {
 	sqlInsert string
 	sqlDelete string
 	sqlReset  string
-	sqlGC     string
+
+	sqlGCSelect string
+	sqlGCDelete string
+}
+
+// queryPreparer is a *sql.DB or a *sql.Tx.
+type queryPreparer interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
 var (
@@ -132,7 +147,9 @@ func New(config ...Config) *Storage {
 		sqlInsert:  fmt.Sprintf("INSERT INTO %s (k, v, e) VALUES (?,?,?) ON DUPLICATE KEY UPDATE v = ?, e = ?", cfg.Table),
 		sqlDelete:  fmt.Sprintf("DELETE FROM %s WHERE k=?", cfg.Table),
 		sqlReset:   fmt.Sprintf("TRUNCATE TABLE %s;", cfg.Table),
-		sqlGC:      fmt.Sprintf("DELETE FROM %s WHERE e <= ? AND e != 0", cfg.Table),
+		// The sweep reads expired keys without locking and deletes them one by one, rechecking e so an entry set again survives.
+		sqlGCSelect: fmt.Sprintf("SELECT k FROM %s WHERE e > 0 AND e <= ? ORDER BY e LIMIT %d", cfg.Table, gcBatch),
+		sqlGCDelete: fmt.Sprintf("DELETE FROM %s WHERE k = ? AND e > 0 AND e <= ?", cfg.Table),
 	}
 
 	// checkSchema panics on a mismatch, so release a connection this driver opened on the way out.
@@ -328,9 +345,50 @@ func (s *Storage) gcTicker() {
 	}
 }
 
-// gc deletes all expired entries
+// gc deletes all expired entries by primary key: a DELETE over a range of e, or over many keys at once, turns
+// into a full table scan once most rows have expired, and under REPEATABLE READ that locks every live row.
 func (s *Storage) gc(ctx context.Context, t time.Time) {
-	_, _ = s.db.ExecContext(ctx, s.sqlGC, t.Unix())
+	for {
+		n, err := s.gcBatch(ctx, s.db, t.Unix())
+		if err != nil || n < gcBatch {
+			return
+		}
+	}
+}
+
+// gcBatch deletes up to gcBatch entries expired at now and returns how many keys it found.
+func (s *Storage) gcBatch(ctx context.Context, q queryPreparer, now int64) (int, error) {
+	rows, err := q.QueryContext(ctx, s.sqlGCSelect, now)
+	if err != nil {
+		return 0, err
+	}
+	var keys [][]byte
+	for rows.Next() {
+		var k []byte
+		if err = rows.Scan(&k); err != nil {
+			break
+		}
+		keys = append(keys, k)
+	}
+	if err == nil {
+		err = rows.Err()
+	}
+	_ = rows.Close()
+	if err != nil || len(keys) == 0 {
+		return 0, err
+	}
+
+	stmt, err := q.PrepareContext(ctx, s.sqlGCDelete)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close() //nolint:errcheck // nothing to do about a failed close of a prepared statement
+	for _, k := range keys {
+		if _, err := stmt.ExecContext(ctx, k, now); err != nil {
+			return 0, err
+		}
+	}
+	return len(keys), nil
 }
 
 func (s *Storage) checkSchema(tableName string) {
@@ -348,26 +406,39 @@ func (s *Storage) checkSchema(tableName string) {
 
 // migrate brings a table created by an earlier version up to the current layout.
 func (s *Storage) migrate(tableName string) error {
-	var collated bool
-	var width int64
-	if err := s.db.QueryRow(keyColumnQuery, tableName).Scan(&collated, &width); err != nil {
+	ctx := context.Background()
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
 		return fmt.Errorf(migrateErrMsg, tableName, err)
 	}
-	if collated {
+	defer conn.Close() //nolint:errcheck // returns the connection to the pool
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION lock_wait_timeout = %d", migrateLockWait)); err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	// Restored before the connection goes back to the pool.
+	defer func() { _, _ = conn.ExecContext(ctx, "SET SESSION lock_wait_timeout = DEFAULT") }()
+
+	var collated bool
+	var width int64
+	if err := conn.QueryRowContext(ctx, keyColumnQuery, tableName).Scan(&collated, &width); err != nil {
+		return fmt.Errorf(migrateErrMsg, tableName, err)
+	}
+	// A binary column narrower than maxKeyLen would truncate keys that Set lets through.
+	if collated || width < maxKeyLen {
 		// Byte equality is stricter than any collation, so only a key too wide for the new column could fail or be truncated.
 		if width > maxKeyLen {
 			return fmt.Errorf(migrateErrMsg, tableName, fmt.Errorf("key column holds up to %d bytes, more than %d", width, maxKeyLen))
 		}
-		if _, err := s.db.Exec(fmt.Sprintf(migrateKeyQuery, tableName)); err != nil {
+		if _, err := conn.ExecContext(ctx, fmt.Sprintf(migrateKeyQuery, tableName)); err != nil {
 			return fmt.Errorf(migrateErrMsg, tableName, err)
 		}
 	}
 
 	// The index only speeds up garbage collection, so lacking the INDEX privilege must not stop the storage.
 	var indexes int
-	err := s.db.QueryRow(expiryIndexQuery, tableName).Scan(&indexes)
+	err = conn.QueryRowContext(ctx, expiryIndexQuery, tableName).Scan(&indexes)
 	if err == nil && indexes == 0 {
-		_, err = s.db.Exec(fmt.Sprintf(createExpiryIndexQuery, tableName))
+		_, err = conn.ExecContext(ctx, fmt.Sprintf(createExpiryIndexQuery, tableName))
 	}
 	// ER_DUP_KEYNAME: another instance starting at the same time created it first.
 	var myErr *mysqldriver.MySQLError

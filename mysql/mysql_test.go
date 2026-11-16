@@ -143,22 +143,46 @@ func Test_MYSQL_GC_Does_Not_Block_Writes(t *testing.T) {
 	testStore := newTestStore(t)
 	defer testStore.Close() //nolint:errcheck // best effort cleanup
 
-	require.NoError(t, testStore.Set("expired", []byte("doe"), time.Nanosecond))
+	// Mostly expired rows: a range DELETE on e would then scan and lock the whole table.
+	for i := range 200 {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
 	require.NoError(t, testStore.Set("live-1", []byte("doe"), time.Hour))
 	require.NoError(t, testStore.Set("live-2", []byte("doe"), 2*time.Hour))
+	require.NoError(t, testStore.Set("forever", []byte("doe"), 0))
 
-	// Hold a sweep open: without an index on e it scans and locks every row until it ends.
+	// Hold a sweep open.
 	sweep, err := testStore.db.Begin()
 	require.NoError(t, err)
 	defer sweep.Rollback() //nolint:errcheck // best effort cleanup
-	_, err = sweep.Exec(testStore.sqlGC, time.Now().Add(2*time.Second).Unix())
+	deleted, err := testStore.gcBatch(context.Background(), sweep, time.Now().Add(2*time.Second).Unix())
 	require.NoError(t, err)
+	require.Equal(t, 200, deleted)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	require.NoError(t, testStore.SetWithContext(ctx, "live-2", []byte("jane"), 2*time.Hour))
-	require.NoError(t, testStore.SetWithContext(ctx, "new", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.SetWithContext(ctx, "forever", []byte("jane"), 0))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-short", []byte("jane"), time.Minute))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-long", []byte("jane"), 2*time.Hour))
+	require.NoError(t, testStore.SetWithContext(ctx, "new-forever", []byte("jane"), 0))
 	require.NoError(t, testStore.DeleteWithContext(ctx, "live-2"))
+}
+
+func Test_MYSQL_GC_Deletes_More_Than_A_Batch(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	for i := range 2*gcBatch + 1 {
+		require.NoError(t, testStore.Set("expired-"+strconv.Itoa(i), []byte("doe"), time.Nanosecond))
+	}
+	require.NoError(t, testStore.Set("live", []byte("doe"), time.Hour))
+
+	testStore.gc(context.Background(), time.Now().Add(2*time.Second))
+
+	var rows int
+	require.NoError(t, testStore.db.QueryRow("SELECT COUNT(*) FROM fiber_storage").Scan(&rows))
+	require.Equal(t, 1, rows)
 }
 
 func Test_MYSQL_Non_UTF8(t *testing.T) {
@@ -245,6 +269,52 @@ func Test_MYSQL_Migrates_Legacy_Table(t *testing.T) {
 		val, err := store.Get(key)
 		require.NoError(t, err)
 		require.Equal(t, want, val, key)
+	}
+
+	// A binary key column narrower than maxKeyLen would truncate keys Set accepts.
+	const narrow = "fiber_storage_narrow"
+	_, err = testStore.db.Exec("CREATE TABLE " + narrow + ` (
+		k  VARBINARY(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB;`)
+	require.NoError(t, err)
+	require.NoError(t, NewFromConnection(testStore.db, Config{Table: narrow}).Close())
+	require.NoError(t, testStore.db.QueryRow(keyColumnQuery, narrow).Scan(&collated, &width))
+	require.EqualValues(t, maxKeyLen, width)
+}
+
+func Test_MYSQL_Migration_Gives_Up_On_A_Busy_Table(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close() //nolint:errcheck // best effort cleanup
+
+	const table = "fiber_storage_busy"
+	_, err := testStore.db.Exec("CREATE TABLE " + table + ` (
+		k  VARCHAR(64) NOT NULL DEFAULT '',
+		v  BLOB NOT NULL,
+		e  BIGINT NOT NULL DEFAULT '0',
+		PRIMARY KEY (k)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;`)
+	require.NoError(t, err)
+
+	// An open transaction on the table holds a metadata lock the ALTER has to wait for.
+	busy, err := testStore.db.Begin()
+	require.NoError(t, err)
+	defer busy.Rollback() //nolint:errcheck // best effort cleanup
+	var rows int
+	require.NoError(t, busy.QueryRow("SELECT COUNT(*) FROM "+table).Scan(&rows))
+
+	done := make(chan any, 1)
+	go func() {
+		defer func() { done <- recover() }()
+		NewFromConnection(testStore.db, Config{Table: table})
+	}()
+	select {
+	case r := <-done:
+		require.NotNil(t, r, "New must fail instead of migrating under a held lock")
+	case <-time.After(3 * migrateLockWait * time.Second):
+		t.Fatal("New kept waiting for the metadata lock")
 	}
 }
 
