@@ -386,6 +386,33 @@ func Test_Delete_WithoutAsyncInsertWait(t *testing.T) {
 	}
 }
 
+func Test_Delete_Distributed(t *testing.T) {
+	cfg := newTestConfig(t, Config{Table: "kv_local", Engine: MergeTree, GCInterval: -1},
+		clickhouse.WithConfigFile("testdata/remote_shard.xml"))
+	local, err := New(cfg)
+	require.NoError(t, err)
+	defer local.Close()
+
+	cfg.Table = "kv_distributed"
+	cfg.Engine = ClickhouseEngine("Distributed(remote_shard, " + clickhouseDB + ", kv_local)")
+	client, err := New(cfg)
+	require.NoError(t, err)
+	defer client.Close()
+
+	for i := range 5 {
+		key := "dist" + strconv.Itoa(i)
+		require.NoError(t, client.Set(key, []byte("somevalue"), time.Hour))
+		value, err := client.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte("somevalue"), value, key)
+
+		require.NoError(t, client.Delete(key))
+		value, err = client.Get(key)
+		require.NoError(t, err)
+		require.Nil(t, value, key)
+	}
+}
+
 func Test_ResetWithContext(t *testing.T) {
 	client := newTestStore(t, Config{
 		Engine: Memory,
