@@ -219,6 +219,34 @@ func Test_DynamoDB_Get_NotExist(t *testing.T) {
 	require.Zero(t, len(result))
 }
 
+func Test_DynamoDB_Set_Expiration(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+	require.NoError(t, testStore.Set("jane", []byte("roe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.Eventually(t, func() bool {
+		result, err := testStore.Get("john")
+		return err == nil && result == nil
+	}, 3*time.Second, 100*time.Millisecond, "key should expire")
+
+	result, err = testStore.Get("jane")
+	require.NoError(t, err)
+	require.Equal(t, []byte("roe"), result)
+
+	// right after a full second, a truncated sub-second deadline would already be past
+	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
+	require.NoError(t, testStore.Set("short", []byte("v"), 500*time.Millisecond))
+	result, err = testStore.Get("short")
+	require.NoError(t, err)
+	require.Equal(t, []byte("v"), result)
+}
+
 func Test_DynamoDB_Delete(t *testing.T) {
 	var (
 		key = "john"
@@ -1013,11 +1041,13 @@ func Test_DynamoDB_Get_ItemValue(t *testing.T) {
 	store, _ := newFakeStore(t, map[string]fakeHandler{
 		"GetItem": func(w http.ResponseWriter, _ int, body []byte) {
 			var req struct {
-				TableName string
-				Key       map[string]struct{ S string }
+				TableName      string
+				Key            map[string]struct{ S string }
+				ConsistentRead bool
 			}
 			assert.NoError(t, json.Unmarshal(body, &req))
 			assert.Equal(t, fakeTable, req.TableName)
+			assert.True(t, req.ConsistentRead)
 			gotKey = req.Key[keyAttrName].S
 
 			// "doe" in base64.
@@ -1134,9 +1164,11 @@ func Test_DynamoDB_Reset_Paginates(t *testing.T) {
 				ProjectionExpression     string
 				ExpressionAttributeNames map[string]string
 				ExclusiveStartKey        map[string]struct{ S string }
+				ConsistentRead           bool
 			}
 			assert.NoError(t, json.Unmarshal(body, &req))
 			assert.Equal(t, "#k", req.ProjectionExpression)
+			assert.True(t, req.ConsistentRead)
 			assert.Equal(t, map[string]string{"#k": keyAttrName}, req.ExpressionAttributeNames)
 			startKeys = append(startKeys, req.ExclusiveStartKey[keyAttrName].S)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,6 +27,10 @@ var keyAttrName = "k"
 
 // "v" is used as table column name for the value.
 var valAttrName = "v"
+
+// "exp" is used as table column name for the deadline in Unix seconds, the format DynamoDB's
+// Time to Live expects. TTL deletes expired items only eventually, so Get checks it too.
+var expAttrName = "exp"
 
 type table struct {
 	K string
@@ -138,6 +143,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	getItemInput := awsdynamodb.GetItemInput{
 		TableName: &s.table,
 		Key:       k,
+		// The default eventually consistent read may miss a Set or Delete that already returned.
+		ConsistentRead: aws.Bool(true),
 	}
 	getItemOutput, err := s.db.GetItem(ctx, &getItemInput)
 	if err != nil {
@@ -147,6 +154,15 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 		return nil, err
 	} else if getItemOutput.Item == nil {
+		return nil, nil
+	}
+
+	// items without a deadline, such as those written by older versions, never expire
+	var exp int64
+	if n, ok := getItemOutput.Item[expAttrName].(*types.AttributeValueMemberN); ok {
+		exp, _ = strconv.ParseInt(n.Value, 10, 64)
+	}
+	if exp != 0 && exp <= time.Now().Unix() {
 		return nil, nil
 	}
 
@@ -173,6 +189,17 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 	}
 	item[valAttrName] = &types.AttributeValueMemberB{
 		Value: val,
+	}
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
+		item[expAttrName] = &types.AttributeValueMemberN{
+			Value: strconv.FormatInt(expireAt, 10),
+		}
 	}
 	putItemInput := awsdynamodb.PutItemInput{
 		TableName: &s.table,
@@ -218,6 +245,8 @@ func (s *Storage) Delete(key string) error {
 func (s *Storage) ResetWithContext(ctx context.Context) error {
 	paginator := awsdynamodb.NewScanPaginator(s.db, &awsdynamodb.ScanInput{
 		TableName: &s.table,
+		// An entry whose Set already returned must not survive the reset.
+		ConsistentRead: aws.Bool(true),
 		// Only the key is needed to delete a row, and skipping the values keeps a reset
 		// of a large table from reading every payload it is about to throw away.
 		ProjectionExpression: aws.String("#k"),

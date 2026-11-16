@@ -11,6 +11,10 @@ A DynamoDB storage driver using [aws/aws-sdk-go-v2](https://github.com/aws/aws-s
 
 **Note:** If config fields of credentials not given, credentials are using from the environment variables, ~/.aws/credentials, or EC2 instance role. If config fields of credentials given, credentials are using from config. Look at: [specifying credentials](https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/#specifying-credentials)
 
+**Note:** The expiration passed to `Set` is stored in the item's `exp` attribute (Unix seconds, rounded up) and `Get` treats an item past that deadline as missing. The driver does not delete expired items: enable [Time to Live](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html) on the `exp` attribute if you want DynamoDB to reclaim them. Items written by earlier versions carry no `exp` and never expire, and Time to Live skips them too; to drop them, clear the table (for example with `Reset`) once every instance runs this version.
+
+**Note:** `Get` and `Reset` use [strongly consistent reads](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html), so they see every `Set` and `Delete` that has returned in the same Region (on a global table, in any Region only with multi-Region strong consistency). These cost twice the read capacity of eventually consistent reads.
+
 ### Table of Contents
 - [Signatures](#signatures)
 - [Installation](#installation)
