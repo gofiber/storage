@@ -53,6 +53,27 @@ func Test_S3_Set_Override(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_S3_Set_Expiration(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), time.Second))
+	require.NoError(t, testStore.Set("jane", []byte("roe"), 0))
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+
+	require.Eventually(t, func() bool {
+		result, err := testStore.Get("john")
+		return err == nil && result == nil
+	}, 3*time.Second, 100*time.Millisecond, "key should expire")
+
+	result, err = testStore.Get("jane")
+	require.NoError(t, err)
+	require.Equal(t, []byte("roe"), result)
+}
+
 func Test_S3_Get(t *testing.T) {
 	var (
 		key = "john"
