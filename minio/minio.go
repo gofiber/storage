@@ -13,7 +13,6 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/valyala/bytebufferpool"
 )
 
 // Storage interface that is implemented by storage providers
@@ -108,34 +107,30 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errors.New("the key value is required")
 	}
 
-	// get object
-	object, err := s.minio.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
+	// Core returns the size with the body of the same GET, so the caller-owned value is allocated once.
+	body, info, _, err := minio.Core{Client: s.minio}.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err := object.Close(); err != nil {
+		if err := body.Close(); err != nil {
 			log.Printf("Error closing object: %v\n", err)
 		}
 	}()
 
-	// convert to byte
-	bb := bytebufferpool.Get()
-	defer bytebufferpool.Put(bb)
-	_, err = bb.ReadFrom(object)
-	if err != nil {
-		return nil, err
-	}
-
-	// the read above already fetched the headers, so Stat sends no request
-	info, err := object.Stat()
-	if err != nil {
-		return nil, err
-	}
 	// objects without a deadline, such as those written by older versions, never expire
 	exp, _ := strconv.ParseInt(info.Metadata.Get("X-Amz-Meta-"+expMetadataKey), 10, 64)
 	if exp != 0 && exp <= time.Now().Unix() {
 		return nil, nil
+	}
+
+	var bb bytes.Buffer
+	if info.Size > 0 {
+		// MinRead spare bytes take the final EOF read, which is where GetObjectOptions.Checksum is verified.
+		bb.Grow(int(info.Size) + bytes.MinRead)
+	}
+	if _, err := bb.ReadFrom(body); err != nil {
+		return nil, err
 	}
 	return bb.Bytes(), nil
 }
