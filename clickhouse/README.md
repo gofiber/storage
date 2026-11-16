@@ -35,7 +35,7 @@ func (s *Storage) Conn() *Session
 
 **Note:** Expirations are stored with a one-second granularity and rounded up, so an entry is never dropped before its expiration but may outlive it by up to a second.
 
-**Note:** `Delete` is an `ALTER TABLE ... DELETE` mutation and waits for it to finish (`mutations_sync = 1`), so on a large `MergeTree` table it can take a while. Mutations on one table run one after another and a stuck mutation queue blocks `Delete`; use `DeleteWithContext` with a deadline to bound the wait. The `Log`, `TinyLog` and `StripeLog` engines do not support mutations, so `Delete` fails on them.
+**Note:** `Delete` is an `ALTER TABLE ... DELETE` mutation and waits for it to finish on every replica (`mutations_sync = 2`), so on a large `MergeTree` table it can take a while. Mutations on one table run one after another and a stuck mutation queue blocks `Delete`; use `DeleteWithContext` with a deadline to bound the wait (the queued delete still applies later). The `Log`, `TinyLog` and `StripeLog` engines do not support mutations, so `Delete` fails on them.
 
 ### Installation
 
@@ -171,6 +171,6 @@ func main() {
 
 ### Upgrading From Earlier Versions
 
-- `Database` and `Username` are now used even without a `Password`. Earlier versions ignored both unless `Password` was set too, so such a deployment stored its entries in the server's default database as user `default`. It now uses `<Database>.<Table>` (the database must exist, the table is created); entries written before stay behind in the old table.
+- `Database`, `Username` and `Password` are now always used. Earlier versions ignored all three unless both `Username` and `Password` were set, so such a deployment connected as user `default` and stored its entries in the server's default database. It now uses `<Database>.<Table>` (the database must exist, the table is created), and a user, password or database the server rejects makes `New` fail at start-up. Entries written before stay behind in the old table: once no instance runs an earlier version, drop that table, or copy its rows over with `INSERT ... SELECT` to keep them.
 - `Get` returns `nil` instead of an empty slice for a missing or expired key.
 - Expirations no longer depend on the server's time zone. On a server outside UTC, rows written by an earlier version keep their shifted expiration until they expire.

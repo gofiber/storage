@@ -96,8 +96,9 @@ const resetDataString = `
 `
 
 // MergeTree runs a mutation in the background unless told to wait, and Get would keep serving the key meanwhile.
+// 2 also waits for every replica and acts like 1 on other tables.
 const deleteDataString = `
-  ALTER TABLE {table:Identifier} DELETE WHERE key = {key:String} SETTINGS mutations_sync = 1
+  ALTER TABLE {table:Identifier} DELETE WHERE key = {key:String} SETTINGS mutations_sync = 2
 `
 
 const selectDataString = `
