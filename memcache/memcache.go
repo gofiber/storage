@@ -148,7 +148,11 @@ func (s *Storage) Delete(key string) error {
 	if len(key) <= 0 {
 		return nil
 	}
-	return s.db.Delete(key)
+	err := s.db.Delete(key)
+	if err == mc.ErrCacheMiss {
+		return nil
+	}
+	return err
 }
 
 // DeleteWithContext deletes key by key, aborting if ctx is already done.

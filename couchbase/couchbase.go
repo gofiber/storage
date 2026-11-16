@@ -78,15 +78,9 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		Transcoder: transcoder,
 	})
 	if err != nil {
-		switch e := err.(type) {
-		case *gocb.KeyValueError:
-			if e.InnerError.Error() == gocb.ErrDocumentNotFound.Error() {
-				return nil, nil
-			}
-		default: //*gocb.TimeoutError,...
-			return nil, err
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, nil
 		}
-
 		return nil, err
 	}
 
@@ -127,7 +121,7 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 	if _, err := s.bucket.DefaultCollection().Remove(key, &gocb.RemoveOptions{
 		Context: ctx,
-	}); err != nil {
+	}); err != nil && !errors.Is(err, gocb.ErrDocumentNotFound) {
 		return err
 	}
 	return nil

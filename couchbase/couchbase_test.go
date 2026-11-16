@@ -281,8 +281,9 @@ func TestCouchbase_ErrorPaths(t *testing.T) {
 		require.Nil(t, val)
 	})
 
-	t.Run("delete of a missing key returns not found", func(t *testing.T) {
-		require.ErrorIs(t, store.Delete("missing_key"), gocb.ErrDocumentNotFound)
+	t.Run("delete of a missing key is not an error", func(t *testing.T) {
+		require.NoError(t, store.Delete("missing_key"))
+		require.NoError(t, store.DeleteWithContext(context.Background(), "missing_key"))
 	})
 
 	t.Run("get from a missing bucket times out", func(t *testing.T) {
