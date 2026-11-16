@@ -243,6 +243,13 @@ func Test_AzureBlob_Set_Expiration(t *testing.T) {
 	result, err = testStore.Get("jane")
 	require.NoError(t, err)
 	require.Equal(t, []byte("roe"), result)
+
+	// right after a full second, a truncated sub-second deadline would already be past
+	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
+	require.NoError(t, testStore.Set("short", []byte("v"), 500*time.Millisecond))
+	result, err = testStore.Get("short")
+	require.NoError(t, err)
+	require.Equal(t, []byte("v"), result)
 }
 
 func Test_AzureBlob_Reset(t *testing.T) {
