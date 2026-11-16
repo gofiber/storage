@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	driver "github.com/ClickHouse/clickhouse-go/v2"
@@ -948,21 +949,24 @@ func Test_GC_StopsOnPermanentErrors(t *testing.T) {
 }
 
 func Test_New_NegativeGCIntervalDisablesCollector(t *testing.T) {
-	var sweeps atomic.Int32
-	conn := &stubConn{row: stubRow{count: 1}, exec: func(query string) error {
-		if strings.Contains(query, "DELETE WHERE") {
-			sweeps.Add(1)
-		}
-		return nil
-	}}
+	synctest.Test(t, func(t *testing.T) {
+		var sweeps atomic.Int32
+		conn := &stubConn{row: stubRow{count: 1}, exec: func(query string) error {
+			if strings.Contains(query, "DELETE WHERE") {
+				sweeps.Add(1)
+			}
+			return nil
+		}}
 
-	for _, interval := range []time.Duration{-1, time.Millisecond} {
-		client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t", GCInterval: interval})
-		require.NoError(t, err)
-		time.Sleep(50 * time.Millisecond)
-		require.NoError(t, client.Close())
-		require.Equal(t, interval > 0, sweeps.Swap(0) > 0, interval)
-	}
+		// Zero falls back to the default interval, so twice that must have swept.
+		for _, interval := range []time.Duration{-1, 0} {
+			client, err := newStorage(context.Background(), conn, true, Memory, Config{Table: "t", GCInterval: interval})
+			require.NoError(t, err)
+			time.Sleep(2 * defaultGCInterval)
+			require.NoError(t, client.Close())
+			require.Equal(t, interval == 0, sweeps.Swap(0) > 0, interval)
+		}
+	})
 }
 
 func Test_New_CleanKeepsTableWhenAddColumnIsDenied(t *testing.T) {

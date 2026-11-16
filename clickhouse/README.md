@@ -37,6 +37,8 @@ func (s *Storage) Conn() *Session
 
 **Note:** ClickHouse has no in-place update, so `Set` and `Delete` each insert a row and `Get` reads the newest row of the key. See [Expired and Replaced Rows](#expired-and-replaced-rows) for how the old rows are removed. The version comes from the server clock, and replicas receive writes asynchronously: with several servers, keep their clocks in sync and read from the replica you write to.
 
+**Note:** `Set` and `Delete` return once their row is written: the insert sets `wait_for_async_insert = 1` and `insert_distributed_sync = 1`, so a user profile that pins either setting to another value makes them fail. With `async_insert` on (the default on ClickHouse 26.7) each call waits for the server's async flush, up to 200 ms by default; turning `async_insert` off for the user avoids that wait.
+
 ### Installation
 
 Clickhouse is supported on the last version of Go:
@@ -181,8 +183,8 @@ For a large or busy table, create it with `Engine: "ReplacingMergeTree(version) 
 ### Upgrading From Earlier Versions
 
 - A table created by an earlier version gets a `version` column on start-up (`ALTER TABLE ... ADD COLUMN`, so the user needs that privilege once). The `Log`, `TinyLog` and `StripeLog` engines cannot add a column: `New` returns an error for such a table unless `Clean` is set, in which case the table is dropped and recreated.
-- Stop every instance running an earlier version before starting the new one: once the column exists, their `Set` fails. For the same reason, rolling back needs the column dropped first (`ALTER TABLE ... DROP COLUMN version`).
+- Stop every instance running an earlier version before starting the new one: once the column exists, their `Set` fails. For the same reason, rolling back needs the column dropped first (`ALTER TABLE ... DROP COLUMN version`) and the table emptied (`TRUNCATE`): the earlier version reads any row of a key, so deleted and replaced entries would come back.
 - Rows written by an earlier version all count as version 0, older than any new write. If a key had several of them, `Get` may keep returning an older value until the key is written again.
-- `Database`, `Username` and `Password` are now always used. Earlier versions ignored all three unless both `Username` and `Password` were set, so such a deployment connected as user `default` and stored its entries in the server's default database. It now uses `<Database>.<Table>` (the database must exist, the table is created), and a user, password or database the server rejects makes `New` fail at start-up. Entries written before stay behind in the old table: once no instance runs an earlier version, drop that table, or copy its rows over with `INSERT ... SELECT` to keep them.
+- `Database`, `Username` and `Password` are now always used. Earlier versions ignored all three unless both `Username` and `Password` were set, so such a deployment connected as user `default` and stored its entries in the server's default database. It now uses `<Database>.<Table>` (the database must exist, the table is created), and a user, password or database the server rejects makes `New` fail at start-up. If that moves the table (a `Database` other than the one used before, or a user with another default database), entries written before stay behind in the old one: once no instance runs an earlier version, drop it, or copy its rows over with `INSERT ... SELECT` to keep them.
 - `Get` returns `nil` instead of an empty slice for a missing or expired key.
 - Expirations no longer depend on the server's time zone. On a server outside UTC, rows written by an earlier version keep their shifted expiration until they expire.

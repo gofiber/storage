@@ -106,9 +106,9 @@ const selectDataString = `
 `
 
 // The expiration goes in as Unix seconds, since zone-less DateTime text is read in the server's time zone.
-// Waiting for the async insert makes a Set or Delete visible to the next Get whatever the profile says.
+// Waiting for the async insert and the Distributed send makes a Set or Delete visible to the next Get whatever the profile says.
 const insertDataString = `
-  INSERT INTO {table:Identifier} (key, value, expiration, version) SETTINGS wait_for_async_insert = 1
+  INSERT INTO {table:Identifier} (key, value, expiration, version) SETTINGS wait_for_async_insert = 1, insert_distributed_sync = 1
   VALUES ({key:String}, {value:String}, toDateTime({expiration:UInt32}), toUnixTimestamp64Nano(now64(9)))
 `
 
