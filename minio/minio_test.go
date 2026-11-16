@@ -2,11 +2,16 @@ package minio
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	miniogo "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/minio"
@@ -119,6 +124,78 @@ func Test_GetWithContext(t *testing.T) {
 	result, err := testStore.GetWithContext(ctx, key)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Zero(t, len(result))
+}
+
+func Test_Get_Result_Not_Overwritten(t *testing.T) {
+	var (
+		key1 = "john"
+		val1 = []byte("doe-doe-doe-doe")
+		key2 = "jane"
+		val2 = []byte("roe-roe-roe-roe")
+	)
+
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set(key1, val1, 0))
+	require.NoError(t, testStore.Set(key2, val2, 0))
+
+	// repeated because a pooled read buffer is not reused on every call
+	for range 20 {
+		result1, err := testStore.Get(key1)
+		require.NoError(t, err)
+
+		_, err = testStore.Get(key2)
+		require.NoError(t, err)
+		require.Equal(t, val1, result1)
+	}
+}
+
+func Test_Get_Read_Error(t *testing.T) {
+	t.Parallel()
+
+	handlers := map[string]http.HandlerFunc{
+		"checksum mismatch": func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("X-Amz-Checksum-Type", "FULL_OBJECT")
+			w.Header().Set("X-Amz-Checksum-Crc32", "AAAAAA==")
+			// the old minio.Object path skipped the check when the body filled its read buffer exactly
+			body := strings.Repeat("a", 4096)
+			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+			_, _ = w.Write([]byte(body))
+		},
+		"length beyond the body": func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", strconv.FormatInt(1<<50, 10))
+			_, _ = w.Write([]byte("abc"))
+		},
+		"body cut off without length": func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("abc"))
+			w.(http.Flusher).Flush()
+			panic(http.ErrAbortHandler)
+		},
+	}
+	for name, handler := range handlers {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
+				w.Header().Set("ETag", `"0"`)
+				handler(w, r)
+			}))
+			defer srv.Close()
+
+			client, err := miniogo.New(strings.TrimPrefix(srv.URL, "http://"), &miniogo.Options{
+				Creds:  credentials.NewStaticV4("key", "secret", ""),
+				Region: "us-east-1",
+			})
+			require.NoError(t, err)
+			store := &Storage{minio: client, cfg: Config{Bucket: "fiber", GetObjectOptions: miniogo.GetObjectOptions{Checksum: true}}}
+
+			val, err := store.Get("john")
+			require.Error(t, err)
+			require.Nil(t, val)
+		})
+	}
 }
 
 func Test_Get_Empty_Key(t *testing.T) {

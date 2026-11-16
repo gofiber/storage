@@ -13,7 +13,6 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.45.0
-	github.com/valyala/bytebufferpool v1.0.0
 )
 
 require (

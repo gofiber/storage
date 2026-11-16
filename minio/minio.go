@@ -11,7 +11,6 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/valyala/bytebufferpool"
 )
 
 // Storage interface that is implemented by storage providers
@@ -20,6 +19,9 @@ type Storage struct {
 	cfg   Config
 	mu    sync.Mutex
 }
+
+// maxPresize bounds how far Get trusts Content-Length for its up-front allocation.
+const maxPresize = 64 << 20
 
 // errBucketNotFound is returned by CheckBucketWithContext when the configured
 // bucket does not exist, as opposed to an operational error (auth, network,
@@ -103,22 +105,23 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errors.New("the key value is required")
 	}
 
-	// get object
-	object, err := s.minio.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
+	// Core returns the size with the body of the same GET, so the caller-owned value is allocated once.
+	body, info, _, err := minio.Core{Client: s.minio}.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err := object.Close(); err != nil {
+		if err := body.Close(); err != nil {
 			log.Printf("Error closing object: %v\n", err)
 		}
 	}()
 
-	// convert to byte
-	bb := bytebufferpool.Get()
-	defer bytebufferpool.Put(bb)
-	_, err = bb.ReadFrom(object)
-	if err != nil {
+	var bb bytes.Buffer
+	if info.Size > 0 && info.Size <= maxPresize {
+		// MinRead spare bytes take the final EOF read, which is where GetObjectOptions.Checksum is verified.
+		bb.Grow(int(info.Size) + bytes.MinRead)
+	}
+	if _, err := bb.ReadFrom(body); err != nil {
 		return nil, err
 	}
 	return bb.Bytes(), nil
