@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -806,6 +808,36 @@ func Test_Rueidis_Plain(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, val, "iteration %d: Get after Delete", i)
 		}
+	})
+
+	t.Run("Get_LeavesNoTrackingRecords", func(t *testing.T) {
+		testStore := New(plain)
+		defer testStore.Close()
+
+		// Only a cached read registers the key with the server's tracking table.
+		tracked := func() int {
+			info, err := testStore.Conn().Do(context.Background(), testStore.Conn().B().Info().Section("stats").Build()).ToString()
+			require.NoError(t, err)
+			for _, line := range strings.Split(info, "\r\n") {
+				if n, ok := strings.CutPrefix(line, "tracking_total_keys:"); ok {
+					keys, err := strconv.Atoi(n)
+					require.NoError(t, err)
+					return keys
+				}
+			}
+			t.Fatal("no tracking_total_keys in INFO stats")
+			return 0
+		}
+		before := tracked()
+		for i := range 50 {
+			key := "tracked-" + strconv.Itoa(i)
+			require.NoError(t, testStore.Set(key, []byte("doe"), 0))
+			_, err := testStore.Get(key)
+			require.NoError(t, err)
+			_, err = testStore.Get(key + "-missing")
+			require.NoError(t, err)
+		}
+		require.LessOrEqual(t, tracked(), before)
 	})
 
 	t.Run("Get_ReturnsCopy", func(t *testing.T) {

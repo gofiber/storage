@@ -4,6 +4,8 @@ import (
 	"context"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -570,6 +572,36 @@ func Test_Valkey_Get_ReadsOwnWrites(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, val, "iteration %d: Get after Delete", i)
 	}
+}
+
+func Test_Valkey_Get_LeavesNoTrackingRecords(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// Only a cached read registers the key with the server's tracking table.
+	tracked := func() int {
+		info, err := testStore.Conn().Do(context.Background(), testStore.Conn().B().Info().Section("stats").Build()).ToString()
+		require.NoError(t, err)
+		for _, line := range strings.Split(info, "\r\n") {
+			if n, ok := strings.CutPrefix(line, "tracking_total_keys:"); ok {
+				keys, err := strconv.Atoi(n)
+				require.NoError(t, err)
+				return keys
+			}
+		}
+		t.Fatal("no tracking_total_keys in INFO stats")
+		return 0
+	}
+	before := tracked()
+	for i := range 50 {
+		key := "tracked-" + strconv.Itoa(i)
+		require.NoError(t, testStore.Set(key, []byte("doe"), 0))
+		_, err := testStore.Get(key)
+		require.NoError(t, err)
+		_, err = testStore.Get(key + "-missing")
+		require.NoError(t, err)
+	}
+	require.LessOrEqual(t, tracked(), before)
 }
 
 func Test_Valkey_Get_ReturnsCopy(t *testing.T) {
