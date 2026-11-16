@@ -9,6 +9,8 @@ title: Azure Blob
 
 [Azure Blob storage](https://azure.microsoft.com/en-us/products/storage/blobs/#overview) is Microsoft's object storage solution for the cloud.
 
+**Note:** Azure Blob has no per-blob time to live, so the expiration passed to `Set` is stored in the blob metadata `exp` (Unix seconds, rounded up) and `Get` treats a blob past that deadline as missing. Expired blobs are not deleted by the driver: they are replaced by the next `Set` or removed by `Delete` or `Reset`. A [lifecycle management policy](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview) can reclaim them, but it only knows the blob age: count days since the last modification (each `Set` rewrites the blob), pick an age above your longest expiration, and note that it also removes entries stored without one. Blobs written by earlier versions carry no deadline and never expire; to drop them, clear the container (for example with `Reset`) once every instance runs this version.
+
 ### Table of Contents
 
 - [Signatures](#signatures)

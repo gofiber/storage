@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -16,6 +18,9 @@ type Storage struct {
 	container      string
 	requestTimeout time.Duration
 }
+
+// expMetadataKey is the blob metadata (x-ms-meta-exp) that holds an entry's deadline in Unix seconds.
+const expMetadataKey = "exp"
 
 // New creates a new storage using context.Background() for initialization.
 func New(config ...Config) *Storage {
@@ -86,8 +91,27 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 
 	resp, err := s.client.DownloadStream(ctx, s.container, key, nil)
 	if err != nil {
-		return []byte{}, err
+		if bloberror.HasCode(err, bloberror.BlobNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// blobs without a deadline, such as those written by older versions, never expire
+	var exp int64
+	for k, v := range resp.Metadata {
+		// the SDK reports metadata names in header case ("Exp")
+		if v != nil && strings.EqualFold(k, expMetadataKey) {
+			exp, _ = strconv.ParseInt(*v, 10, 64)
+		}
+	}
+	if exp != 0 && exp <= time.Now().Unix() {
+		// drain small bodies so the keep-alive connection is reused
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+		return nil, nil
+	}
+
 	data, err := io.ReadAll(resp.Body)
 	return data, err
 }
@@ -106,7 +130,21 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		return nil
 	}
 
-	_, err := s.client.UploadBuffer(ctx, s.container, key, val, nil)
+	var opts *azblob.UploadBufferOptions
+	if exp > 0 {
+		// Round the one-second deadline up: truncating expires early, and a sub-second expiration would be stored as past.
+		deadline := time.Now().Add(exp)
+		expireAt := deadline.Unix()
+		if deadline.Nanosecond() != 0 {
+			expireAt++
+		}
+		value := strconv.FormatInt(expireAt, 10)
+		opts = &azblob.UploadBufferOptions{
+			Metadata: map[string]*string{expMetadataKey: &value},
+		}
+	}
+
+	_, err := s.client.UploadBuffer(ctx, s.container, key, val, opts)
 	return err
 }
 
@@ -125,6 +163,9 @@ func (s *Storage) DeleteWithContext(ctx context.Context, key string) error {
 	}
 
 	_, err := s.client.DeleteBlob(ctx, s.container, key, nil)
+	if bloberror.HasCode(err, bloberror.BlobNotFound) {
+		return nil
+	}
 	return err
 }
 
@@ -150,7 +191,8 @@ func (s *Storage) ResetWithContext(ctx context.Context) error {
 
 		for _, v := range resp.Segment.BlobItems {
 			_, err = s.client.DeleteBlob(ctx, s.container, *v.Name, nil)
-			if err != nil {
+			// A blob deleted since it was listed is already gone.
+			if err != nil && !bloberror.HasCode(err, bloberror.BlobNotFound) {
 				return err
 			}
 		}
