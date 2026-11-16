@@ -39,7 +39,7 @@ func (s *Storage) Conn() *ristretto.Cache
 
 **Note:** `MaxCost` is a byte budget: each entry costs the length of its value plus `DefaultCost` (which used to be the entry's whole cost), and Ristretto charges another 56 bytes per entry, so a new entry close to or larger than `MaxCost` is never stored, and `Set` returns nil as for any dropped write. Ristretto's own bookkeeping takes roughly 150 more bytes per entry that are not charged, so a cache of very small values can use a few times `MaxCost`.
 
-**Note:** Overwriting an existing key stores the new value at any size without evicting anything, so values that grow on overwrite can take the cache past `MaxCost`. A later new key evicts entries only if Ristretto admits it, which it may refuse while the cached keys keep being read. Bound the size of values you overwrite, or keep growing values out of this storage.
+**Note:** Overwriting an existing key stores the new value at any size, even one larger than `MaxCost`, without evicting anything. While the cache is over `MaxCost`, each new key makes Ristretto evict some rarely read entries, and it drops the new key without an error once it samples entries read more often. This lasts until the grown entries expire or are deleted, so bound the size of values you overwrite, or keep growing values out of this storage.
 
 **Note:** Ristretto has no native context support, so the context methods run the operation to completion. They do honour a context that is already cancelled or past its deadline, returning the context error without touching the storage.
 

@@ -503,6 +503,7 @@ func Test_Ristretto_MaxCost_Bounds_Value_Bytes(t *testing.T) {
 func Test_Ristretto_ConfigDefault_Overrides(t *testing.T) {
 	// Invalid sizing falls back to defaults; explicit values are kept.
 	require.Equal(t, ConfigDefault, configDefault(Config{NumCounters: -1, MaxCost: -1, BufferItems: -1, DefaultCost: -1}))
+	require.Equal(t, ConfigDefault, configDefault(Config{}))
 
 	want := Config{NumCounters: 1000, MaxCost: 2000, BufferItems: 8, DefaultCost: 3}
 	require.Equal(t, want, configDefault(want))
