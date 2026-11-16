@@ -4,6 +4,8 @@ import (
 	"context"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -487,8 +489,8 @@ func Benchmark_Valkey_SetAndDelete(b *testing.B) {
 }
 
 func Test_Valkey_ConfigDefault_CacheTTL(t *testing.T) {
-	// An unset CacheTTL used to be forced to zero, disabling client-side caching.
-	require.Equal(t, ConfigDefault.CacheTTL, configDefault(Config{}).CacheTTL)
+	// Client-side caching is opt-in, since a cached Get can lag the storage's own writes.
+	require.Zero(t, configDefault(Config{}).CacheTTL)
 
 	// An explicit value is still honoured.
 	require.Equal(t, 5*time.Second, configDefault(Config{CacheTTL: 5 * time.Second}).CacheTTL)
@@ -548,4 +550,76 @@ func Test_Valkey_NewFromConnection_Nil(t *testing.T) {
 	require.Panics(t, func() {
 		NewFromConnection(nil)
 	})
+}
+
+func Test_Valkey_Get_ReadsOwnWrites(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// A cached Get raced the invalidation of the storage's own write, hence the loop.
+	for i := range 200 {
+		require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+		_, err := testStore.Get("john")
+		require.NoError(t, err)
+
+		require.NoError(t, testStore.Set("john", []byte("smith"), 0))
+		val, err := testStore.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("smith"), val, "iteration %d: Get after Set", i)
+
+		require.NoError(t, testStore.Delete("john"))
+		val, err = testStore.Get("john")
+		require.NoError(t, err)
+		require.Nil(t, val, "iteration %d: Get after Delete", i)
+	}
+}
+
+func Test_Valkey_Get_LeavesNoTrackingRecords(t *testing.T) {
+	testStore := newTestStore(t)
+	defer testStore.Close()
+
+	// Only a cached read registers the key with the server's tracking table.
+	tracked := func() int {
+		info, err := testStore.Conn().Do(context.Background(), testStore.Conn().B().Info().Section("stats").Build()).ToString()
+		require.NoError(t, err)
+		for _, line := range strings.Split(info, "\r\n") {
+			if n, ok := strings.CutPrefix(line, "tracking_total_keys:"); ok {
+				keys, err := strconv.Atoi(n)
+				require.NoError(t, err)
+				return keys
+			}
+		}
+		t.Fatal("no tracking_total_keys in INFO stats")
+		return 0
+	}
+	before := tracked()
+	for i := range 50 {
+		key := "tracked-" + strconv.Itoa(i)
+		require.NoError(t, testStore.Set(key, []byte("doe"), 0))
+		_, err := testStore.Get(key)
+		require.NoError(t, err)
+		_, err = testStore.Get(key + "-missing")
+		require.NoError(t, err)
+	}
+	require.LessOrEqual(t, tracked(), before)
+}
+
+func Test_Valkey_Get_ReturnsCopy(t *testing.T) {
+	base := newConfigFromContainer(t)
+
+	for _, ttl := range []time.Duration{0, time.Minute} {
+		cfg := base
+		cfg.CacheTTL = ttl
+		testStore := New(cfg)
+
+		require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+		val, err := testStore.Get("john")
+		require.NoError(t, err)
+		val[0] = 'X'
+
+		val, err = testStore.Get("john")
+		require.NoError(t, err)
+		require.Equal(t, []byte("doe"), val, "CacheTTL %v", ttl)
+		require.NoError(t, testStore.Close())
+	}
 }

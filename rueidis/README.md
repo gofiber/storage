@@ -196,9 +196,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
-	// CacheTTL TTL
+	// CacheTTL, when positive, serves Get from the client-side cache for up to this long. A cached Get can
+	// briefly return a value the storage's own write just replaced or deleted, and the server keeps a record of every
+	// key read this way, so leave it off for sessions, limiters and keys taken from requests.
 	//
-	// Optional. Default is time.Minute
+	// Optional. Default is 0 (Get always reads from the server)
 	CacheTTL time.Duration
 }
 ```
@@ -223,7 +225,7 @@ var ConfigDefault = Config{
 	AlwaysPipelining:        true,
 	DisableAlwaysPipelining: false,
 	Reset:                   false,
-	CacheTTL:                time.Minute,
+	CacheTTL:                0,
 }
 ```
 

@@ -1,6 +1,7 @@
 package valkey
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -138,9 +139,19 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	if len(key) <= 0 {
 		return nil, nil
 	}
-	val, err := s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), s.cacheTTL).AsBytes()
+	var res valkey.ValkeyResult
+	if s.cacheTTL > 0 {
+		res = s.db.DoCache(ctx, s.db.B().Get().Key(key).Cache(), s.cacheTTL)
+	} else {
+		res = s.db.Do(ctx, s.db.B().Get().Key(key).Build())
+	}
+	val, err := res.AsBytes()
 	if err != nil && valkey.IsValkeyNil(err) {
 		return nil, nil
+	}
+	if s.cacheTTL > 0 {
+		// The cached reply backs every later Get of the key, so callers get a copy.
+		val = bytes.Clone(val)
 	}
 	return val, err
 }

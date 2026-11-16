@@ -102,9 +102,11 @@ type Config struct {
 	// Optional. Default is false
 	Reset bool
 
-	// CacheTTL TTL
+	// CacheTTL, when positive, serves Get from the client-side cache for up to this long. A cached Get can
+	// briefly return a value the storage's own write just replaced or deleted, and the server keeps a record of every
+	// key read this way, so leave it off for sessions, limiters and keys taken from requests.
 	//
-	// Optional. Default is time.Minute
+	// Optional. Default is 0 (Get always reads from the server)
 	CacheTTL time.Duration
 }
 
@@ -128,7 +130,7 @@ var ConfigDefault = Config{
 	AlwaysPipelining:        true,
 	DisableAlwaysPipelining: false,
 	Reset:                   false,
-	CacheTTL:                time.Minute,
+	CacheTTL:                0,
 }
 
 // Helper function to set default values
@@ -183,9 +185,6 @@ func configDefault(config ...Config) Config {
 	if userConfig.PipelineMultiplex != 0 {
 		cfg.PipelineMultiplex = userConfig.PipelineMultiplex
 	}
-	// Only a positive value overrides: the check used to be "!= time.Second",
-	// so a caller who left CacheTTL unset had it forced to zero and lost
-	// client-side caching entirely.
 	if userConfig.CacheTTL > 0 {
 		cfg.CacheTTL = userConfig.CacheTTL
 	}
