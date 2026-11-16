@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -102,24 +103,25 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 		return nil, errors.New("the key value is required")
 	}
 
-	// get object
-	object, err := s.minio.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
+	// Core returns the object's size with the body of the same GET, so the caller-owned value is allocated once.
+	body, info, _, err := minio.Core{Client: s.minio}.GetObject(ctx, s.cfg.Bucket, key, s.cfg.GetObjectOptions)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if err := object.Close(); err != nil {
+		if err := body.Close(); err != nil {
 			log.Printf("Error closing object: %v\n", err)
 		}
 	}()
 
-	// convert to byte
-	var bb bytes.Buffer
-	_, err = bb.ReadFrom(object)
-	if err != nil {
+	if info.Size < 0 {
+		return io.ReadAll(body)
+	}
+	val := make([]byte, info.Size)
+	if _, err := io.ReadFull(body, val); err != nil {
 		return nil, err
 	}
-	return bb.Bytes(), nil
+	return val, nil
 }
 
 // Get value by key
