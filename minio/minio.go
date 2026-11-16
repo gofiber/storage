@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -124,6 +125,8 @@ func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error
 	// objects without a deadline, such as those written by older versions, never expire
 	exp, _ := strconv.ParseInt(info.Metadata.Get("X-Amz-Meta-"+expMetadataKey), 10, 64)
 	if exp != 0 && exp <= time.Now().Unix() {
+		// drain small bodies so the keep-alive connection is reused
+		_, _ = io.Copy(io.Discard, io.LimitReader(body, 64<<10))
 		return nil, nil
 	}
 

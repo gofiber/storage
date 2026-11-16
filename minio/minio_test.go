@@ -332,6 +332,15 @@ func Test_Set_Expiration(t *testing.T) {
 	result, err := testStore.Get("expired")
 	require.NoError(t, err)
 	require.Nil(t, result)
+
+	// truncating the deadline would store about half of these as already expired
+	for i := range 10 {
+		key := "short" + strconv.Itoa(i)
+		require.NoError(t, testStore.Set(key, []byte("v"), 500*time.Millisecond))
+		result, err := testStore.Get(key)
+		require.NoError(t, err)
+		require.Equal(t, []byte("v"), result, key)
+	}
 }
 
 func Test_Delete(t *testing.T) {
