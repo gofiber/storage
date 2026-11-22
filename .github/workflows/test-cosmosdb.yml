@@ -1,0 +1,52 @@
+on:
+  schedule:
+    # daily full sweep; the push trigger only covers the changed module
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "cosmosdb/**"
+      - ".github/workflows/test-cosmosdb.yml"
+  pull_request:
+    paths:
+      - "cosmosdb/**"
+      - ".github/workflows/test-cosmosdb.yml"
+name: "Tests Cosmos DB"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  Tests:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version:
+          - 1.26.x
+          - 1.27.x
+    steps:
+      - name: Fetch Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: "${{ matrix.go-version }}"
+          check-latest: true
+          cache-dependency-path: cosmosdb/go.sum
+      - name: Run Test
+        env:
+          TEST_COSMOSDB_IMAGE: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+        uses: gofiber/.github/.github/actions/gotestsum@main
+        with:
+          working-directory: ./cosmosdb
+          packages: ./...
+          rerun-fails: '2'
+          args: -race -count=1
