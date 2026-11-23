@@ -59,31 +59,44 @@ func NewWithContext(ctx context.Context, config ...Config) *Storage {
 		panic(err)
 	}
 
+	return newStorage(initCtx, container, cfg)
+}
+
+// NewFromConnection creates a new storage on an existing container client, using context.Background()
+// for the initialization operations.
+func NewFromConnection(container *azcosmos.ContainerClient, config ...Config) *Storage {
+	return NewFromConnectionWithContext(context.Background(), container, config...)
+}
+
+// NewFromConnectionWithContext creates a new storage on an existing container client, using ctx for the
+// initialization operations (optional reset). Only the RequestTimeout and Reset options are read; the
+// account, database and container come from the client. The container must use "/id" as its partition key path.
+func NewFromConnectionWithContext(ctx context.Context, container *azcosmos.ContainerClient, config ...Config) *Storage {
+	if container == nil {
+		panic("cosmosdb: nil container")
+	}
+
+	cfg := configDefault(config...)
+	initCtx, cancel := context.WithTimeout(ctx, cfg.RequestTimeout)
+	defer cancel()
+
+	return newStorage(initCtx, container, cfg)
+}
+
+// newStorage wraps container, clearing it first when Reset is set.
+func newStorage(ctx context.Context, container *azcosmos.ContainerClient, cfg Config) *Storage {
 	storage := &Storage{
 		container: container,
 		timeout:   cfg.RequestTimeout,
 	}
 
 	if cfg.Reset {
-		if err := storage.ResetWithContext(initCtx); err != nil {
+		if err := storage.ResetWithContext(ctx); err != nil {
 			panic(err)
 		}
 	}
 
 	return storage
-}
-
-// NewFromConnection creates a new Storage instance from an existing Cosmos DB container client.
-// The container must use "/id" as its partition key path.
-func NewFromConnection(container *azcosmos.ContainerClient) *Storage {
-	if container == nil {
-		panic("cosmosdb: nil container")
-	}
-
-	return &Storage{
-		container: container,
-		timeout:   ConfigDefault.RequestTimeout,
-	}
 }
 
 func newClient(cfg Config) (*azcosmos.Client, error) {
@@ -204,10 +217,12 @@ func (s *Storage) SetWithContext(ctx context.Context, key string, val []byte, ex
 		defer cancel()
 	}
 
+	// ttl -1 keeps the item even if the container has a default time to live
 	stored := item{
 		ID:    itemID(key),
 		Key:   key,
 		Value: val,
+		TTL:   -1,
 	}
 
 	if exp > 0 {
@@ -314,7 +329,8 @@ func itemID(key string) string {
 }
 
 func timeToLive(exp time.Duration) int32 {
-	seconds := math.Ceil(exp.Seconds())
+	// +1: _ts is truncated to whole seconds, so the server could otherwise remove the item early
+	seconds := math.Ceil(exp.Seconds()) + 1
 	if seconds > math.MaxInt32 {
 		return math.MaxInt32
 	}

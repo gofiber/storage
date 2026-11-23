@@ -9,7 +9,7 @@ title: Azure Cosmos DB
 
 An Azure Cosmos DB for NoSQL storage driver using [github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos](https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos).
 
-**Note:** `New` creates the database and container if they do not exist. A new container uses `/id` as its partition key and has time to live enabled, so Cosmos DB removes expired items itself. An expired item is never returned, also from a container without time to live, but there it is only removed by `Delete` or `Reset`.
+**Note:** `New` creates the database and container if they do not exist. A new container uses `/id` as its partition key and has time to live enabled, so Cosmos DB removes expired items itself. An existing container must also use `/id` as its partition key, otherwise stored items are not found. An expired item is never returned, also from a container without time to live, but there it is only removed by `Delete` or `Reset`.
 
 **Note:** Keys are stored as their SHA-256 hash in `id`, because Cosmos DB ids cannot contain `/`, `\`, `?` or `#` and are limited to 255 characters. The original key is kept in the `k` field.
 
@@ -26,7 +26,8 @@ An Azure Cosmos DB for NoSQL storage driver using [github.com/Azure/azure-sdk-fo
 ```go
 func New(config ...Config) *Storage
 func NewWithContext(ctx context.Context, config ...Config) *Storage
-func NewFromConnection(container *azcosmos.ContainerClient) *Storage
+func NewFromConnection(container *azcosmos.ContainerClient, config ...Config) *Storage
+func NewFromConnectionWithContext(ctx context.Context, container *azcosmos.ContainerClient, config ...Config) *Storage
 func (s *Storage) Get(key string) ([]byte, error)
 func (s *Storage) GetWithContext(ctx context.Context, key string) ([]byte, error)
 func (s *Storage) Set(key string, val []byte, exp time.Duration) error
@@ -89,10 +90,12 @@ store := cosmosdb.New(cosmosdb.Config{
 
 #### Using an Existing Cosmos DB Container
 
-If you already have a Cosmos DB client configured in your application, for example with Microsoft Entra ID credentials, you can create a Storage instance from one of its containers. The container must use `/id` as its partition key.
+If you already have a Cosmos DB client configured in your application, for example with Microsoft Entra ID credentials, you can create a Storage instance from one of its containers. The container must use `/id` as its partition key. Only the `RequestTimeout` and `Reset` options of `Config` are used.
 
 ```go
 import (
+	"time"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/gofiber/storage/cosmosdb"
@@ -111,7 +114,9 @@ if err != nil {
 	panic(err)
 }
 
-store := cosmosdb.NewFromConnection(container)
+store := cosmosdb.NewFromConnection(container, cosmosdb.Config{
+	RequestTimeout: 10 * time.Second,
+})
 defer store.Close()
 ```
 

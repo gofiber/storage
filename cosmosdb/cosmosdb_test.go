@@ -3,6 +3,7 @@ package cosmosdb
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -113,6 +114,10 @@ func createContainer(tb testing.TB, properties azcosmos.ContainerProperties) *az
 
 	container, err := database.NewContainer(properties.ID)
 	require.NoError(tb, err)
+	tb.Cleanup(func() {
+		_, err := container.Delete(context.Background(), nil)
+		require.NoError(tb, err)
+	})
 	return container
 }
 
@@ -255,6 +260,41 @@ func Test_CosmosDB_Set_Expiration_ContainerWithoutTTL(t *testing.T) {
 	id := itemID("john")
 	_, err = container.ReadItem(context.Background(), azcosmos.NewPartitionKeyString(id), id, nil)
 	require.NoError(t, err)
+}
+
+func Test_CosmosDB_Set_NoExpiration_ContainerWithDefaultTTL(t *testing.T) {
+	defaultTimeToLive := int32(1)
+	container := createContainer(t, azcosmos.ContainerProperties{
+		ID:                testContainerName(t),
+		DefaultTimeToLive: &defaultTimeToLive,
+		PartitionKeyDefinition: azcosmos.PartitionKeyDefinition{
+			Paths: []string{"/id"},
+		},
+	})
+	testStore := NewFromConnection(container)
+	defer testStore.Close()
+
+	require.NoError(t, testStore.Set("john", []byte("doe"), 0))
+	_, err := container.UpsertItem(context.Background(), azcosmos.NewPartitionKeyString("probe"), []byte(`{"id":"probe"}`), nil)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		_, err := container.ReadItem(context.Background(), azcosmos.NewPartitionKeyString("probe"), "probe", nil)
+		return hasStatus(err, http.StatusNotFound)
+	}, 15*time.Second, 250*time.Millisecond)
+
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Equal(t, []byte("doe"), result)
+}
+
+func Test_CosmosDB_timeToLive(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, int32(2), timeToLive(300*time.Millisecond))
+	require.Equal(t, int32(2), timeToLive(time.Second))
+	require.Equal(t, int32(3), timeToLive(1500*time.Millisecond))
+	require.Equal(t, int32(math.MaxInt32), timeToLive(time.Duration(math.MaxInt64)))
 }
 
 func Test_CosmosDB_Keys(t *testing.T) {
@@ -452,6 +492,29 @@ func Test_CosmosDB_NewFromConnection(t *testing.T) {
 	id := itemID("john")
 	_, err = container.ReadItem(context.Background(), azcosmos.NewPartitionKeyString(id), id, nil)
 	require.NoError(t, err)
+}
+
+func Test_CosmosDB_NewFromConnection_Config(t *testing.T) {
+	container := createContainer(t, azcosmos.ContainerProperties{
+		ID: testContainerName(t),
+		PartitionKeyDefinition: azcosmos.PartitionKeyDefinition{
+			Paths: []string{"/id"},
+		},
+	})
+	first := NewFromConnection(container)
+	require.NoError(t, first.Set("john", []byte("doe"), 0))
+	require.NoError(t, first.Close())
+
+	testStore := NewFromConnectionWithContext(context.Background(), container, Config{
+		RequestTimeout: 3 * time.Second,
+		Reset:          true,
+	})
+	defer testStore.Close()
+
+	require.Equal(t, 3*time.Second, testStore.timeout)
+	result, err := testStore.Get("john")
+	require.NoError(t, err)
+	require.Nil(t, result)
 }
 
 func Test_CosmosDB_NewFromConnection_NilPanics(t *testing.T) {
