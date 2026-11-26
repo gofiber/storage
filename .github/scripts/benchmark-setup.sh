@@ -36,6 +36,7 @@ TEST_AZURITE_IMAGE=mcr.microsoft.com/azure-storage/azurite:latest
 TEST_CASSANDRA_IMAGE=public.ecr.aws/docker/library/cassandra:latest
 TEST_CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:26.7-alpine
 TEST_COCKROACHDB_IMAGE=cockroachdb/cockroach:latest-v26.2
+TEST_COSMOSDB_IMAGE=mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
 TEST_COUCHBASE_IMAGE=public.ecr.aws/docker/library/couchbase:enterprise-8.0.2
 TEST_DYNAMODB_IMAGE=public.ecr.aws/aws-dynamodb-local/aws-dynamodb-local:latest
 TEST_ETCD_IMAGE=gcr.io/etcd-development/etcd:v3.7.1
